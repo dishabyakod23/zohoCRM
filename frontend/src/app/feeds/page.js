@@ -7,7 +7,7 @@ export default function FeedsPage() {
   const feeds = [
     { user: 'Disha Rao', action: 'closed deal', record: 'Byju\'s Platform Deal', time: '2 hours ago' },
     { user: 'Sales Manager', action: 'created lead', record: 'Rohit Sharma - Zepto', time: '5 hours ago' },
-    { user: user?.name, action: 'completed task', record: 'Follow up with TCS', time: '1 day ago' },
+    { user: user?.name || 'You', action: 'completed task', record: 'Follow up with TCS', time: '1 day ago' },
     { user: 'Sales Rep', action: 'logged call', record: 'Discovery call - Zepto', time: '1 day ago' },
   ];
 
