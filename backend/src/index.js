@@ -7,7 +7,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3003'], credentials: true }));
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:3003'];
+if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '6mb' }));
 
 // Routes
