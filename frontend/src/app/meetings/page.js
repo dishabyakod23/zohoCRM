@@ -5,7 +5,7 @@ import Modal from '../../components/ui/Modal.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
-import api from '../../lib/api.js';
+import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
 import { validateRequired } from '../../lib/validators.js';
 
 const EMPTY = { title: '', from_datetime: '', to_datetime: '', host_id: '', location: '', description: '' };
@@ -15,31 +15,38 @@ export default function MeetingsPage() {
   const { showToast } = useToast();
   const [items, setItems] = useState([]);
   const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const fetch = useCallback(() => api.get('/meetings').then(r => setItems(r.data.data)), []);
-  useEffect(() => { fetch(); api.get('/users').then(r => setUsers(r.data)); }, [fetch]);
+  const fetch = useCallback(() => {
+    setLoading(false);
+    setItems([]);
+  }, []);
+
+  useEffect(() => { fetch(); }, [fetch]);
 
   const save = async () => {
     const errs = validateRequired(REQUIRED, form);
     setErrors(errs);
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
-    if (editing) await api.put(`/meetings/${editing}`, form);
-    else await api.post('/meetings', form);
-    setModal(false); fetch(); showToast('Meeting saved', 'success');
+    showToast('Meetings is not available on the Sales CRM API yet');
   };
 
   return (
     <CRMLayout>
       <div className="p-6">
+        <ApiPendingBanner module="Meetings" />
         <div className="flex justify-between mb-5"><h1 className="text-xl font-bold">Meetings</h1><button onClick={() => { setForm(EMPTY); setEditing(null); setModal(true); }} className="btn-primary">+ Create Meeting</button></div>
         <div className="card overflow-x-auto">
           <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Title</th><th className="table-th">From</th><th className="table-th">To</th><th className="table-th">Host</th><th className="table-th">Location</th><th className="table-th">Actions</th></tr></thead>
-            <tbody className="divide-y">{items.map(m => (
+            <tbody className="divide-y">
+              {loading ? <tr><td colSpan={6} className="table-td text-center py-8">Loading...</td></tr>
+              : items.length === 0 ? <tr><td colSpan={6} className="table-td text-center py-8 text-gray-400">No meetings found</td></tr>
+              : items.map(m => (
               <tr key={m.id} className="hover:bg-gray-50 group">
                 <td className="table-td font-medium">{m.title}</td>
                 <td className="table-td">{new Date(m.from_datetime).toLocaleString()}</td>
@@ -66,7 +73,7 @@ export default function MeetingsPage() {
         <div className="flex gap-2 justify-end mt-4"><button onClick={() => setModal(false)} className="btn-secondary">Cancel</button><button onClick={save} className="btn-primary">Save</button></div>
       </Modal>}
       <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.title}?`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { await api.delete(`/meetings/${deleteTarget.id}`); setDeleteTarget(null); fetch(); }} onCancel={() => setDeleteTarget(null)} />
+        onConfirm={() => { setDeleteTarget(null); showToast('Meetings is not available on the Sales CRM API yet'); }} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }

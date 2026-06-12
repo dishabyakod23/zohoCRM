@@ -6,7 +6,7 @@ import Modal from '../../components/ui/Modal.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
-import api from '../../lib/api.js';
+import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
 import { validateRequired } from '../../lib/validators.js';
 
 const INDUSTRIES = ['IT Services', 'E-Commerce', 'Automotive', 'EdTech', 'FinTech', 'Healthcare', 'Manufacturing', 'Retail', 'Other'];
@@ -27,12 +27,10 @@ export default function AccountsPage() {
   const [saving, setSaving] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/accounts', { params: { page, limit: 15, ...(search && { search }) } });
-      setAccounts(res.data.data); setTotal(res.data.total);
-    } finally { setLoading(false); }
-  }, [page, search]);
+    setLoading(false);
+    setAccounts([]);
+    setTotal(0);
+  }, []);
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
@@ -44,11 +42,8 @@ export default function AccountsPage() {
     setErrors(errs);
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
     setSaving(true);
-    try {
-      if (editing) await api.put(`/accounts/${editing}`, form);
-      else await api.post('/accounts', form);
-      setModal(false); fetchAccounts(); showToast('Account saved', 'success');
-    } finally { setSaving(false); }
+    showToast('Accounts is not available on the Sales CRM API yet');
+    setSaving(false);
   };
 
   const totalPages = Math.ceil(total / 15);
@@ -56,6 +51,7 @@ export default function AccountsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
+        <ApiPendingBanner module="Accounts" />
         <div className="flex items-center justify-between mb-5">
           <div><h1 className="text-xl font-bold text-gray-900">Accounts</h1><p className="text-xs text-gray-500">{total} accounts</p></div>
           <button onClick={openCreate} className="btn-primary">+ New account</button>
@@ -143,7 +139,7 @@ export default function AccountsPage() {
       )}
 
       <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.name}? This action cannot be undone.`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { await api.delete(`/accounts/${deleteTarget.id}`); setDeleteTarget(null); fetchAccounts(); showToast('Account moved to recycle bin', 'success'); }} onCancel={() => setDeleteTarget(null)} />
+        onConfirm={() => { setDeleteTarget(null); showToast('Accounts is not available on the Sales CRM API yet'); }} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }

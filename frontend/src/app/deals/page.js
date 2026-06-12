@@ -7,7 +7,7 @@ import Badge from '../../components/ui/Badge.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
-import api from '../../lib/api.js';
+import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
 import { DEAL_STAGES } from '../../lib/constants.js';
 import { validateRequired, validatePastDate } from '../../lib/validators.js';
 
@@ -30,14 +30,12 @@ export default function DealsPage() {
   const [dragDeal, setDragDeal] = useState(null);
 
   const fetchDeals = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/deals', { params: { limit: 100, search } });
-      setDeals(res.data.data); setTotal(res.data.total);
-    } finally { setLoading(false); }
-  }, [search]);
+    setLoading(false);
+    setDeals([]);
+    setTotal(0);
+  }, []);
 
-  useEffect(() => { fetchDeals(); api.get('/accounts', { params: { limit: 100 } }).then(r => setAccounts(r.data.data)); }, [fetchDeals]);
+  useEffect(() => { fetchDeals(); }, [fetchDeals]);
 
   const handleSave = async () => {
     const errs = validateRequired({ name: 'Deal Name', account_id: 'Account Name', close_date: 'Closing Date', stage: 'Stage', amount: 'Amount' }, form);
@@ -45,14 +43,12 @@ export default function DealsPage() {
     if (dateErr) errs.close_date = dateErr;
     setErrors(errs);
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
-    if (editing) await api.put(`/deals/${editing}`, form);
-    else await api.post('/deals', form);
-    setModal(false); fetchDeals(); showToast('Deal saved', 'success');
+    showToast('Deals is not available on the Sales CRM API yet');
   };
 
   const confirmStageMove = async () => {
-    await api.patch(`/deals/${stageMove.deal.id}/stage`, { stage: stageMove.newStage });
-    setStageMove(null); fetchDeals(); showToast('Deal stage updated', 'success');
+    setStageMove(null);
+    showToast('Deals is not available on the Sales CRM API yet');
   };
 
   const fmt = (n) => n ? `₹${(n/100000).toFixed(1)}L` : '—';
@@ -61,6 +57,7 @@ export default function DealsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
+        <ApiPendingBanner module="Deals" />
         <div className="flex items-center justify-between mb-5">
           <div><h1 className="text-xl font-bold">Deals</h1><p className="text-xs text-gray-500">{total} deals</p></div>
           <div className="flex gap-2">
@@ -145,7 +142,7 @@ export default function DealsPage() {
       )}
 
       <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.name}? This action cannot be undone.`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { await api.delete(`/deals/${deleteTarget.id}`); setDeleteTarget(null); fetchDeals(); }} onCancel={() => setDeleteTarget(null)} />
+        onConfirm={() => { setDeleteTarget(null); showToast('Deals is not available on the Sales CRM API yet'); }} onCancel={() => setDeleteTarget(null)} />
       <ConfirmDialog open={!!stageMove} message={`Move ${stageMove?.deal?.name} to ${stageMove?.newStage}?`} confirmLabel="Move" onConfirm={confirmStageMove} onCancel={() => setStageMove(null)} />
     </CRMLayout>
   );

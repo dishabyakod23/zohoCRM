@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import Modal from '../ui/Modal.js';
-import api from '../../lib/api.js';
 import { useToast } from '../ui/Toast.js';
 
 export default function BulkUpload({ endpoint, onDone, templateHeaders }) {
@@ -20,18 +19,13 @@ export default function BulkUpload({ endpoint, onDone, templateHeaders }) {
   };
 
   const validate = async () => {
-    const res = await api.post(`${endpoint}/bulk-upload`, { csv });
-    setPreview(res.data);
+    showToast('Bulk upload is not available on the Sales CRM API yet');
   };
 
   const importRecords = async () => {
     setImporting(true);
-    try {
-      await api.post(`${endpoint}/bulk-import`, { records: preview.readyRecords });
-      showToast(`Imported ${preview.ready} records`, 'success');
-      setOpen(false); setCsv(''); setPreview(null); onDone?.();
-    } catch { showToast('Import failed'); }
-    finally { setImporting(false); }
+    showToast('Bulk upload is not available on the Sales CRM API yet');
+    setImporting(false);
   };
 
   const downloadTemplate = () => {

@@ -6,7 +6,7 @@ import Badge from '../../components/ui/Badge.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
-import api from '../../lib/api.js';
+import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
 import { TASK_STATUSES, TASK_PRIORITIES } from '../../lib/constants.js';
 import { validateRequired, validatePastDate } from '../../lib/validators.js';
 
@@ -28,14 +28,12 @@ export default function TasksPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const fetchTasks = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/tasks', { params: { page, limit: 15, search } });
-      setTasks(res.data.data); setTotal(res.data.total);
-    } finally { setLoading(false); }
-  }, [page, search]);
+    setLoading(false);
+    setTasks([]);
+    setTotal(0);
+  }, []);
 
-  useEffect(() => { fetchTasks(); api.get('/users').then(r => setUsers(r.data)); }, [fetchTasks]);
+  useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
   const handleSave = async () => {
     const errs = validateRequired(REQUIRED, form);
@@ -43,16 +41,13 @@ export default function TasksPage() {
     if (dateErr) errs.due_date = dateErr;
     setErrors(errs);
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
-    try {
-      if (editing) await api.put(`/tasks/${editing}`, form);
-      else await api.post('/tasks', form);
-      setModal(false); fetchTasks(); showToast('Task saved', 'success');
-    } catch { showToast('Failed to save'); }
+    showToast('Tasks is not available on the Sales CRM API yet');
   };
 
   return (
     <CRMLayout>
       <div className="p-6">
+        <ApiPendingBanner module="Tasks" />
         <div className="flex items-center justify-between mb-5">
           <h1 className="text-xl font-bold">Tasks</h1>
           <button onClick={() => { setForm(EMPTY); setEditing(null); setModal(true); }} className="btn-primary">+ Create Task</button>
@@ -107,7 +102,7 @@ export default function TasksPage() {
       )}
 
       <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.title}? This action cannot be undone.`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { await api.delete(`/tasks/${deleteTarget.id}`); setDeleteTarget(null); fetchTasks(); }} onCancel={() => setDeleteTarget(null)} />
+        onConfirm={() => { setDeleteTarget(null); showToast('Tasks is not available on the Sales CRM API yet'); }} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }

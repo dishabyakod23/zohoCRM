@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
-import api from '../../lib/api.js';
+import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
+import * as leadsApi from '../../lib/services/leads.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { QUICK_CREATE } from '../../lib/constants.js';
 import {
@@ -47,7 +48,20 @@ export default function DashboardPage() {
   const [homeView, setHomeView] = useState('Classic View');
 
   useEffect(() => {
-    api.get('/dashboard/stats').then(r => { setStats(r.data); setLoading(false); }).catch(() => setLoading(false));
+    leadsApi.listLeads({ page: 1, page_size: 1 }).then(r => {
+      setStats({
+        leads: { total: r.total, this_month: 0 },
+        deals: { open_deals: 0, total_deals: 0, open_value: 0, pipeline_value: 0 },
+        tasksDueToday: 0,
+        tasksOverdue: 0,
+        dealsClosingMonth: { count: 0, value: 0 },
+        pipeline: [],
+        leadsByStatus: [],
+        recentActivities: [],
+        topAccounts: [],
+      });
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   const fmt = (n) => n ? `₹${(n / 100000).toFixed(1)}L` : '₹0';
@@ -55,6 +69,7 @@ export default function DashboardPage() {
   return (
     <CRMLayout>
       <div className="p-4">
+        <ApiPendingBanner module="Dashboard analytics" />
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-zoho-text">

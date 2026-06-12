@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import api from '../../lib/api.js';
 import StickyNote, { isStickyNotePinned } from './StickyNote.js';
 
 const ICONS = {
@@ -70,15 +69,6 @@ export default function BottomUtilityBar() {
     if (a11yStored) setA11y(JSON.parse(a11yStored));
     if (isStickyNotePinned()) setStickyNoteOpen(true);
   }, []);
-
-  const loadReminders = () => {
-    api.get('/tasks', { params: { limit: 20 } }).then(r => {
-      const tasks = r.data.data.filter(t => t.status !== 'Completed');
-      setReminders(tasks.slice(0, 8));
-    }).catch(() => setReminders([]));
-  };
-
-  useEffect(() => { loadReminders(); }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle('crm-large-text', a11y.largeText);
@@ -227,7 +217,7 @@ export default function BottomUtilityBar() {
         <Panel title="Help" onClose={() => setActive(null)} wide>
           <div className="space-y-3 text-sm">
             <a href="https://www.zoho.com/crm/help/" target="_blank" rel="noreferrer" className="block p-3 rounded-xl border border-zoho-border hover:bg-brand-50 hover:border-brand-200 text-brand-600 transition-colors font-medium">
-              Zoho CRM Help Documentation →
+              CRM Help Documentation →
             </a>
             <div className="p-3 rounded-xl bg-brand-50/40 border border-zoho-border">
               <p className="font-medium mb-2">Quick Tips</p>
@@ -239,7 +229,7 @@ export default function BottomUtilityBar() {
                 <li>Deleted records go to Recycle Bin for 30 days</li>
               </ul>
             </div>
-            <p className="text-xs text-zoho-muted">Demo: disha@demo.com / demo1234</p>
+            <p className="text-xs text-zoho-muted">API: api-salescrm.duckdns.org</p>
           </div>
         </Panel>
       )}

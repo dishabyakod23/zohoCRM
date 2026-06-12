@@ -7,7 +7,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import BulkUpload from '../../components/records/BulkUpload.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
-import api from '../../lib/api.js';
+import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
 import { validateRequired } from '../../lib/validators.js';
 
 const EMPTY = { first_name: '', last_name: '', email: '', phone: '', account_id: '', title: '' };
@@ -28,14 +28,12 @@ export default function ContactsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const fetchContacts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/contacts', { params: { page, limit: 15, ...(search && { search }) } });
-      setContacts(res.data.data); setTotal(res.data.total);
-    } finally { setLoading(false); }
-  }, [page, search]);
+    setLoading(false);
+    setContacts([]);
+    setTotal(0);
+  }, []);
 
-  useEffect(() => { fetchContacts(); api.get('/accounts', { params: { limit: 100 } }).then(r => setAccounts(r.data.data)); }, [fetchContacts]);
+  useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
   const openCreate = () => { setForm(EMPTY); setEditing(null); setModal(true); };
   const openEdit = (c) => { setForm({ ...c }); setEditing(c.id); setModal(true); };
@@ -45,11 +43,8 @@ export default function ContactsPage() {
     setErrors(errs);
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
     setSaving(true);
-    try {
-      if (editing) await api.put(`/contacts/${editing}`, form);
-      else await api.post('/contacts', form);
-      setModal(false); fetchContacts(); showToast('Contact saved', 'success');
-    } finally { setSaving(false); }
+    showToast('Contacts API is not available on the Sales CRM API yet');
+    setSaving(false);
   };
 
   const initials = (c) => `${c.first_name?.[0] || ''}${c.last_name?.[0] || ''}`.toUpperCase();
@@ -58,6 +53,7 @@ export default function ContactsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
+        <ApiPendingBanner module="Contacts" />
         <div className="flex items-center justify-between mb-5">
           <div><h1 className="text-xl font-bold text-gray-900">Contacts</h1><p className="text-xs text-gray-500">{total} contacts</p></div>
           <div className="flex gap-2">
@@ -147,7 +143,7 @@ export default function ContactsPage() {
       )}
 
       <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.first_name} ${deleteTarget?.last_name}? This action cannot be undone.`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { await api.delete(`/contacts/${deleteTarget.id}`); setDeleteTarget(null); fetchContacts(); }} onCancel={() => setDeleteTarget(null)} />
+        onConfirm={() => { setDeleteTarget(null); showToast('Contacts is not available on the Sales CRM API yet'); }} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }

@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { userDisplayName } from '../../lib/userHelpers.js';
 
 const SETUP_CATEGORIES = [
   {
@@ -45,12 +46,12 @@ export default function SettingsPage() {
     <CRMLayout>
       <div className="p-6">
         <h1 className="text-lg font-semibold text-zoho-text mb-1">Setup</h1>
-        <p className="text-sm text-zoho-muted mb-6">Configure your CRM — organized like Zoho CRM Setup Homepage</p>
+        <p className="text-sm text-zoho-muted mb-6">Configure your CRM and manage system preferences</p>
 
         <div className="card p-5 mb-6">
           <h2 className="text-sm font-semibold mb-3">My Profile</h2>
           <dl className="grid grid-cols-3 gap-4 text-sm">
-            <div><dt className="text-zoho-muted text-xs">Name</dt><dd className="font-medium">{user?.name}</dd></div>
+            <div><dt className="text-zoho-muted text-xs">Name</dt><dd className="font-medium">{userDisplayName(user)}</dd></div>
             <div><dt className="text-zoho-muted text-xs">Email</dt><dd>{user?.email}</dd></div>
             <div><dt className="text-zoho-muted text-xs">Role</dt><dd className="capitalize text-brand-600">{user?.role?.replace('_', ' ')}</dd></div>
           </dl>

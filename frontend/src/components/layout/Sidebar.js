@@ -16,12 +16,12 @@ export default function Sidebar() {
   const isActive = (href) => pathname === href || pathname.startsWith(href + '/');
 
   return (
-    <aside className={`${collapsed ? 'w-16' : 'w-60'} bg-sidebar-gradient flex flex-col h-screen sticky top-0 shrink-0 transition-all duration-300 shadow-2xl z-40`}>
+    <aside className={`${collapsed ? 'w-16' : 'w-60'} bg-sidebar-gradient flex flex-col h-screen sticky top-0 shrink-0 transition-all duration-300 shadow-lg z-40`}>
       <div className="px-3 py-3.5 flex items-center gap-2.5 border-b border-white/10">
-        <div className="w-9 h-9 bg-brand-gradient rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0 shadow-glow">Z</div>
+        <div className="w-9 h-9 bg-brand-gradient rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0 shadow-glow">C</div>
         {!collapsed && (
           <div className="min-w-0">
-            <span className="font-bold text-white text-sm block truncate tracking-tight">Zoho CRM</span>
+            <span className="font-bold text-white text-sm block truncate tracking-tight">CRM</span>
             <span className="text-[10px] text-white/50">CRM Standard</span>
           </div>
         )}

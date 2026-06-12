@@ -7,7 +7,7 @@ import Badge from '../../components/ui/Badge.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
-import api from '../../lib/api.js';
+import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
 import { CAMPAIGN_TYPES, CAMPAIGN_STATUSES } from '../../lib/constants.js';
 import { validateRequired } from '../../lib/validators.js';
 
@@ -16,31 +16,38 @@ const EMPTY = { name: '', type: '', status: 'Planning', start_date: '', end_date
 export default function CampaignsPage() {
   const { showToast } = useToast();
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const fetch = useCallback(() => api.get('/campaigns').then(r => setItems(r.data.data)), []);
+  const fetch = useCallback(() => {
+    setLoading(false);
+    setItems([]);
+  }, []);
+
   useEffect(() => { fetch(); }, [fetch]);
 
   const save = async () => {
     const errs = validateRequired({ name: 'Campaign Name', type: 'Campaign Type', status: 'Status', start_date: 'Start Date', end_date: 'End Date' }, form);
     setErrors(errs);
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
-    if (editing) await api.put(`/campaigns/${editing}`, form);
-    else await api.post('/campaigns', form);
-    setModal(false); fetch(); showToast('Campaign saved', 'success');
+    showToast('Campaigns is not available on the Sales CRM API yet');
   };
 
   return (
     <CRMLayout>
       <div className="p-6">
+        <ApiPendingBanner module="Campaigns" />
         <div className="flex justify-between mb-5"><h1 className="text-xl font-bold">Campaigns</h1><button onClick={() => { setForm(EMPTY); setEditing(null); setModal(true); }} className="btn-primary">+ Create Campaign</button></div>
         <div className="card overflow-x-auto">
           <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Name</th><th className="table-th">Type</th><th className="table-th">Status</th><th className="table-th">Dates</th><th className="table-th">Members</th><th className="table-th">Actions</th></tr></thead>
-            <tbody className="divide-y">{items.map(c => (
+            <tbody className="divide-y">
+              {loading ? <tr><td colSpan={6} className="table-td text-center py-8">Loading...</td></tr>
+              : items.length === 0 ? <tr><td colSpan={6} className="table-td text-center py-8 text-gray-400">No campaigns found</td></tr>
+              : items.map(c => (
               <tr key={c.id} className="hover:bg-gray-50 group">
                 <td className="table-td font-medium"><Link href={`/campaigns/${c.id}`} className="text-brand-600 hover:underline">{c.name}</Link></td>
                 <td className="table-td">{c.type}</td><td className="table-td"><Badge label={c.status} /></td>
@@ -66,7 +73,7 @@ export default function CampaignsPage() {
         <div className="flex gap-2 justify-end mt-4"><button onClick={() => setModal(false)} className="btn-secondary">Cancel</button><button onClick={save} className="btn-primary">Save</button></div>
       </Modal>}
       <ConfirmDialog open={!!deleteTarget} message={`Deleting this Campaign will remove it from ${deleteTarget?.member_count || 0} linked leads and contacts. Proceed?`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { await api.delete(`/campaigns/${deleteTarget.id}`); setDeleteTarget(null); fetch(); }} onCancel={() => setDeleteTarget(null)} />
+        onConfirm={() => { setDeleteTarget(null); showToast('Campaigns is not available on the Sales CRM API yet'); }} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }

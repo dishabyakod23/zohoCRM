@@ -1,10 +1,11 @@
 'use client';
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth.js';
+import { getApiError } from '../../lib/api.js';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [form, setForm] = useState({ email: 'disha@demo.com', password: 'demo1234' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -14,7 +15,7 @@ export default function LoginPage() {
     try {
       await login(form.email, form.password);
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(getApiError(err));
     } finally {
       setLoading(false);
     }
@@ -27,8 +28,8 @@ export default function LoginPage() {
 
       <div className="relative bg-white/95 backdrop-blur rounded-2xl shadow-card-hover w-full max-w-md p-8 animate-scaleIn">
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-9 h-9 bg-brand-gradient rounded-xl flex items-center justify-center text-white font-bold shadow-glow">Z</div>
-          <span className="text-xl font-bold text-gray-900">Zoho CRM</span>
+          <div className="w-9 h-9 bg-brand-gradient rounded-xl flex items-center justify-center text-white font-bold shadow-glow">C</div>
+          <span className="text-xl font-bold text-gray-900">CRM</span>
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h1>
         <p className="text-gray-500 text-sm mb-6">Sign in to your CRM account</p>
@@ -52,7 +53,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-4 text-center text-xs text-gray-400">
-          Demo: disha@demo.com / demo1234
+          Sign in with your Sales CRM account credentials
         </p>
       </div>
     </div>

@@ -15,7 +15,7 @@ export default function FeedsPage() {
     <CRMLayout>
       <div className="p-6 max-w-3xl">
         <h1 className="text-lg font-semibold mb-4">Feeds</h1>
-        <p className="text-sm text-zoho-muted mb-6">Stay updated on your team's CRM activity — like Zoho CRM Feeds.</p>
+        <p className="text-sm text-zoho-muted mb-6">Stay updated on your team's CRM activity.</p>
         <div className="space-y-3">
           {feeds.map((f, i) => (
             <div key={i} className="card p-4 flex gap-3">

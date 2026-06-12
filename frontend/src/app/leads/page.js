@@ -1,24 +1,23 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
-import BulkUpload from '../../components/records/BulkUpload.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
-import api from '../../lib/api.js';
+import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
 import { LEAD_STATUSES, LEAD_SOURCES, LIST_VIEWS } from '../../lib/constants.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
+import { leadStatusToApi } from '../../lib/leadHelpers.js';
+import * as leadsApi from '../../lib/services/leads.js';
 
 const EMPTY = { first_name: '', last_name: '', email: '', phone: '', company: '', source: '', status: 'Not Contacted', industry: '', title: '' };
 const REQUIRED = { last_name: 'Last Name', company: 'Company', email: 'Email', phone: 'Phone', status: 'Lead Status' };
 
 export default function LeadsPage() {
-  const router = useRouter();
   const { showToast } = useToast();
   const [leads, setLeads] = useState([]);
   const [total, setTotal] = useState(0);
@@ -40,11 +39,20 @@ export default function LeadsPage() {
   const fetchLeads = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { page, limit, ...(search && { search }), ...(statusFilter && { status: statusFilter }) };
-      const res = await api.get('/leads', { params });
-      setLeads(res.data.data); setTotal(res.data.total);
-    } finally { setLoading(false); }
-  }, [page, limit, search, statusFilter]);
+      const result = await leadsApi.listLeads({
+        page,
+        page_size: limit,
+        search: search || undefined,
+        lead_status: statusFilter ? leadStatusToApi(statusFilter) : undefined,
+      });
+      setLeads(result.data);
+      setTotal(result.total);
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [page, limit, search, statusFilter, showToast]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -67,29 +75,43 @@ export default function LeadsPage() {
     if (!validate()) return;
     setSaving(true);
     try {
-      if (editing) await api.put(`/leads/${editing}`, form);
-      else await api.post('/leads', form);
-      setModal(false); fetchLeads();
+      if (editing) await leadsApi.updateLead(editing, form);
+      else await leadsApi.createLead(form);
+      setModal(false);
+      fetchLeads();
       showToast('Lead saved', 'success');
     } catch (err) {
-      if (err.response?.status === 409) showToast(err.response.data.error);
-      else showToast('Failed to save lead');
-    } finally { setSaving(false); }
+      showToast(getApiError(err));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
-    await api.delete(`/leads/${deleteTarget.id}`);
-    setDeleteTarget(null); fetchLeads();
-    showToast('Lead moved to recycle bin', 'success');
+    try {
+      await leadsApi.deleteLead(deleteTarget.id);
+      setDeleteTarget(null);
+      fetchLeads();
+      showToast('Lead deleted', 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    }
   };
 
   const handleBulkDelete = async () => {
-    await api.post('/leads/bulk-delete', { ids: selected });
-    setBulkDelete(false); setSelected([]); fetchLeads();
+    try {
+      const result = await leadsApi.bulkDeleteLeads(selected);
+      setBulkDelete(false);
+      setSelected([]);
+      fetchLeads();
+      showToast(`Deleted ${result.success_count} lead(s)`, 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    }
   };
 
   const toggleSelect = (id) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
-  const totalPages = Math.ceil(total / limit);
+  const totalPages = Math.ceil(total / limit) || 1;
 
   return (
     <CRMLayout>
@@ -104,7 +126,6 @@ export default function LeadsPage() {
           onSearch={v => { setSearch(v); setPage(1); }}
           onCreate={() => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); }}
           createLabel="+ Create Lead"
-          extraActions={<BulkUpload endpoint="/leads" onDone={fetchLeads} templateHeaders={['first_name','last_name','company','email','phone','source','status']} />}
         >
           <select className="input w-40 text-xs" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
             <option value="">All statuses</option>
@@ -155,7 +176,7 @@ export default function LeadsPage() {
                     <td className="table-td">{lead.owner_name || '—'}</td>
                     <td className="table-td">
                       <div className="flex gap-3">
-                        <button onClick={() => { setForm({ ...lead }); setEditing(lead.id); setModal(true); }} className="text-xs text-blue-600 hover:underline">Edit</button>
+                        <button onClick={() => { setForm({ ...lead, status: lead.status, source: lead.source }); setEditing(lead.id); setModal(true); }} className="text-xs text-blue-600 hover:underline">Edit</button>
                         <button onClick={() => setDeleteTarget(lead)} className="text-xs text-red-500 hover:underline">Delete</button>
                       </div>
                     </td>
@@ -166,7 +187,7 @@ export default function LeadsPage() {
           </div>
 
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-xs text-gray-500">{((page-1)*limit)+1}-{Math.min(page*limit, total)} of {total}</p>
+            <p className="text-xs text-gray-500">{total ? `${((page - 1) * limit) + 1}-${Math.min(page * limit, total)} of ${total}` : '0 records'}</p>
             <div className="flex gap-2">
               <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="btn-secondary text-xs py-1">← Prev</button>
               <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages} className="btn-secondary text-xs py-1">Next →</button>
@@ -183,7 +204,7 @@ export default function LeadsPage() {
             <FormField label="Email" required error={errors.email} name="email"><input className={inputClass(errors.email)} type="email" value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setErrors(er => ({ ...er, email: null })); }} /></FormField>
             <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); setErrors(er => ({ ...er, phone: null })); }} /></FormField>
             <FormField label="Company" required error={errors.company} name="company"><input className={inputClass(errors.company)} value={form.company} onChange={e => { setForm(p => ({ ...p, company: e.target.value })); setErrors(er => ({ ...er, company: null })); }} /></FormField>
-            <FormField label="Lead Source"><select className="input" value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))}><option value="">Select</option>{LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}</select></FormField>
+            <FormField label="Lead Source"><select className="input" value={form.source || ''} onChange={e => setForm(p => ({ ...p, source: e.target.value }))}><option value="">Select</option>{LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}</select></FormField>
             <FormField label="Lead Status" required error={errors.status} name="status" className="col-span-2">
               <select className={inputClass(errors.status)} value={form.status} onChange={e => { setForm(p => ({ ...p, status: e.target.value })); setErrors(er => ({ ...er, status: null })); }}>{LEAD_STATUSES.map(s => <option key={s}>{s}</option>)}</select>
             </FormField>
@@ -195,8 +216,8 @@ export default function LeadsPage() {
         </Modal>
       )}
 
-      <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.first_name} ${deleteTarget?.last_name}? This action cannot be undone.`} confirmLabel="Confirm Delete" danger onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
-      <ConfirmDialog open={bulkDelete} message={`You are about to permanently delete ${selected.length} records. This cannot be undone.`} confirmLabel="Delete All" danger onConfirm={handleBulkDelete} onCancel={() => setBulkDelete(false)} />
+      <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.first_name} ${deleteTarget?.last_name}?`} confirmLabel="Confirm Delete" danger onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
+      <ConfirmDialog open={bulkDelete} message={`Delete ${selected.length} selected lead(s)?`} confirmLabel="Delete All" danger onConfirm={handleBulkDelete} onCancel={() => setBulkDelete(false)} />
     </CRMLayout>
   );
 }

@@ -1,36 +1,26 @@
 'use client';
 import { useEffect, useState } from 'react';
 import CRMLayout from '../../components/layout/CRMLayout.js';
+import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
+import { useToast } from '../../components/ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { canDownload } from '../../lib/constants.js';
-import api from '../../lib/api.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const COLORS = ['#378ADD', '#639922', '#EF9F27', '#D85A30', '#1D9E75', '#E24B4A', '#7F77DD', '#888'];
 
 export default function ReportsPage() {
+  const { showToast } = useToast();
   const { user } = useAuth();
   const [tab, setTab] = useState('leads');
   const [data, setData] = useState({});
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
   useEffect(() => {
-    const params = { ...(dateRange.start && { start_date: dateRange.start }), ...(dateRange.end && { end_date: dateRange.end }) };
-    Promise.all([
-      api.get('/reports/leads-by-source', { params }),
-      api.get('/reports/leads-by-status'),
-      api.get('/reports/lead-conversion'),
-      api.get('/reports/deals-by-stage'),
-      api.get('/reports/deals-won-lost'),
-      api.get('/reports/accounts-by-industry'),
-      api.get('/reports/activity-summary'),
-      api.get('/reports/campaign-roi'),
-    ]).then(([source, status, conversion, stages, wonLost, industry, activity, campaigns]) => {
-      setData({ source: source.data, status: status.data, conversion: conversion.data, stages: stages.data, wonLost: wonLost.data, industry: industry.data, activity: activity.data, campaigns: campaigns.data });
-    });
+    setData({});
   }, [dateRange]);
 
-  const download = (type) => window.open(`/api/reports/export/${type}`, '_blank');
+  const download = () => showToast('Reports is not available on the Sales CRM API yet');
 
   const tabs = [
     { id: 'leads', label: 'Lead Reports' },
@@ -43,6 +33,7 @@ export default function ReportsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
+        <ApiPendingBanner module="Reports" />
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-bold">Reports</h1>
           <div className="flex gap-2 items-center">
@@ -50,7 +41,7 @@ export default function ReportsPage() {
             <span className="text-gray-400">to</span>
             <input className="input w-36 text-xs" type="date" value={dateRange.end} onChange={e => setDateRange(d => ({ ...d, end: e.target.value }))} />
             {canDownload(user?.role) && (
-              <button onClick={() => download('leads')} className="btn-secondary text-xs">Download CSV</button>
+              <button onClick={download} className="btn-secondary text-xs">Download CSV</button>
             )}
           </div>
         </div>

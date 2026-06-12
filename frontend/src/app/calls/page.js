@@ -5,7 +5,7 @@ import Modal from '../../components/ui/Modal.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
-import api from '../../lib/api.js';
+import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
 import { CALL_TYPES } from '../../lib/constants.js';
 import { validateRequired } from '../../lib/validators.js';
 
@@ -15,31 +15,38 @@ export default function CallsPage() {
   const { showToast } = useToast();
   const [items, setItems] = useState([]);
   const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const fetch = useCallback(() => api.get('/calls').then(r => setItems(r.data.data)), []);
-  useEffect(() => { fetch(); api.get('/users').then(r => setUsers(r.data)); }, [fetch]);
+  const fetch = useCallback(() => {
+    setLoading(false);
+    setItems([]);
+  }, []);
+
+  useEffect(() => { fetch(); }, [fetch]);
 
   const save = async () => {
     const errs = validateRequired({ subject: 'Call Subject', call_type: 'Call Type', start_time: 'Call Date & Time', assigned_to: 'Assigned To' }, form);
     setErrors(errs);
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
-    if (editing) await api.put(`/calls/${editing}`, form);
-    else await api.post('/calls', form);
-    setModal(false); fetch(); showToast('Call saved', 'success');
+    showToast('Calls is not available on the Sales CRM API yet');
   };
 
   return (
     <CRMLayout>
       <div className="p-6">
+        <ApiPendingBanner module="Calls" />
         <div className="flex justify-between mb-5"><h1 className="text-xl font-bold">Calls</h1><button onClick={() => { setForm(EMPTY); setEditing(null); setModal(true); }} className="btn-primary">+ Log Call</button></div>
         <div className="card overflow-x-auto">
           <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Subject</th><th className="table-th">Type</th><th className="table-th">Date</th><th className="table-th">Assigned To</th><th className="table-th">Actions</th></tr></thead>
-            <tbody className="divide-y">{items.map(c => (
+            <tbody className="divide-y">
+              {loading ? <tr><td colSpan={5} className="table-td text-center py-8">Loading...</td></tr>
+              : items.length === 0 ? <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No calls found</td></tr>
+              : items.map(c => (
               <tr key={c.id} className="hover:bg-gray-50 group">
                 <td className="table-td font-medium">{c.subject}</td><td className="table-td">{c.call_type}</td>
                 <td className="table-td">{new Date(c.start_time).toLocaleString()}</td><td className="table-td">{c.assigned_name}</td>
@@ -62,7 +69,7 @@ export default function CallsPage() {
         <div className="flex gap-2 justify-end mt-4"><button onClick={() => setModal(false)} className="btn-secondary">Cancel</button><button onClick={save} className="btn-primary">Save</button></div>
       </Modal>}
       <ConfirmDialog open={!!deleteTarget} message={`Delete call "${deleteTarget?.subject}"?`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { await api.delete(`/calls/${deleteTarget.id}`); setDeleteTarget(null); fetch(); }} onCancel={() => setDeleteTarget(null)} />
+        onConfirm={() => { setDeleteTarget(null); showToast('Calls is not available on the Sales CRM API yet'); }} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }

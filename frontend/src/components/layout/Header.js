@@ -3,9 +3,10 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../hooks/useAuth.js';
-import api from '../../lib/api.js';
+import * as leadsApi from '../../lib/services/leads.js';
 import ConfirmDialog from '../ui/ConfirmDialog.js';
 import { QUICK_CREATE } from '../../lib/constants.js';
+import { userDisplayName, userInitial } from '../../lib/userHelpers.js';
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -22,7 +23,14 @@ export default function Header() {
   useEffect(() => {
     if (search.length < 2) { setResults([]); return; }
     const t = setTimeout(() => {
-      api.get('/search', { params: { q: search } }).then(r => setResults(r.data.results || []));
+      leadsApi.listLeads({ search, page_size: 8 }).then(r => {
+        setResults(r.data.map(l => ({
+          type: 'lead',
+          id: l.id,
+          name: `${l.first_name || ''} ${l.last_name}`.trim(),
+          sub: l.company,
+        })));
+      }).catch(() => setResults([]));
     }, 300);
     return () => clearTimeout(t);
   }, [search]);
@@ -67,7 +75,7 @@ export default function Header() {
 
         <div className="relative">
           <button onClick={() => setShowQuick(!showQuick)}
-            className="w-9 h-9 rounded-xl bg-brand-gradient text-white font-bold text-lg leading-none shadow-soft hover:shadow-card-hover hover:scale-105 active:scale-95 transition-all duration-150" title="Quick Create">+</button>
+            className="w-9 h-9 rounded-xl bg-brand-gradient text-white font-bold text-lg leading-none shadow-soft hover:shadow-card transition-all duration-150" title="Quick Create">+</button>
           {showQuick && (
             <div className="absolute right-0 top-full mt-2 bg-white border border-zoho-border rounded-xl shadow-card-hover py-2 w-52 z-50 animate-scaleIn origin-top-right">
               <p className="px-3 py-1 text-[10px] font-bold text-brand-600 uppercase tracking-wide">Quick Create</p>
@@ -102,12 +110,12 @@ export default function Header() {
         <div className="relative">
           <button onClick={() => setShowProfile(!showProfile)}
             className="w-9 h-9 rounded-xl bg-brand-gradient text-white text-xs font-bold hover:shadow-glow transition-shadow">
-            {user?.name?.[0] || 'U'}
+            {userInitial(user)}
           </button>
           {showProfile && (
             <div className="absolute right-0 top-full mt-2 bg-white border border-zoho-border rounded-xl shadow-card-hover py-1 w-48 z-50 animate-scaleIn origin-top-right">
               <div className="px-3 py-2.5 border-b border-gray-100">
-                <p className="text-sm font-semibold text-zoho-text">{user?.name}</p>
+                <p className="text-sm font-semibold text-zoho-text">{userDisplayName(user)}</p>
                 <p className="text-xs text-zoho-muted">{user?.email}</p>
                 <p className="text-[10px] text-brand-600 capitalize mt-0.5 font-medium">{user?.role?.replace('_', ' ')}</p>
               </div>
