@@ -10,13 +10,18 @@ const { softDelete } = require('../utils/helpers');
 const router = express.Router();
 router.use(auth);
 
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const isServerless = process.env.VERCEL === '1';
 
-const storage = multer.diskStorage({
-  destination: uploadDir,
-  filename: (_, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`),
-});
+const uploadDir = path.join(__dirname, '../../uploads');
+if (!isServerless && !fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = isServerless
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: uploadDir,
+      filename: (_, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`),
+    });
+
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -50,14 +55,17 @@ router.get('/', async (req, res) => {
 router.post('/', requireEdit, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'File required' });
   const { name, description, folder, related_type, related_id } = req.body;
+  const fileName = req.file.filename || `${Date.now()}-${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
   try {
     const result = await pool.query(
-      `INSERT INTO documents (name, description, file_path, file_type, file_size, folder, owner_id, related_type, related_id, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [name || req.file.originalname, description, req.file.filename, req.file.mimetype, req.file.size,
-       folder, req.user.id, related_type, related_id, req.user.id]
+      `INSERT INTO documents (name, description, file_path, file_type, file_size, folder, owner_id, related_type, related_id, created_by, file_data)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [name || req.file.originalname, description, fileName, req.file.mimetype, req.file.size,
+       folder, req.user.id, related_type, related_id, req.user.id, isServerless ? req.file.buffer : null]
     );
-    res.status(201).json(result.rows[0]);
+    const row = result.rows[0];
+    delete row.file_data;
+    res.status(201).json(row);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -65,9 +73,15 @@ router.get('/:id/download', async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM documents WHERE id=$1 AND deleted_at IS NULL`, [req.params.id]);
     if (!result.rows[0]) return res.status(404).json({ error: 'Document not found' });
-    const filePath = path.join(uploadDir, result.rows[0].file_path);
+    const doc = result.rows[0];
+    if (doc.file_data) {
+      res.setHeader('Content-Type', doc.file_type || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${doc.name}"`);
+      return res.send(doc.file_data);
+    }
+    const filePath = path.join(uploadDir, doc.file_path);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found on disk' });
-    res.download(filePath, result.rows[0].name);
+    res.download(filePath, doc.name);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

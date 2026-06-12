@@ -217,6 +217,7 @@ const migrate = async () => {
         deleted_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
+      ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_data BYTEA;
 
       -- Visits
       CREATE TABLE IF NOT EXISTS visits (
