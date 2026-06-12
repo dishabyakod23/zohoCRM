@@ -6,11 +6,13 @@ import Modal from '../../components/ui/Modal.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
-import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
+import { getApiError } from '../../lib/api.js';
 import { validateRequired } from '../../lib/validators.js';
+import * as accountsApi from '../../lib/services/accounts.js';
 
 const INDUSTRIES = ['IT Services', 'E-Commerce', 'Automotive', 'EdTech', 'FinTech', 'Healthcare', 'Manufacturing', 'Retail', 'Other'];
-const EMPTY = { name: '', industry: '', website: '', phone: '', city: '', country: 'India' };
+const EMPTY = { account_name: '', phone: '', industry: '', website: '', city: '', country: 'India' };
+const LIMIT = 15;
 
 export default function AccountsPage() {
   const { showToast } = useToast();
@@ -27,31 +29,73 @@ export default function AccountsPage() {
   const [saving, setSaving] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
-    setLoading(false);
-    setAccounts([]);
-    setTotal(0);
-  }, []);
+    setLoading(true);
+    try {
+      const result = await accountsApi.listAccounts({
+        page,
+        page_size: LIMIT,
+        search: search || undefined,
+      });
+      setAccounts(result.data);
+      setTotal(result.total);
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, showToast]);
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
-  const openCreate = () => { setForm(EMPTY); setEditing(null); setModal(true); };
-  const openEdit = (a) => { setForm({ ...a }); setEditing(a.id); setModal(true); };
+  const openCreate = () => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); };
+  const openEdit = (a) => {
+    setForm({
+      account_name: a.name || a.account_name || '',
+      phone: a.phone || '',
+      industry: a.industry || '',
+      website: a.website || '',
+      city: a.city || '',
+      country: a.country || 'India',
+    });
+    setEditing(a.id);
+    setErrors({});
+    setModal(true);
+  };
 
   const handleSave = async () => {
-    const errs = validateRequired({ name: 'Account Name', phone: 'Phone' }, form);
+    const errs = validateRequired({ account_name: 'Account Name', phone: 'Phone' }, form);
     setErrors(errs);
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
     setSaving(true);
-    showToast('Accounts is not available on the Sales CRM API yet');
-    setSaving(false);
+    try {
+      if (editing) await accountsApi.updateAccount(editing, form);
+      else await accountsApi.createAccount(form);
+      setModal(false);
+      fetchAccounts();
+      showToast('Account saved', 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const totalPages = Math.ceil(total / 15);
+  const handleDelete = async () => {
+    try {
+      await accountsApi.deleteAccount(deleteTarget.id);
+      setDeleteTarget(null);
+      fetchAccounts();
+      showToast('Account deleted', 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    }
+  };
+
+  const totalPages = Math.ceil(total / LIMIT) || 1;
 
   return (
     <CRMLayout>
       <div className="p-6">
-        <ApiPendingBanner module="Accounts" />
         <div className="flex items-center justify-between mb-5">
           <div><h1 className="text-xl font-bold text-gray-900">Accounts</h1><p className="text-xs text-gray-500">{total} accounts</p></div>
           <button onClick={openCreate} className="btn-primary">+ New account</button>
@@ -82,7 +126,7 @@ export default function AccountsPage() {
                   <tr key={a.id} className="hover:bg-gray-50">
                     <td className="table-td">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-semibold">{a.name[0]}</div>
+                        <div className="w-7 h-7 rounded bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-semibold">{(a.name || '?')[0]}</div>
                         <Link href={`/accounts/${a.id}`} className="font-medium text-brand-600 hover:underline">{a.name}</Link>
                       </div>
                     </td>
@@ -108,8 +152,8 @@ export default function AccountsPage() {
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
               <p className="text-xs text-gray-500">Page {page} of {totalPages}</p>
               <div className="flex gap-2">
-                <button onClick={() => setPage(p => p-1)} disabled={page===1} className="btn-secondary text-xs py-1">← Prev</button>
-                <button onClick={() => setPage(p => p+1)} disabled={page===totalPages} className="btn-secondary text-xs py-1">Next →</button>
+                <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="btn-secondary text-xs py-1">← Prev</button>
+                <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages} className="btn-secondary text-xs py-1">Next →</button>
               </div>
             </div>
           )}
@@ -119,17 +163,17 @@ export default function AccountsPage() {
       {modal && (
         <Modal title={editing ? 'Edit Account' : 'New Account'} onClose={() => setModal(false)}>
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div className="col-span-2"><FormField label="Company name" required error={errors.name} name="name"><input className={inputClass(errors.name)} value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))} /></FormField></div>
+            <div className="col-span-2"><FormField label="Company name" required error={errors.account_name} name="account_name"><input className={inputClass(errors.account_name)} value={form.account_name} onChange={e => setForm(p => ({ ...p, account_name: e.target.value }))} /></FormField></div>
             <div><label className="label">Industry</label>
-              <select className="input" value={form.industry} onChange={e => setForm(p => ({...p, industry: e.target.value}))}>
+              <select className="input" value={form.industry} onChange={e => setForm(p => ({ ...p, industry: e.target.value }))}>
                 <option value="">Select</option>
                 {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
               </select>
             </div>
-            <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => setForm(p => ({...p, phone: e.target.value}))} /></FormField>
-            <div className="col-span-2"><label className="label">Website</label><input className="input" value={form.website} onChange={e => setForm(p => ({...p, website: e.target.value}))} /></div>
-            <div><label className="label">City</label><input className="input" value={form.city} onChange={e => setForm(p => ({...p, city: e.target.value}))} /></div>
-            <div><label className="label">Country</label><input className="input" value={form.country} onChange={e => setForm(p => ({...p, country: e.target.value}))} /></div>
+            <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></FormField>
+            <div className="col-span-2"><label className="label">Website</label><input className="input" value={form.website} onChange={e => setForm(p => ({ ...p, website: e.target.value }))} /></div>
+            <div><label className="label">City</label><input className="input" value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))} /></div>
+            <div><label className="label">Country</label><input className="input" value={form.country} onChange={e => setForm(p => ({ ...p, country: e.target.value }))} /></div>
           </div>
           <div className="flex gap-2 justify-end pt-2 border-t border-gray-100">
             <button onClick={() => setModal(false)} className="btn-secondary">Cancel</button>
@@ -139,7 +183,7 @@ export default function AccountsPage() {
       )}
 
       <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.name}? This action cannot be undone.`} confirmLabel="Confirm Delete" danger
-        onConfirm={() => { setDeleteTarget(null); showToast('Accounts is not available on the Sales CRM API yet'); }} onCancel={() => setDeleteTarget(null)} />
+        onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }

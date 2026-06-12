@@ -2,8 +2,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
-import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import * as contactsApi from '../../lib/services/contacts.js';
+import * as accountsApi from '../../lib/services/accounts.js';
+import * as dealsApi from '../../lib/services/deals.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { QUICK_CREATE } from '../../lib/constants.js';
 import {
@@ -48,10 +50,19 @@ export default function DashboardPage() {
   const [homeView, setHomeView] = useState('Classic View');
 
   useEffect(() => {
-    leadsApi.listLeads({ page: 1, page_size: 1 }).then(r => {
+    Promise.all([
+      leadsApi.listLeads({ page: 1, page_size: 1 }),
+      contactsApi.listContacts({ page: 1, page_size: 1 }),
+      accountsApi.listAccounts({ page: 1, page_size: 1 }),
+      dealsApi.listDeals({ page: 1, page_size: 100 }),
+    ]).then(([leads, contacts, accounts, deals]) => {
+      const openDeals = deals.data.filter(d => d.stage_value && !['closed_won', 'closed_lost'].includes(d.stage_value));
+      const pipelineValue = openDeals.reduce((s, d) => s + (Number(d.amount) || 0), 0);
       setStats({
-        leads: { total: r.total, this_month: 0 },
-        deals: { open_deals: 0, total_deals: 0, open_value: 0, pipeline_value: 0 },
+        leads: { total: leads.total, this_month: 0 },
+        contacts: contacts.total,
+        accounts: accounts.total,
+        deals: { open_deals: openDeals.length, total_deals: deals.total, open_value: pipelineValue, pipeline_value: pipelineValue },
         tasksDueToday: 0,
         tasksOverdue: 0,
         dealsClosingMonth: { count: 0, value: 0 },
@@ -69,7 +80,6 @@ export default function DashboardPage() {
   return (
     <CRMLayout>
       <div className="p-4">
-        <ApiPendingBanner module="Dashboard analytics" />
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-zoho-text">

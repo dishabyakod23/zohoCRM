@@ -9,13 +9,13 @@ import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
-import { LEAD_STATUSES, LEAD_SOURCES, LIST_VIEWS } from '../../lib/constants.js';
+import { LEAD_SOURCES, LIST_VIEWS } from '../../lib/constants.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
-import { leadStatusToApi } from '../../lib/leadHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 
-const EMPTY = { first_name: '', last_name: '', email: '', phone: '', company: '', source: '', status: 'Not Contacted', industry: '', title: '' };
-const REQUIRED = { last_name: 'Last Name', company: 'Company', email: 'Email', phone: 'Phone', status: 'Lead Status' };
+const EMPTY = { first_name: '', last_name: '', email: '', phone: '', company: '', source: '', lead_status: 'not_contacted', industry: '', title: '' };
+const REQUIRED = { last_name: 'Last Name', company: 'Company', email: 'Email', phone: 'Phone', lead_status: 'Lead Status' };
 
 export default function LeadsPage() {
   const { showToast } = useToast();
@@ -35,6 +35,11 @@ export default function LeadsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [bulkDelete, setBulkDelete] = useState(false);
   const [activeView, setActiveView] = useState('All Leads');
+  const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+
+  useEffect(() => {
+    fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
+  }, []);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -43,7 +48,7 @@ export default function LeadsPage() {
         page,
         page_size: limit,
         search: search || undefined,
-        lead_status: statusFilter ? leadStatusToApi(statusFilter) : undefined,
+        lead_status: statusFilter || undefined,
       });
       setLeads(result.data);
       setTotal(result.total);
@@ -129,7 +134,7 @@ export default function LeadsPage() {
         >
           <select className="input w-40 text-xs" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
             <option value="">All statuses</option>
-            {LEAD_STATUSES.map(s => <option key={s}>{s}</option>)}
+            {statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
           <select className="input w-28 text-xs" value={limit} onChange={e => { setLimit(+e.target.value); setPage(1); }}>
             {[10, 15, 25, 50].map(n => <option key={n} value={n}>{n} per page</option>)}
@@ -176,7 +181,7 @@ export default function LeadsPage() {
                     <td className="table-td">{lead.owner_name || '—'}</td>
                     <td className="table-td">
                       <div className="flex gap-3">
-                        <button onClick={() => { setForm({ ...lead, status: lead.status, source: lead.source }); setEditing(lead.id); setModal(true); }} className="text-xs text-blue-600 hover:underline">Edit</button>
+                        <button onClick={() => { setForm({ ...lead, lead_status: lead.lead_status, source: lead.source }); setEditing(lead.id); setModal(true); }} className="text-xs text-blue-600 hover:underline">Edit</button>
                         <button onClick={() => setDeleteTarget(lead)} className="text-xs text-red-500 hover:underline">Delete</button>
                       </div>
                     </td>
@@ -205,8 +210,10 @@ export default function LeadsPage() {
             <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); setErrors(er => ({ ...er, phone: null })); }} /></FormField>
             <FormField label="Company" required error={errors.company} name="company"><input className={inputClass(errors.company)} value={form.company} onChange={e => { setForm(p => ({ ...p, company: e.target.value })); setErrors(er => ({ ...er, company: null })); }} /></FormField>
             <FormField label="Lead Source"><select className="input" value={form.source || ''} onChange={e => setForm(p => ({ ...p, source: e.target.value }))}><option value="">Select</option>{LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}</select></FormField>
-            <FormField label="Lead Status" required error={errors.status} name="status" className="col-span-2">
-              <select className={inputClass(errors.status)} value={form.status} onChange={e => { setForm(p => ({ ...p, status: e.target.value })); setErrors(er => ({ ...er, status: null })); }}>{LEAD_STATUSES.map(s => <option key={s}>{s}</option>)}</select>
+            <FormField label="Lead Status" required error={errors.lead_status} name="lead_status" className="col-span-2">
+              <select className={inputClass(errors.lead_status)} value={form.lead_status} onChange={e => { setForm(p => ({ ...p, lead_status: e.target.value })); setErrors(er => ({ ...er, lead_status: null })); }}>
+                {statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
             </FormField>
           </div>
           <div className="flex gap-2 justify-end pt-2 border-t border-gray-100">

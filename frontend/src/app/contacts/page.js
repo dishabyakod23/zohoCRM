@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
@@ -7,10 +7,13 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import BulkUpload from '../../components/records/BulkUpload.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
-import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
-import { validateRequired } from '../../lib/validators.js';
+import { getApiError } from '../../lib/api.js';
+import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
+import * as contactsApi from '../../lib/services/contacts.js';
+import { fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
 
 const EMPTY = { first_name: '', last_name: '', email: '', phone: '', account_id: '', title: '' };
+const LIMIT = 15;
 
 export default function ContactsPage() {
   const { showToast } = useToast();
@@ -27,37 +30,77 @@ export default function ContactsPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const fetchContacts = useCallback(async () => {
-    setLoading(false);
-    setContacts([]);
-    setTotal(0);
+  const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
+
+  useEffect(() => {
+    fetchAccountLookups().then(setAccounts).catch(() => setAccounts([]));
   }, []);
+
+  const fetchContacts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await contactsApi.listContacts({
+        page,
+        page_size: LIMIT,
+        search: search || undefined,
+      }, accountMap);
+      setContacts(result.data);
+      setTotal(result.total);
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, accountMap, showToast]);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
-  const openCreate = () => { setForm(EMPTY); setEditing(null); setModal(true); };
-  const openEdit = (c) => { setForm({ ...c }); setEditing(c.id); setModal(true); };
+  const openCreate = () => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); };
+  const openEdit = (c) => { setForm({ ...c, account_id: c.account_id || '' }); setEditing(c.id); setErrors({}); setModal(true); };
 
   const handleSave = async () => {
     const errs = validateRequired({ last_name: 'Last Name', account_id: 'Account Name', email: 'Email', phone: 'Phone' }, form);
+    const emailErr = validateEmail(form.email);
+    const phoneErr = validatePhone(form.phone);
+    if (emailErr) errs.email = emailErr;
+    if (phoneErr) errs.phone = phoneErr;
     setErrors(errs);
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
     setSaving(true);
-    showToast('Contacts API is not available on the Sales CRM API yet');
-    setSaving(false);
+    try {
+      if (editing) await contactsApi.updateContact(editing, form);
+      else await contactsApi.createContact(form);
+      setModal(false);
+      fetchContacts();
+      showToast('Contact saved', 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await contactsApi.deleteContact(deleteTarget.id);
+      setDeleteTarget(null);
+      fetchContacts();
+      showToast('Contact deleted', 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    }
   };
 
   const initials = (c) => `${c.first_name?.[0] || ''}${c.last_name?.[0] || ''}`.toUpperCase();
-  const totalPages = Math.ceil(total / 15);
+  const totalPages = Math.ceil(total / LIMIT) || 1;
 
   return (
     <CRMLayout>
       <div className="p-6">
-        <ApiPendingBanner module="Contacts" />
         <div className="flex items-center justify-between mb-5">
           <div><h1 className="text-xl font-bold text-gray-900">Contacts</h1><p className="text-xs text-gray-500">{total} contacts</p></div>
           <div className="flex gap-2">
-            <BulkUpload endpoint="/contacts" onDone={fetchContacts} templateHeaders={['first_name','last_name','email','phone','account_name']} />
+            <BulkUpload endpoint="/contacts" onDone={fetchContacts} templateHeaders={['first_name', 'last_name', 'email', 'phone', 'account_name']} />
             <button onClick={openCreate} className="btn-primary">+ New contact</button>
           </div>
         </div>
@@ -93,7 +136,7 @@ export default function ContactsPage() {
                       </div>
                     </td>
                     <td className="table-td">{c.title || '—'}</td>
-                    <td className="table-td">{c.account_name || c.company || '—'}</td>
+                    <td className="table-td">{c.account_name || '—'}</td>
                     <td className="table-td text-blue-600">{c.email || '—'}</td>
                     <td className="table-td">{c.phone || '—'}</td>
                     <td className="table-td">{c.owner_name || '—'}</td>
@@ -113,8 +156,8 @@ export default function ContactsPage() {
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
               <p className="text-xs text-gray-500">Page {page} of {totalPages}</p>
               <div className="flex gap-2">
-                <button onClick={() => setPage(p => p-1)} disabled={page===1} className="btn-secondary text-xs py-1">← Prev</button>
-                <button onClick={() => setPage(p => p+1)} disabled={page===totalPages} className="btn-secondary text-xs py-1">Next →</button>
+                <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="btn-secondary text-xs py-1">← Prev</button>
+                <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages} className="btn-secondary text-xs py-1">Next →</button>
               </div>
             </div>
           )}
@@ -124,16 +167,17 @@ export default function ContactsPage() {
       {modal && (
         <Modal title={editing ? 'Edit Contact' : 'New Contact'} onClose={() => setModal(false)}>
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div><label className="label">First name *</label><input className="input" value={form.first_name} onChange={e => setForm(p => ({...p, first_name: e.target.value}))} /></div>
-            <FormField label="Last name" required error={errors.last_name} name="last_name"><input className={inputClass(errors.last_name)} value={form.last_name} onChange={e => setForm(p => ({...p, last_name: e.target.value}))} /></FormField>
-            <FormField label="Email" required error={errors.email} name="email"><input className={inputClass(errors.email)} type="email" value={form.email} onChange={e => setForm(p => ({...p, email: e.target.value}))} /></FormField>
-            <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => setForm(p => ({...p, phone: e.target.value}))} /></FormField>
+            <div><label className="label">First name</label><input className="input" value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} /></div>
+            <FormField label="Last name" required error={errors.last_name} name="last_name"><input className={inputClass(errors.last_name)} value={form.last_name} onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))} /></FormField>
+            <FormField label="Email" required error={errors.email} name="email"><input className={inputClass(errors.email)} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} /></FormField>
+            <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></FormField>
             <FormField label="Account Name" required error={errors.account_id} name="account_id">
-              <select className={inputClass(errors.account_id)} value={form.account_id} onChange={e => setForm(p => ({...p, account_id: e.target.value}))}>
-                <option value="">Select account</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              <select className={inputClass(errors.account_id)} value={form.account_id} onChange={e => setForm(p => ({ ...p, account_id: e.target.value }))}>
+                <option value="">Select account</option>
+                {accounts.map(a => <option key={a.value} value={a.value}>{a.label || a.name}</option>)}
               </select>
             </FormField>
-            <div><label className="label">Title</label><input className="input" value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} /></div>
+            <div><label className="label">Title</label><input className="input" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></div>
           </div>
           <div className="flex gap-2 justify-end pt-2 border-t border-gray-100">
             <button onClick={() => setModal(false)} className="btn-secondary">Cancel</button>
@@ -143,7 +187,7 @@ export default function ContactsPage() {
       )}
 
       <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.first_name} ${deleteTarget?.last_name}? This action cannot be undone.`} confirmLabel="Confirm Delete" danger
-        onConfirm={() => { setDeleteTarget(null); showToast('Contacts is not available on the Sales CRM API yet'); }} onCancel={() => setDeleteTarget(null)} />
+        onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }
