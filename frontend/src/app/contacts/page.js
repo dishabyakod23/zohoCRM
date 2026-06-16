@@ -7,6 +7,9 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import BulkUpload from '../../components/records/BulkUpload.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
+import { useOpenCreateParam } from '../../hooks/useOpenCreateParam.js';
 import { getApiError } from '../../lib/api.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
 import * as contactsApi from '../../lib/services/contacts.js';
@@ -17,11 +20,13 @@ const LIMIT = 15;
 
 export default function ContactsPage() {
   const { showToast } = useToast();
+  const { canEdit } = usePermissions();
   const [contacts, setContacts] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
@@ -36,13 +41,16 @@ export default function ContactsPage() {
     fetchAccountLookups().then(setAccounts).catch(() => setAccounts([]));
   }, []);
 
+  const openCreate = useCallback(() => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); }, []);
+  useOpenCreateParam(canEdit, openCreate);
+
   const fetchContacts = useCallback(async () => {
     setLoading(true);
     try {
       const result = await contactsApi.listContacts({
         page,
         page_size: LIMIT,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
       }, accountMap);
       setContacts(result.data);
       setTotal(result.total);
@@ -51,11 +59,10 @@ export default function ContactsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, accountMap, showToast]);
+  }, [page, debouncedSearch, accountMap, showToast]);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
-  const openCreate = () => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); };
   const openEdit = (c) => { setForm({ ...c, account_id: c.account_id || '' }); setEditing(c.id); setErrors({}); setModal(true); };
 
   const handleSave = async () => {
@@ -101,19 +108,21 @@ export default function ContactsPage() {
           <div><h1 className="text-xl font-bold text-gray-900">Contacts</h1><p className="text-xs text-gray-500">{total} contacts</p></div>
           <div className="flex gap-2">
             <BulkUpload endpoint="/contacts" onDone={fetchContacts} templateHeaders={['first_name', 'last_name', 'email', 'phone', 'account_name']} />
-            <button onClick={openCreate} className="btn-primary">+ New contact</button>
+            {canEdit && <button onClick={openCreate} className="btn-primary">+ New contact</button>}
           </div>
         </div>
 
         <div className="card">
-          <div className="p-4 border-b border-gray-100">
-            <input className="input max-w-xs" placeholder="Search contacts..." value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }} />
+          <div className="px-4 py-3 border-b border-zoho-border">
+            <div className="relative max-w-xs">
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zoho-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input className="input pl-8 py-1.5 text-xs" placeholder="Search contacts…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+            </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-100">
+              <thead>
                 <tr>
                   <th className="table-th">Contact</th>
                   <th className="table-th">Title</th>
@@ -121,30 +130,32 @@ export default function ContactsPage() {
                   <th className="table-th">Email</th>
                   <th className="table-th">Phone</th>
                   <th className="table-th">Owner</th>
-                  <th className="table-th">Actions</th>
+                  <th className="table-th w-24">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
-                {loading ? <tr><td colSpan={7} className="table-td text-center text-gray-400 py-10">Loading...</td></tr>
-                : contacts.length === 0 ? <tr><td colSpan={7} className="table-td text-center text-gray-400 py-10">No contacts found</td></tr>
+              <tbody>
+                {loading ? <tr><td colSpan={7} className="table-td text-center text-zoho-muted py-12">Loading…</td></tr>
+                : contacts.length === 0 ? <tr><td colSpan={7} className="table-td text-center text-zoho-muted py-12">No contacts found</td></tr>
                 : contacts.map(c => (
-                  <tr key={c.id} className="hover:bg-gray-50">
+                  <tr key={c.id} className="hover:bg-brand-50/30 transition-colors">
                     <td className="table-td">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold">{initials(c)}</div>
-                        <Link href={`/contacts/${c.id}`} className="font-medium text-brand-600 hover:underline">{c.first_name} {c.last_name}</Link>
+                        <div className="w-8 h-8 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold shrink-0">{initials(c)}</div>
+                        <Link href={`/contacts/${c.id}`} className="font-medium text-brand-600 hover:text-brand-700">{c.first_name} {c.last_name}</Link>
                       </div>
                     </td>
                     <td className="table-td">{c.title || '—'}</td>
                     <td className="table-td">{c.account_name || '—'}</td>
-                    <td className="table-td text-blue-600">{c.email || '—'}</td>
+                    <td className="table-td text-brand-600">{c.email || '—'}</td>
                     <td className="table-td">{c.phone || '—'}</td>
                     <td className="table-td">{c.owner_name || '—'}</td>
                     <td className="table-td">
-                      <div className="flex gap-2">
-                        <button onClick={() => openEdit(c)} className="text-xs text-blue-600 hover:underline">Edit</button>
-                        <button onClick={() => setDeleteTarget(c)} className="text-xs text-red-500 hover:underline">Delete</button>
-                      </div>
+                      {canEdit && (
+                        <div className="flex gap-1.5">
+                          <button onClick={() => openEdit(c)} className="btn-secondary-sm">Edit</button>
+                          <button onClick={() => setDeleteTarget(c)} className="btn-danger-sm">Delete</button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -152,15 +163,13 @@ export default function ContactsPage() {
             </table>
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-              <p className="text-xs text-gray-500">Page {page} of {totalPages}</p>
-              <div className="flex gap-2">
-                <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="btn-secondary text-xs py-1">← Prev</button>
-                <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages} className="btn-secondary text-xs py-1">Next →</button>
-              </div>
+          <div className="flex items-center justify-between px-4 py-3 border-t border-zoho-border/60">
+            <p className="text-xs text-zoho-muted">Page {page} of {totalPages}</p>
+            <div className="flex gap-2">
+              <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="btn-secondary-sm disabled:opacity-40">← Prev</button>
+              <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages} className="btn-secondary-sm disabled:opacity-40">Next →</button>
             </div>
-          )}
+          </div>
         </div>
       </div>
 

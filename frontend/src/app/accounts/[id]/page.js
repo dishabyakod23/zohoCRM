@@ -20,8 +20,11 @@ export default function AccountDetailPage() {
     accountsApi.getAccount(id).then(r => {
       setAccount(r);
       trackRecentItem({ type: 'account', id, name: r.name });
-    }).catch(() => router.push('/accounts'));
-  }, [id, router]);
+    }).catch(() => {
+      showToast('Account not found');
+      router.push('/accounts');
+    });
+  }, [id, router, showToast]);
 
   if (!account) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
 

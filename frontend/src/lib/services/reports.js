@@ -42,6 +42,16 @@ export async function getCampaignReport({ date_from, date_to } = {}) {
   return res.data.data;
 }
 
+export async function getAccountRevenueReport({ date_from, date_to } = {}) {
+  const res = await api.get('/reports/accounts/revenue', { params: dateParams({ date_from, date_to }) });
+  return res.data.data;
+}
+
+export async function getDealsClosingThisMonth() {
+  const res = await api.get('/reports/deals/closing-this-month');
+  return res.data.data;
+}
+
 export async function exportReportCsv(path, { group_by, date_from, date_to } = {}) {
   const params = { ...dateParams({ date_from, date_to }) };
   if (group_by) params.group_by = group_by;
@@ -55,14 +65,31 @@ export async function exportReportCsv(path, { group_by, date_from, date_to } = {
   URL.revokeObjectURL(url);
 }
 
-export async function getAdminSettings() {
-  const res = await api.get('/admin/settings');
-  return res.data.data;
+export { listAdminUsers, getAdminSettings, updateWeeklyReportSettings } from './admin.js';
+
+/** Users eligible by role toggles in weekly report settings */
+export function isWeeklyRecipientEligible(user, settings) {
+  if (!user?.is_active || !settings) return false;
+  if (user.role === 'super_admin' && settings.super_admin_enabled) return true;
+  if (user.role === 'sales_manager' && settings.sales_manager_enabled) return true;
+  return false;
 }
 
-export async function updateWeeklyReportSettings(payload) {
-  const res = await api.patch('/admin/settings/weekly-report', payload);
-  return res.data.data;
+export function getWeeklyReportRecipients(users, settings) {
+  const excluded = new Set(settings?.excluded_user_ids || []);
+  return (users || []).filter(u => isWeeklyRecipientEligible(u, settings) && !excluded.has(u.id));
+}
+
+export function isUserIncludedInReports(user, settings) {
+  if (!isWeeklyRecipientEligible(user, settings)) return false;
+  return !(settings?.excluded_user_ids || []).includes(user.id);
+}
+
+export function setUserReportIncluded(settings, userId, included) {
+  const excluded = new Set(settings?.excluded_user_ids || []);
+  if (included) excluded.delete(userId);
+  else excluded.add(userId);
+  return { ...settings, excluded_user_ids: [...excluded] };
 }
 
 export async function previewWeeklyReport() {

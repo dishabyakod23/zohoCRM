@@ -76,10 +76,16 @@ export const LIST_VIEWS = {
   deals: ['All Deals', 'My Deals', 'Open Deals', 'Closing This Month'],
 };
 
+import { getRolePermissions } from './roles.js';
+
 export function canDownload(role) {
-  return role === 'super_admin' || role === 'admin' || role === 'sales_manager';
+  return getRolePermissions(role).canDownload;
 }
 
 export function canEdit(role) {
-  return role !== 'viewer';
+  return getRolePermissions(role).canEdit;
+}
+
+export function canManageUsers(role) {
+  return getRolePermissions(role).canManageUsers;
 }

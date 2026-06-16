@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { setAuthSessionCookie, clearAuthSessionCookie } from './authCookie.js';
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'https://api-salescrm.duckdns.org/api/v1';
@@ -34,17 +35,20 @@ api.interceptors.response.use(
           localStorage.setItem('crm_token', data.access_token);
           localStorage.setItem('crm_refresh_token', data.refresh_token);
           localStorage.setItem('crm_user', JSON.stringify(data.user));
+          setAuthSessionCookie();
           original.headers.Authorization = `Bearer ${data.access_token}`;
           return api(original);
         } catch {
           localStorage.removeItem('crm_token');
           localStorage.removeItem('crm_refresh_token');
           localStorage.removeItem('crm_user');
+          clearAuthSessionCookie();
           window.location.href = '/login';
         }
       } else {
         localStorage.removeItem('crm_token');
         localStorage.removeItem('crm_user');
+        clearAuthSessionCookie();
         window.location.href = '/login';
       }
     }

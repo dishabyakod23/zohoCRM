@@ -40,13 +40,16 @@ export default function LeadDetailPage() {
     leadsApi.getLead(id).then(r => {
       setLead(r);
       trackRecentItem({ type: 'lead', id, name: `${r.first_name} ${r.last_name}` });
-    }).catch(() => router.push('/leads'));
+    }).catch(() => {
+      showToast('Lead not found');
+      router.push('/leads');
+    });
   };
 
   useEffect(() => {
     loadLead();
     leadsApi.listLeadNotes(id).then(setNotes).catch(() => setNotes([]));
-  }, [id, router]);
+  }, [id, router, showToast]);
 
   const handleConvert = async () => {
     try {

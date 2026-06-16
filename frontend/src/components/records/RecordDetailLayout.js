@@ -28,22 +28,23 @@ export default function RecordDetailLayout({
   return (
     <div className="min-h-full">
       <div className="zoho-record-header">
-        <Link href={backHref} className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 hover:gap-1.5 transition-all">
-          <span aria-hidden>←</span> {backLabel}
+        <Link href={backHref} className="inline-flex items-center gap-1.5 text-xs font-medium text-zoho-muted hover:text-brand-600 transition-colors">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          {backLabel}
         </Link>
-        <div className="flex items-start justify-between mt-3 gap-4 flex-wrap">
+        <div className="flex items-start justify-between mt-4 gap-4 flex-wrap">
           <div className="flex items-start gap-4 min-w-0">
-            <div className="w-14 h-14 rounded-2xl bg-brand-gradient text-white flex items-center justify-center font-bold text-lg shadow-soft shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-brand-gradient text-white flex items-center justify-center font-semibold text-base shadow-soft shrink-0">
               {initials}
             </div>
             <div className="min-w-0">
-              <h1 className="text-xl font-bold text-zoho-text truncate">{title}</h1>
+              <h1 className="text-lg font-semibold text-zoho-text truncate">{title}</h1>
               {subtitle && <p className="text-sm text-zoho-muted mt-0.5">{subtitle}</p>}
               {badges && <div className="flex gap-2 mt-2 flex-wrap">{badges}</div>}
-              {lastUpdated && <p className="text-[11px] text-zoho-muted mt-2">Last Updated: {lastUpdated}</p>}
+              {lastUpdated && <p className="text-[11px] text-zoho-muted mt-1.5">Updated {lastUpdated}</p>}
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap justify-end">{actions}</div>
+          <div className="flex gap-2 flex-wrap items-start">{actions}</div>
         </div>
       </div>
 
@@ -77,15 +78,15 @@ export default function RecordDetailLayout({
 /** Small labeled icon row used in record sidebars */
 export function InfoRow({ icon, label, value, href }) {
   const content = (
-    <div className="flex items-start gap-3 py-2">
-      <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">{icon}</div>
+    <div className="flex items-center gap-3 py-2.5">
+      <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shrink-0 text-sm">{icon}</div>
       <div className="min-w-0">
-        <p className="text-[11px] text-zoho-muted uppercase tracking-wide font-semibold">{label}</p>
-        <p className="text-sm text-zoho-text truncate">{value || '—'}</p>
+        <p className="text-[11px] text-zoho-muted font-medium uppercase tracking-wider">{label}</p>
+        <p className="text-sm text-zoho-text truncate mt-0.5">{value || '—'}</p>
       </div>
     </div>
   );
-  if (href && value) return <a href={href} className="block hover:bg-brand-50/60 -mx-2 px-2 rounded-lg transition-colors">{content}</a>;
+  if (href && value) return <a href={href} className="block hover:bg-brand-50/50 -mx-3 px-3 rounded-lg transition-colors">{content}</a>;
   return content;
 }
 
@@ -93,12 +94,12 @@ export function InfoRow({ icon, label, value, href }) {
 export function FieldSection({ title, fields }) {
   return (
     <div className="card p-5">
-      <h3 className="text-xs font-bold text-brand-700/80 uppercase tracking-wide mb-4">{title}</h3>
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+      <h3 className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-4">{title}</h3>
+      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
         {fields.map(([k, v]) => (
           <div key={k}>
-            <dt className="text-zoho-muted text-[11px] font-semibold uppercase tracking-wide mb-0.5">{k}</dt>
-            <dd className="text-zoho-text">{v || <span className="text-zoho-muted/60">—</span>}</dd>
+            <dt className="text-[11px] text-zoho-muted font-medium uppercase tracking-wider mb-1">{k}</dt>
+            <dd className="text-zoho-text">{v || <span className="text-zoho-muted/50">—</span>}</dd>
           </div>
         ))}
       </dl>

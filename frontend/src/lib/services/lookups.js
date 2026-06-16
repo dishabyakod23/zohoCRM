@@ -54,6 +54,24 @@ export async function fetchAccountLookups() {
   return parseLookupOptions(res.data.data).map(a => ({ ...a, name: a.label }));
 }
 
+async function fetchLookup(path, labelFn) {
+  const res = await api.get(path);
+  return parseLookupOptions(res.data.data, labelFn);
+}
+
+export const fetchTaskStatuses = () => fetchLookup('/lookups/task-statuses', formatLookupLabel);
+export const fetchTaskPriorities = () => fetchLookup('/lookups/task-priorities', formatLookupLabel);
+export const fetchCallTypes = () => fetchLookup('/lookups/call-types', formatLookupLabel);
+export const fetchCampaignTypes = () => fetchLookup('/lookups/campaign-types', formatLookupLabel);
+export const fetchCampaignStatuses = () => fetchLookup('/lookups/campaign-statuses', formatLookupLabel);
+export const fetchProjectStatuses = () => fetchLookup('/lookups/project-statuses', formatLookupLabel);
+export const fetchVisitStatuses = () => fetchLookup('/lookups/visit-statuses', formatLookupLabel);
+
+function formatLookupLabel(value) {
+  if (!value) return '—';
+  return String(value).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /** Build { [accountId]: { value, label, name } } map for list normalization */
 export function accountMapFromLookups(accounts = []) {
   return Object.fromEntries(accounts.map(a => [a.value, a]));

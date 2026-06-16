@@ -10,6 +10,9 @@ import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { validateRequired, validatePastDate } from '../../lib/validators.js';
 import { FALLBACK_DEAL_STAGES } from '../../lib/dealHelpers.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
+import { useOpenCreateParam } from '../../hooks/useOpenCreateParam.js';
 import * as dealsApi from '../../lib/services/deals.js';
 import { fetchDealStages, fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
 
@@ -17,6 +20,7 @@ const EMPTY = { deal_name: '', amount: '', stage_value: 'qualification', closing
 
 export default function DealsPage() {
   const { showToast } = useToast();
+  const { canEdit } = usePermissions();
   const [deals, setDeals] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [stageOptions, setStageOptions] = useState(FALLBACK_DEAL_STAGES);
@@ -24,6 +28,7 @@ export default function DealsPage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('table');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
@@ -40,13 +45,16 @@ export default function DealsPage() {
     fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
   }, []);
 
+  const openCreate = useCallback(() => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); }, []);
+  useOpenCreateParam(canEdit, openCreate);
+
   const fetchDeals = useCallback(async () => {
     setLoading(true);
     try {
       const result = await dealsApi.listDeals({
         page: 1,
         page_size: 50,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
       }, accountMap, stageOptions);
       setDeals(result.data);
       setTotal(result.total);
@@ -55,7 +63,7 @@ export default function DealsPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, accountMap, stageOptions, showToast]);
+  }, [debouncedSearch, accountMap, stageOptions, showToast]);
 
   useEffect(() => { fetchDeals(); }, [fetchDeals]);
 
@@ -130,32 +138,41 @@ export default function DealsPage() {
               <button onClick={() => setView('table')} className={`px-3 py-1.5 text-xs ${view === 'table' ? 'bg-brand-500 text-white' : 'bg-white text-gray-600'}`}>List</button>
               <button onClick={() => setView('kanban')} className={`px-3 py-1.5 text-xs ${view === 'kanban' ? 'bg-brand-500 text-white' : 'bg-white text-gray-600'}`}>Kanban</button>
             </div>
-            <button onClick={() => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); }} className="btn-primary">+ Create Deal</button>
+            {canEdit && (
+            <button onClick={openCreate} className="btn-primary">+ Create Deal</button>
+            )}
           </div>
         </div>
 
         {view === 'table' ? (
           <div className="card">
-            <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search deals..." value={search} onChange={e => setSearch(e.target.value)} /></div>
-            {loading ? <p className="table-td text-center text-gray-400 py-10">Loading...</p> : (
+            <div className="px-4 py-3 border-b border-zoho-border">
+              <div className="relative max-w-xs">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zoho-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <input className="input pl-8 py-1.5 text-xs" placeholder="Search deals…" value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+            </div>
+            {loading ? <p className="table-td text-center text-zoho-muted py-12">Loading…</p> : (
               <table className="w-full">
-                <thead className="bg-gray-50"><tr>
+                <thead><tr>
                   <th className="table-th">Deal Name</th><th className="table-th">Account</th><th className="table-th">Amount</th>
-                  <th className="table-th">Stage</th><th className="table-th">Closing Date</th><th className="table-th">Probability</th><th className="table-th">Actions</th>
+                  <th className="table-th">Stage</th><th className="table-th">Closing Date</th><th className="table-th">Probability</th><th className="table-th w-24">Actions</th>
                 </tr></thead>
-                <tbody className="divide-y">{deals.length === 0 ? (
-                  <tr><td colSpan={7} className="table-td text-center text-gray-400 py-10">No deals found</td></tr>
+                <tbody>{deals.length === 0 ? (
+                  <tr><td colSpan={7} className="table-td text-center text-zoho-muted py-12">No deals found</td></tr>
                 ) : deals.map(d => (
-                  <tr key={d.id} className="hover:bg-gray-50 group">
-                    <td className="table-td font-medium"><Link href={`/deals/${d.id}`} className="text-brand-600 hover:underline">{d.name}</Link></td>
+                  <tr key={d.id} className="hover:bg-brand-50/30 transition-colors">
+                    <td className="table-td font-medium"><Link href={`/deals/${d.id}`} className="text-brand-600 hover:text-brand-700">{d.name}</Link></td>
                     <td className="table-td">{d.account_name || '—'}</td><td className="table-td">{fmt(d.amount)}</td>
                     <td className="table-td"><Badge label={d.stage} /></td>
                     <td className="table-td">{d.close_date ? new Date(d.close_date).toLocaleDateString() : '—'}</td>
                     <td className="table-td">{d.probability}%</td>
-                    <td className="table-td"><div className="flex gap-3">
-                      <button onClick={() => openEdit(d)} className="text-xs text-blue-600 hover:underline">Edit</button>
-                      <button onClick={() => setDeleteTarget(d)} className="text-xs text-red-500 hover:underline">Delete</button>
-                    </div></td>
+                    <td className="table-td">{canEdit && (
+                      <div className="flex gap-1.5">
+                        <button onClick={() => openEdit(d)} className="btn-secondary-sm">Edit</button>
+                        <button onClick={() => setDeleteTarget(d)} className="btn-danger-sm">Delete</button>
+                      </div>
+                    )}</td>
                   </tr>
                 ))}</tbody>
               </table>

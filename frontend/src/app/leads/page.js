@@ -7,6 +7,10 @@ import Badge from '../../components/ui/Badge.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
+import { useOpenCreateParam } from '../../hooks/useOpenCreateParam.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
 import { LEAD_SOURCES, LIST_VIEWS } from '../../lib/constants.js';
@@ -19,10 +23,13 @@ const REQUIRED = { last_name: 'Last Name', company: 'Company', email: 'Email', p
 
 export default function LeadsPage() {
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const { canEdit, canBulkDelete, canDelete } = usePermissions();
   const [leads, setLeads] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search);
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
@@ -41,15 +48,34 @@ export default function LeadsPage() {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
   }, []);
 
+  const openCreate = useCallback(() => {
+    setForm(EMPTY);
+    setEditing(null);
+    setErrors({});
+    setModal(true);
+  }, []);
+
+  useOpenCreateParam(canEdit, openCreate);
+
   const fetchLeads = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await leadsApi.listLeads({
+      const params = {
         page,
         page_size: limit,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         lead_status: statusFilter || undefined,
-      });
+      };
+      if (activeView === 'My Leads' && user?.id) params.owner_id = user.id;
+      if (activeView === 'Recently Created') {
+        params.sort_by = 'created_at';
+        params.sort_order = 'desc';
+      }
+      if (activeView === 'Recently Modified') {
+        params.sort_by = 'updated_at';
+        params.sort_order = 'desc';
+      }
+      const result = await leadsApi.listLeads(params);
       setLeads(result.data);
       setTotal(result.total);
     } catch (err) {
@@ -57,7 +83,7 @@ export default function LeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, search, statusFilter, showToast]);
+  }, [page, limit, debouncedSearch, statusFilter, activeView, user?.id, showToast]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -120,16 +146,16 @@ export default function LeadsPage() {
 
   return (
     <CRMLayout>
-      <div className="p-4">
+      <div className="p-6">
         <ListToolbar
           moduleName="Leads"
           total={total}
           views={LIST_VIEWS.leads}
           activeView={activeView}
-          onViewChange={setActiveView}
+          onViewChange={v => { setActiveView(v); setPage(1); }}
           searchValue={search}
           onSearch={v => { setSearch(v); setPage(1); }}
-          onCreate={() => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); }}
+          onCreate={canEdit ? openCreate : undefined}
           createLabel="+ Create Lead"
         >
           <select className="input w-40 text-xs" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
@@ -141,19 +167,19 @@ export default function LeadsPage() {
           </select>
         </ListToolbar>
 
-        {selected.length > 0 && (
-          <div className="card mb-4 px-4 py-2 flex items-center gap-3">
-            <span className="text-sm text-gray-600">{selected.length} selected</span>
-            <button onClick={() => setBulkDelete(true)} className="text-sm text-red-600 hover:underline">Bulk Delete</button>
+        {canBulkDelete && selected.length > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2.5 mb-3 bg-brand-50 border border-brand-200 rounded-lg text-sm">
+            <span className="font-medium text-brand-700">{selected.length} selected</span>
+            <button onClick={() => setBulkDelete(true)} className="btn-danger-sm ml-auto">Bulk Delete</button>
           </div>
         )}
 
-        <div className="card rounded-t-none mb-4">
+        <div className="card rounded-tl-none rounded-tr-none border-t-0 mb-4">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-100">
+              <thead>
                 <tr>
-                  <th className="table-th w-8"></th>
+                  {canBulkDelete && <th className="table-th w-10"></th>}
                   <th className="table-th">Lead Name</th>
                   <th className="table-th">Company</th>
                   <th className="table-th">Email</th>
@@ -161,29 +187,41 @@ export default function LeadsPage() {
                   <th className="table-th">Source</th>
                   <th className="table-th">Status</th>
                   <th className="table-th">Owner</th>
-                  <th className="table-th">Actions</th>
+                  <th className="table-th w-24">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
-                {loading ? <tr><td colSpan={9} className="table-td text-center py-10 text-gray-400">Loading...</td></tr>
-                : leads.length === 0 ? <tr><td colSpan={9} className="table-td text-center py-10 text-gray-400">No leads found</td></tr>
-                : leads.map(lead => (
-                  <tr key={lead.id} className="hover:bg-gray-50 group">
-                    <td className="table-td"><input type="checkbox" checked={selected.includes(lead.id)} onChange={() => toggleSelect(lead.id)} /></td>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={canBulkDelete ? 9 : 8} className="table-td text-center py-12 text-zoho-muted">Loading…</td></tr>
+                ) : leads.length === 0 ? (
+                  <tr><td colSpan={canBulkDelete ? 9 : 8} className="table-td text-center py-12 text-zoho-muted">No leads found</td></tr>
+                ) : leads.map(lead => (
+                  <tr key={lead.id} className="hover:bg-brand-50/30 transition-colors">
+                    {canBulkDelete && (
+                      <td className="table-td">
+                        <input type="checkbox" className="rounded border-zoho-border" checked={selected.includes(lead.id)} onChange={() => toggleSelect(lead.id)} />
+                      </td>
+                    )}
                     <td className="table-td font-medium">
-                      <Link href={`/leads/${lead.id}`} className="text-brand-600 hover:underline">{lead.first_name} {lead.last_name}</Link>
+                      <Link href={`/leads/${lead.id}`} className="text-brand-600 hover:text-brand-700">{lead.first_name} {lead.last_name}</Link>
                     </td>
                     <td className="table-td">{lead.company || '—'}</td>
-                    <td className="table-td text-blue-600">{lead.email || '—'}</td>
+                    <td className="table-td text-brand-600">{lead.email || '—'}</td>
                     <td className="table-td">{lead.phone || '—'}</td>
                     <td className="table-td">{lead.source || '—'}</td>
                     <td className="table-td"><Badge label={lead.status} /></td>
                     <td className="table-td">{lead.owner_name || '—'}</td>
                     <td className="table-td">
-                      <div className="flex gap-3">
-                        <button onClick={() => { setForm({ ...lead, lead_status: lead.lead_status, source: lead.source }); setEditing(lead.id); setModal(true); }} className="text-xs text-blue-600 hover:underline">Edit</button>
-                        <button onClick={() => setDeleteTarget(lead)} className="text-xs text-red-500 hover:underline">Delete</button>
-                      </div>
+                      {(canEdit || canDelete) && (
+                        <div className="flex gap-1.5">
+                          {canEdit && (
+                            <button onClick={() => { setForm({ ...lead, lead_status: lead.lead_status, source: lead.source }); setEditing(lead.id); setModal(true); }} className="btn-secondary-sm">Edit</button>
+                          )}
+                          {canDelete && (
+                            <button onClick={() => setDeleteTarget(lead)} className="btn-danger-sm">Delete</button>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -191,11 +229,12 @@ export default function LeadsPage() {
             </table>
           </div>
 
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-xs text-gray-500">{total ? `${((page - 1) * limit) + 1}-${Math.min(page * limit, total)} of ${total}` : '0 records'}</p>
+          <div className="flex items-center justify-between px-4 py-3 border-t border-zoho-border/60">
+            <p className="text-xs text-zoho-muted">{total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total} records` : '0 records'}</p>
             <div className="flex gap-2">
-              <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="btn-secondary text-xs py-1">← Prev</button>
-              <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages} className="btn-secondary text-xs py-1">Next →</button>
+              <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="btn-secondary-sm disabled:opacity-40">← Prev</button>
+              <span className="btn-secondary-sm pointer-events-none">{page} / {totalPages}</span>
+              <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages} className="btn-secondary-sm disabled:opacity-40">Next →</button>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 'use client';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth.js';
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -10,10 +10,16 @@ import BottomUtilityBar from './BottomUtilityBar';
 export default function CRMLayout({ children }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
   }, [user, loading, router]);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-mesh-bg bg-[#f6f6fc]">
@@ -24,9 +30,17 @@ export default function CRMLayout({ children }) {
 
   return (
     <div className="flex h-screen">
-      <Sidebar />
+      {mobileNavOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+      <Sidebar mobileOpen={mobileNavOpen} onNavigate={() => setMobileNavOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <Header />
+        <Header onMenuClick={() => setMobileNavOpen(true)} />
         <ModuleTabs />
         <main className="flex-1 overflow-auto pb-0">{children}</main>
         <BottomUtilityBar />

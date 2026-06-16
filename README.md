@@ -1,159 +1,99 @@
-# Zoho CRM Clone — Next.js + Node.js + PostgreSQL
+# Zoho CRM Clone — Next.js Frontend
 
-A full-stack CRM application with:
-- **Frontend**: Next.js 14 + Tailwind CSS
-- **Backend**: Node.js + Express.js
-- **Database**: PostgreSQL
-- **Auth**: JWT tokens
+A Zoho-style CRM UI built with **Next.js 14** and **Tailwind CSS**. The frontend talks directly to the external [Sales CRM API](https://api-salescrm.duckdns.org/docs) — no local backend required for normal development.
 
 ## Features
-- Login / register with JWT authentication
-- Dashboard with charts and pipeline overview
-- Leads management (create, edit, delete, filter, search, pagination)
-- Contacts management with avatar initials
-- Deals — Table view AND Kanban board view
-- Accounts management
-- Pre-seeded demo data with Indian companies
+
+- JWT login with token refresh
+- Dashboard with KPI cards and report-driven charts
+- **Leads**, **Contacts**, **Accounts**, **Deals** (list + detail + Kanban)
+- Lead conversion, notes, recycle bin
+- Reports (leads, deals, accounts, campaigns, weekly admin reports)
+- Role-based UI (viewer read-only)
+- Mobile-friendly collapsible sidebar
 
 ---
 
 ## Prerequisites
 
-Install these first if you don't have them:
 - [Node.js 18+](https://nodejs.org)
-- [PostgreSQL 14+](https://postgresql.org/download)
 
 ---
 
-## Setup (Step by step)
+## Quick Start
 
-### Step 1 — Create the PostgreSQL database
-
-Open your terminal and run:
-```bash
-psql -U postgres
-```
-Then inside psql:
-```sql
-CREATE DATABASE zoho_crm;
-\q
-```
-
-### Step 2 — Set up the Backend
-
-```bash
-cd backend
-
-# Copy environment file
-cp .env.example .env
-```
-
-Now open `backend/.env` and update:
-```
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/zoho_crm
-JWT_SECRET=pick_any_long_random_string_here
-```
-
-Then run:
-```bash
-npm install
-
-# Initialize database tables + seed demo data
-npm run db:init
-
-# Start the backend server
-npm run dev
-```
-
-Backend runs at: **http://localhost:5000**
-
-### Step 3 — Set up the Frontend
-
-Open a new terminal:
 ```bash
 cd frontend
 npm install
+cp .env.example .env.local   # optional — defaults to production API
 npm run dev
 ```
 
-Frontend runs at: **http://localhost:3000**
+Open **http://localhost:3002**
+
+### Environment
+
+| Variable | Default |
+|----------|---------|
+| `NEXT_PUBLIC_API_URL` | `https://api-salescrm.duckdns.org/api/v1` |
+
+For **Vercel**, set `NEXT_PUBLIC_API_URL` in project settings (root directory: `frontend`).
 
 ---
 
-## Demo Login
+## Login
 
-| Field    | Value            |
-|----------|------------------|
-| Email    | disha@demo.com   |
-| Password | demo1234         |
+Use credentials from your **Sales CRM API** administrator (not the old local demo DB).
+
+Example (if provisioned on the API server):
+
+| Email | Password |
+|-------|----------|
+| `admin@company.com` | *(ask your API admin)* |
 
 ---
 
-## Project Structure
+## Architecture
 
 ```
-zoho-crm/
-├── backend/
-│   ├── src/
-│   │   ├── db/
-│   │   │   ├── pool.js          # PostgreSQL connection
-│   │   │   └── init.js          # DB schema + seed data
-│   │   ├── middleware/
-│   │   │   └── auth.js          # JWT middleware
-│   │   ├── routes/
-│   │   │   ├── auth.js          # Login / Register
-│   │   │   ├── leads.js         # Leads CRUD
-│   │   │   ├── contacts.js      # Contacts CRUD
-│   │   │   ├── deals.js         # Deals CRUD + pipeline
-│   │   │   ├── accounts.js      # Accounts CRUD
-│   │   │   └── dashboard.js     # Stats + activity feed
-│   │   └── index.js             # Express app entry
-│   ├── .env.example
-│   └── package.json
-│
-└── frontend/
-    ├── src/
-    │   ├── app/
-    │   │   ├── dashboard/page.js  # Dashboard with charts
-    │   │   ├── leads/page.js      # Leads table + CRUD
-    │   │   ├── contacts/page.js   # Contacts table + CRUD
-    │   │   ├── deals/page.js      # Deals table + Kanban
-    │   │   ├── accounts/page.js   # Accounts table + CRUD
-    │   │   ├── login/page.js      # Auth page
-    │   │   ├── layout.js          # Root layout
-    │   │   └── globals.css        # Tailwind + component classes
-    │   ├── components/
-    │   │   ├── layout/
-    │   │   │   ├── Sidebar.js     # Nav sidebar
-    │   │   │   └── CRMLayout.js   # Auth-guarded wrapper
-    │   │   └── ui/
-    │   │       ├── Modal.js       # Reusable modal
-    │   │       └── Badge.js       # Status badge
-    │   ├── hooks/
-    │   │   └── useAuth.js         # Auth context + hook
-    │   └── lib/
-    │       └── api.js             # Axios client with JWT
-    ├── next.config.js             # API proxy to backend
-    └── tailwind.config.js
+frontend/
+├── src/
+│   ├── app/              # Next.js App Router pages
+│   ├── components/       # Layout, UI, forms
+│   ├── hooks/            # useAuth, usePermissions, debounce
+│   ├── lib/
+│   │   ├── api.js        # Axios client + JWT refresh
+│   │   ├── services/     # API modules (leads, deals, reports…)
+│   │   └── *Helpers.js   # Field normalization
+│   └── middleware.js     # Route guard via session cookie
+└── package.json
 ```
 
-## API Endpoints
+- **Auth:** Tokens in `localStorage` + `crm_session` cookie for middleware route protection
+- **API docs:** https://api-salescrm.duckdns.org/docs
 
-| Method | Endpoint                  | Description           |
-|--------|---------------------------|-----------------------|
-| POST   | /api/auth/login           | Login                 |
-| POST   | /api/auth/register        | Register              |
-| GET    | /api/dashboard/stats      | Dashboard stats       |
-| GET    | /api/leads                | List leads            |
-| POST   | /api/leads                | Create lead           |
-| PUT    | /api/leads/:id            | Update lead           |
-| DELETE | /api/leads/:id            | Delete lead           |
-| GET    | /api/contacts             | List contacts         |
-| POST   | /api/contacts             | Create contact        |
-| GET    | /api/deals                | List deals            |
-| GET    | /api/deals/pipeline       | Pipeline by stage     |
-| POST   | /api/deals                | Create deal           |
-| GET    | /api/accounts             | List accounts         |
-| POST   | /api/accounts             | Create account        |
+---
 
-All routes except `/api/auth/*` require `Authorization: Bearer <token>` header.
+## Integrated API Modules
+
+| Module | Status |
+|--------|--------|
+| Auth, Leads, Contacts, Accounts, Deals | Live |
+| Recycle Bin, Reports, Weekly Reports | Live |
+| Tasks, Meetings, Calls, Campaigns, Documents, Feeds, Visits, Projects | UI stub (API pending) |
+
+---
+
+## Optional Local Backend
+
+The repo includes a legacy `backend/` (Express + PostgreSQL) for local development. The **frontend no longer proxies to it** by default. To use it, you would need to point `NEXT_PUBLIC_API_URL` at your local server and run PostgreSQL separately — see `backend/README` if present.
+
+---
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Dev server on port **3002** |
+| `npm run build` | Production build |
+| `npm start` | Serve production build |

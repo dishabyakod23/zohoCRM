@@ -1,25 +1,39 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth.js';
 import { getApiError } from '../../lib/api.js';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, user, loading } = useAuth();
+  const router = useRouter();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!loading && user) router.replace('/dashboard');
+  }, [user, loading, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); setLoading(true);
+    setError(''); setSubmitting(true);
     try {
       await login(form.email, form.password);
     } catch (err) {
       setError(getApiError(err));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  if (loading || user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-brand-gradient">
+        <div className="w-10 h-10 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-brand-gradient flex items-center justify-center p-4 relative overflow-hidden">
@@ -47,8 +61,8 @@ export default function LoginPage() {
             <input className="input" type="password" value={form.password}
               onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required />
           </div>
-          <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 mt-2">
-            {loading ? 'Signing in...' : 'Sign in'}
+          <button type="submit" disabled={submitting} className="btn-primary w-full py-2.5 mt-2">
+            {submitting ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
 

@@ -23,29 +23,38 @@ export default function ListToolbar({
     <div className="mb-0">
       <div className="zoho-toolbar">
         <div className="zoho-toolbar-left">
-          <button onClick={onCreate} className="btn-primary text-xs px-4">{createLabel || `+ Create ${moduleName}`}</button>
+          <button type="button" onClick={onCreate} disabled={!onCreate} className="btn-primary-sm disabled:opacity-40">
+            {createLabel || `+ Create ${moduleName}`}
+          </button>
           {extraActions}
-          <div className="h-5 w-px bg-zoho-border mx-1" />
-          <button onClick={() => setShowFilters(!showFilters)} className="zoho-filter-btn">Filter</button>
-          <button className="zoho-filter-btn">Sort</button>
-          <span className="text-xs text-zoho-muted ml-2">{total} Record{total !== 1 ? 's' : ''}</span>
+          <div className="h-4 w-px bg-zoho-border mx-1" />
+          <button onClick={() => setShowFilters(!showFilters)}
+            className={`zoho-filter-btn ${showFilters ? 'border-brand-300 text-brand-600 bg-brand-50' : ''}`}>
+            Filter{showFilters ? ' ▲' : ' ▼'}
+          </button>
+          <span className="text-xs text-zoho-muted">{total} {total !== 1 ? 'records' : 'record'}</span>
         </div>
-        <input
-          className="input max-w-[200px] py-1 text-xs"
-          placeholder={`Search ${moduleName}...`}
-          value={searchValue || ''}
-          onChange={e => onSearch?.(e.target.value)}
-        />
+        <div className="relative">
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zoho-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            className="input w-52 pl-8 py-1.5 text-xs"
+            placeholder={`Search ${moduleName}…`}
+            value={searchValue || ''}
+            onChange={e => onSearch?.(e.target.value)}
+          />
+        </div>
       </div>
 
       {showFilters && children && (
-        <div className="px-4 py-3 bg-[#fafbfc] border border-t-0 border-zoho-border rounded-b flex gap-3 flex-wrap">
+        <div className="px-4 py-3 bg-brand-50/30 border border-t-0 border-zoho-border flex gap-3 flex-wrap items-end">
           {children}
         </div>
       )}
 
       {views.length > 1 && (
-        <div className="flex gap-0 px-4 bg-white border border-t-0 border-zoho-border">
+        <div className="flex px-4 bg-white border border-t-0 border-zoho-border rounded-b-none">
           {views.map(v => (
             <button key={v} onClick={() => onViewChange?.(v)}
               className={`zoho-view-tab ${activeView === v ? 'zoho-view-tab-active' : 'zoho-view-tab-inactive'}`}>

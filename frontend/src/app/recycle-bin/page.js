@@ -1,15 +1,20 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import CRMLayout from '../../components/layout/CRMLayout.js';
+import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import { useToast } from '../../components/ui/Toast.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as recycleBinApi from '../../lib/services/recycleBin.js';
 
 export default function RecycleBinPage() {
   const { showToast } = useToast();
+  const { isSuperAdmin } = usePermissions();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [restoring, setRestoring] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -38,6 +43,20 @@ export default function RecycleBinPage() {
     }
   };
 
+  const handlePermanentDelete = async () => {
+    setDeleting(true);
+    try {
+      await recycleBinApi.deleteRecycleItem(deleteTarget.id);
+      setDeleteTarget(null);
+      fetchItems();
+      showToast('Record permanently deleted', 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <CRMLayout>
       <div className="p-6">
@@ -54,13 +73,18 @@ export default function RecycleBinPage() {
                   <td className="table-td capitalize">{item.record_type || item.entity_type}</td>
                   <td className="table-td text-xs">{item.deleted_at ? new Date(item.deleted_at).toLocaleString() : '—'}</td>
                   <td className="table-td">
-                    <button
-                      onClick={() => handleRestore(item)}
-                      disabled={restoring === item.id}
-                      className="text-xs text-brand-600 hover:underline disabled:opacity-50"
-                    >
-                      {restoring === item.id ? 'Restoring...' : 'Restore'}
-                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleRestore(item)}
+                        disabled={restoring === item.id}
+                        className="text-xs text-brand-600 hover:underline disabled:opacity-50"
+                      >
+                        {restoring === item.id ? 'Restoring...' : 'Restore'}
+                      </button>
+                      {isSuperAdmin && (
+                        <button onClick={() => setDeleteTarget(item)} className="text-xs text-red-500 hover:underline">Delete Forever</button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -68,6 +92,14 @@ export default function RecycleBinPage() {
           </table>
         </div>
       </div>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        message={`Permanently delete "${deleteTarget?.name}"? This cannot be undone.`}
+        confirmLabel={deleting ? 'Deleting...' : 'Delete Forever'}
+        danger
+        onConfirm={handlePermanentDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </CRMLayout>
   );
 }

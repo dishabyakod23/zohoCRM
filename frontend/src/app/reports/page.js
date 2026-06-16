@@ -1,10 +1,11 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { getApiError } from '../../lib/api.js';
-import { canDownload } from '../../lib/constants.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
+import { userDisplayName } from '../../lib/userHelpers.js';
 import * as reportsApi from '../../lib/services/reports.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -17,20 +18,17 @@ const EXPORT_PATHS = {
   campaigns: { path: '/reports/campaigns/export' },
 };
 
-function isAdmin(user) {
-  return user?.role === 'super_admin' || user?.role === 'admin';
-}
-
 export default function ReportsPage() {
   const { showToast } = useToast();
-  const { user } = useAuth();
-  const admin = isAdmin(user);
+  const { user, canDownload, canManageWeeklyReports, canAccessReports } = usePermissions();
+  const admin = canManageWeeklyReports;
   const [tab, setTab] = useState('leads');
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
   const [weeklySettings, setWeeklySettings] = useState(null);
+  const [adminUsers, setAdminUsers] = useState([]);
   const [weeklyPreview, setWeeklyPreview] = useState(null);
   const [weeklyLogs, setWeeklyLogs] = useState([]);
   const [logsTotal, setLogsTotal] = useState(0);
@@ -95,12 +93,14 @@ export default function ReportsPage() {
     if (!admin) return;
     setLoading(true);
     try {
-      const [settings, preview, logs] = await Promise.all([
+      const [settings, preview, logs, users] = await Promise.all([
         reportsApi.getAdminSettings(),
         reportsApi.previewWeeklyReport(),
         reportsApi.listWeeklyReportLogs({ page: logsPage, page_size: 10 }),
+        reportsApi.listAdminUsers(),
       ]);
       setWeeklySettings(settings.weekly_report);
+      setAdminUsers(users);
       setWeeklyPreview(preview);
       setWeeklyLogs(logs.data);
       setLogsTotal(logs.total);
@@ -142,6 +142,7 @@ export default function ReportsPage() {
         hour: weeklySettings.hour,
         minute: weeklySettings.minute,
         timezone: weeklySettings.timezone,
+        excluded_user_ids: weeklySettings.excluded_user_ids || [],
       });
       setWeeklySettings(updated.weekly_report);
       showToast('Weekly report settings saved', 'success');
@@ -153,10 +154,16 @@ export default function ReportsPage() {
   };
 
   const handleTriggerWeekly = async () => {
+    const recipients = reportsApi.getWeeklyReportRecipients(adminUsers, weeklySettings);
+    if (!recipients.length) {
+      showToast('No recipients selected. Enable a role and include at least one user with an email.');
+      return;
+    }
     setTriggering(true);
     try {
       const result = await reportsApi.triggerWeeklyReport();
-      showToast(result.message || `Sent ${result.sent_count} report(s)`, 'success');
+      const emails = recipients.map(u => u.email).join(', ');
+      showToast(result.message || `Sent ${result.sent_count} report(s) to ${emails}`, 'success');
       const logs = await reportsApi.listWeeklyReportLogs({ page: 1, page_size: 10 });
       setWeeklyLogs(logs.data);
       setLogsTotal(logs.total);
@@ -178,6 +185,25 @@ export default function ReportsPage() {
   ];
 
   const summary = weeklyPreview?.summary;
+  const reportRecipients = useMemo(
+    () => reportsApi.getWeeklyReportRecipients(adminUsers, weeklySettings),
+    [adminUsers, weeklySettings],
+  );
+
+  const toggleRecipient = (userId, included) => {
+    setWeeklySettings(s => reportsApi.setUserReportIncluded(s, userId, included));
+  };
+
+  if (!canAccessReports) {
+    return (
+      <CRMLayout>
+        <div className="p-6">
+          <h1 className="text-xl font-bold mb-2">Reports</h1>
+          <p className="text-gray-500 text-sm">Your role does not have access to reports. Contact a super admin if you need access.</p>
+        </div>
+      </CRMLayout>
+    );
+  }
 
   return (
     <CRMLayout>
@@ -189,7 +215,7 @@ export default function ReportsPage() {
               <input className="input w-36 text-xs" type="date" value={dateRange.start} onChange={e => setDateRange(d => ({ ...d, start: e.target.value }))} />
               <span className="text-gray-400">to</span>
               <input className="input w-36 text-xs" type="date" value={dateRange.end} onChange={e => setDateRange(d => ({ ...d, end: e.target.value }))} />
-              {canDownload(user?.role) && EXPORT_PATHS[tab] && (
+              {canDownload && EXPORT_PATHS[tab] && (
                 <button onClick={download} className="btn-secondary text-xs">Download CSV</button>
               )}
             </div>
@@ -310,9 +336,62 @@ export default function ReportsPage() {
                   )}
                   <div className="flex gap-2 mt-4">
                     <button onClick={saveWeeklySettings} disabled={savingSettings} className="btn-primary text-xs">{savingSettings ? 'Saving...' : 'Save Settings'}</button>
-                    <button onClick={handleTriggerWeekly} disabled={triggering} className="btn-secondary text-xs">{triggering ? 'Sending...' : 'Trigger Report Now'}</button>
+                    <button onClick={handleTriggerWeekly} disabled={triggering || !reportRecipients.length} className="btn-secondary text-xs">{triggering ? 'Sending...' : `Send to ${reportRecipients.length} recipient(s)`}</button>
                     <button onClick={loadWeeklyData} className="btn-secondary text-xs">Refresh Preview</button>
                   </div>
+                </div>
+
+                <div className="card p-5">
+                  <h3 className="font-semibold mb-1">Email Recipients</h3>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Loaded from <code className="text-brand-600">GET /admin/users</code>. Reports are sent to the email addresses of included users.
+                    {reportRecipients.length > 0 && (
+                      <span className="block mt-1 text-brand-700 font-medium">
+                        Will send to: {reportRecipients.map(u => u.email).join(', ')}
+                      </span>
+                    )}
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="table-th w-10">Send</th>
+                          <th className="table-th">Name</th>
+                          <th className="table-th">Email</th>
+                          <th className="table-th">Role</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {adminUsers.length === 0 ? (
+                          <tr><td colSpan={4} className="table-td text-center py-6 text-gray-400">No users found</td></tr>
+                        ) : adminUsers.map(u => {
+                          const eligible = reportsApi.isWeeklyRecipientEligible(u, weeklySettings);
+                          const included = reportsApi.isUserIncludedInReports(u, weeklySettings);
+                          return (
+                            <tr key={u.id} className={!u.is_active ? 'opacity-50' : ''}>
+                              <td className="table-td">
+                                {eligible ? (
+                                  <input
+                                    type="checkbox"
+                                    checked={included}
+                                    onChange={e => toggleRecipient(u.id, e.target.checked)}
+                                  />
+                                ) : (
+                                  <span className="text-xs text-gray-400">—</span>
+                                )}
+                              </td>
+                              <td className="table-td">{userDisplayName(u)}</td>
+                              <td className="table-td text-blue-600">{u.email}</td>
+                              <td className="table-td capitalize">{u.role?.replace('_', ' ')}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-3">
+                    Super Admins and Sales Managers are eligible when their role toggle is enabled above. Uncheck a user to exclude them via saved settings.
+                  </p>
                 </div>
 
                 {summary && (

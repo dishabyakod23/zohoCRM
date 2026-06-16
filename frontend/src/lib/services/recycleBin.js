@@ -23,3 +23,7 @@ export async function restoreRecycleItem(recycleId) {
   const res = await api.post(`/recycle-bin/${recycleId}/restore`);
   return res.data;
 }
+
+export async function deleteRecycleItem(recycleId) {
+  await api.delete(`/recycle-bin/${recycleId}`);
+}

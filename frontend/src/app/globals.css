@@ -11,43 +11,50 @@
 }
 
 @layer components {
-  .btn { @apply px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 focus:outline-none active:scale-[0.98]; }
-  .btn-primary { @apply btn bg-brand-gradient text-white shadow-soft hover:shadow-card; }
+  /* Buttons — three consistent sizes */
+  .btn      { @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand-100 active:scale-[0.98]; }
+  .btn-sm   { @apply inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150 focus:outline-none active:scale-[0.98]; }
+  .btn-primary   { @apply btn bg-brand-gradient text-white shadow-soft hover:shadow-card; }
   .btn-secondary { @apply btn bg-white border border-zoho-border text-zoho-text hover:border-brand-300 hover:text-brand-600; }
-  .btn-danger { @apply btn bg-red-50 border border-red-200 text-red-600 hover:bg-red-100; }
-  .input { @apply w-full px-3 py-1.5 border border-zoho-border rounded-lg text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand-100 focus:border-brand-400 bg-white placeholder:text-zoho-muted/70; }
-  .label { @apply block text-xs font-semibold text-zoho-muted mb-1 tracking-wide; }
-  .card { @apply bg-white rounded-2xl border border-zoho-border/70 shadow-soft transition-shadow duration-200 hover:shadow-card; }
-  .table-th { @apply px-3 py-2.5 text-left text-[11px] font-bold text-brand-700/70 uppercase tracking-wide bg-brand-50/60 border-b border-zoho-border; }
-  .table-td { @apply px-3 py-2.5 text-sm text-zoho-text border-b border-gray-50; }
-  .badge { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset; }
+  .btn-danger    { @apply btn bg-red-50 border border-red-200 text-red-600 hover:bg-red-100; }
+  .btn-primary-sm   { @apply btn-sm bg-brand-gradient text-white shadow-soft hover:shadow-card; }
+  .btn-secondary-sm { @apply btn-sm bg-white border border-zoho-border text-zoho-text hover:border-brand-300 hover:text-brand-600; }
+  .btn-danger-sm    { @apply btn-sm bg-red-50 border border-red-200 text-red-600 hover:bg-red-100; }
 
-  /* Zoho list view toolbar */
-  .zoho-toolbar { @apply flex items-center justify-between gap-3 px-4 py-2.5 bg-white border border-zoho-border rounded-t-2xl; }
+  .input { @apply w-full px-3 py-2 border border-zoho-border rounded-lg text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand-100 focus:border-brand-400 bg-white placeholder:text-zoho-muted/60; }
+  .label { @apply block text-xs font-medium text-zoho-muted mb-1.5; }
+  .card  { @apply bg-white rounded-xl border border-zoho-border/80 shadow-soft; }
+
+  .table-th { @apply px-4 py-3 text-left text-[11px] font-semibold text-zoho-muted uppercase tracking-wider bg-brand-50/40 border-b border-zoho-border; }
+  .table-td { @apply px-4 py-3 text-sm text-zoho-text border-b border-gray-50; }
+  .badge    { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset; }
+
+  /* List view toolbar — unified bar */
+  .zoho-toolbar      { @apply flex items-center justify-between gap-3 px-4 py-3 bg-white border border-zoho-border rounded-t-xl; }
   .zoho-toolbar-left { @apply flex items-center gap-2 flex-wrap; }
-  .zoho-filter-btn { @apply px-3 py-1 text-xs border border-zoho-border rounded-lg bg-white hover:bg-brand-50 hover:border-brand-200 hover:text-brand-600 transition-colors text-zoho-text; }
-  .zoho-view-tab { @apply px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors; }
-  .zoho-view-tab-active { @apply border-brand-500 text-brand-600; }
-  .zoho-view-tab-inactive { @apply border-transparent text-zoho-muted hover:text-zoho-text; }
+  .zoho-filter-btn   { @apply btn-secondary-sm; }
+  .zoho-view-tab         { @apply px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors duration-150; }
+  .zoho-view-tab-active  { @apply border-brand-500 text-brand-600; }
+  .zoho-view-tab-inactive { @apply border-transparent text-zoho-muted hover:text-zoho-text hover:border-zoho-border; }
 
-  /* Zoho module top tabs */
-  .zoho-module-tabs { @apply flex items-center gap-1 bg-white border-b border-zoho-border px-3 py-1.5 overflow-x-auto shrink-0; }
-  .zoho-module-tab { @apply px-4 py-2 text-sm whitespace-nowrap rounded-full transition-all duration-200 font-medium; }
-  .zoho-module-tab-active { @apply bg-brand-gradient text-white shadow-soft; }
-  .zoho-module-tab-inactive { @apply text-zoho-muted hover:text-brand-600 hover:bg-brand-50; }
+  /* Module top tabs — clean underline style */
+  .zoho-module-tabs        { @apply flex items-center bg-white border-b border-zoho-border px-4 overflow-x-auto shrink-0; }
+  .zoho-module-tab         { @apply px-4 py-3 text-sm whitespace-nowrap font-medium border-b-2 -mb-px transition-colors duration-150; }
+  .zoho-module-tab-active  { @apply border-brand-500 text-brand-600; }
+  .zoho-module-tab-inactive { @apply border-transparent text-zoho-muted hover:text-zoho-text hover:border-zoho-border; }
 
-  /* Record detail - Zoho style */
-  .zoho-record-header { @apply bg-white border-b border-zoho-border px-6 py-4; }
-  .zoho-record-tabs { @apply flex gap-1 bg-white border-b border-zoho-border px-6 pt-1; }
-  .zoho-record-tab { @apply px-4 py-2.5 text-sm rounded-t-lg border-b-2 -mb-px cursor-pointer transition-colors duration-150; }
-  .zoho-record-tab-active { @apply border-brand-500 text-brand-600 font-semibold bg-brand-50/60; }
-  .zoho-record-tab-inactive { @apply border-transparent text-zoho-muted hover:text-zoho-text hover:bg-gray-50; }
-  .zoho-widget { @apply card p-4 animate-fadeIn; }
-  .zoho-widget-title { @apply text-xs font-bold text-brand-700/80 uppercase tracking-wide mb-3; }
+  /* Record detail */
+  .zoho-record-header      { @apply bg-white border-b border-zoho-border px-6 py-5; }
+  .zoho-record-tabs        { @apply flex bg-white border-b border-zoho-border px-6; }
+  .zoho-record-tab         { @apply px-4 py-3 text-sm border-b-2 -mb-px cursor-pointer transition-colors duration-150 font-medium; }
+  .zoho-record-tab-active  { @apply border-brand-500 text-brand-600; }
+  .zoho-record-tab-inactive { @apply border-transparent text-zoho-muted hover:text-zoho-text hover:border-zoho-border; }
+  .zoho-widget       { @apply card p-5 animate-fadeIn; }
+  .zoho-widget-title { @apply text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-4; }
 
   /* Sidebar nav item */
-  .zoho-nav-item { @apply flex items-center gap-2.5 px-3 py-2 text-sm rounded-xl transition-all duration-150; }
-  .zoho-nav-active { @apply bg-white/15 text-white font-semibold shadow-glow backdrop-blur-sm; }
+  .zoho-nav-item   { @apply flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg transition-colors duration-150; }
+  .zoho-nav-active { @apply bg-white/15 text-white font-semibold; }
   .zoho-nav-inactive { @apply text-white/60 hover:bg-white/10 hover:text-white; }
 }
 

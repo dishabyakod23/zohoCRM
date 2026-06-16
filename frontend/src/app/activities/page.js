@@ -3,20 +3,33 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Badge from '../../components/ui/Badge.js';
-import ApiPendingBanner from '../../components/ui/ApiPendingBanner.js';
+import { useToast } from '../../components/ui/Toast.js';
+import { getApiError } from '../../lib/api.js';
+import * as tasksApi from '../../lib/services/tasks.js';
+import * as meetingsApi from '../../lib/services/meetings.js';
+import * as callsApi from '../../lib/services/calls.js';
 
-/** Zoho-style unified Activities hub: Tasks, Meetings (Events), Calls */
 export default function ActivitiesPage() {
+  const { showToast } = useToast();
   const [tab, setTab] = useState('tasks');
   const [tasks, setTasks] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [calls, setCalls] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setTasks([]);
-    setMeetings([]);
-    setCalls([]);
-  }, []);
+    setLoading(true);
+    Promise.all([
+      tasksApi.listTasks({ page: 1, page_size: 10 }),
+      meetingsApi.listMeetings({ page: 1, page_size: 10 }),
+      callsApi.listCalls({ page: 1, page_size: 10 }),
+    ]).then(([t, m, c]) => {
+      setTasks(t.data);
+      setMeetings(m.data);
+      setCalls(c.data);
+    }).catch(err => showToast(getApiError(err)))
+      .finally(() => setLoading(false));
+  }, [showToast]);
 
   const tabs = [
     { id: 'tasks', label: 'Tasks', count: tasks.length, href: '/tasks' },
@@ -27,7 +40,6 @@ export default function ActivitiesPage() {
   return (
     <CRMLayout>
       <div className="p-4">
-        <ApiPendingBanner module="Activities" />
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-semibold text-zoho-text">Activities</h1>
           <Link href={`/${tab}`} className="btn-primary text-xs">+ Create {tab === 'tasks' ? 'Task' : tab === 'meetings' ? 'Meeting' : 'Call'}</Link>
@@ -43,6 +55,8 @@ export default function ActivitiesPage() {
         </div>
 
         <div className="card rounded-t-none overflow-x-auto">
+          {loading ? <p className="text-center py-10 text-gray-400">Loading...</p> : (
+          <>
           {tab === 'tasks' && (
             <table className="w-full">
               <thead><tr><th className="table-th">Subject</th><th className="table-th">Due Date</th><th className="table-th">Status</th><th className="table-th">Priority</th><th className="table-th">Assigned To</th></tr></thead>
@@ -51,9 +65,9 @@ export default function ActivitiesPage() {
                 : tasks.map(t => (
                 <tr key={t.id} className="hover:bg-brand-50/30">
                   <td className="table-td font-medium"><Link href="/tasks" className="text-brand-600 hover:underline">{t.title}</Link></td>
-                  <td className={`table-td ${new Date(t.due_date) < new Date() && t.status !== 'Completed' ? 'text-red-600' : ''}`}>{new Date(t.due_date).toLocaleString()}</td>
-                  <td className="table-td"><Badge label={t.status} /></td>
-                  <td className="table-td">{t.priority}</td>
+                  <td className={`table-td ${new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-600' : ''}`}>{new Date(t.due_date).toLocaleString()}</td>
+                  <td className="table-td"><Badge label={t.status_label} /></td>
+                  <td className="table-td">{t.priority_label}</td>
                   <td className="table-td">{t.assigned_name}</td>
                 </tr>
               ))}</tbody>
@@ -83,12 +97,14 @@ export default function ActivitiesPage() {
                 : calls.map(c => (
                 <tr key={c.id} className="hover:bg-brand-50/30">
                   <td className="table-td font-medium"><Link href="/calls" className="text-brand-600">{c.subject}</Link></td>
-                  <td className="table-td">{c.call_type}</td>
+                  <td className="table-td">{c.call_type_label}</td>
                   <td className="table-td">{new Date(c.start_time).toLocaleString()}</td>
                   <td className="table-td">{c.assigned_name}</td>
                 </tr>
               ))}</tbody>
             </table>
+          )}
+          </>
           )}
         </div>
       </div>

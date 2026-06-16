@@ -7,12 +7,17 @@ import * as leadsApi from '../../lib/services/leads.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import * as dealsApi from '../../lib/services/deals.js';
+import { useToast } from '../ui/Toast.js';
 import ConfirmDialog from '../ui/ConfirmDialog.js';
+import { getApiError } from '../../lib/api.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 import { QUICK_CREATE } from '../../lib/constants.js';
 import { userDisplayName, userInitial } from '../../lib/userHelpers.js';
 
-export default function Header() {
+export default function Header({ onMenuClick }) {
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
+  const { canQuickCreate } = usePermissions();
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
@@ -22,6 +27,20 @@ export default function Header() {
   const [showNotif, setShowNotif] = useState(false);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
   const searchRef = useRef(null);
+  const quickRef = useRef(null);
+  const notifRef = useRef(null);
+  const profileRef = useRef(null);
+
+  useEffect(() => {
+    const onClickOutside = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) setShowResults(false);
+      if (quickRef.current && !quickRef.current.contains(e.target)) setShowQuick(false);
+      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotif(false);
+      if (profileRef.current && !profileRef.current.contains(e.target)) setShowProfile(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
 
   useEffect(() => {
     if (search.length < 2) { setResults([]); return; }
@@ -38,7 +57,10 @@ export default function Header() {
           ...accounts.data.map(a => ({ type: 'account', id: a.id, name: a.name, sub: a.industry })),
           ...deals.data.map(d => ({ type: 'deal', id: d.id, name: d.name, sub: d.account_name })),
         ].slice(0, 12));
-      }).catch(() => setResults([]));
+      }).catch((err) => {
+        setResults([]);
+        showToast(getApiError(err));
+      });
     }, 300);
     return () => clearTimeout(t);
   }, [search]);
@@ -56,10 +78,15 @@ export default function Header() {
   return (
     <>
       <header className="h-14 bg-white/80 backdrop-blur-md border-b border-zoho-border flex items-center gap-3 px-4 sticky top-0 z-30">
+        <button type="button" onClick={onMenuClick} aria-label="Open navigation menu"
+          className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center text-zoho-muted hover:bg-brand-50 hover:text-brand-600">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+        </button>
         <div className="relative flex-1 max-w-xl" ref={searchRef}>
           <input
             className="w-full py-2 pl-9 pr-3 text-sm border border-zoho-border rounded-xl bg-brand-50/40 focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400 focus:bg-white transition-all duration-150"
             placeholder="Search records, modules..."
+            aria-label="Search records and modules"
             value={search}
             onChange={e => { setSearch(e.target.value); setShowResults(true); }}
             onFocus={() => setShowResults(true)}
@@ -81,8 +108,9 @@ export default function Header() {
           )}
         </div>
 
-        <div className="relative">
-          <button onClick={() => setShowQuick(!showQuick)}
+        {canQuickCreate && (
+        <div className="relative" ref={quickRef}>
+          <button onClick={() => setShowQuick(!showQuick)} aria-label="Quick create" aria-expanded={showQuick}
             className="w-9 h-9 rounded-xl bg-brand-gradient text-white font-bold text-lg leading-none shadow-soft hover:shadow-card transition-all duration-150" title="Quick Create">+</button>
           {showQuick && (
             <div className="absolute right-0 top-full mt-2 bg-white border border-zoho-border rounded-xl shadow-card-hover py-2 w-52 z-50 animate-scaleIn origin-top-right">
@@ -99,9 +127,10 @@ export default function Header() {
             </div>
           )}
         </div>
+        )}
 
-        <div className="relative">
-          <button onClick={() => setShowNotif(!showNotif)} className="w-9 h-9 rounded-xl flex items-center justify-center text-zoho-muted hover:text-brand-600 hover:bg-brand-50 transition-colors relative" title="Notifications">
+        <div className="relative" ref={notifRef}>
+          <button onClick={() => setShowNotif(!showNotif)} aria-label="Notifications" aria-expanded={showNotif} className="w-9 h-9 rounded-xl flex items-center justify-center text-zoho-muted hover:text-brand-600 hover:bg-brand-50 transition-colors relative" title="Notifications">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
           </button>
           {showNotif && (
@@ -115,8 +144,8 @@ export default function Header() {
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
         </Link>
 
-        <div className="relative">
-          <button onClick={() => setShowProfile(!showProfile)}
+        <div className="relative" ref={profileRef}>
+          <button onClick={() => setShowProfile(!showProfile)} aria-label="User profile menu" aria-expanded={showProfile}
             className="w-9 h-9 rounded-xl bg-brand-gradient text-white text-xs font-bold hover:shadow-glow transition-shadow">
             {userInitial(user)}
           </button>

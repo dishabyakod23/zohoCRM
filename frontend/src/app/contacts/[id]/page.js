@@ -24,8 +24,11 @@ export default function ContactDetailPage() {
     }).then(r => {
       setContact(r);
       trackRecentItem({ type: 'contact', id, name: `${r.first_name} ${r.last_name}` });
-    }).catch(() => router.push('/contacts'));
-  }, [id, router]);
+    }).catch((err) => {
+      showToast(getApiError(err) || 'Contact not found');
+      router.push('/contacts');
+    });
+  }, [id, router, showToast]);
 
   if (!contact) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
 
