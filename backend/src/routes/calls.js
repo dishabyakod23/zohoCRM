@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 const { requireEdit } = require('../middleware/roles');
-const { softDelete } = require('../utils/helpers');
+const { softDelete, listOk, recordOk } = require('../utils/helpers');
 
 const router = express.Router();
 router.use(auth);
@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
       [...params, limit, offset]
     );
     const countRes = await pool.query(`SELECT COUNT(*) FROM calls c ${whereStr}`, params);
-    res.json({ data: result.rows, total: parseInt(countRes.rows[0].count), page: +page, limit: +limit });
+    listOk(res, result.rows, countRes.rows[0].count, page, limit);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -33,7 +33,7 @@ router.get('/:id', async (req, res) => {
       [req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Call not found' });
-    res.json(result.rows[0]);
+    recordOk(res, result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -47,11 +47,11 @@ router.post('/', requireEdit, async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10) RETURNING *`,
       [subject, call_type, status || 'Scheduled', start_time, duration, assigned_to, related_type, related_id, description, req.user.id]
     );
-    res.status(201).json(result.rows[0]);
+    recordOk(res, result.rows[0], 201);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/:id', requireEdit, async (req, res) => {
+const updateCall = async (req, res) => {
   const { subject, call_type, status, start_time, duration, assigned_to, related_type, related_id, description } = req.body;
   try {
     const result = await pool.query(
@@ -61,9 +61,12 @@ router.put('/:id', requireEdit, async (req, res) => {
       [subject, call_type, status, start_time, duration, assigned_to, related_type, related_id, description, req.user.id, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Call not found' });
-    res.json(result.rows[0]);
+    recordOk(res, result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
-});
+};
+
+router.put('/:id', requireEdit, updateCall);
+router.patch('/:id', requireEdit, updateCall);
 
 router.delete('/:id', requireEdit, async (req, res) => {
   try {

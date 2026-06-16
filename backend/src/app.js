@@ -38,8 +38,12 @@ app.use('/api/projects', require('./routes/projects'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/recycle', require('./routes/recycle'));
+app.use('/api/recycle-bin', require('./routes/recycleBin'));
 app.use('/api/notes', require('./routes/notes'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/lookups', require('./routes/lookups'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/audit-logs', require('./routes/auditLogs'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
 

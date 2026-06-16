@@ -2,15 +2,16 @@ const express = require('express');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 const { requireEdit } = require('../middleware/roles');
-const { softDelete } = require('../utils/helpers');
+const { softDelete, listOk, recordOk } = require('../utils/helpers');
 
 const router = express.Router();
 router.use(auth);
 
 router.get('/', async (req, res) => {
   try {
-    const { search, page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
+    const { search, page = 1, page_size = 20, limit } = req.query;
+    const pageLimit = parseInt(limit || page_size);
+    const offset = (page - 1) * pageLimit;
     let where = ['v.deleted_at IS NULL'];
     const params = [];
     let i = 1;
@@ -19,10 +20,10 @@ router.get('/', async (req, res) => {
     const result = await pool.query(
       `SELECT v.*, u.name as owner_name FROM visits v LEFT JOIN users u ON v.owner_id=u.id
        ${whereStr} ORDER BY v.visit_date DESC LIMIT $${i} OFFSET $${i + 1}`,
-      [...params, limit, offset]
+      [...params, pageLimit, offset]
     );
     const countRes = await pool.query(`SELECT COUNT(*) FROM visits v ${whereStr}`, params);
-    res.json({ data: result.rows, total: parseInt(countRes.rows[0].count), page: +page, limit: +limit });
+    listOk(res, result.rows, countRes.rows[0].count, page, pageLimit);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -30,7 +31,7 @@ router.get('/:id', async (req, res) => {
   try {
     const result = await pool.query(`SELECT v.*, u.name as owner_name FROM visits v LEFT JOIN users u ON v.owner_id=u.id WHERE v.id=$1 AND v.deleted_at IS NULL`, [req.params.id]);
     if (!result.rows[0]) return res.status(404).json({ error: 'Visit not found' });
-    res.json(result.rows[0]);
+    recordOk(res, result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -41,13 +42,13 @@ router.post('/', requireEdit, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO visits (title, visit_date, location, status, related_type, related_id, description, owner_id, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8) RETURNING *`,
-      [title, visit_date, location, status || 'Planned', related_type, related_id, description, req.user.id]
+      [title, visit_date, location, status || 'planned', related_type, related_id, description, req.user.id]
     );
-    res.status(201).json(result.rows[0]);
+    recordOk(res, result.rows[0], 201);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/:id', requireEdit, async (req, res) => {
+const updateVisit = async (req, res) => {
   const { title, visit_date, location, status, related_type, related_id, description } = req.body;
   try {
     const result = await pool.query(
@@ -56,9 +57,12 @@ router.put('/:id', requireEdit, async (req, res) => {
       [title, visit_date, location, status, related_type, related_id, description, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Visit not found' });
-    res.json(result.rows[0]);
+    recordOk(res, result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
-});
+};
+
+router.put('/:id', requireEdit, updateVisit);
+router.patch('/:id', requireEdit, updateVisit);
 
 router.delete('/:id', requireEdit, async (req, res) => {
   try {

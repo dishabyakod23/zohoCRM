@@ -71,6 +71,10 @@ const migrate = async () => {
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(id);
 
+      -- Accounts base address fields (added after init)
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS state VARCHAR(100);
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS zip_code VARCHAR(20);
+
       -- Accounts extended fields
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS account_site VARCHAR(150);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS parent_account_id INTEGER REFERENCES accounts(id);

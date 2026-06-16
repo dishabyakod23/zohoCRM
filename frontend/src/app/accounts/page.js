@@ -12,9 +12,10 @@ import { useOpenCreateParam } from '../../hooks/useOpenCreateParam.js';
 import { getApiError } from '../../lib/api.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as accountsApi from '../../lib/services/accounts.js';
+import { ACCOUNT_TYPES } from '../../lib/constants.js';
 
 const INDUSTRIES = ['IT Services', 'E-Commerce', 'Automotive', 'EdTech', 'FinTech', 'Healthcare', 'Manufacturing', 'Retail', 'Other'];
-const EMPTY = { account_name: '', phone: '', industry: '', website: '', city: '', country: 'India' };
+const EMPTY = { account_name: '', phone: '', industry: '', account_type: '', website: '', annual_revenue: '', city: '', state: '', zip_code: '', country: 'India', description: '' };
 const LIMIT = 15;
 
 export default function AccountsPage() {
@@ -60,9 +61,14 @@ export default function AccountsPage() {
       account_name: a.name || a.account_name || '',
       phone: a.phone || '',
       industry: a.industry || '',
+      account_type: a.account_type || '',
       website: a.website || '',
+      annual_revenue: a.annual_revenue || '',
       city: a.city || '',
+      state: a.state || '',
+      zip_code: a.zip_code || '',
       country: a.country || 'India',
+      description: a.description || '',
     });
     setEditing(a.id);
     setErrors({});
@@ -171,22 +177,43 @@ export default function AccountsPage() {
 
       {modal && (
         <Modal title={editing ? 'Edit Account' : 'New Account'} onClose={() => setModal(false)}>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div className="col-span-2"><FormField label="Company name" required error={errors.account_name} name="account_name"><input className={inputClass(errors.account_name)} value={form.account_name} onChange={e => setForm(p => ({ ...p, account_name: e.target.value }))} /></FormField></div>
-            <div><label className="label">Industry</label>
+          {/* Account Information */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Account Information</p>
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="col-span-2"><FormField label="Account Name" required error={errors.account_name} name="account_name"><input className={inputClass(errors.account_name)} value={form.account_name} onChange={e => { setForm(p => ({ ...p, account_name: e.target.value })); setErrors(er => ({ ...er, account_name: null })); }} /></FormField></div>
+            <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); setErrors(er => ({ ...er, phone: null })); }} /></FormField>
+            <FormField label="Website"><input className="input" placeholder="https://" value={form.website} onChange={e => setForm(p => ({ ...p, website: e.target.value }))} /></FormField>
+            <FormField label="Industry">
               <select className="input" value={form.industry} onChange={e => setForm(p => ({ ...p, industry: e.target.value }))}>
-                <option value="">Select</option>
-                {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
+                <option value="">--None--</option>{INDUSTRIES.map(i => <option key={i}>{i}</option>)}
               </select>
-            </div>
-            <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></FormField>
-            <div className="col-span-2"><label className="label">Website</label><input className="input" value={form.website} onChange={e => setForm(p => ({ ...p, website: e.target.value }))} /></div>
-            <div><label className="label">City</label><input className="input" value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))} /></div>
-            <div><label className="label">Country</label><input className="input" value={form.country} onChange={e => setForm(p => ({ ...p, country: e.target.value }))} /></div>
+            </FormField>
+            <FormField label="Account Type">
+              <select className="input" value={form.account_type} onChange={e => setForm(p => ({ ...p, account_type: e.target.value }))}>
+                <option value="">--None--</option>{ACCOUNT_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Annual Revenue"><input className="input" type="number" placeholder="₹" value={form.annual_revenue} onChange={e => setForm(p => ({ ...p, annual_revenue: e.target.value }))} /></FormField>
           </div>
-          <div className="flex gap-2 justify-end pt-2 border-t border-gray-100">
+
+          {/* Address Information */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Address Information</p>
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <FormField label="City"><input className="input" value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))} /></FormField>
+            <FormField label="State"><input className="input" value={form.state} onChange={e => setForm(p => ({ ...p, state: e.target.value }))} /></FormField>
+            <FormField label="Zip Code"><input className="input" value={form.zip_code} onChange={e => setForm(p => ({ ...p, zip_code: e.target.value }))} /></FormField>
+            <FormField label="Country"><input className="input" value={form.country} onChange={e => setForm(p => ({ ...p, country: e.target.value }))} /></FormField>
+          </div>
+
+          {/* Description */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Description</p>
+          <div className="mb-5">
+            <textarea className="input min-h-[80px] resize-y" placeholder="Add a description..." value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+          </div>
+
+          <div className="flex gap-2 justify-end pt-3 border-t border-zoho-border">
             <button onClick={() => setModal(false)} className="btn-secondary">Cancel</button>
-            <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save account'}</button>
+            <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save Account'}</button>
           </div>
         </Modal>
       )}

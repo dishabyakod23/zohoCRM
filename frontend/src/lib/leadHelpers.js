@@ -38,14 +38,14 @@ export function normalizeLead(lead, statusOptions = []) {
     : null;
   return {
     ...lead,
-    status: leadStatusLabel(lead.lead_status, statusOptions),
-    lead_status: lead.lead_status,
-    source: lead.lead_source,
-    lead_source: lead.lead_source,
-    owner_name: ownerName,
-    converted: lead.is_converted,
-    employees: lead.no_of_employees,
-    zip: lead.zip_code,
+    status: leadStatusLabel(lead.lead_status || lead.status, statusOptions),
+    lead_status: lead.lead_status || lead.status,
+    source: lead.lead_source || lead.source,
+    lead_source: lead.lead_source || lead.source,
+    owner_name: ownerName || lead.owner_name,
+    converted: lead.is_converted ?? lead.converted,
+    employees: lead.no_of_employees || lead.employees,
+    zip: lead.zip_code || lead.zip,
   };
 }
 

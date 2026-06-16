@@ -15,14 +15,17 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { useOpenCreateParam } from '../../hooks/useOpenCreateParam.js';
 import * as dealsApi from '../../lib/services/deals.js';
 import { fetchDealStages, fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
+import * as contactsApi from '../../lib/services/contacts.js';
+import { LEAD_SOURCES, DEAL_TYPES } from '../../lib/constants.js';
 
-const EMPTY = { deal_name: '', amount: '', stage_value: 'qualification', closing_date: '', probability: 10, account_id: '' };
+const EMPTY = { deal_name: '', amount: '', stage_value: 'qualification', closing_date: '', probability: 10, account_id: '', contact_id: '', deal_type: '', lead_source: '', description: '' };
 
 export default function DealsPage() {
   const { showToast } = useToast();
   const { canEdit } = usePermissions();
   const [deals, setDeals] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [stageOptions, setStageOptions] = useState(FALLBACK_DEAL_STAGES);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -43,6 +46,7 @@ export default function DealsPage() {
   useEffect(() => {
     fetchAccountLookups().then(setAccounts).catch(() => setAccounts([]));
     fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
+    contactsApi.listContacts({ page: 1, page_size: 200 }).then(r => setContacts(r.data || [])).catch(() => setContacts([]));
   }, []);
 
   const openCreate = useCallback(() => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); }, []);
@@ -122,6 +126,10 @@ export default function DealsPage() {
       closing_date: d.closing_date?.split('T')[0] || d.close_date?.split('T')[0] || '',
       probability: d.probability ?? 10,
       account_id: String(d.account_id || ''),
+      contact_id: String(d.contact_id || ''),
+      deal_type: d.deal_type || '',
+      lead_source: d.lead_source || '',
+      description: d.description || '',
     });
     setEditing(d.id);
     setErrors({});
@@ -209,30 +217,51 @@ export default function DealsPage() {
 
       {modal && (
         <Modal title={editing ? 'Edit Deal' : 'Create Deal'} onClose={() => setModal(false)}>
-          <div className="space-y-3">
-            <FormField label="Deal Name" required error={errors.deal_name} name="deal_name"><input className={inputClass(errors.deal_name)} value={form.deal_name} onChange={e => setForm(p => ({ ...p, deal_name: e.target.value }))} /></FormField>
+          {/* Deal Information */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Deal Information</p>
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="col-span-2"><FormField label="Deal Name" required error={errors.deal_name} name="deal_name"><input className={inputClass(errors.deal_name)} value={form.deal_name} onChange={e => { setForm(p => ({ ...p, deal_name: e.target.value })); setErrors(er => ({ ...er, deal_name: null })); }} /></FormField></div>
             <FormField label="Account Name" required error={errors.account_id} name="account_id">
-              <select className={inputClass(errors.account_id)} value={form.account_id} onChange={e => setForm(p => ({ ...p, account_id: e.target.value }))}>
-                <option value="">Select account</option>
+              <select className={inputClass(errors.account_id)} value={form.account_id} onChange={e => { setForm(p => ({ ...p, account_id: e.target.value })); setErrors(er => ({ ...er, account_id: null })); }}>
+                <option value="">--None--</option>
                 {accounts.map(a => <option key={a.value} value={a.value}>{a.label || a.name}</option>)}
               </select>
             </FormField>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Amount (₹)" required error={errors.amount} name="amount"><input className={inputClass(errors.amount)} type="number" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} /></FormField>
-              <FormField label="Probability (%)"><input className="input" type="number" value={form.probability} onChange={e => setForm(p => ({ ...p, probability: e.target.value }))} /></FormField>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Stage" required error={errors.stage_value} name="stage_value">
-                <select className={inputClass(errors.stage_value)} value={form.stage_value} onChange={e => setForm(p => ({ ...p, stage_value: e.target.value }))}>
-                  {stageOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-              </FormField>
-              <FormField label="Closing Date" required error={errors.closing_date} name="closing_date"><input className={inputClass(errors.closing_date)} type="date" value={form.closing_date?.slice(0, 10)} onChange={e => setForm(p => ({ ...p, closing_date: e.target.value }))} /></FormField>
-            </div>
+            <FormField label="Contact Name">
+              <select className="input" value={form.contact_id} onChange={e => setForm(p => ({ ...p, contact_id: e.target.value }))}>
+                <option value="">--None--</option>
+                {contacts.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Amount (₹)" required error={errors.amount} name="amount"><input className={inputClass(errors.amount)} type="number" value={form.amount} onChange={e => { setForm(p => ({ ...p, amount: e.target.value })); setErrors(er => ({ ...er, amount: null })); }} /></FormField>
+            <FormField label="Closing Date" required error={errors.closing_date} name="closing_date"><input className={inputClass(errors.closing_date)} type="date" value={form.closing_date?.slice(0, 10)} onChange={e => { setForm(p => ({ ...p, closing_date: e.target.value })); setErrors(er => ({ ...er, closing_date: null })); }} /></FormField>
+            <FormField label="Stage" required error={errors.stage_value} name="stage_value">
+              <select className={inputClass(errors.stage_value)} value={form.stage_value} onChange={e => { setForm(p => ({ ...p, stage_value: e.target.value })); setErrors(er => ({ ...er, stage_value: null })); }}>
+                {stageOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Probability (%)"><input className="input" type="number" value={form.probability} onChange={e => setForm(p => ({ ...p, probability: e.target.value }))} /></FormField>
+            <FormField label="Deal Type">
+              <select className="input" value={form.deal_type} onChange={e => setForm(p => ({ ...p, deal_type: e.target.value }))}>
+                <option value="">--None--</option>{DEAL_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Lead Source">
+              <select className="input" value={form.lead_source} onChange={e => setForm(p => ({ ...p, lead_source: e.target.value }))}>
+                <option value="">--None--</option>{LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </FormField>
           </div>
-          <div className="flex gap-2 justify-end mt-4">
+
+          {/* Description */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Description</p>
+          <div className="mb-5">
+            <textarea className="input min-h-[80px] resize-y" placeholder="Add a description..." value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+          </div>
+
+          <div className="flex gap-2 justify-end pt-3 border-t border-zoho-border">
             <button onClick={() => setModal(false)} className="btn-secondary">Cancel</button>
-            <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save'}</button>
+            <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save Deal'}</button>
           </div>
         </Modal>
       )}

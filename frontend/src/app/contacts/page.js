@@ -14,8 +14,9 @@ import { getApiError } from '../../lib/api.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
+import { LEAD_SOURCES } from '../../lib/constants.js';
 
-const EMPTY = { first_name: '', last_name: '', email: '', phone: '', account_id: '', title: '' };
+const EMPTY = { first_name: '', last_name: '', email: '', phone: '', mobile: '', account_id: '', title: '', department: '', lead_source: '', description: '' };
 const LIMIT = 15;
 
 export default function ContactsPage() {
@@ -63,7 +64,7 @@ export default function ContactsPage() {
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
-  const openEdit = (c) => { setForm({ ...c, account_id: c.account_id || '' }); setEditing(c.id); setErrors({}); setModal(true); };
+  const openEdit = (c) => { setForm({ first_name: c.first_name || '', last_name: c.last_name || '', email: c.email || '', phone: c.phone || '', mobile: c.mobile || '', account_id: c.account_id || '', title: c.title || '', department: c.department || '', lead_source: c.lead_source || c.source || '', description: c.description || '' }); setEditing(c.id); setErrors({}); setModal(true); };
 
   const handleSave = async () => {
     const errs = validateRequired({ last_name: 'Last Name', account_id: 'Account Name', email: 'Email', phone: 'Phone' }, form);
@@ -175,22 +176,43 @@ export default function ContactsPage() {
 
       {modal && (
         <Modal title={editing ? 'Edit Contact' : 'New Contact'} onClose={() => setModal(false)}>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div><label className="label">First name</label><input className="input" value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} /></div>
-            <FormField label="Last name" required error={errors.last_name} name="last_name"><input className={inputClass(errors.last_name)} value={form.last_name} onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))} /></FormField>
-            <FormField label="Email" required error={errors.email} name="email"><input className={inputClass(errors.email)} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} /></FormField>
-            <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></FormField>
+          {/* Contact Information */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Contact Information</p>
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <FormField label="First Name" name="first_name"><input className="input" value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} /></FormField>
+            <FormField label="Last Name" required error={errors.last_name} name="last_name"><input className={inputClass(errors.last_name)} value={form.last_name} onChange={e => { setForm(p => ({ ...p, last_name: e.target.value })); setErrors(er => ({ ...er, last_name: null })); }} /></FormField>
             <FormField label="Account Name" required error={errors.account_id} name="account_id">
-              <select className={inputClass(errors.account_id)} value={form.account_id} onChange={e => setForm(p => ({ ...p, account_id: e.target.value }))}>
-                <option value="">Select account</option>
+              <select className={inputClass(errors.account_id)} value={form.account_id} onChange={e => { setForm(p => ({ ...p, account_id: e.target.value })); setErrors(er => ({ ...er, account_id: null })); }}>
+                <option value="">--None--</option>
                 {accounts.map(a => <option key={a.value} value={a.value}>{a.label || a.name}</option>)}
               </select>
             </FormField>
-            <div><label className="label">Title</label><input className="input" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></div>
+            <FormField label="Job Title"><input className="input" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></FormField>
+            <FormField label="Department"><input className="input" value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value }))} /></FormField>
+            <FormField label="Lead Source">
+              <select className="input" value={form.lead_source} onChange={e => setForm(p => ({ ...p, lead_source: e.target.value }))}>
+                <option value="">--None--</option>{LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </FormField>
           </div>
-          <div className="flex gap-2 justify-end pt-2 border-t border-gray-100">
+
+          {/* Contact Details */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Contact Details</p>
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <FormField label="Email" required error={errors.email} name="email"><input className={inputClass(errors.email)} type="email" value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setErrors(er => ({ ...er, email: null })); }} /></FormField>
+            <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); setErrors(er => ({ ...er, phone: null })); }} /></FormField>
+            <FormField label="Mobile"><input className="input" value={form.mobile} onChange={e => setForm(p => ({ ...p, mobile: e.target.value }))} /></FormField>
+          </div>
+
+          {/* Description */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Description</p>
+          <div className="mb-5">
+            <textarea className="input min-h-[80px] resize-y" placeholder="Add a description..." value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+          </div>
+
+          <div className="flex gap-2 justify-end pt-3 border-t border-zoho-border">
             <button onClick={() => setModal(false)} className="btn-secondary">Cancel</button>
-            <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save contact'}</button>
+            <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save Contact'}</button>
           </div>
         </Modal>
       )}

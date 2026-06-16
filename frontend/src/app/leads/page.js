@@ -13,12 +13,18 @@ import { useOpenCreateParam } from '../../hooks/useOpenCreateParam.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
-import { LEAD_SOURCES, LIST_VIEWS } from '../../lib/constants.js';
+import { LEAD_SOURCES, LIST_VIEWS, SALUTATIONS, RATINGS } from '../../lib/constants.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 
-const EMPTY = { first_name: '', last_name: '', email: '', phone: '', company: '', source: '', lead_status: 'not_contacted', industry: '', title: '' };
+const EMPTY = {
+  salutation: '', first_name: '', last_name: '', email: '', phone: '', mobile: '',
+  company: '', title: '', lead_status: 'not_contacted', source: '', industry: '',
+  rating: '', website: '', annual_revenue: '', no_of_employees: '',
+  street: '', city: '', state: '', zip_code: '', country: 'India',
+  description: '',
+};
 const REQUIRED = { last_name: 'Last Name', company: 'Company', email: 'Email', phone: 'Phone', lead_status: 'Lead Status' };
 
 export default function LeadsPage() {
@@ -242,22 +248,60 @@ export default function LeadsPage() {
 
       {modal && (
         <Modal title={editing ? 'Edit Lead' : 'Create Lead'} onClose={() => setModal(false)}>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <FormField label="First Name" name="first_name"><input className={inputClass(errors.first_name)} value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} /></FormField>
-            <FormField label="Last Name" required error={errors.last_name} name="last_name"><input className={inputClass(errors.last_name)} value={form.last_name} onChange={e => { setForm(p => ({ ...p, last_name: e.target.value })); setErrors(er => ({ ...er, last_name: null })); }} /></FormField>
-            <FormField label="Email" required error={errors.email} name="email"><input className={inputClass(errors.email)} type="email" value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setErrors(er => ({ ...er, email: null })); }} /></FormField>
-            <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); setErrors(er => ({ ...er, phone: null })); }} /></FormField>
+          {/* Lead Information */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Lead Information</p>
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="col-span-2 grid grid-cols-[120px_1fr_1fr] gap-3">
+              <FormField label="Salutation">
+                <select className="input" value={form.salutation} onChange={e => setForm(p => ({ ...p, salutation: e.target.value }))}>
+                  <option value="">--None--</option>{SALUTATIONS.map(s => <option key={s}>{s}</option>)}
+                </select>
+              </FormField>
+              <FormField label="First Name" name="first_name"><input className="input" value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} /></FormField>
+              <FormField label="Last Name" required error={errors.last_name} name="last_name"><input className={inputClass(errors.last_name)} value={form.last_name} onChange={e => { setForm(p => ({ ...p, last_name: e.target.value })); setErrors(er => ({ ...er, last_name: null })); }} /></FormField>
+            </div>
             <FormField label="Company" required error={errors.company} name="company"><input className={inputClass(errors.company)} value={form.company} onChange={e => { setForm(p => ({ ...p, company: e.target.value })); setErrors(er => ({ ...er, company: null })); }} /></FormField>
-            <FormField label="Lead Source"><select className="input" value={form.source || ''} onChange={e => setForm(p => ({ ...p, source: e.target.value }))}><option value="">Select</option>{LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}</select></FormField>
-            <FormField label="Lead Status" required error={errors.lead_status} name="lead_status" className="col-span-2">
+            <FormField label="Job Title" name="title"><input className="input" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></FormField>
+            <FormField label="Lead Status" required error={errors.lead_status} name="lead_status">
               <select className={inputClass(errors.lead_status)} value={form.lead_status} onChange={e => { setForm(p => ({ ...p, lead_status: e.target.value })); setErrors(er => ({ ...er, lead_status: null })); }}>
                 {statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </FormField>
+            <FormField label="Lead Source"><select className="input" value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))}><option value="">--None--</option>{LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}</select></FormField>
+            <FormField label="Industry"><select className="input" value={form.industry} onChange={e => setForm(p => ({ ...p, industry: e.target.value }))}><option value="">--None--</option>{['IT Services','E-Commerce','EdTech','Automotive','Finance','Healthcare','Manufacturing','Education','Media','Real Estate','Other'].map(i => <option key={i}>{i}</option>)}</select></FormField>
+            <FormField label="Rating"><select className="input" value={form.rating} onChange={e => setForm(p => ({ ...p, rating: e.target.value }))}><option value="">--None--</option>{RATINGS.map(r => <option key={r}>{r}</option>)}</select></FormField>
+            <FormField label="Annual Revenue"><input className="input" type="number" placeholder="₹" value={form.annual_revenue} onChange={e => setForm(p => ({ ...p, annual_revenue: e.target.value }))} /></FormField>
+            <FormField label="No. of Employees"><input className="input" type="number" value={form.no_of_employees} onChange={e => setForm(p => ({ ...p, no_of_employees: e.target.value }))} /></FormField>
+            <FormField label="Website"><input className="input" placeholder="https://" value={form.website} onChange={e => setForm(p => ({ ...p, website: e.target.value }))} /></FormField>
           </div>
-          <div className="flex gap-2 justify-end pt-2 border-t border-gray-100">
+
+          {/* Contact Information */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Contact Information</p>
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <FormField label="Email" required error={errors.email} name="email"><input className={inputClass(errors.email)} type="email" value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setErrors(er => ({ ...er, email: null })); }} /></FormField>
+            <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); setErrors(er => ({ ...er, phone: null })); }} /></FormField>
+            <FormField label="Mobile"><input className="input" value={form.mobile} onChange={e => setForm(p => ({ ...p, mobile: e.target.value }))} /></FormField>
+          </div>
+
+          {/* Address Information */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Address Information</p>
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="col-span-2"><FormField label="Street"><input className="input" value={form.street} onChange={e => setForm(p => ({ ...p, street: e.target.value }))} /></FormField></div>
+            <FormField label="City"><input className="input" value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))} /></FormField>
+            <FormField label="State"><input className="input" value={form.state} onChange={e => setForm(p => ({ ...p, state: e.target.value }))} /></FormField>
+            <FormField label="Zip Code"><input className="input" value={form.zip_code} onChange={e => setForm(p => ({ ...p, zip_code: e.target.value }))} /></FormField>
+            <FormField label="Country"><input className="input" value={form.country} onChange={e => setForm(p => ({ ...p, country: e.target.value }))} /></FormField>
+          </div>
+
+          {/* Description */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Description</p>
+          <div className="mb-5">
+            <textarea className="input min-h-[80px] resize-y" placeholder="Add a description..." value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+          </div>
+
+          <div className="flex gap-2 justify-end pt-3 border-t border-zoho-border">
             <button onClick={() => setModal(false)} className="btn-secondary">Cancel</button>
-            <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save'}</button>
+            <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save Lead'}</button>
           </div>
         </Modal>
       )}

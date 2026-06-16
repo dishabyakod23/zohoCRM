@@ -2,15 +2,16 @@ const express = require('express');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 const { requireEdit } = require('../middleware/roles');
-const { softDelete, parseCSV } = require('../utils/helpers');
+const { softDelete, parseCSV, listOk, recordOk } = require('../utils/helpers');
 
 const router = express.Router();
 router.use(auth);
 
 router.get('/', async (req, res) => {
   try {
-    const { search, page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
+    const { search, page = 1, page_size = 20, limit } = req.query;
+    const pageLimit = parseInt(limit || page_size);
+    const offset = (page - 1) * pageLimit;
     let where = ['c.deleted_at IS NULL'];
     let params = [];
     let i = 1;
@@ -20,10 +21,10 @@ router.get('/', async (req, res) => {
       `SELECT c.*, u.name as owner_name, a.name as account_name FROM contacts c
        LEFT JOIN users u ON c.owner_id=u.id LEFT JOIN accounts a ON c.account_id=a.id
        ${whereStr} ORDER BY c.created_at DESC LIMIT $${i} OFFSET $${i+1}`,
-      [...params, limit, offset]
+      [...params, pageLimit, offset]
     );
     const countRes = await pool.query(`SELECT COUNT(*) FROM contacts c ${whereStr}`, params);
-    res.json({ data: result.rows, total: parseInt(countRes.rows[0].count), page: parseInt(page), limit: parseInt(limit) });
+    listOk(res, result.rows, countRes.rows[0].count, page, pageLimit);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -35,7 +36,7 @@ router.get('/:id', async (req, res) => {
        WHERE c.id=$1 AND c.deleted_at IS NULL`, [req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Contact not found' });
-    res.json(result.rows[0]);
+    recordOk(res, result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -47,15 +48,15 @@ router.post('/', requireEdit, async (req, res) => {
   if (dup.rows[0]) return res.status(409).json({ error: 'A record with this email already exists', existingId: dup.rows[0].id });
   try {
     const result = await pool.query(
-      `INSERT INTO contacts (first_name, last_name, email, phone, mobile, title, account_id, department, lead_source, company, owner_id, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [b.first_name, b.last_name, b.email, b.phone, b.mobile, b.title, b.account_id, b.department, b.lead_source, b.company, b.owner_id || req.user.id, req.user.id]
+      `INSERT INTO contacts (first_name, last_name, email, phone, mobile, title, account_id, department, lead_source, description, company, owner_id, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [b.first_name, b.last_name, b.email, b.phone, b.mobile, b.title, b.account_id, b.department, b.lead_source, b.description, b.company, b.owner_id || req.user.id, req.user.id]
     );
-    res.status(201).json(result.rows[0]);
+    recordOk(res, result.rows[0], 201);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/:id', requireEdit, async (req, res) => {
+const updateContact = async (req, res) => {
   const b = req.body;
   try {
     const result = await pool.query(
@@ -65,9 +66,12 @@ router.put('/:id', requireEdit, async (req, res) => {
       [b.first_name, b.last_name, b.email, b.phone, b.mobile, b.title, b.account_id, b.department, b.lead_source, b.description, b.owner_id, req.user.id, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Contact not found' });
-    res.json(result.rows[0]);
+    recordOk(res, result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
-});
+};
+
+router.put('/:id', requireEdit, updateContact);
+router.patch('/:id', requireEdit, updateContact);
 
 router.delete('/:id', requireEdit, async (req, res) => {
   try {
@@ -92,7 +96,7 @@ router.post('/bulk-upload', requireEdit, async (req, res) => {
       if (!acct.rows[0]) { errors.push({ row: row._row, error: `Account not found: ${account_name}` }); continue; }
       ready.push({ ...row, last_name, email, phone, account_id: acct.rows[0].id });
     }
-    res.json({ ready: ready.length, errors: errors.length, readyRecords: ready, errorRecords: errors });
+    res.json({ data: { ready: ready.length, errors: errors.length, readyRecords: ready, errorRecords: errors } });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -72,7 +72,18 @@ function parseCSV(text) {
   return { headers, rows };
 }
 
+/** Wrap a list result so the frontend meta.total works */
+function listOk(res, rows, total, page, limit) {
+  res.json({ data: rows, meta: { total: parseInt(total), page: parseInt(page), limit: parseInt(limit) } });
+}
+
+/** Wrap a single record so the frontend res.data.data works */
+function recordOk(res, row, status = 200) {
+  res.status(status).json({ data: row });
+}
+
 module.exports = {
   ROLES, normalizeRole, canDownload, canEdit, isAdmin,
   getOwnerFilter, softDelete, restoreRecord, permanentDelete, parseCSV,
+  listOk, recordOk,
 };

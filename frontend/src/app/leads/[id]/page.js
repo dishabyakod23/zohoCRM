@@ -56,8 +56,8 @@ export default function LeadDetailPage() {
       const result = await leadsApi.convertLead(id, convertForm);
       showToast('Lead converted successfully', 'success');
       setConvertOpen(false);
-      if (result.deal_id) router.push('/deals');
-      else if (result.account_id) router.push(`/accounts/${result.account_id}`);
+      if (result.deal?.id) router.push('/deals');
+      else if (result.account?.id) router.push(`/accounts/${result.account.id}`);
       else loadLead();
     } catch (err) {
       showToast(getApiError(err));

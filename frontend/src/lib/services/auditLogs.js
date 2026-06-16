@@ -2,12 +2,15 @@ import api from '../api.js';
 import { formatEnumLabel, listResult, userBriefName } from '../activityHelpers.js';
 
 export function normalizeAuditLog(log) {
+  const resolvedUserName = log.user_name || userBriefName(log.user);
+  const entityType = log.entity_type || log.record_type;
   return {
     ...log,
-    user_name: userBriefName(log.user),
+    entity_type: entityType,
+    user_name: resolvedUserName,
     action_label: formatEnumLabel(log.action),
-    entity_type_label: formatEnumLabel(log.entity_type),
-    summary: `${formatEnumLabel(log.action)} ${formatEnumLabel(log.entity_type)}`,
+    entity_type_label: formatEnumLabel(entityType),
+    summary: `${formatEnumLabel(log.action)} ${formatEnumLabel(entityType)}`,
   };
 }
 

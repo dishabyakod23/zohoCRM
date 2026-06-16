@@ -6,7 +6,7 @@ export function normalizeContact(contact, accountMap = {}) {
   return {
     ...contact,
     account_name: account?.label || account?.name || contact.account_name,
-    owner_name: ownerName(contact),
+    owner_name: ownerName(contact) || contact.owner_name,
   };
 }
 
@@ -21,6 +21,7 @@ export function toContactPayload(form, { partial = false } = {}) {
     mobile: form.mobile || null,
     department: form.department || null,
     lead_source: form.lead_source || form.source || null,
+    description: form.description || null,
     owner_id: form.owner_id || null,
   };
   if (partial) {

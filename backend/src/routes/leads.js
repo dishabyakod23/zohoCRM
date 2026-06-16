@@ -2,40 +2,82 @@ const express = require('express');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 const { requireEdit } = require('../middleware/roles');
-const { softDelete, parseCSV } = require('../utils/helpers');
+const { softDelete, parseCSV, listOk, recordOk } = require('../utils/helpers');
 const { logAudit, getAuditTrail } = require('../utils/audit');
 
 const router = express.Router();
 router.use(auth);
 
-const LEAD_FIELDS = `l.id, l.first_name, l.last_name, l.email, l.phone, l.company, l.source, l.status,
+const LEAD_FIELDS = `l.id, l.first_name, l.last_name, l.email, l.phone, l.company,
+  l.source, l.source as lead_source, l.status, l.status as lead_status,
   l.title, l.mobile, l.industry, l.annual_revenue, l.website, l.rating, l.description,
-  l.city, l.state, l.country, l.converted, l.owner_id, l.created_at, l.updated_at`;
+  l.employees, l.employees as no_of_employees, l.street, l.city, l.state, l.country,
+  l.zip, l.zip as zip_code, l.converted, l.owner_id, l.created_at, l.updated_at`;
 
 router.get('/', async (req, res) => {
   try {
-    const { search, status, page = 1, limit = 20, industry, source } = req.query;
-    const offset = (page - 1) * limit;
+    const { search, status, lead_status, page = 1, page_size = 20, limit, industry, source } = req.query;
+    const pageLimit = parseInt(limit || page_size);
+    const offset = (page - 1) * pageLimit;
     let where = ['l.deleted_at IS NULL'];
     let params = [];
     let i = 1;
     if (search) { where.push(`(l.first_name ILIKE $${i} OR l.last_name ILIKE $${i} OR l.email ILIKE $${i} OR l.company ILIKE $${i})`); params.push(`%${search}%`); i++; }
-    if (status) { where.push(`l.status=$${i}`); params.push(status); i++; }
+    if (status || lead_status) { where.push(`l.status=$${i}`); params.push(status || lead_status); i++; }
     if (industry) { where.push(`l.industry=$${i}`); params.push(industry); i++; }
     if (source) { where.push(`l.source=$${i}`); params.push(source); i++; }
     const whereStr = 'WHERE ' + where.join(' AND ');
     const result = await pool.query(
       `SELECT ${LEAD_FIELDS}, u.name as owner_name FROM leads l LEFT JOIN users u ON l.owner_id=u.id ${whereStr} ORDER BY l.created_at DESC LIMIT $${i} OFFSET $${i+1}`,
-      [...params, limit, offset]
+      [...params, pageLimit, offset]
     );
     const countRes = await pool.query(`SELECT COUNT(*) FROM leads l ${whereStr}`, params);
-    res.json({ data: result.rows, total: parseInt(countRes.rows[0].count), page: parseInt(page), limit: parseInt(limit) });
+    listOk(res, result.rows, countRes.rows[0].count, page, pageLimit);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/:id/audit', async (req, res) => {
   try {
-    res.json(await getAuditTrail('lead', req.params.id));
+    res.json({ data: await getAuditTrail('lead', req.params.id) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/:id/notes', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT n.*, u.name as owner_name FROM notes n LEFT JOIN users u ON n.owner_id=u.id
+       WHERE n.related_type='lead' AND n.related_id=$1 ORDER BY n.created_at DESC`,
+      [req.params.id]
+    );
+    res.json({ data: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/:id/notes', requireEdit, async (req, res) => {
+  try {
+    const { body } = req.body;
+    const result = await pool.query(
+      `INSERT INTO notes (content, related_type, related_id, owner_id) VALUES ($1,'lead',$2,$3) RETURNING *`,
+      [body, req.params.id, req.user.id]
+    );
+    recordOk(res, result.rows[0], 201);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/:id/notes/:noteId', requireEdit, async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM notes WHERE id=$1 AND owner_id=$2`, [req.params.noteId, req.user.id]);
+    res.json({ message: 'Note deleted' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/:id/attachments', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, file_type, file_size, created_at FROM documents WHERE related_type='lead' AND related_id=$1 AND deleted_at IS NULL`,
+      [req.params.id]
+    );
+    res.json({ data: result.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -46,44 +88,55 @@ router.get('/:id', async (req, res) => {
       [req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Lead not found' });
-    res.json(result.rows[0]);
+    recordOk(res, result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/', requireEdit, async (req, res) => {
   const b = req.body;
-  if (!b.last_name || !b.company || !b.email || !b.phone || !b.status)
+  const status = b.status || b.lead_status;
+  const source = b.source || b.lead_source;
+  if (!b.last_name || !b.company || !b.email || !b.phone || !status)
     return res.status(400).json({ error: 'Last name, company, email, phone, and status are required' });
   const dup = await pool.query(`SELECT id FROM leads WHERE email=$1 AND deleted_at IS NULL`, [b.email]);
   if (dup.rows[0]) return res.status(409).json({ error: 'A record with this email already exists', existingId: dup.rows[0].id });
   try {
     const result = await pool.query(
-      `INSERT INTO leads (first_name, last_name, email, phone, company, source, status, title, mobile, industry, website, description, city, state, country, owner_id, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
-      [b.first_name, b.last_name, b.email, b.phone, b.company, b.source, b.status || 'Not Contacted',
-       b.title, b.mobile, b.industry, b.website, b.description, b.city, b.state, b.country,
-       b.owner_id || req.user.id, req.user.id]
+      `INSERT INTO leads (first_name, last_name, email, phone, company, source, status, title, mobile, industry,
+        website, rating, annual_revenue, employees, street, city, state, country, zip, description, owner_id, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING *`,
+      [b.first_name, b.last_name, b.email, b.phone, b.company, source, status || 'not_contacted',
+       b.title, b.mobile, b.industry, b.website, b.rating, b.annual_revenue,
+       b.no_of_employees || b.employees, b.street, b.city, b.state, b.country,
+       b.zip_code || b.zip, b.description, b.owner_id || req.user.id, req.user.id]
     );
     await logAudit({ recordType: 'lead', recordId: result.rows[0].id, action: 'created', userId: req.user.id });
-    res.status(201).json(result.rows[0]);
+    recordOk(res, result.rows[0], 201);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/:id', requireEdit, async (req, res) => {
+const updateLead = async (req, res) => {
   const b = req.body;
+  const status = b.status || b.lead_status;
+  const source = b.source || b.lead_source;
   try {
     const result = await pool.query(
       `UPDATE leads SET first_name=$1, last_name=$2, email=$3, phone=$4, company=$5, source=$6, status=$7,
-       title=$8, mobile=$9, industry=$10, website=$11, description=$12, city=$13, state=$14, country=$15,
-       owner_id=$16, updated_by=$17, updated_at=NOW() WHERE id=$18 AND deleted_at IS NULL RETURNING *`,
-      [b.first_name, b.last_name, b.email, b.phone, b.company, b.source, b.status,
-       b.title, b.mobile, b.industry, b.website, b.description, b.city, b.state, b.country,
-       b.owner_id, req.user.id, req.params.id]
+       title=$8, mobile=$9, industry=$10, website=$11, rating=$12, annual_revenue=$13, employees=$14,
+       street=$15, city=$16, state=$17, country=$18, zip=$19, description=$20,
+       owner_id=$21, updated_by=$22, updated_at=NOW() WHERE id=$23 AND deleted_at IS NULL RETURNING *`,
+      [b.first_name, b.last_name, b.email, b.phone, b.company, source, status,
+       b.title, b.mobile, b.industry, b.website, b.rating, b.annual_revenue,
+       b.no_of_employees || b.employees, b.street, b.city, b.state, b.country,
+       b.zip_code || b.zip, b.description, b.owner_id, req.user.id, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Lead not found' });
-    res.json(result.rows[0]);
+    recordOk(res, result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
-});
+};
+
+router.put('/:id', requireEdit, updateLead);
+router.patch('/:id', requireEdit, updateLead);
 
 router.delete('/:id', requireEdit, async (req, res) => {
   try {
@@ -128,7 +181,7 @@ router.post('/:id/convert', requireEdit, async (req, res) => {
 
     await client.query(`UPDATE leads SET converted=true, converted_at=NOW(), status='Contacted', updated_at=NOW() WHERE id=$1`, [lead.id]);
     await client.query('COMMIT');
-    res.json({ account, contact, deal, message: 'Lead converted successfully' });
+    res.json({ data: { account, contact, deal }, message: 'Lead converted successfully' });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
@@ -154,7 +207,7 @@ router.post('/bulk-upload', requireEdit, async (req, res) => {
       if (dup.rows[0]) { errors.push({ row: row._row, error: `Duplicate email: ${email}`, existingId: dup.rows[0].id }); continue; }
       ready.push({ ...row, last_name, company, email, phone });
     }
-    res.json({ ready: ready.length, errors: errors.length, readyRecords: ready, errorRecords: errors });
+    res.json({ data: { ready: ready.length, errors: errors.length, readyRecords: ready, errorRecords: errors } });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -166,11 +219,11 @@ router.post('/bulk-import', requireEdit, async (req, res) => {
       await pool.query(
         `INSERT INTO leads (first_name, last_name, email, phone, company, source, status, owner_id, created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8)`,
-        [r.first_name || '', r.last_name, r.email, r.phone, r.company, r.source || 'Website', r.status || 'Not Contacted', req.user.id]
+        [r.first_name || '', r.last_name, r.email, r.phone, r.company, r.source || 'Website', r.status || 'not_contacted', req.user.id]
       );
       imported++;
     }
-    res.json({ imported });
+    res.json({ data: { imported } });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

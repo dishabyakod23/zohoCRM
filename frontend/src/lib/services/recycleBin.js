@@ -3,6 +3,7 @@ import api from '../api.js';
 export function normalizeRecycleItem(item) {
   return {
     ...item,
+    id: item._composite_id || item.id,
     record_type: item.entity_type,
     name: item.entity_name,
   };

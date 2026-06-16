@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 const { requireEdit } = require('../middleware/roles');
-const { softDelete, parseCSV } = require('../utils/helpers');
+const { softDelete, parseCSV, listOk, recordOk } = require('../utils/helpers');
 
 const router = express.Router();
 router.use(auth);
@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
       [...params, limit, offset]
     );
     const countRes = await pool.query(`SELECT COUNT(*) FROM campaigns c ${whereStr}`, params);
-    res.json({ data: result.rows, total: parseInt(countRes.rows[0].count), page: +page, limit: +limit });
+    listOk(res, result.rows, countRes.rows[0].count, page, limit);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -39,7 +39,7 @@ router.get('/:id', async (req, res) => {
         WHERE cm.campaign_id=$1`, [req.params.id])
     ]);
     if (!camp.rows[0]) return res.status(404).json({ error: 'Campaign not found' });
-    res.json({ ...camp.rows[0], members: members.rows });
+    recordOk(res, { ...camp.rows[0], members: members.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -53,11 +53,11 @@ router.post('/', requireEdit, async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
       [name, type, status, start_date, end_date, expected_revenue, budgeted_cost, actual_cost, expected_response, numbers_sent, description, owner_id || req.user.id, req.user.id]
     );
-    res.status(201).json(result.rows[0]);
+    recordOk(res, result.rows[0], 201);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/:id', requireEdit, async (req, res) => {
+const updateCampaign = async (req, res) => {
   const fields = req.body;
   try {
     const result = await pool.query(
@@ -69,9 +69,12 @@ router.put('/:id', requireEdit, async (req, res) => {
        fields.owner_id, req.user.id, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Campaign not found' });
-    res.json(result.rows[0]);
+    recordOk(res, result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
-});
+};
+
+router.put('/:id', requireEdit, updateCampaign);
+router.patch('/:id', requireEdit, updateCampaign);
 
 router.delete('/:id', requireEdit, async (req, res) => {
   try {

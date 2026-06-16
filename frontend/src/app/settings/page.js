@@ -64,7 +64,7 @@ export default function SettingsPage() {
     setSettingsLoading(true);
     try {
       const data = await adminApi.getAdminSettings();
-      setAppSettings(data.app_settings || { company_name: '', timezone: 'UTC' });
+      setAppSettings(data || { company_name: '', timezone: 'UTC' });
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -152,7 +152,7 @@ export default function SettingsPage() {
         company_name: appSettings.company_name,
         timezone: appSettings.timezone,
       });
-      setAppSettings(updated.app_settings);
+      setAppSettings(updated || appSettings);
       showToast('Company settings saved', 'success');
     } catch (err) {
       showToast(getApiError(err));

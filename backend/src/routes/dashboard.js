@@ -6,7 +6,7 @@ const { normalizeRole, ROLES } = require('../utils/helpers');
 const router = express.Router();
 router.use(auth);
 
-router.get('/stats', async (req, res) => {
+const dashboardHandler = async (req, res) => {
   try {
     const role = normalizeRole(req.user.role);
     const ownerFilter = role === ROLES.SALES_REP ? `AND owner_id = ${req.user.id}` : '';
@@ -30,7 +30,7 @@ router.get('/stats', async (req, res) => {
         AND stage NOT IN ('Closed Won','Closed Lost') ${ownerFilter}`),
     ]);
 
-    res.json({
+    res.json({ data: {
       leads: leads.rows[0],
       deals: deals.rows[0],
       contacts: contacts.rows[0],
@@ -41,10 +41,13 @@ router.get('/stats', async (req, res) => {
       leadsByStatus: leadsByStatus.rows,
       topAccounts: topAccounts.rows,
       dealsClosingMonth: closingMonth.rows[0],
-    });
+    }});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
+
+router.get('/stats', dashboardHandler);
+router.get('/home', dashboardHandler);
 
 module.exports = router;

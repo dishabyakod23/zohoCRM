@@ -4,7 +4,11 @@ export const LEAD_STATUSES = [
   'Lost Lead', 'Not Contacted', 'Pre-Qualified', 'Not Qualified',
 ];
 
-export const LEAD_SOURCES = ['Website', 'LinkedIn', 'Cold Call', 'Referral', 'Trade Show', 'Email', 'Other'];
+export const LEAD_SOURCES = ['Website', 'LinkedIn', 'Cold Call', 'Referral', 'Trade Show', 'Email', 'Advertisement', 'Internal Seminar', 'Employee Referral', 'Partner', 'Other'];
+export const SALUTATIONS = ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.'];
+export const RATINGS = ['Hot', 'Warm', 'Cold'];
+export const ACCOUNT_TYPES = ['Analyst', 'Competitor', 'Customer', 'Distributor', 'Integrator', 'Investor', 'Partner', 'Press', 'Prospect', 'Reseller'];
+export const DEAL_TYPES = ['Existing Business', 'New Business'];
 
 export const DEAL_STAGES = [
   'Qualification', 'Needs Analysis', 'Value Proposition', 'Id. Decision Makers',

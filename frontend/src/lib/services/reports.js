@@ -43,12 +43,12 @@ export async function getCampaignReport({ date_from, date_to } = {}) {
 }
 
 export async function getAccountRevenueReport({ date_from, date_to } = {}) {
-  const res = await api.get('/reports/accounts/revenue', { params: dateParams({ date_from, date_to }) });
+  const res = await api.get('/reports/account-revenue', { params: dateParams({ date_from, date_to }) });
   return res.data.data;
 }
 
 export async function getDealsClosingThisMonth() {
-  const res = await api.get('/reports/deals/closing-this-month');
+  const res = await api.get('/reports/deals-closing-month');
   return res.data.data;
 }
 
@@ -98,7 +98,7 @@ export async function previewWeeklyReport() {
 }
 
 export async function triggerWeeklyReport() {
-  const res = await api.post('/admin/reports/weekly/trigger');
+  const res = await api.post('/reports/weekly/trigger');
   return res.data.data;
 }
 
