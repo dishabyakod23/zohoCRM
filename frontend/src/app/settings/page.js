@@ -2,7 +2,10 @@
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useToast } from '../../components/ui/Toast.js';
+import { getApiError } from '../../lib/api.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
+import { triggerWeeklyReport } from '../../lib/services/reports.js';
 
 const SETUP_CATEGORIES = [
   {
@@ -40,7 +43,17 @@ const SETUP_CATEGORIES = [
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'admin';
+
+  const handleTriggerReport = async () => {
+    try {
+      const result = await triggerWeeklyReport();
+      showToast(result.message || `Sent ${result.sent_count} report(s)`, 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    }
+  };
 
   return (
     <CRMLayout>
@@ -84,9 +97,8 @@ export default function SettingsPage() {
           <div className="card p-5 mt-6">
             <h2 className="text-sm font-semibold mb-2">Weekly Auto-Reports</h2>
             <p className="text-sm text-zoho-muted mb-3">Sent every Monday 8:00 AM IST to Super Admins and Sales Managers.</p>
-            <button className="btn-secondary text-xs" onClick={() => fetch('/api/reports/weekly/trigger', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('crm_token')}` } })}>
-              Trigger report now
-            </button>
+            <Link href="/reports" className="btn-secondary text-xs inline-block mr-2">Configure in Reports</Link>
+            <button className="btn-secondary text-xs" onClick={handleTriggerReport}>Trigger report now</button>
           </div>
         )}
       </div>

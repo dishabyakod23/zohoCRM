@@ -15,7 +15,8 @@ const SNAKE_CASE_RE = /^[a-z][a-z0-9_]*$/;
 
 export function leadStatusLabel(status, options = []) {
   if (!status) return '—';
-  const fromLookup = options.find(o => o.value === status);
+  const lookupOptions = Array.isArray(options) ? options : [];
+  const fromLookup = lookupOptions.find(o => o.value === status);
   if (fromLookup) return fromLookup.label;
   return STATUS_LABELS[status] || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }

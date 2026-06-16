@@ -12,7 +12,7 @@ export async function listLeads({ page = 1, page_size = 15, search, lead_status,
 
   const res = await api.get('/leads', { params });
   return {
-    data: (res.data.data || []).map(normalizeLead),
+    data: (res.data.data || []).map((lead) => normalizeLead(lead)),
     total: res.data.meta?.total ?? 0,
     meta: res.data.meta,
   };
