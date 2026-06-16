@@ -35,9 +35,7 @@ export default function DealsPage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
-  const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
   const [stageMove, setStageMove] = useState(null);
   const [dragDeal, setDragDeal] = useState(null);
 
@@ -49,7 +47,7 @@ export default function DealsPage() {
     contactsApi.listContacts({ page: 1, page_size: 200 }).then(r => setContacts(r.data || [])).catch(() => setContacts([]));
   }, []);
 
-  const openCreate = useCallback(() => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); }, []);
+  const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
   useOpenCreateParam(canEdit, openCreate);
 
   const fetchDeals = useCallback(async () => {
@@ -79,8 +77,7 @@ export default function DealsPage() {
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
     setSaving(true);
     try {
-      if (editing) await dealsApi.updateDeal(editing, form);
-      else await dealsApi.createDeal(form);
+      await dealsApi.createDeal(form);
       setModal(false);
       fetchDeals();
       showToast('Deal saved', 'success');
@@ -88,17 +85,6 @@ export default function DealsPage() {
       showToast(getApiError(err));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await dealsApi.deleteDeal(deleteTarget.id);
-      setDeleteTarget(null);
-      fetchDeals();
-      showToast('Deal deleted', 'success');
-    } catch (err) {
-      showToast(getApiError(err));
     }
   };
 
@@ -117,24 +103,6 @@ export default function DealsPage() {
   const stageLabel = (value) => stageOptions.find(s => s.value === value)?.label || value;
   const fmt = (n) => n ? `₹${(n / 100000).toFixed(1)}L` : '—';
   const byStage = (stageValue) => deals.filter(d => d.stage_value === stageValue);
-
-  const openEdit = (d) => {
-    setForm({
-      deal_name: d.deal_name || d.name || '',
-      amount: d.amount ?? '',
-      stage_value: d.stage_value || 'qualification',
-      closing_date: d.closing_date?.split('T')[0] || d.close_date?.split('T')[0] || '',
-      probability: d.probability ?? 10,
-      account_id: String(d.account_id || ''),
-      contact_id: String(d.contact_id || ''),
-      deal_type: d.deal_type || '',
-      lead_source: d.lead_source || '',
-      description: d.description || '',
-    });
-    setEditing(d.id);
-    setErrors({});
-    setModal(true);
-  };
 
   return (
     <CRMLayout>
@@ -164,10 +132,10 @@ export default function DealsPage() {
               <table className="w-full">
                 <thead><tr>
                   <th className="table-th">Deal Name</th><th className="table-th">Account</th><th className="table-th">Amount</th>
-                  <th className="table-th">Stage</th><th className="table-th">Closing Date</th><th className="table-th">Probability</th><th className="table-th w-24">Actions</th>
+                  <th className="table-th">Stage</th><th className="table-th">Closing Date</th><th className="table-th">Probability</th>
                 </tr></thead>
                 <tbody>{deals.length === 0 ? (
-                  <tr><td colSpan={7} className="table-td text-center text-zoho-muted py-12">No deals found</td></tr>
+                  <tr><td colSpan={6} className="table-td text-center text-zoho-muted py-12">No deals found</td></tr>
                 ) : deals.map(d => (
                   <tr key={d.id} className="hover:bg-brand-50/30 transition-colors">
                     <td className="table-td font-medium"><Link href={`/deals/${d.id}`} className="text-brand-600 hover:text-brand-700">{d.name}</Link></td>
@@ -175,12 +143,6 @@ export default function DealsPage() {
                     <td className="table-td"><Badge label={d.stage} /></td>
                     <td className="table-td">{d.close_date ? new Date(d.close_date).toLocaleDateString() : '—'}</td>
                     <td className="table-td">{d.probability}%</td>
-                    <td className="table-td">{canEdit && (
-                      <div className="flex gap-1.5">
-                        <button onClick={() => openEdit(d)} className="btn-secondary-sm">Edit</button>
-                        <button onClick={() => setDeleteTarget(d)} className="btn-danger-sm">Delete</button>
-                      </div>
-                    )}</td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -200,10 +162,11 @@ export default function DealsPage() {
                     </div>
                     <div className="flex-1 space-y-2 p-2 bg-gray-50 border rounded-b-lg min-h-40">
                       {byStage(value).map(d => (
-                        <div key={d.id} draggable onDragStart={() => setDragDeal(d)}
-                          className="bg-white border rounded-lg p-3 shadow-sm cursor-grab hover:border-brand-300 text-xs">
+                        <div key={d.id} draggable onDragStart={() => setDragDeal(d)}>
+                        <Link href={`/deals/${d.id}`} className="block bg-white border rounded-lg p-3 shadow-sm cursor-grab hover:border-brand-300 text-xs">
                           <p className="font-medium">{d.name}</p><p className="text-gray-500">{d.account_name}</p>
                           <p className="font-semibold mt-1">{fmt(d.amount)}</p>
+                        </Link>
                         </div>
                       ))}
                     </div>
@@ -216,7 +179,7 @@ export default function DealsPage() {
       </div>
 
       {modal && (
-        <Modal title={editing ? 'Edit Deal' : 'Create Deal'} onClose={() => setModal(false)}>
+        <Modal title="Create Deal" onClose={() => setModal(false)}>
           {/* Deal Information */}
           <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Deal Information</p>
           <div className="grid grid-cols-2 gap-3 mb-5">
@@ -266,8 +229,6 @@ export default function DealsPage() {
         </Modal>
       )}
 
-      <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.name}? This action cannot be undone.`} confirmLabel="Confirm Delete" danger
-        onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
       <ConfirmDialog open={!!stageMove} message={`Move ${stageMove?.deal?.name} to ${stageLabel(stageMove?.newStage)}?`} confirmLabel="Move" onConfirm={confirmStageMove} onCancel={() => setStageMove(null)} />
     </CRMLayout>
   );

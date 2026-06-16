@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
-import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -19,7 +19,7 @@ const LIMIT = 15;
 
 export default function MeetingsPage() {
   const { showToast } = useToast();
-  const { canEdit, canDelete } = usePermissions();
+  const { canEdit } = usePermissions();
   const [items, setItems] = useState([]);
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -30,13 +30,11 @@ export default function MeetingsPage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
-  const [editing, setEditing] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { fetchUsers().then(setUsers).catch(() => {}); }, []);
 
-  const openCreate = useCallback(() => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); }, []);
+  const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
   useOpenCreateParam(canEdit, openCreate);
 
   const fetchItems = useCallback(async () => {
@@ -60,8 +58,7 @@ export default function MeetingsPage() {
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
     setSaving(true);
     try {
-      if (editing) await meetingsApi.updateMeeting(editing, form);
-      else await meetingsApi.createMeeting(form);
+      await meetingsApi.createMeeting(form);
       setModal(false);
       fetchItems();
       showToast('Meeting saved', 'success');
@@ -69,17 +66,6 @@ export default function MeetingsPage() {
       showToast(getApiError(err));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await meetingsApi.deleteMeeting(deleteTarget.id);
-      setDeleteTarget(null);
-      fetchItems();
-      showToast('Meeting deleted', 'success');
-    } catch (err) {
-      showToast(getApiError(err));
     }
   };
 
@@ -92,31 +78,23 @@ export default function MeetingsPage() {
         </div>
         <div className="card overflow-x-auto">
           <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search meetings..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
-          <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Title</th><th className="table-th">From</th><th className="table-th">To</th><th className="table-th">Host</th><th className="table-th">Location</th><th className="table-th">Actions</th></tr></thead>
+          <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Title</th><th className="table-th">From</th><th className="table-th">To</th><th className="table-th">Host</th><th className="table-th">Location</th></tr></thead>
             <tbody className="divide-y">
-              {loading ? <tr><td colSpan={6} className="table-td text-center py-8">Loading...</td></tr>
-              : items.length === 0 ? <tr><td colSpan={6} className="table-td text-center py-8 text-gray-400">No meetings found</td></tr>
+              {loading ? <tr><td colSpan={5} className="table-td text-center py-8">Loading...</td></tr>
+              : items.length === 0 ? <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No meetings found</td></tr>
               : items.map(m => (
               <tr key={m.id} className="hover:bg-gray-50 group">
-                <td className="table-td font-medium">{m.title}</td>
+                <td className="table-td font-medium"><Link href={`/meetings/${m.id}`} className="text-brand-600 hover:underline">{m.title}</Link></td>
                 <td className="table-td">{new Date(m.from_datetime).toLocaleString()}</td>
                 <td className="table-td">{new Date(m.to_datetime).toLocaleString()}</td>
                 <td className="table-td">{m.host_name}</td>
                 <td className="table-td">{m.location || '—'}</td>
-                <td className="table-td">
-                  {(canEdit || canDelete) && (
-                  <div className="flex gap-3">
-                    {canEdit && <button onClick={() => { setForm({ ...m, host_id: m.host_id || '' }); setEditing(m.id); setModal(true); }} className="text-xs text-blue-600 hover:underline">Edit</button>}
-                    {canDelete && <button onClick={() => setDeleteTarget(m)} className="text-xs text-red-500 hover:underline">Delete</button>}
-                  </div>
-                  )}
-                </td>
               </tr>
             ))}</tbody>
           </table>
         </div>
       </div>
-      {modal && <Modal title={editing ? 'Edit Meeting' : 'Create Meeting'} onClose={() => setModal(false)}>
+      {modal && <Modal title="Create Meeting" onClose={() => setModal(false)}>
         <div className="space-y-3">
           <FormField label="Meeting Title" required error={errors.title} name="title"><input className={inputClass(errors.title)} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></FormField>
           <FormField label="From" required error={errors.from_datetime} name="from_datetime"><input className={inputClass(errors.from_datetime)} type="datetime-local" value={form.from_datetime?.slice(0, 16)} onChange={e => setForm(p => ({ ...p, from_datetime: e.target.value }))} /></FormField>
@@ -126,7 +104,6 @@ export default function MeetingsPage() {
         </div>
         <div className="flex gap-2 justify-end mt-4"><button onClick={() => setModal(false)} className="btn-secondary">Cancel</button><button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save'}</button></div>
       </Modal>}
-      <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.title}?`} confirmLabel="Confirm Delete" danger onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }

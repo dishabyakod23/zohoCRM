@@ -3,7 +3,6 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
-import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import BulkUpload from '../../components/records/BulkUpload.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
@@ -32,9 +31,7 @@ export default function ContactsPage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
-  const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
 
@@ -42,7 +39,7 @@ export default function ContactsPage() {
     fetchAccountLookups().then(setAccounts).catch(() => setAccounts([]));
   }, []);
 
-  const openCreate = useCallback(() => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); }, []);
+  const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
   useOpenCreateParam(canEdit, openCreate);
 
   const fetchContacts = useCallback(async () => {
@@ -64,8 +61,6 @@ export default function ContactsPage() {
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
-  const openEdit = (c) => { setForm({ first_name: c.first_name || '', last_name: c.last_name || '', email: c.email || '', phone: c.phone || '', mobile: c.mobile || '', account_id: c.account_id || '', title: c.title || '', department: c.department || '', lead_source: c.lead_source || c.source || '', description: c.description || '' }); setEditing(c.id); setErrors({}); setModal(true); };
-
   const handleSave = async () => {
     const errs = validateRequired({ last_name: 'Last Name', account_id: 'Account Name', email: 'Email', phone: 'Phone' }, form);
     const emailErr = validateEmail(form.email);
@@ -76,8 +71,7 @@ export default function ContactsPage() {
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
     setSaving(true);
     try {
-      if (editing) await contactsApi.updateContact(editing, form);
-      else await contactsApi.createContact(form);
+      await contactsApi.createContact(form);
       setModal(false);
       fetchContacts();
       showToast('Contact saved', 'success');
@@ -85,17 +79,6 @@ export default function ContactsPage() {
       showToast(getApiError(err));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await contactsApi.deleteContact(deleteTarget.id);
-      setDeleteTarget(null);
-      fetchContacts();
-      showToast('Contact deleted', 'success');
-    } catch (err) {
-      showToast(getApiError(err));
     }
   };
 
@@ -131,12 +114,11 @@ export default function ContactsPage() {
                   <th className="table-th">Email</th>
                   <th className="table-th">Phone</th>
                   <th className="table-th">Owner</th>
-                  <th className="table-th w-24">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {loading ? <tr><td colSpan={7} className="table-td text-center text-zoho-muted py-12">Loading…</td></tr>
-                : contacts.length === 0 ? <tr><td colSpan={7} className="table-td text-center text-zoho-muted py-12">No contacts found</td></tr>
+                {loading ? <tr><td colSpan={6} className="table-td text-center text-zoho-muted py-12">Loading…</td></tr>
+                : contacts.length === 0 ? <tr><td colSpan={6} className="table-td text-center text-zoho-muted py-12">No contacts found</td></tr>
                 : contacts.map(c => (
                   <tr key={c.id} className="hover:bg-brand-50/30 transition-colors">
                     <td className="table-td">
@@ -150,14 +132,6 @@ export default function ContactsPage() {
                     <td className="table-td text-brand-600">{c.email || '—'}</td>
                     <td className="table-td">{c.phone || '—'}</td>
                     <td className="table-td">{c.owner_name || '—'}</td>
-                    <td className="table-td">
-                      {canEdit && (
-                        <div className="flex gap-1.5">
-                          <button onClick={() => openEdit(c)} className="btn-secondary-sm">Edit</button>
-                          <button onClick={() => setDeleteTarget(c)} className="btn-danger-sm">Delete</button>
-                        </div>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -175,7 +149,7 @@ export default function ContactsPage() {
       </div>
 
       {modal && (
-        <Modal title={editing ? 'Edit Contact' : 'New Contact'} onClose={() => setModal(false)}>
+        <Modal title="New Contact" onClose={() => setModal(false)}>
           {/* Contact Information */}
           <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Contact Information</p>
           <div className="grid grid-cols-2 gap-3 mb-5">
@@ -216,9 +190,6 @@ export default function ContactsPage() {
           </div>
         </Modal>
       )}
-
-      <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.first_name} ${deleteTarget?.last_name}? This action cannot be undone.`} confirmLabel="Confirm Delete" danger
-        onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }

@@ -173,7 +173,7 @@ export default function SettingsPage() {
   return (
     <CRMLayout>
       <div className="p-6 max-w-3xl mx-auto w-full">
-        <h1 className="text-lg font-semibold text-zoho-text mb-1">Setup</h1>
+        <h1 className="text-lg font-semibold text-zoho-text mb-1">Settings</h1>
         <p className="text-sm text-zoho-muted mb-6">Manage your profile, users, and organization settings</p>
 
         <div className="flex gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
@@ -220,10 +220,6 @@ export default function SettingsPage() {
                 <button type="button" className="btn-secondary text-xs" onClick={handleTriggerReport}>Trigger report now</button>
               </div>
             )}
-            <div className="card p-5">
-              <h2 className="text-sm font-semibold mb-2">Data Administration</h2>
-              <Link href="/recycle-bin" className="text-sm text-brand-600 hover:underline">Recycle Bin →</Link>
-            </div>
           </div>
         )}
 

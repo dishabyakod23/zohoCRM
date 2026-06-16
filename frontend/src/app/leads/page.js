@@ -30,7 +30,7 @@ const REQUIRED = { last_name: 'Last Name', company: 'Company', email: 'Email', p
 export default function LeadsPage() {
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit, canBulkDelete, canDelete } = usePermissions();
+  const { canEdit, canBulkDelete } = usePermissions();
   const [leads, setLeads] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -42,10 +42,8 @@ export default function LeadsPage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
-  const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState([]);
-  const [deleteTarget, setDeleteTarget] = useState(null);
   const [bulkDelete, setBulkDelete] = useState(false);
   const [activeView, setActiveView] = useState('All Leads');
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
@@ -56,7 +54,6 @@ export default function LeadsPage() {
 
   const openCreate = useCallback(() => {
     setForm(EMPTY);
-    setEditing(null);
     setErrors({});
     setModal(true);
   }, []);
@@ -112,8 +109,7 @@ export default function LeadsPage() {
     if (!validate()) return;
     setSaving(true);
     try {
-      if (editing) await leadsApi.updateLead(editing, form);
-      else await leadsApi.createLead(form);
+      await leadsApi.createLead(form);
       setModal(false);
       fetchLeads();
       showToast('Lead saved', 'success');
@@ -121,17 +117,6 @@ export default function LeadsPage() {
       showToast(getApiError(err));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await leadsApi.deleteLead(deleteTarget.id);
-      setDeleteTarget(null);
-      fetchLeads();
-      showToast('Lead deleted', 'success');
-    } catch (err) {
-      showToast(getApiError(err));
     }
   };
 
@@ -193,14 +178,13 @@ export default function LeadsPage() {
                   <th className="table-th">Source</th>
                   <th className="table-th">Status</th>
                   <th className="table-th">Owner</th>
-                  <th className="table-th w-24">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={canBulkDelete ? 9 : 8} className="table-td text-center py-12 text-zoho-muted">Loading…</td></tr>
+                  <tr><td colSpan={canBulkDelete ? 8 : 7} className="table-td text-center py-12 text-zoho-muted">Loading…</td></tr>
                 ) : leads.length === 0 ? (
-                  <tr><td colSpan={canBulkDelete ? 9 : 8} className="table-td text-center py-12 text-zoho-muted">No leads found</td></tr>
+                  <tr><td colSpan={canBulkDelete ? 8 : 7} className="table-td text-center py-12 text-zoho-muted">No leads found</td></tr>
                 ) : leads.map(lead => (
                   <tr key={lead.id} className="hover:bg-brand-50/30 transition-colors">
                     {canBulkDelete && (
@@ -217,18 +201,6 @@ export default function LeadsPage() {
                     <td className="table-td">{lead.source || '—'}</td>
                     <td className="table-td"><Badge label={lead.status} /></td>
                     <td className="table-td">{lead.owner_name || '—'}</td>
-                    <td className="table-td">
-                      {(canEdit || canDelete) && (
-                        <div className="flex gap-1.5">
-                          {canEdit && (
-                            <button onClick={() => { setForm({ ...lead, lead_status: lead.lead_status, source: lead.source }); setEditing(lead.id); setModal(true); }} className="btn-secondary-sm">Edit</button>
-                          )}
-                          {canDelete && (
-                            <button onClick={() => setDeleteTarget(lead)} className="btn-danger-sm">Delete</button>
-                          )}
-                        </div>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -247,7 +219,7 @@ export default function LeadsPage() {
       </div>
 
       {modal && (
-        <Modal title={editing ? 'Edit Lead' : 'Create Lead'} onClose={() => setModal(false)}>
+        <Modal title="Create Lead" onClose={() => setModal(false)}>
           {/* Lead Information */}
           <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Lead Information</p>
           <div className="grid grid-cols-2 gap-3 mb-5">
@@ -306,7 +278,6 @@ export default function LeadsPage() {
         </Modal>
       )}
 
-      <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.first_name} ${deleteTarget?.last_name}?`} confirmLabel="Confirm Delete" danger onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
       <ConfirmDialog open={bulkDelete} message={`Delete ${selected.length} selected lead(s)?`} confirmLabel="Delete All" danger onConfirm={handleBulkDelete} onCancel={() => setBulkDelete(false)} />
     </CRMLayout>
   );

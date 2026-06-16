@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
-import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -19,7 +19,7 @@ const LIMIT = 15;
 
 export default function CampaignsPage() {
   const { showToast } = useToast();
-  const { canEdit, canDelete } = usePermissions();
+  const { canEdit } = usePermissions();
   const [items, setItems] = useState([]);
   const [typeOptions, setTypeOptions] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
@@ -31,8 +31,6 @@ export default function CampaignsPage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
-  const [editing, setEditing] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -41,7 +39,7 @@ export default function CampaignsPage() {
       .catch(() => {});
   }, []);
 
-  const openCreate = useCallback(() => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); }, []);
+  const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
   useOpenCreateParam(canEdit, openCreate);
 
   const fetchItems = useCallback(async () => {
@@ -65,8 +63,7 @@ export default function CampaignsPage() {
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
     setSaving(true);
     try {
-      if (editing) await campaignsApi.updateCampaign(editing, form);
-      else await campaignsApi.createCampaign(form);
+      await campaignsApi.createCampaign(form);
       setModal(false);
       fetchItems();
       showToast('Campaign saved', 'success');
@@ -74,17 +71,6 @@ export default function CampaignsPage() {
       showToast(getApiError(err));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await campaignsApi.deleteCampaign(deleteTarget.id);
-      setDeleteTarget(null);
-      fetchItems();
-      showToast('Campaign deleted', 'success');
-    } catch (err) {
-      showToast(getApiError(err));
     }
   };
 
@@ -97,31 +83,23 @@ export default function CampaignsPage() {
         </div>
         <div className="card overflow-x-auto">
           <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search campaigns..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
-          <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Name</th><th className="table-th">Type</th><th className="table-th">Status</th><th className="table-th">Dates</th><th className="table-th">Members</th><th className="table-th">Actions</th></tr></thead>
+          <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Name</th><th className="table-th">Type</th><th className="table-th">Status</th><th className="table-th">Dates</th><th className="table-th">Members</th></tr></thead>
             <tbody className="divide-y">
-              {loading ? <tr><td colSpan={6} className="table-td text-center py-8">Loading...</td></tr>
-              : items.length === 0 ? <tr><td colSpan={6} className="table-td text-center py-8 text-gray-400">No campaigns found</td></tr>
+              {loading ? <tr><td colSpan={5} className="table-td text-center py-8">Loading...</td></tr>
+              : items.length === 0 ? <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No campaigns found</td></tr>
               : items.map(c => (
               <tr key={c.id} className="hover:bg-gray-50 group">
-                <td className="table-td font-medium">{c.name}</td>
+                <td className="table-td font-medium"><Link href={`/campaigns/${c.id}`} className="text-brand-600 hover:underline">{c.name}</Link></td>
                 <td className="table-td">{c.type_label}</td>
                 <td className="table-td"><Badge label={c.status_label} /></td>
                 <td className="table-td text-xs">{c.start_date} → {c.end_date}</td>
                 <td className="table-td">{c.member_count || 0}</td>
-                <td className="table-td">
-                  {(canEdit || canDelete) && (
-                  <div className="flex gap-3">
-                    {canEdit && <button onClick={() => { setForm({ ...c, name: c.campaign_name, type: c.campaign_type, start_date: c.start_date?.slice(0, 10), end_date: c.end_date?.slice(0, 10) }); setEditing(c.id); setModal(true); }} className="text-xs text-blue-600 hover:underline">Edit</button>}
-                    {canDelete && <button onClick={() => setDeleteTarget(c)} className="text-xs text-red-500 hover:underline">Delete</button>}
-                  </div>
-                  )}
-                </td>
               </tr>
             ))}</tbody>
           </table>
         </div>
       </div>
-      {modal && <Modal title={editing ? 'Edit Campaign' : 'Create Campaign'} onClose={() => setModal(false)}>
+      {modal && <Modal title="Create Campaign" onClose={() => setModal(false)}>
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Campaign Name" required error={errors.name} name="name"><input className={inputClass(errors.name)} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></FormField>
           <FormField label="Type" required><select className="input" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>{typeOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></FormField>
@@ -131,7 +109,6 @@ export default function CampaignsPage() {
         </div>
         <div className="flex gap-2 justify-end mt-4"><button onClick={() => setModal(false)} className="btn-secondary">Cancel</button><button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save'}</button></div>
       </Modal>}
-      <ConfirmDialog open={!!deleteTarget} message={`Deleting this campaign will remove it from ${deleteTarget?.member_count || 0} linked members. Proceed?`} confirmLabel="Confirm Delete" danger onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }

@@ -39,12 +39,10 @@ export const MODULE_ICONS = {
   Home: '🏠', Contacts: '👤', Leads: '🎯', Accounts: '🏢', Deals: '💰',
   Activities: '📋', Campaigns: '📣', Documents: '📄', Reports: '📊',
   Tasks: '✓', Meetings: '📅', Calls: '📞', Visits: '📍', Projects: '📁',
-  'Recycle Bin': '🗑', Feeds: '💬', Setup: '⚙',
 };
 
 export const NAV_MODULES = [
   { href: '/dashboard', label: 'Home', section: 'main', icon: 'Home' },
-  { href: '/feeds', label: 'Feeds', section: 'main', icon: 'Feeds' },
   { href: '/reports', label: 'Reports', section: 'main', icon: 'Reports' },
   { href: '/contacts', label: 'Contacts', section: 'modules', icon: 'Contacts' },
   { href: '/leads', label: 'Leads', section: 'modules', icon: 'Leads' },
@@ -58,8 +56,6 @@ export const NAV_MODULES = [
   { href: '/documents', label: 'Documents', section: 'modules', icon: 'Documents' },
   { href: '/visits', label: 'Visits', section: 'modules', icon: 'Visits' },
   { href: '/projects', label: 'Projects', section: 'modules', icon: 'Projects' },
-  { href: '/recycle-bin', label: 'Recycle Bin', section: 'main', icon: 'Recycle Bin' },
-  { href: '/settings', label: 'Setup', section: 'main', icon: 'Setup' },
 ];
 
 export const QUICK_CREATE = [

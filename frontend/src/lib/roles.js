@@ -10,7 +10,7 @@ export const ROLE_LABELS = {
 
 /** Human-readable access summary per role */
 export const ROLE_ACCESS = {
-  super_admin: 'Full access — manage users, company settings, all CRM data, reports & recycle bin',
+  super_admin: 'Full access — manage users, company settings, all CRM data, and reports',
   sales_manager: 'Create/edit/delete records, export reports, manage team pipeline',
   sales_rep: 'Create and edit own records (leads, contacts, accounts, deals)',
   viewer: 'Read-only access to CRM modules — no create, edit, or delete',

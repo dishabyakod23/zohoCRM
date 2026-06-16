@@ -161,7 +161,7 @@ export default function Header({ onMenuClick }) {
                   <p className="text-xs text-zoho-muted">{user?.email}</p>
                   <p className="text-[10px] text-brand-600 capitalize mt-0.5 font-medium">{user?.role?.replace('_', ' ')}</p>
                 </div>
-                <Link href="/settings" onClick={() => setShowProfile(false)} className="block px-3 py-2 text-sm hover:bg-brand-50 hover:text-brand-600 transition-colors">My Profile</Link>
+                <Link href="/settings" onClick={() => setShowProfile(false)} className="block px-3 py-2 text-sm hover:bg-brand-50 hover:text-brand-600 transition-colors">View Profile</Link>
                 <button onClick={() => { setShowProfile(false); setLogoutConfirm(true); }}
                   className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">Sign Out</button>
               </div>

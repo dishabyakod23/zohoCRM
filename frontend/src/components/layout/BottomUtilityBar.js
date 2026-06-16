@@ -226,7 +226,6 @@ export default function BottomUtilityBar() {
                 <li>Global search finds leads, contacts, deals & more</li>
                 <li>Drag deals in Kanban view to change stage</li>
                 <li>Convert leads to accounts, contacts & deals</li>
-                <li>Deleted records go to Recycle Bin for 30 days</li>
               </ul>
             </div>
             <p className="text-xs text-zoho-muted">API: api-salescrm.duckdns.org</p>

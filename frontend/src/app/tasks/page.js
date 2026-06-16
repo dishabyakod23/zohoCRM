@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
-import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -20,7 +20,7 @@ const LIMIT = 15;
 
 export default function TasksPage() {
   const { showToast } = useToast();
-  const { canEdit, canDelete } = usePermissions();
+  const { canEdit } = usePermissions();
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
@@ -33,8 +33,6 @@ export default function TasksPage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
-  const [editing, setEditing] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -43,7 +41,7 @@ export default function TasksPage() {
       .catch(() => {});
   }, []);
 
-  const openCreate = useCallback(() => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); }, []);
+  const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
   useOpenCreateParam(canEdit, openCreate);
 
   const fetchTasks = useCallback(async () => {
@@ -69,8 +67,7 @@ export default function TasksPage() {
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
     setSaving(true);
     try {
-      if (editing) await tasksApi.updateTask(editing, form);
-      else await tasksApi.createTask(form);
+      await tasksApi.createTask(form);
       setModal(false);
       fetchTasks();
       showToast('Task saved', 'success');
@@ -78,17 +75,6 @@ export default function TasksPage() {
       showToast(getApiError(err));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await tasksApi.deleteTask(deleteTarget.id);
-      setDeleteTarget(null);
-      fetchTasks();
-      showToast('Task deleted', 'success');
-    } catch (err) {
-      showToast(getApiError(err));
     }
   };
 
@@ -106,28 +92,20 @@ export default function TasksPage() {
           <table className="w-full">
             <thead className="bg-gray-50"><tr>
               <th className="table-th">Title</th><th className="table-th">Due Date</th><th className="table-th">Assigned To</th>
-              <th className="table-th">Status</th><th className="table-th">Priority</th><th className="table-th">Actions</th>
+              <th className="table-th">Status</th><th className="table-th">Priority</th>
             </tr></thead>
             <tbody className="divide-y divide-gray-50">
-              {loading ? <tr><td colSpan={6} className="table-td text-center py-8">Loading...</td></tr>
-              : tasks.length === 0 ? <tr><td colSpan={6} className="table-td text-center py-8 text-gray-400">No tasks found</td></tr>
+              {loading ? <tr><td colSpan={5} className="table-td text-center py-8">Loading...</td></tr>
+              : tasks.length === 0 ? <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No tasks found</td></tr>
               : tasks.map(t => (
                 <tr key={t.id} className="hover:bg-gray-50 group">
-                  <td className="table-td font-medium">{t.title}</td>
+                  <td className="table-td font-medium"><Link href={`/tasks/${t.id}`} className="text-brand-600 hover:underline">{t.title}</Link></td>
                   <td className={`table-td ${new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-600 font-medium' : ''}`}>
                     {new Date(t.due_date).toLocaleString()}
                   </td>
                   <td className="table-td">{t.assigned_name}</td>
                   <td className="table-td"><Badge label={t.status_label} /></td>
                   <td className="table-td">{t.priority_label}</td>
-                  <td className="table-td">
-                    {(canEdit || canDelete) && (
-                    <div className="flex gap-3">
-                      {canEdit && <button onClick={() => { setForm({ ...t, title: t.subject, assigned_to: t.assigned_to_id || '' }); setEditing(t.id); setModal(true); }} className="text-xs text-blue-600 hover:underline">Edit</button>}
-                      {canDelete && <button onClick={() => setDeleteTarget(t)} className="text-xs text-red-500 hover:underline">Delete</button>}
-                    </div>
-                    )}
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -143,7 +121,7 @@ export default function TasksPage() {
       </div>
 
       {modal && (
-        <Modal title={editing ? 'Edit Task' : 'Create Task'} onClose={() => setModal(false)}>
+        <Modal title="Create Task" onClose={() => setModal(false)}>
           <div className="space-y-3">
             <FormField label="Task Title" required error={errors.title} name="title"><input className={inputClass(errors.title)} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></FormField>
             <FormField label="Due Date & Time" required error={errors.due_date} name="due_date"><input className={inputClass(errors.due_date)} type="datetime-local" value={form.due_date?.slice(0, 16)} onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))} /></FormField>
@@ -167,8 +145,6 @@ export default function TasksPage() {
           <div className="flex gap-2 justify-end mt-4"><button onClick={() => setModal(false)} className="btn-secondary">Cancel</button><button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save'}</button></div>
         </Modal>
       )}
-
-      <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.title}?`} confirmLabel="Confirm Delete" danger onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }

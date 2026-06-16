@@ -3,7 +3,6 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
-import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -22,7 +21,6 @@ export default function AccountsPage() {
   const { showToast } = useToast();
   const { canEdit } = usePermissions();
   const [accounts, setAccounts] = useState([]);
-  const [deleteTarget, setDeleteTarget] = useState(null);
   const [errors, setErrors] = useState({});
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -31,10 +29,9 @@ export default function AccountsPage() {
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
-  const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const openCreate = useCallback(() => { setForm(EMPTY); setEditing(null); setErrors({}); setModal(true); }, []);
+  const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
   useOpenCreateParam(canEdit, openCreate);
 
   const fetchAccounts = useCallback(async () => {
@@ -56,33 +53,13 @@ export default function AccountsPage() {
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
-  const openEdit = (a) => {
-    setForm({
-      account_name: a.name || a.account_name || '',
-      phone: a.phone || '',
-      industry: a.industry || '',
-      account_type: a.account_type || '',
-      website: a.website || '',
-      annual_revenue: a.annual_revenue || '',
-      city: a.city || '',
-      state: a.state || '',
-      zip_code: a.zip_code || '',
-      country: a.country || 'India',
-      description: a.description || '',
-    });
-    setEditing(a.id);
-    setErrors({});
-    setModal(true);
-  };
-
   const handleSave = async () => {
     const errs = validateRequired({ account_name: 'Account Name', phone: 'Phone' }, form);
     setErrors(errs);
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
     setSaving(true);
     try {
-      if (editing) await accountsApi.updateAccount(editing, form);
-      else await accountsApi.createAccount(form);
+      await accountsApi.createAccount(form);
       setModal(false);
       fetchAccounts();
       showToast('Account saved', 'success');
@@ -90,17 +67,6 @@ export default function AccountsPage() {
       showToast(getApiError(err));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await accountsApi.deleteAccount(deleteTarget.id);
-      setDeleteTarget(null);
-      fetchAccounts();
-      showToast('Account deleted', 'success');
-    } catch (err) {
-      showToast(getApiError(err));
     }
   };
 
@@ -131,12 +97,11 @@ export default function AccountsPage() {
                   <th className="table-th">Phone</th>
                   <th className="table-th">City</th>
                   <th className="table-th">Owner</th>
-                  <th className="table-th w-24">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {loading ? <tr><td colSpan={7} className="table-td text-center text-zoho-muted py-12">Loading…</td></tr>
-                : accounts.length === 0 ? <tr><td colSpan={7} className="table-td text-center text-zoho-muted py-12">No accounts found</td></tr>
+                {loading ? <tr><td colSpan={6} className="table-td text-center text-zoho-muted py-12">Loading…</td></tr>
+                : accounts.length === 0 ? <tr><td colSpan={6} className="table-td text-center text-zoho-muted py-12">No accounts found</td></tr>
                 : accounts.map(a => (
                   <tr key={a.id} className="hover:bg-brand-50/30 transition-colors">
                     <td className="table-td">
@@ -152,14 +117,6 @@ export default function AccountsPage() {
                     <td className="table-td">{a.phone || '—'}</td>
                     <td className="table-td">{a.city || '—'}</td>
                     <td className="table-td">{a.owner_name || '—'}</td>
-                    <td className="table-td">
-                      {canEdit && (
-                        <div className="flex gap-1.5">
-                          <button onClick={() => openEdit(a)} className="btn-secondary-sm">Edit</button>
-                          <button onClick={() => setDeleteTarget(a)} className="btn-danger-sm">Delete</button>
-                        </div>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -176,7 +133,7 @@ export default function AccountsPage() {
       </div>
 
       {modal && (
-        <Modal title={editing ? 'Edit Account' : 'New Account'} onClose={() => setModal(false)}>
+        <Modal title="New Account" onClose={() => setModal(false)}>
           {/* Account Information */}
           <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Account Information</p>
           <div className="grid grid-cols-2 gap-3 mb-5">
@@ -217,9 +174,6 @@ export default function AccountsPage() {
           </div>
         </Modal>
       )}
-
-      <ConfirmDialog open={!!deleteTarget} message={`Are you sure you want to delete ${deleteTarget?.name}? This action cannot be undone.`} confirmLabel="Confirm Delete" danger
-        onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
     </CRMLayout>
   );
 }
