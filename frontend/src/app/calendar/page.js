@@ -34,11 +34,57 @@ function EventPill({ event, onClick }) {
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(event); }}
-      className={`w-full text-left text-[11px] px-1.5 py-0.5 rounded truncate ${meta.bg} ${meta.text} hover:opacity-90`}
+      className={`block w-full max-w-full text-left text-[11px] leading-tight px-1.5 py-0.5 rounded truncate shrink-0 ${meta.bg} ${meta.text} hover:opacity-90`}
       title={event.title}
     >
       {!event.all_day && event.start_time ? `${formatTime(event.start_time)} ` : ''}{event.title}
     </button>
+  );
+}
+
+function MonthDayCell({
+  day, viewDate, today, selectedDate, eventsByDate, onSelect, onCreate, onEdit,
+}) {
+  const key = toDateKey(day);
+  const inMonth = day.getMonth() === viewDate.getMonth();
+  const isToday = key === today;
+  const isSelected = key === selectedDate;
+  const dayEvents = eventsByDate[key] || [];
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(key)}
+      onDoubleClick={() => onCreate(key)}
+      onKeyDown={(e) => { if (e.key === 'Enter') onSelect(key); }}
+      className={[
+        'relative flex flex-col min-h-0 h-full overflow-hidden',
+        'border-r border-b border-zoho-border p-1.5 cursor-pointer',
+        'hover:bg-blue-50/30 transition-colors',
+        !inMonth ? 'bg-gray-50/70 text-zoho-muted' : 'bg-white',
+        isSelected ? 'bg-brand-50/90 shadow-[inset_0_0_0_2px_rgba(37,99,235,0.85)] z-[1]' : '',
+      ].join(' ')}
+    >
+      <div className="shrink-0 mb-1 flex justify-end">
+        <span
+          className={[
+            'inline-flex h-7 w-7 items-center justify-center rounded-full text-xs',
+            isToday ? 'bg-brand-600 text-white font-semibold' : 'text-zoho-text',
+          ].join(' ')}
+        >
+          {day.getDate()}
+        </span>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
+        {dayEvents.slice(0, 3).map((e) => (
+          <EventPill key={e.id} event={e} onClick={onEdit} />
+        ))}
+        {dayEvents.length > 3 && (
+          <p className="shrink-0 px-1 text-[10px] text-zoho-muted">+{dayEvents.length - 3} more</p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -221,49 +267,34 @@ export default function CalendarPage() {
           </aside>
 
           {/* Main calendar grid */}
-          <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1 min-w-0 flex flex-col border-l border-zoho-border">
             <div className="grid grid-cols-7 border-b border-zoho-border bg-gray-50/80 shrink-0">
               {WEEKDAYS.map((d) => (
-                <div key={d} className="py-2 text-center text-[11px] font-medium text-zoho-muted uppercase">{d}</div>
+                <div key={d} className="border-r border-zoho-border py-2 text-center text-[11px] font-medium text-zoho-muted uppercase">
+                  {d}
+                </div>
               ))}
             </div>
 
             {loading ? (
               <div className="flex-1 flex items-center justify-center text-sm text-zoho-muted">Loading calendar…</div>
             ) : view === 'month' ? (
-              <div className="flex-1 grid grid-rows-6 min-h-0">
-                {monthGrid.map((week, wi) => (
-                  <div key={wi} className="grid grid-cols-7 border-b border-zoho-border min-h-[100px]">
-                    {week.map((day) => {
-                      const key = toDateKey(day);
-                      const inMonth = day.getMonth() === viewDate.getMonth();
-                      const isToday = key === today;
-                      const isSelected = key === selectedDate;
-                      const dayEvents = eventsByDate[key] || [];
-                      return (
-                        <div
-                          key={key}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => setSelectedDate(key)}
-                          onDoubleClick={() => openCreate(key)}
-                          className={`border-r border-zoho-border p-1 cursor-pointer overflow-hidden hover:bg-blue-50/40 ${!inMonth ? 'bg-gray-50/60 text-zoho-muted' : ''} ${isSelected ? 'ring-2 ring-inset ring-brand-400' : ''}`}
-                        >
-                          <div className={`text-xs w-6 h-6 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-brand-600 text-white font-semibold' : ''}`}>
-                            {day.getDate()}
-                          </div>
-                          <div className="space-y-0.5">
-                            {dayEvents.slice(0, 3).map((e) => (
-                              <EventPill key={e.id} event={e} onClick={openEdit} />
-                            ))}
-                            {dayEvents.length > 3 && (
-                              <p className="text-[10px] text-zoho-muted px-1">+{dayEvents.length - 3} more</p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+              <div
+                className="flex-1 min-h-0 grid grid-cols-7 auto-rows-fr border-t border-zoho-border"
+                style={{ gridTemplateRows: `repeat(${monthGrid.length}, minmax(0, 1fr))` }}
+              >
+                {monthGrid.flat().map((day) => (
+                  <MonthDayCell
+                    key={toDateKey(day)}
+                    day={day}
+                    viewDate={viewDate}
+                    today={today}
+                    selectedDate={selectedDate}
+                    eventsByDate={eventsByDate}
+                    onSelect={setSelectedDate}
+                    onCreate={openCreate}
+                    onEdit={openEdit}
+                  />
                 ))}
               </div>
             ) : (
