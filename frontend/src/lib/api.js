@@ -74,7 +74,11 @@ export function getApiError(err) {
   }
 
   if (Array.isArray(data.errors) && data.errors.length) {
-    return data.errors.map((e) => e.message || e.msg || JSON.stringify(e)).join('; ');
+    return data.errors.map((e) => e.message || e.msg || String(e)).join('; ');
+  }
+
+  if (data.data?.errors?.length) {
+    return data.data.errors.map((e) => String(e)).join('; ');
   }
 
   return data.message || data.error || err.message || 'Request failed';

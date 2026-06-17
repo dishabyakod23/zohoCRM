@@ -126,6 +126,7 @@ export function isConvertMassUpdateField(fieldDef) {
   const lookup = String(field.lookup || '').toLowerCase();
   return field.type === 'convert'
     || value === 'convert'
+    || value === 'pipeline_convert'
     || label === 'convert'
     || lookup.includes('pipeline-convert-targets')
     || lookup.includes('convert-target');

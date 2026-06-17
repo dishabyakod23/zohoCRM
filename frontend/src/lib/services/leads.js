@@ -94,28 +94,49 @@ export async function massUpdateLeads(ids, field, value, { lost_reason } = {}) {
   return res.data.data;
 }
 
+function isConvertMassUpdateFieldKey(field) {
+  const key = String(field || '').toLowerCase();
+  return key === 'convert' || key === 'pipeline_convert';
+}
+
 /** Route mass-update Convert to per-lead conversion; other fields use bulk API. */
 export async function applyLeadMassUpdate(ids, field, value, extras = {}) {
-  const fieldKey = String(field || '').toLowerCase();
-  if (fieldKey === 'convert') {
+  if (isConvertMassUpdateFieldKey(field)) {
     const target = String(value || '').toLowerCase();
     let success = 0;
+    const errors = [];
     for (const id of ids) {
-      if (CONVERT_MASS_TARGETS.has(target)) {
-        await convertLead(id, { create_deal: target === 'deal' });
-      } else {
-        await advanceLeadStage(id, value, {
-          proposal: target === 'proposal' || value === PIPELINE_PROPOSAL,
-          clearProposal: target === 'lead' || target === PIPELINE_LEAD || value === PIPELINE_LEAD,
-        });
+      try {
+        if (CONVERT_MASS_TARGETS.has(target)) {
+          await convertLead(id, { create_deal: target === 'deal' });
+        } else {
+          await advanceLeadStage(id, value, {
+            proposal: target === 'proposal' || value === PIPELINE_PROPOSAL,
+            clearProposal: target === 'lead' || target === PIPELINE_LEAD || value === PIPELINE_LEAD,
+          });
+        }
+        success += 1;
+      } catch (err) {
+        errors.push(`${id}: ${err.response?.data?.message || err.response?.data?.error || err.message || 'Update failed'}`);
       }
-      success += 1;
     }
-    return { success_count: success, updated: success };
+    if (errors.length) {
+      const err = new Error(errors.join('; '));
+      err.massUpdateResult = { success_count: success, failed_count: errors.length, errors };
+      throw err;
+    }
+    return { success_count: success, updated: success, failed_count: 0, errors: [] };
   }
 
+  const fieldKey = String(field || '').toLowerCase();
   const apiField = fieldKey === 'status' ? 'lead_status' : field;
-  return massUpdateLeads(ids, apiField, value, extras);
+  const result = await massUpdateLeads(ids, apiField, value, extras);
+  if (result?.failed_count > 0) {
+    const err = new Error((result.errors || []).join('; ') || 'Mass update failed');
+    err.massUpdateResult = result;
+    throw err;
+  }
+  return result;
 }
 
 export async function convertLead(id, form) {

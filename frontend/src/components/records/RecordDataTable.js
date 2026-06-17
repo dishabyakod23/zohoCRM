@@ -249,8 +249,10 @@ export default function RecordDataTable({
   }, [massField, dynamicMassFields, massUpdateFieldsLoader]);
 
   const selectedMassFieldDef = dynamicMassFields.find((f) => f.value === massField);
+  const massFieldKey = String(massField || '').toLowerCase();
   const isConvertMassField = isConvertMassUpdateField(selectedMassFieldDef)
-    || String(massField).toLowerCase() === 'convert';
+    || massFieldKey === 'convert'
+    || massFieldKey === 'pipeline_convert';
   const showLostReasonField = massUpdateFieldsLoader
     && isLeadStatusMassField(massField, selectedMassFieldDef)
     && isLostLeadStatus(massValue);
@@ -301,6 +303,11 @@ export default function RecordDataTable({
         const result = await massUpdateHandler(selected, massField, massValue, {
           lost_reason: showLostReasonField ? massLostReason : undefined,
         });
+        const failed = result?.failed_count ?? 0;
+        if (failed > 0) {
+          showToast((result?.errors || []).join('; ') || `${failed} record(s) failed to update`);
+          return;
+        }
         const count = result?.success_count ?? result?.updated ?? selected.length;
         showToast(`Updated ${count} record(s)`, 'success');
       } else {
