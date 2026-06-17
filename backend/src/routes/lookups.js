@@ -14,6 +14,26 @@ router.get('/lead-statuses', async (_, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.get('/lead-sources', (_, res) => ok(res, [
+  { value: 'Advertisement', label: 'Advertisement' },
+  { value: 'Cold Call', label: 'Cold Call' },
+  { value: 'Employee Referral', label: 'Employee Referral' },
+  { value: 'External Referral', label: 'External Referral' },
+  { value: 'Online Store', label: 'Online Store' },
+  { value: 'Partner', label: 'Partner' },
+  { value: 'Public Relations', label: 'Public Relations' },
+  { value: 'Sales Email Alias', label: 'Sales Email Alias' },
+  { value: 'Seminar Partner', label: 'Seminar Partner' },
+  { value: 'Internal Seminar', label: 'Internal Seminar' },
+  { value: 'Trade Show', label: 'Trade Show' },
+  { value: 'Web Download', label: 'Web Download' },
+  { value: 'Web Research', label: 'Web Research' },
+  { value: 'Chat', label: 'Chat' },
+  { value: 'Website', label: 'Website' },
+  { value: 'Referral', label: 'Referral' },
+  { value: 'Manual Entry', label: 'Manual Entry' },
+]));
+
 router.get('/deal-stages', (_, res) => ok(res, [
   { value: 'qualification', label: 'Qualification' },
   { value: 'needs_analysis', label: 'Needs Analysis' },
@@ -97,6 +117,24 @@ router.get('/visit-statuses', (_, res) => ok(res, [
   { value: 'planned', label: 'Planned' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
+]));
+
+router.get('/lead-mass-update-fields', async (_, res) => {
+  try {
+    ok(res, [
+      { value: 'lead_status', label: 'Lead Status', lookup: 'lead-statuses' },
+      { value: 'source', label: 'Lead Source', lookup: 'lead-sources' },
+      { value: 'industry', label: 'Industry', lookup: 'industries' },
+      { value: 'rating', label: 'Rating', lookup: 'ratings' },
+      { value: 'convert', label: 'Convert', type: 'convert', lookup: 'pipeline-convert-targets' },
+    ]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/pipeline-convert-targets', (_, res) => ok(res, [
+  { value: 'contact', label: 'Contact' },
+  { value: 'account', label: 'Account' },
+  { value: 'deal', label: 'Deal' },
 ]));
 
 module.exports = router;

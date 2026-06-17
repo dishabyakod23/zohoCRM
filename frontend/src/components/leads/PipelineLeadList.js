@@ -14,7 +14,7 @@ import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } from '../../lib/pipelineHelpers.js';
-import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields } from '../../lib/services/lookups.js';
 
 const STAGE_MODULE_KEY = {
   [PIPELINE_RAW]: 'raw-leads',
@@ -36,7 +36,9 @@ export default function PipelineLeadList({ stage, description }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [csvText, setCsvText] = useState('');
+  const [uploadFile, setUploadFile] = useState(null);
+  const [importPreview, setImportPreview] = useState(null);
+  const [validatingImport, setValidatingImport] = useState(false);
   const [importing, setImporting] = useState(false);
   const [assignModal, setAssignModal] = useState(null);
   const [assignUserId, setAssignUserId] = useState('');
@@ -58,8 +60,9 @@ export default function PipelineLeadList({ stage, description }) {
         page,
         page_size: limit,
         search: debouncedSearch || undefined,
-        lead_status: config?.apiStatus || stage,
-        pipeline_stage: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL].includes(stage) ? stage : undefined,
+        pipeline_stage: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL].includes(stage) ? stage : stage === PIPELINE_RAW ? PIPELINE_RAW : undefined,
+        lead_status: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PIPELINE_RAW].includes(stage) ? undefined : (config?.apiStatus || stage),
+        statusOptions,
       });
       setLeads(result.data);
       setTotal(result.total);
@@ -68,21 +71,33 @@ export default function PipelineLeadList({ stage, description }) {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, stage, showToast]);
+  }, [page, limit, debouncedSearch, stage, showToast, statusOptions]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
+  const handleValidateImport = async () => {
+    if (!uploadFile) { showToast('Choose a CSV file first'); return; }
+    setValidatingImport(true);
+    try {
+      const result = await leadsApi.importLeadsFile(uploadFile, { dry_run: true });
+      setImportPreview(result);
+      if (!result.ready_count) showToast('No valid rows found in file');
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setValidatingImport(false);
+    }
+  };
+
   const handleImport = async () => {
-    if (!csvText.trim()) { showToast('Choose a CSV file first'); return; }
+    if (!uploadFile) { showToast('Choose a CSV file first'); return; }
     setImporting(true);
     try {
-      const rows = leadsApi.parseLeadCsv(csvText);
-      if (!rows.length) { showToast('No data rows found in CSV'); return; }
-      const result = await leadsApi.importRawLeads(rows);
-      showToast(`Imported ${result.success} lead(s)${result.failed ? `, ${result.failed} failed` : ''}`, result.success ? 'success' : undefined);
-      if (result.errors.length) console.warn('Import errors', result.errors);
+      const result = await leadsApi.importLeadsFile(uploadFile, { dry_run: false });
+      showToast(`Imported ${result.imported_count ?? result.ready_count ?? 0} lead(s)`, 'success');
       setUploadOpen(false);
-      setCsvText('');
+      setUploadFile(null);
+      setImportPreview(null);
       fetchLeads();
     } catch (err) {
       showToast(getApiError(err));
@@ -110,17 +125,20 @@ export default function PipelineLeadList({ stage, description }) {
   const handleFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setCsvText(ev.target.result);
-    reader.readAsText(file);
+    setUploadFile(file);
+    setImportPreview(null);
   };
 
-  const downloadTemplate = () => {
-    const blob = new Blob([RAW_LEAD_CSV_HEADERS.join(',') + '\n'], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'raw-leads-template.csv';
-    a.click();
+  const downloadTemplate = async () => {
+    try {
+      await leadsApi.downloadLeadImportTemplate();
+    } catch {
+      const blob = new Blob([RAW_LEAD_CSV_HEADERS.join(',') + '\n'], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'raw-leads-template.csv';
+      a.click();
+    }
   };
 
   const totalPages = Math.ceil(total / limit) || 1;
@@ -193,6 +211,8 @@ export default function PipelineLeadList({ stage, description }) {
             columns={columns}
             statusOptions={statusOptions}
             onRefresh={fetchLeads}
+            massUpdateFieldsLoader={fetchLeadMassUpdateFields}
+            massUpdateHandler={(ids, field, value, extras) => leadsApi.massUpdateLeads(ids, field, value, extras)}
             pagination={{
               page,
               totalPages,
@@ -206,13 +226,25 @@ export default function PipelineLeadList({ stage, description }) {
       {uploadOpen && (
         <Modal title="Upload Raw Leads" onClose={() => setUploadOpen(false)}>
           <div className="space-y-3">
-            <p className="text-sm text-zoho-muted">Upload a CSV with columns: {RAW_LEAD_CSV_HEADERS.join(', ')}. Required: last_name, company.</p>
+            <p className="text-sm text-zoho-muted">Upload a CSV file. Required columns include first_name, last_name, and company.</p>
             <button type="button" onClick={downloadTemplate} className="text-xs text-brand-600 hover:underline">Download CSV template</button>
             <input type="file" accept=".csv" onChange={handleFile} className="text-sm" />
-            {csvText && <p className="text-xs text-zoho-muted">{leadsApi.parseLeadCsv(csvText).length} row(s) ready to import</p>}
+            {uploadFile && !importPreview && (
+              <button type="button" onClick={handleValidateImport} disabled={validatingImport} className="btn-secondary w-full text-xs">
+                {validatingImport ? 'Validating...' : 'Validate file'}
+              </button>
+            )}
+            {importPreview && (
+              <div className="text-xs space-y-1">
+                <p className="text-green-700">{importPreview.ready_count} row(s) ready to import</p>
+                {importPreview.error_count > 0 && <p className="text-red-600">{importPreview.error_count} error(s)</p>}
+              </div>
+            )}
             <div className="flex gap-2 justify-end pt-2">
               <button onClick={() => setUploadOpen(false)} className="btn-secondary">Cancel</button>
-              <button onClick={handleImport} disabled={importing || !csvText} className="btn-primary">{importing ? 'Importing...' : 'Import Leads'}</button>
+              <button onClick={handleImport} disabled={importing || !uploadFile || !(importPreview?.ready_count > 0)} className="btn-primary">
+                {importing ? 'Importing...' : 'Import Leads'}
+              </button>
             </div>
           </div>
         </Modal>

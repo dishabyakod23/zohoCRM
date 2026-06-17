@@ -2,24 +2,27 @@ import api from '../api.js';
 import { normalizeLead, toLeadPayload, resolveLeadStatusForApi } from '../leadHelpers.js';
 import { normalizeNote } from './notes.js';
 import { toConvertPayload } from '../dealHelpers.js';
+import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
 import {
   PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PROPOSAL_SOURCE,
   filterLeadsByPipelineStage, toApiLeadStatus,
 } from '../pipelineHelpers.js';
 
-export async function listLeads({ page = 1, page_size = 15, search, lead_status, owner_id, sort_by, sort_order, pipeline_stage } = {}) {
+export async function listLeads({ page = 1, page_size = 15, search, lead_status, owner_id, sort_by, sort_order, pipeline_stage, statusOptions } = {}) {
   const params = { page, page_size };
   if (search) params.search = search;
   const apiStatus = pipeline_stage === PIPELINE_PROPOSAL || pipeline_stage === PIPELINE_QUALIFIED
     ? 'qualified_lead'
-    : toApiLeadStatus(lead_status) || (lead_status ? resolveLeadStatusForApi(lead_status) : null);
+    : pipeline_stage === PIPELINE_RAW
+      ? null
+      : toApiLeadStatus(lead_status) || (lead_status ? resolveLeadStatusForApi(lead_status) : null);
   if (apiStatus) params.lead_status = apiStatus;
   if (owner_id) params.owner_id = owner_id;
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
 
   const res = await api.get('/leads', { params });
-  let data = (res.data.data || []).map((lead) => normalizeLead(lead));
+  let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
   if (pipeline_stage) {
     data = filterLeadsByPipelineStage(data, pipeline_stage);
   } else if (lead_status && toApiLeadStatus(lead_status) === 'qualified_lead' && lead_status !== PIPELINE_PROPOSAL) {
@@ -56,6 +59,13 @@ export async function bulkDeleteLeads(ids) {
   return res.data.data;
 }
 
+export async function massUpdateLeads(ids, field, value, { lost_reason } = {}) {
+  const payload = { ids, field, value };
+  if (lost_reason) payload.lost_reason = lost_reason;
+  const res = await api.post('/leads/mass-update', payload);
+  return res.data.data;
+}
+
 export async function convertLead(id, form) {
   const res = await api.post(`/leads/${id}/convert`, toConvertPayload(form));
   return res.data.data;
@@ -85,6 +95,34 @@ export async function listLeadAttachments(id) {
   return res.data.data || [];
 }
 
+export async function uploadLeadAttachment(id, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await api.post(`/leads/${id}/attachments`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data.data;
+}
+
+export async function deleteLeadAttachment(leadId, attachmentId) {
+  await api.delete(`/leads/${leadId}/attachments/${attachmentId}`);
+}
+
+export async function downloadLeadImportTemplate() {
+  const res = await api.get('/leads/import/template', { responseType: 'blob' });
+  downloadBlob(res.data, 'leads-import-template.csv');
+}
+
+export async function importLeadsFile(file, { dry_run = true } = {}) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await api.post('/leads/import', formData, {
+    params: { dry_run },
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return normalizeImportResult(res.data.data);
+}
+
 export async function advanceLeadStage(id, lead_status, { proposal = false, clearProposal = false } = {}) {
   const payload = { lead_status: resolveLeadStatusForApi(lead_status) };
   if (proposal || lead_status === PIPELINE_PROPOSAL) {
@@ -104,7 +142,7 @@ export async function assignLead(id, owner_id) {
 export async function createRawLead(form) {
   return createLead({
     ...form,
-    lead_status: form.lead_status || PIPELINE_RAW,
+    lead_status: form.lead_status || undefined,
     source: form.source || form.lead_source || 'Manual Entry',
   });
 }
@@ -141,9 +179,9 @@ export function parseLeadCsv(csvText) {
 export async function importRawLeads(rows) {
   const results = { success: 0, failed: 0, errors: [] };
   for (const row of rows) {
-    if (!row.last_name?.trim() || !row.company?.trim()) {
+    if (!row.first_name?.trim() || !row.last_name?.trim() || !row.company?.trim()) {
       results.failed += 1;
-      results.errors.push({ row: row._row, error: 'Last name and company are required' });
+      results.errors.push({ row: row._row, error: 'First name, last name, and company are required' });
       continue;
     }
     try {
@@ -152,7 +190,7 @@ export async function importRawLeads(rows) {
         last_name: row.last_name,
         company: row.company,
         email: row.email || `raw-${Date.now()}-${row._row}@import.local`,
-        phone: row.phone || '0000000000',
+        phone: row.phone || null,
         mobile: row.mobile || null,
         title: row.title || null,
         source: row.lead_source || 'Bulk Upload',

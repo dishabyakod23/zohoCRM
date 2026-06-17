@@ -1,3 +1,19 @@
+/** Status values that require a lost reason on mass update */
+export const LOST_LEAD_STATUS_VALUES = new Set(['deal_lost', 'lost_lead', 'not_qualified', 'junk_lead']);
+
+export function isLostLeadStatus(value) {
+  return LOST_LEAD_STATUS_VALUES.has(String(value || '').toLowerCase());
+}
+
+export function isLeadStatusMassField(field, fieldDef) {
+  const value = String(field || '').toLowerCase();
+  const defValue = String(fieldDef?.value || '').toLowerCase();
+  const defLabel = String(fieldDef?.label || '').toLowerCase();
+  return value === 'lead_status' || value === 'status'
+    || defValue === 'lead_status' || defValue === 'status'
+    || defLabel === 'lead status';
+}
+
 /** Convert display label to API snake_case status value */
 export function slugifyStatusValue(label) {
   return String(label || '')

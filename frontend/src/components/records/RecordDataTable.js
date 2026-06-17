@@ -15,43 +15,88 @@ import RecordNoteRowIcon from './RecordNoteRowIcon.js';
 import RecordNotesSidePanel from './RecordNotesSidePanel.js';
 import * as tasksApi from '../../lib/services/tasks.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
-import { fetchUsers } from '../../lib/services/lookups.js';
+import { fetchUsers, fetchMassUpdateFieldOptions, fetchPipelineConvertTargets, fetchLostReasons, isConvertMassUpdateField } from '../../lib/services/lookups.js';
+import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
 
 const defaultGetRowId = (r) => r.id;
 
-function MassUpdatePanel({ open, field, value, onFieldChange, onValueChange, onCancel, onUpdate, updating, statusOptions, convertOptions, massUpdateFields }) {
+function MassUpdatePanel({
+  open, field, value, onFieldChange, onValueChange, onCancel, onUpdate, updating,
+  statusOptions, massUpdateFields, dynamicFields, loadingFields,
+  valueOptions, loadingValueOptions, useDynamicFields, isConvertField,
+  showLostReason, lostReason, lostReasonOptions, onLostReasonChange, loadingLostReasons,
+}) {
   if (!open) return null;
 
-  const fields = massUpdateFields || ['status', 'convert'];
-  const valueInput = field === 'status' && statusOptions?.length ? (
-    <select className="input flex-1" value={value} onChange={(e) => onValueChange(e.target.value)}>
-      <option value="">Select value</option>
-      {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
-  ) : field === 'convert' && convertOptions?.length ? (
-    <select className="input flex-1" value={value} onChange={(e) => onValueChange(e.target.value)}>
-      <option value="">Select target</option>
-      {convertOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
-  ) : (
-    <input className="input flex-1" value={value} onChange={(e) => onValueChange(e.target.value)} placeholder="Enter value" />
-  );
+  const isDynamic = useDynamicFields && Array.isArray(dynamicFields) && dynamicFields.length > 0;
+  const valuePlaceholder = isConvertField ? 'Select target' : 'Select value';
+
+  let valueInput = null;
+  if (field) {
+    if (loadingValueOptions) {
+      valueInput = (
+        <select className="input flex-1" disabled>
+          <option>Loading options…</option>
+        </select>
+      );
+    } else if (isConvertField) {
+      valueInput = (
+        <select className="input flex-1" value={value} onChange={(e) => onValueChange(e.target.value)}>
+          <option value="">{valueOptions?.length ? 'Select target' : 'No options available'}</option>
+          {(valueOptions || []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      );
+    } else if (useDynamicFields) {
+      valueInput = (
+        <select className="input flex-1" value={value} onChange={(e) => onValueChange(e.target.value)}>
+          <option value="">{valueOptions?.length ? valuePlaceholder : 'No options available'}</option>
+          {(valueOptions || []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      );
+    } else if (field === 'status' && statusOptions?.length) {
+      valueInput = (
+        <select className="input flex-1" value={value} onChange={(e) => onValueChange(e.target.value)}>
+          <option value="">Select value</option>
+          {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      );
+    } else {
+      valueInput = <input className="input flex-1" value={value} onChange={(e) => onValueChange(e.target.value)} placeholder="Enter value" />;
+    }
+  }
+
+  const staticFields = massUpdateFields || ['status', 'convert'];
 
   return (
     <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4">
       <div className="bg-white border border-zoho-border rounded-xl shadow-card-hover p-5 animate-scaleIn">
         <h3 className="text-sm font-semibold text-zoho-text mb-4">Mass Update</h3>
         <div className="flex flex-wrap gap-2 items-center">
-          <select className="input w-44" value={field} onChange={(e) => onFieldChange(e.target.value)}>
-            <option value="">Select a field</option>
-            {fields.includes('status') && <option value="status">Status</option>}
-            {fields.includes('convert') && convertOptions?.length > 0 && <option value="convert">Convert</option>}
+          <select className="input w-44" value={field} onChange={(e) => onFieldChange(e.target.value)} disabled={loadingFields}>
+            <option value="">{loadingFields ? 'Loading fields…' : 'Select a field'}</option>
+            {isDynamic
+              ? dynamicFields.map(f => <option key={f.value} value={f.value}>{f.label}</option>)
+              : <>
+                  {staticFields.includes('status') && <option value="status">Status</option>}
+                  {staticFields.includes('convert') && <option value="convert">Convert</option>}
+                </>
+            }
           </select>
           {field && valueInput}
+          {showLostReason && (
+            loadingLostReasons ? (
+              <select className="input flex-1" disabled><option>Loading reasons…</option></select>
+            ) : (
+              <select className="input flex-1" value={lostReason} onChange={(e) => onLostReasonChange(e.target.value)}>
+                <option value="">Select lost reason</option>
+                {(lostReasonOptions || []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            )
+          )}
         </div>
         <div className="flex gap-2 justify-end mt-4 pt-3 border-t border-gray-100">
           <button type="button" onClick={onCancel} className="btn-secondary text-xs">Cancel</button>
-          <button type="button" onClick={onUpdate} disabled={updating || !field || !value} className="btn-primary text-xs">
+          <button type="button" onClick={onUpdate} disabled={updating || loadingValueOptions || loadingLostReasons || !field || !value || (showLostReason && !lostReason)} className="btn-primary text-xs">
             {updating ? 'Updating...' : 'Update'}
           </button>
         </div>
@@ -67,17 +112,17 @@ export default function RecordDataTable({
   columns = [],
   onRefresh,
   statusOptions = [],
-  convertOptions,
   pagination,
   emptyMessage = 'No records found',
   getRowId = defaultGetRowId,
+  massUpdateFieldsLoader,
+  massUpdateHandler,
 }) {
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
   const config = useMemo(() => getBulkConfig(moduleKey), [moduleKey]);
   const noteMeta = useMemo(() => getNoteMeta(moduleKey), [moduleKey]);
   const showNotes = notesApiSupported(moduleKey);
-  const resolvedConvertOptions = convertOptions ?? config.convertOptions ?? [];
 
   const [selected, setSelected] = useState([]);
   const [notesCache, setNotesCache] = useState({});
@@ -86,6 +131,13 @@ export default function RecordDataTable({
   const [massField, setMassField] = useState('');
   const [massValue, setMassValue] = useState('');
   const [massUpdating, setMassUpdating] = useState(false);
+  const [dynamicMassFields, setDynamicMassFields] = useState([]);
+  const [massValueOptions, setMassValueOptions] = useState([]);
+  const [loadingMassFields, setLoadingMassFields] = useState(false);
+  const [loadingMassValueOptions, setLoadingMassValueOptions] = useState(false);
+  const [massLostReason, setMassLostReason] = useState('');
+  const [lostReasonOptions, setLostReasonOptions] = useState([]);
+  const [loadingLostReasons, setLoadingLostReasons] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
@@ -159,8 +211,87 @@ export default function RecordDataTable({
 
   const allSelected = records.length > 0 && records.every((r) => selected.includes(getRowId(r)));
 
-  const hasMassUpdate = (config.massUpdateFields?.includes('status') && config.statusField)
-    || (config.massUpdateFields?.includes('convert') && resolvedConvertOptions.length > 0);
+  useEffect(() => {
+    if (!massUpdateOpen || !massUpdateFieldsLoader) return;
+    setLoadingMassFields(true);
+    setDynamicMassFields([]);
+    massUpdateFieldsLoader()
+      .then(setDynamicMassFields)
+      .catch(() => setDynamicMassFields([]))
+      .finally(() => setLoadingMassFields(false));
+  }, [massUpdateOpen, massUpdateFieldsLoader]);
+
+  useEffect(() => {
+    if (!massField) {
+      setMassValueOptions([]);
+      setLoadingMassValueOptions(false);
+      return undefined;
+    }
+
+    const fieldDef = massUpdateFieldsLoader
+      ? dynamicMassFields.find((f) => f.value === massField)
+      : null;
+    const isConvert = isConvertMassUpdateField(fieldDef) || String(massField).toLowerCase() === 'convert';
+
+    if (isConvert) {
+      let cancelled = false;
+      setLoadingMassValueOptions(true);
+      setMassValueOptions([]);
+      fetchPipelineConvertTargets()
+        .then((options) => { if (!cancelled) setMassValueOptions(options); })
+        .catch(() => { if (!cancelled) setMassValueOptions([]); })
+        .finally(() => { if (!cancelled) setLoadingMassValueOptions(false); });
+      return () => { cancelled = true; };
+    }
+
+    if (!massUpdateFieldsLoader || !fieldDef) {
+      setMassValueOptions([]);
+      setLoadingMassValueOptions(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setLoadingMassValueOptions(true);
+    setMassValueOptions([]);
+
+    fetchMassUpdateFieldOptions(fieldDef)
+      .then((options) => { if (!cancelled) setMassValueOptions(options); })
+      .catch(() => { if (!cancelled) setMassValueOptions([]); })
+      .finally(() => { if (!cancelled) setLoadingMassValueOptions(false); });
+
+    return () => { cancelled = true; };
+  }, [massField, dynamicMassFields, massUpdateFieldsLoader]);
+
+  const selectedMassFieldDef = dynamicMassFields.find((f) => f.value === massField);
+  const isConvertMassField = isConvertMassUpdateField(selectedMassFieldDef)
+    || String(massField).toLowerCase() === 'convert';
+  const showLostReasonField = massUpdateFieldsLoader
+    && isLeadStatusMassField(massField, selectedMassFieldDef)
+    && isLostLeadStatus(massValue);
+
+  useEffect(() => {
+    if (!showLostReasonField) {
+      setLostReasonOptions([]);
+      setMassLostReason('');
+      setLoadingLostReasons(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setLoadingLostReasons(true);
+    fetchLostReasons()
+      .then((options) => { if (!cancelled) setLostReasonOptions(options); })
+      .catch(() => { if (!cancelled) setLostReasonOptions([]); })
+      .finally(() => { if (!cancelled) setLoadingLostReasons(false); });
+    return () => { cancelled = true; };
+  }, [showLostReasonField, massValue]);
+
+  const hasConvertField = massUpdateFieldsLoader
+    ? dynamicMassFields.some(isConvertMassUpdateField)
+    : config.massUpdateFields?.includes('convert');
+
+  const hasMassUpdate = massUpdateFieldsLoader
+    || (config.massUpdateFields?.includes('status') && config.statusField)
+    || hasConvertField;
 
   const handleSendEmail = () => {
     if (!config.emailField) {
@@ -180,20 +311,29 @@ export default function RecordDataTable({
     if (!massField || !massValue) return;
     setMassUpdating(true);
     try {
-      let success = 0;
-      for (const id of selected) {
-        if (massField === 'status' && config.statusField && config.update) {
-          await config.update(id, { [config.statusField]: massValue });
-          success += 1;
-        } else if (massField === 'convert' && config.convert) {
-          await config.convert(id, massValue);
-          success += 1;
+      if (massUpdateHandler) {
+        const result = await massUpdateHandler(selected, massField, massValue, {
+          lost_reason: showLostReasonField ? massLostReason : undefined,
+        });
+        const count = result?.success_count ?? result?.updated ?? selected.length;
+        showToast(`Updated ${count} record(s)`, 'success');
+      } else {
+        let success = 0;
+        for (const id of selected) {
+          if (massField === 'status' && config.statusField && config.update) {
+            await config.update(id, { [config.statusField]: massValue });
+            success += 1;
+          } else if (massField === 'convert' && config.convert) {
+            await config.convert(id, massValue);
+            success += 1;
+          }
         }
+        showToast(`Updated ${success} record(s)`, 'success');
       }
-      showToast(`Updated ${success} record(s)`, 'success');
       setMassUpdateOpen(false);
       setMassField('');
       setMassValue('');
+      setMassLostReason('');
       clearSelection();
       onRefresh?.();
     } catch (err) {
@@ -276,14 +416,24 @@ export default function RecordDataTable({
         open={massUpdateOpen}
         field={massField}
         value={massValue}
-        onFieldChange={(f) => { setMassField(f); setMassValue(''); }}
-        onValueChange={setMassValue}
-        onCancel={() => { setMassUpdateOpen(false); setMassField(''); setMassValue(''); }}
+        onFieldChange={(f) => { setMassField(f); setMassValue(''); setMassLostReason(''); }}
+        onValueChange={(v) => { setMassValue(v); setMassLostReason(''); }}
+        onCancel={() => { setMassUpdateOpen(false); setMassField(''); setMassValue(''); setMassLostReason(''); }}
         onUpdate={handleMassUpdate}
         updating={massUpdating}
         statusOptions={statusOptions}
-        convertOptions={resolvedConvertOptions}
         massUpdateFields={config.massUpdateFields}
+        dynamicFields={dynamicMassFields}
+        loadingFields={loadingMassFields}
+        valueOptions={massValueOptions}
+        loadingValueOptions={loadingMassValueOptions}
+        useDynamicFields={!!massUpdateFieldsLoader}
+        isConvertField={isConvertMassField}
+        showLostReason={showLostReasonField}
+        lostReason={massLostReason}
+        lostReasonOptions={lostReasonOptions}
+        onLostReasonChange={setMassLostReason}
+        loadingLostReasons={loadingLostReasons}
       />
 
       {selected.length > 0 && (

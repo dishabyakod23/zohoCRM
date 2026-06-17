@@ -1,5 +1,6 @@
 import api from '../api.js';
 import { normalizeContact, toContactPayload } from '../contactHelpers.js';
+import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
 
 export async function listContacts({ page = 1, page_size = 15, search, account_id, owner_id, sort_by, sort_order } = {}, accountMap = {}) {
   const params = { page, page_size };
@@ -34,4 +35,19 @@ export async function updateContact(id, form) {
 
 export async function deleteContact(id) {
   await api.delete(`/contacts/${id}`);
+}
+
+export async function downloadContactImportTemplate() {
+  const res = await api.get('/contacts/import/template', { responseType: 'blob' });
+  downloadBlob(res.data, 'contacts-import-template.csv');
+}
+
+export async function importContactsFile(file, { dry_run = true } = {}) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await api.post('/contacts/import', formData, {
+    params: { dry_run },
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return normalizeImportResult(res.data.data);
 }

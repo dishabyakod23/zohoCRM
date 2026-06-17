@@ -103,6 +103,11 @@ export async function deleteLookupOption(category, optionId) {
   await api.delete(`/admin/lookup-options/${encodeURIComponent(category)}/${optionId}`);
 }
 
+export async function syncLookupDefaults() {
+  const res = await api.post('/admin/lookup-options/sync-defaults');
+  return res.data.data;
+}
+
 /** Lead status admin helpers — backed by lookup-options API */
 export async function listAdminLeadStatuses() {
   const category = await resolveLeadStatusCategory();

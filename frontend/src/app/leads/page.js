@@ -14,7 +14,7 @@ import ListToolbar from '../../components/layout/ListToolbar.js';
 import { LIST_VIEWS } from '../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields } from '../../lib/services/lookups.js';
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -61,7 +61,10 @@ export default function LeadsPage() {
         params.sort_by = 'updated_at';
         params.sort_order = 'desc';
       }
-      const result = await leadsApi.listLeads(params);
+      const result = await leadsApi.listLeads({
+        ...params,
+        statusOptions,
+      });
       setLeads(result.data);
       setTotal(result.total);
     } catch (err) {
@@ -69,7 +72,7 @@ export default function LeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, statusFilter, activeView, user?.id, showToast]);
+  }, [page, limit, debouncedSearch, statusFilter, activeView, user?.id, showToast, statusOptions]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -117,6 +120,8 @@ export default function LeadsPage() {
             statusOptions={statusOptions}
             onRefresh={fetchLeads}
             emptyMessage="No leads found"
+            massUpdateFieldsLoader={fetchLeadMassUpdateFields}
+            massUpdateHandler={(ids, field, value, extras) => leadsApi.massUpdateLeads(ids, field, value, extras)}
             pagination={{
               page,
               totalPages,

@@ -1,5 +1,5 @@
 /** Modules with notes API support on the hosted Sales CRM API */
-export const NOTES_API_MODULES = new Set(['leads', 'raw-leads', 'qualified-leads', 'proposals']);
+export const NOTES_API_MODULES = new Set(['leads', 'raw-leads', 'qualified-leads', 'proposals', 'contacts', 'accounts']);
 
 export function notesApiSupported(moduleKey) {
   return NOTES_API_MODULES.has(moduleKey);

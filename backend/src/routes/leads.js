@@ -106,12 +106,36 @@ router.get('/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.post('/mass-update', requireEdit, async (req, res) => {
+  try {
+    const { ids, field, value } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0 || !field || value === undefined) {
+      return res.status(400).json({ error: 'ids (array), field, and value are required' });
+    }
+    const FIELD_MAP = {
+      status: 'status',
+      lead_status: 'status',
+      source: 'source',
+      industry: 'industry',
+      rating: 'rating',
+    };
+    const col = FIELD_MAP[field];
+    if (!col) return res.status(400).json({ error: `Field "${field}" cannot be mass-updated` });
+    const placeholders = ids.map((_, i) => `$${i + 2}`).join(',');
+    await pool.query(
+      `UPDATE leads SET ${col} = $1, updated_at = NOW() WHERE id IN (${placeholders}) AND deleted_at IS NULL`,
+      [value, ...ids]
+    );
+    res.json({ data: { updated: ids.length } });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/', requireEdit, async (req, res) => {
   const b = req.body;
   const status = b.status || b.lead_status;
   const source = b.source || b.lead_source;
-  if (!b.last_name || !b.company || !b.email || !b.phone || !status)
-    return res.status(400).json({ error: 'Last name, company, email, phone, and status are required' });
+  if (!b.first_name || !b.last_name || !b.company || !b.email || !status)
+    return res.status(400).json({ error: 'First name, last name, company, email, and status are required' });
   const dup = await pool.query(`SELECT id FROM leads WHERE email=$1 AND deleted_at IS NULL`, [b.email]);
   if (dup.rows[0]) return res.status(409).json({ error: 'A record with this email already exists', existingId: dup.rows[0].id });
   try {
@@ -119,7 +143,7 @@ router.post('/', requireEdit, async (req, res) => {
       `INSERT INTO leads (first_name, last_name, email, phone, company, source, status, title, mobile, industry,
         website, rating, annual_revenue, employees, street, city, state, country, zip, description, proposal_amount, owner_id, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING *`,
-      [b.first_name, b.last_name, b.email, b.phone, b.company, source, status || 'not_contacted',
+      [b.first_name, b.last_name, b.email, b.phone || null, b.company, source, status || 'not_contacted',
        b.title, b.mobile, b.industry, b.website, b.rating, b.annual_revenue,
        b.no_of_employees || b.employees, b.street, b.city, b.state, b.country,
        b.zip_code || b.zip, b.description, b.proposal_amount || null, b.owner_id || req.user.id, req.user.id]
@@ -211,15 +235,16 @@ router.post('/bulk-upload', requireEdit, async (req, res) => {
     const { rows } = parseCSV(csv);
     const ready = [], errors = [];
     for (const row of rows) {
+      const first_name = row[mapping?.first_name || 'first_name'];
       const last_name = row[mapping?.last_name || 'last_name'];
       const company = row[mapping?.company || 'company'];
       const email = row[mapping?.email || 'email'];
       const phone = row[mapping?.phone || 'phone'];
-      if (!last_name || !company || !email || !phone)
+      if (!first_name || !last_name || !company || !email)
         { errors.push({ row: row._row, error: 'Missing mandatory fields' }); continue; }
       const dup = await pool.query(`SELECT id FROM leads WHERE email=$1 AND deleted_at IS NULL`, [email]);
       if (dup.rows[0]) { errors.push({ row: row._row, error: `Duplicate email: ${email}`, existingId: dup.rows[0].id }); continue; }
-      ready.push({ ...row, last_name, company, email, phone });
+      ready.push({ ...row, first_name, last_name, company, email, phone: phone || null });
     }
     res.json({ data: { ready: ready.length, errors: errors.length, readyRecords: ready, errorRecords: errors } });
   } catch (err) { res.status(500).json({ error: err.message }); }

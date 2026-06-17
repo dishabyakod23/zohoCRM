@@ -36,3 +36,8 @@ export async function updateDeal(id, form) {
 export async function deleteDeal(id) {
   await api.delete(`/deals/${id}`);
 }
+
+export async function reopenDealAsLead(id) {
+  const res = await api.post(`/deals/${id}/reopen-as-lead`);
+  return res.data.data;
+}

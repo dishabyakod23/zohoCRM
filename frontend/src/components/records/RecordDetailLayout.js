@@ -23,7 +23,7 @@ export default function RecordDetailLayout({
   children,
   tabContent,
 }) {
-  const showNotes = recordNotes?.relatedType === 'lead';
+  const showNotes = ['lead', 'contact', 'account'].includes(recordNotes?.relatedType);
   const resolvedTabs = tabs ?? (showNotes ? ['Overview', 'Notes'] : ['Overview']);
   const [activeTab, setActiveTab] = useState(defaultTab);
 

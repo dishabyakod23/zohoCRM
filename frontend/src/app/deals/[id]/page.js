@@ -65,6 +65,23 @@ export default function DealDetailPage() {
     }
   };
 
+  const reopenAsLead = async () => {
+    setSaving(true);
+    try {
+      const result = await dealsApi.reopenDealAsLead(id);
+      showToast('Deal reopened as lead', 'success');
+      if (result?.lead_id) router.push(`/leads/${result.lead_id}`);
+      else loadDeal();
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isClosedLost = String(deal.stage_value || deal.stage || '').toLowerCase().includes('closed_lost')
+    || String(deal.stage || '').toLowerCase().includes('closed lost');
+
   const fmt = (n) => (n != null && n !== '' ? `₹${Number(n).toLocaleString()}` : '—');
 
   if (!deal) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
@@ -78,11 +95,18 @@ export default function DealDetailPage() {
         badges={<Badge label={deal.stage} />}
         lastUpdated={deal.updated_at ? new Date(deal.updated_at).toLocaleString() : undefined}
         recordNotes={{ relatedType: 'deal', recordId: id, canEdit }}
-        actions={canDelete && (
-          <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
-            <TrashIcon className="w-4 h-4" /> Delete
-          </button>
-        )}
+        actions={<>
+          {canEdit && isClosedLost && (
+            <button type="button" onClick={reopenAsLead} disabled={saving} className="btn-secondary text-xs">
+              Reopen as Lead
+            </button>
+          )}
+          {canDelete && (
+            <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
+              <TrashIcon className="w-4 h-4" /> Delete
+            </button>
+          )}
+        </>}
       >
         <div className="space-y-4">
           <EditableFieldSection

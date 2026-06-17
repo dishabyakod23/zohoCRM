@@ -81,7 +81,7 @@ export default function ContactsPage() {
         <div className="flex items-center justify-between mb-5">
           <div><h1 className="text-xl font-bold text-gray-900">Contacts</h1><p className="text-xs text-gray-500">{total} contacts</p></div>
           <div className="flex gap-2">
-            <BulkUpload endpoint="/contacts" onDone={fetchContacts} templateHeaders={['first_name', 'last_name', 'email', 'phone', 'account_name']} />
+            <BulkUpload onDone={fetchContacts} />
             {canEdit && <Link href="/contacts/create" className="btn-primary">+ New contact</Link>}
           </div>
         </div>

@@ -23,7 +23,7 @@ export function emptyLeadForm() {
   };
 }
 
-const REQUIRED = { last_name: 'Last Name', company: 'Company', email: 'Email', phone: 'Phone', lead_status: 'Lead Status' };
+const REQUIRED = { first_name: 'First Name', last_name: 'Last Name', company: 'Company', email: 'Email', lead_status: 'Lead Status' };
 
 function SectionTitle({ children }) {
   return <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3 mt-6 first:mt-0">{children}</p>;
@@ -49,9 +49,11 @@ export default function CreateLeadForm() {
   const validate = () => {
     const errs = validateRequired(REQUIRED, form);
     const emailErr = validateEmail(form.email);
-    const phoneErr = validatePhone(form.phone);
     if (emailErr) errs.email = emailErr;
-    if (phoneErr) errs.phone = phoneErr;
+    if (form.phone) {
+      const phoneErr = validatePhone(form.phone);
+      if (phoneErr) errs.phone = phoneErr;
+    }
     setErrors(errs);
     if (Object.keys(errs).length) {
       showToast('Please fill in all required fields before saving.');
@@ -95,8 +97,8 @@ export default function CreateLeadForm() {
                   {SALUTATIONS.map((s) => <option key={s}>{s}</option>)}
                 </select>
               </FormField>
-              <FormField label="First Name" name="first_name">
-                <input className="input" value={form.first_name} onChange={set('first_name')} />
+              <FormField label="First Name" required error={errors.first_name} name="first_name">
+                <input className={inputClass(errors.first_name)} value={form.first_name} onChange={set('first_name')} />
               </FormField>
               <FormField label="Last Name" required error={errors.last_name} name="last_name">
                 <input className={inputClass(errors.last_name)} value={form.last_name} onChange={set('last_name')} />
@@ -150,7 +152,7 @@ export default function CreateLeadForm() {
             <FormField label="Email" required error={errors.email} name="email">
               <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
             </FormField>
-            <FormField label="Phone" required error={errors.phone} name="phone">
+            <FormField label="Phone" error={errors.phone} name="phone">
               <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} />
             </FormField>
             <FormField label="Mobile">

@@ -50,6 +50,14 @@ export function filterLeadsByPipelineStage(leads, stage) {
   if (stage === PIPELINE_QUALIFIED) {
     return leads.filter((l) => l.lead_status === 'qualified_lead' && !isProposalLead(l));
   }
+  if (stage === PIPELINE_RAW) {
+    return leads.filter((l) => {
+      if (isProposalLead(l)) return false;
+      if (l.lead_status === 'qualified_lead') return false;
+      if (l.lead_status === 'contacted') return false;
+      return true;
+    });
+  }
   return leads;
 }
 

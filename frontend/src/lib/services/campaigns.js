@@ -1,5 +1,6 @@
 import api from '../api.js';
 import { assigneeName, formatEnumLabel, listResult, omitEmpty, toDateOnly } from '../activityHelpers.js';
+import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
 
 export function normalizeCampaign(campaign) {
   return {
@@ -55,4 +56,33 @@ export async function deleteCampaign(id) {
 export async function listCampaignMembers(campaignId, params = {}) {
   const res = await api.get(`/campaigns/${campaignId}/members`, { params });
   return listResult(res);
+}
+
+export async function addCampaignMember(campaignId, payload) {
+  const res = await api.post(`/campaigns/${campaignId}/members`, payload);
+  return res.data.data;
+}
+
+export async function updateCampaignMember(campaignId, memberId, payload) {
+  const res = await api.patch(`/campaigns/${campaignId}/members/${memberId}`, payload);
+  return res.data.data;
+}
+
+export async function deleteCampaignMember(campaignId, memberId) {
+  await api.delete(`/campaigns/${campaignId}/members/${memberId}`);
+}
+
+export async function downloadCampaignMemberImportTemplate(campaignId) {
+  const res = await api.get(`/campaigns/${campaignId}/members/import/template`, { responseType: 'blob' });
+  downloadBlob(res.data, 'campaign-members-template.csv');
+}
+
+export async function importCampaignMembers(campaignId, file, { dry_run = true } = {}) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await api.post(`/campaigns/${campaignId}/members/import`, formData, {
+    params: { dry_run },
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return normalizeImportResult(res.data.data);
 }

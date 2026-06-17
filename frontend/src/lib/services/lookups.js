@@ -2,6 +2,7 @@ import api from '../api.js';
 import { leadStatusLabel } from '../leadHelpers.js';
 import { dealStageLabel, FALLBACK_DEAL_STAGES } from '../dealHelpers.js';
 import { parseLookupOptions } from '../recordHelpers.js';
+import { INDUSTRIES, RATINGS } from '../constants.js';
 
 /** Fallback when lookups API is unavailable */
 export const FALLBACK_LEAD_STATUSES = [
@@ -32,8 +33,13 @@ export function parseLeadStatusLookups(data) {
 }
 
 export async function fetchLeadStatuses() {
-  const res = await api.get('/lookups/lead-statuses');
-  return parseLeadStatusLookups(res.data.data);
+  try {
+    const res = await api.get('/lookups/lead-statuses');
+    const options = parseLeadStatusLookups(res.data.data);
+    return options.length ? options : FALLBACK_LEAD_STATUSES;
+  } catch {
+    return FALLBACK_LEAD_STATUSES;
+  }
 }
 
 export async function fetchUsers() {
@@ -71,6 +77,102 @@ export const fetchVisitStatuses = () => fetchLookup('/lookups/visit-statuses', f
 function formatLookupLabel(value) {
   if (!value) return '—';
   return String(value).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const MASS_UPDATE_FIELD_LOOKUPS = {
+  lead_status: '/lookups/lead-statuses',
+  status: '/lookups/lead-statuses',
+  source: '/lookups/lead-sources',
+  lead_source: '/lookups/lead-sources',
+  convert: '/lookups/pipeline-convert-targets',
+};
+
+export function isConvertMassUpdateField(fieldDef) {
+  if (!fieldDef) return false;
+  const field = normalizeMassUpdateField(fieldDef);
+  const value = String(field.value || '').toLowerCase();
+  const label = String(field.label || '').toLowerCase();
+  const lookup = String(field.lookup || '').toLowerCase();
+  return field.type === 'convert'
+    || value === 'convert'
+    || label === 'convert'
+    || lookup.includes('pipeline-convert-targets')
+    || lookup.includes('convert-target');
+}
+
+export function normalizeMassUpdateField(raw = {}) {
+  const value = raw.value ?? raw.field ?? raw.key;
+  const lookup = raw.lookup ?? raw.lookup_path ?? raw.options_endpoint ?? raw.options_url ?? null;
+  return {
+    value,
+    label: raw.label ?? raw.name ?? value,
+    type: raw.type ?? (String(value || '').toLowerCase() === 'convert' ? 'convert' : 'select'),
+    lookup,
+    options: raw.options,
+  };
+}
+
+export async function fetchLeadSources() {
+  const res = await api.get('/lookups/lead-sources');
+  return parseLookupOptions(res.data.data);
+}
+
+export async function fetchLeadMassUpdateFields() {
+  const res = await api.get('/lookups/lead-mass-update-fields');
+  return (res.data.data || []).map(normalizeMassUpdateField);
+}
+
+export async function fetchPipelineConvertTargets() {
+  const res = await api.get('/lookups/pipeline-convert-targets');
+  return parseLookupOptions(res.data.data);
+}
+
+export async function fetchLostReasons() {
+  try {
+    const res = await api.get('/lookups/lost-reasons');
+    return parseLookupOptions(res.data.data);
+  } catch {
+    return [];
+  }
+}
+
+export const fetchCampaignMemberStatuses = () => fetchLookup('/lookups/campaign-member-statuses', formatLookupLabel);
+
+/** Load dropdown options for a mass-update field from its lookup API (or embedded options). */
+export async function fetchMassUpdateFieldOptions(fieldDef) {
+  const field = normalizeMassUpdateField(fieldDef);
+
+  if (isConvertMassUpdateField(field)) {
+    return fetchPipelineConvertTargets();
+  }
+
+  if (Array.isArray(field.options) && field.options.length) {
+    return parseLookupOptions(field.options, field.value === 'lead_status' || field.value === 'status' ? leadStatusLabel : undefined);
+  }
+
+  let lookupPath = field.lookup || MASS_UPDATE_FIELD_LOOKUPS[field.value];
+  if (lookupPath) {
+    if (lookupPath.startsWith('/api/v1/')) lookupPath = lookupPath.replace('/api/v1', '');
+    if (!lookupPath.startsWith('/')) lookupPath = `/lookups/${lookupPath.replace(/^\/lookups\//, '')}`;
+    try {
+      const res = await api.get(lookupPath);
+      const labelFn = lookupPath.includes('lead-status') ? leadStatusLabel : undefined;
+      const options = parseLookupOptions(res.data.data, labelFn);
+      if (options.length) return options;
+      if (lookupPath.includes('lead-status')) return FALLBACK_LEAD_STATUSES;
+    } catch {
+      if (lookupPath.includes('lead-status')) return FALLBACK_LEAD_STATUSES;
+    }
+  }
+
+  if (field.value === 'industry') {
+    return INDUSTRIES.map((v) => ({ value: v, label: v }));
+  }
+  if (field.value === 'rating') {
+    return RATINGS.map((v) => ({ value: v, label: v }));
+  }
+
+  return [];
 }
 
 /** Build { [accountId]: { value, label, name } } map for list normalization */

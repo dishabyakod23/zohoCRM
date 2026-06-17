@@ -51,10 +51,11 @@ export function normalizeLead(lead, statusOptions = []) {
   const ownerName = lead.owner
     ? `${lead.owner.first_name || ''} ${lead.owner.last_name || ''}`.trim()
     : null;
+  const rawStatus = lead.lead_status ?? lead.status;
   return {
     ...lead,
-    status: leadStatusLabel(lead.lead_status || lead.status, statusOptions),
-    lead_status: lead.lead_status || lead.status,
+    status: leadStatusLabel(rawStatus, statusOptions),
+    lead_status: rawStatus,
     source: lead.lead_source || lead.source,
     lead_source: lead.lead_source || lead.source,
     owner_name: ownerName || lead.owner_name,
