@@ -90,14 +90,17 @@ export default function LoginPage() {
               onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required />
           </div>
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="label mb-0">Password</label>
-              <Link href="/forgot-password" className="text-xs text-brand-600 hover:underline font-medium">
+            <label className="label">Password</label>
+            <input className="input" type="password" value={form.password}
+              onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required />
+            <div className="mt-2 flex justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-brand-600 hover:text-brand-700 hover:underline font-medium"
+              >
                 Forgot password?
               </Link>
             </div>
-            <input className="input" type="password" value={form.password}
-              onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required />
           </div>
           <button type="submit" disabled={submitting} className="btn-primary w-full py-2.5 mt-2">
             {submitting ? 'Signing in...' : 'Sign in'}
