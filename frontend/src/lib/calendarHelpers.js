@@ -97,6 +97,9 @@ export function groupEventsByDate(events = []) {
   }, {});
 }
 
+export const ASSIGN_TO_ME = 'me';
+export const ASSIGN_TO_ALL = 'all';
+
 export function emptyEventForm(defaults = {}) {
   return {
     title: '',
@@ -108,9 +111,23 @@ export function emptyEventForm(defaults = {}) {
     all_day: true,
     completed: false,
     remind_on_login: true,
+    assign_to: ASSIGN_TO_ME,
     owner_id: '',
     ...defaults,
   };
+}
+
+/** Resolve calendar assign-to value into one or more owner user IDs. */
+export function resolveCalendarAssigneeIds(assignTo, users = [], currentUserId) {
+  if (!assignTo || assignTo === ASSIGN_TO_ME) {
+    return currentUserId ? [currentUserId] : [];
+  }
+  if (assignTo === ASSIGN_TO_ALL) {
+    return users
+      .map((u) => u.id || u.value)
+      .filter(Boolean);
+  }
+  return assignTo ? [assignTo] : (currentUserId ? [currentUserId] : []);
 }
 
 export function normalizeEvent(event) {

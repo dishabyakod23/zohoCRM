@@ -73,10 +73,11 @@ export async function createEvent(form, { userId, isAdmin } = {}) {
   } catch (err) {
     if (!useLocalFallback(err)) throw err;
     const events = readLocal(userId);
+    const ownerId = form.owner_id || userId;
     const created = normalizeEvent({
       ...form,
       id: localId(),
-      owner_id: isAdmin && form.owner_id ? form.owner_id : userId,
+      owner_id: ownerId,
       created_by: userId,
       owner_name: null,
     });
@@ -84,6 +85,17 @@ export async function createEvent(form, { userId, isAdmin } = {}) {
     writeLocal(userId, events);
     return created;
   }
+}
+
+export async function createEventsForAssignees(form, assigneeIds = [], ctx = {}) {
+  const payload = { ...form };
+  delete payload.assign_to;
+  const ids = [...new Set(assigneeIds.filter(Boolean))];
+  const created = [];
+  for (const owner_id of ids) {
+    created.push(await createEvent({ ...payload, owner_id }, ctx));
+  }
+  return created;
 }
 
 export async function updateEvent(id, form, { userId, isAdmin } = {}) {

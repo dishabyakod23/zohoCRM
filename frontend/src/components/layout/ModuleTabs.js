@@ -7,7 +7,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 export default function ModuleTabs() {
   const pathname = usePathname();
   const { canAccessReports } = usePermissions();
-  if (pathname === '/login') return null;
+  if (['/login', '/forgot-password', '/reset-password'].includes(pathname)) return null;
 
   const tabs = MODULE_TABS.filter(t => t.href !== '/reports' || canAccessReports);
 

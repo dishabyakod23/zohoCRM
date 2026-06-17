@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 
-const PUBLIC_PATHS = ['/login'];
+const PUBLIC_PATHS = new Set(['/login', '/forgot-password', '/reset-password']);
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
   const hasSession = request.cookies.get('crm_session')?.value === '1';
 
-  if (PUBLIC_PATHS.includes(pathname)) {
+  if (PUBLIC_PATHS.has(pathname)) {
     if (hasSession) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }

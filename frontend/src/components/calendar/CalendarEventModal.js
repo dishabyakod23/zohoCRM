@@ -1,7 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import FormField, { inputClass } from '../forms/FormField.js';
-import { EVENT_TYPES, emptyEventForm, toDateKey } from '../../lib/calendarHelpers.js';
+import { ASSIGN_TO_ALL, ASSIGN_TO_ME, EVENT_TYPES, emptyEventForm, toDateKey } from '../../lib/calendarHelpers.js';
 
 export default function CalendarEventModal({
   open,
@@ -11,26 +11,39 @@ export default function CalendarEventModal({
   initial,
   saving,
   users = [],
-  canAssign = false,
   currentUserId,
+  currentUserName = 'Me',
 }) {
-  const [form, setForm] = useState(emptyEventForm({ owner_id: currentUserId || '' }));
+  const [form, setForm] = useState(emptyEventForm({ assign_to: ASSIGN_TO_ME }));
+
+  const otherMembers = useMemo(
+    () => users.filter((u) => String(u.id || u.value) !== String(currentUserId)),
+    [users, currentUserId],
+  );
 
   useEffect(() => {
     if (!open) return;
-    setForm(initial?.id ? {
-      title: initial.title || '',
-      description: initial.description || '',
-      event_type: initial.event_type || 'task',
-      event_date: toDateKey(initial.event_date),
-      start_time: initial.start_time?.slice?.(0, 5) || initial.start_time || '',
-      end_time: initial.end_time?.slice?.(0, 5) || initial.end_time || '',
-      all_day: initial.all_day !== false,
-      completed: !!initial.completed,
-      remind_on_login: initial.remind_on_login !== false,
-      owner_id: initial.owner_id || currentUserId || '',
-    } : emptyEventForm({
+    if (initial?.id) {
+      setForm({
+        title: initial.title || '',
+        description: initial.description || '',
+        event_type: initial.event_type || 'task',
+        event_date: toDateKey(initial.event_date),
+        start_time: initial.start_time?.slice?.(0, 5) || initial.start_time || '',
+        end_time: initial.end_time?.slice?.(0, 5) || initial.end_time || '',
+        all_day: initial.all_day !== false,
+        completed: !!initial.completed,
+        remind_on_login: initial.remind_on_login !== false,
+        assign_to: initial.owner_id && String(initial.owner_id) === String(currentUserId)
+          ? ASSIGN_TO_ME
+          : (initial.owner_id || ASSIGN_TO_ME),
+        owner_id: initial.owner_id || currentUserId || '',
+      });
+      return;
+    }
+    setForm(emptyEventForm({
       event_date: initial?.event_date ? toDateKey(initial.event_date) : toDateKey(new Date()),
+      assign_to: ASSIGN_TO_ME,
       owner_id: currentUserId || '',
     }));
   }, [open, initial, currentUserId]);
@@ -51,11 +64,13 @@ export default function CalendarEventModal({
     });
   };
 
+  const isEditing = !!initial?.id;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-zoho-border flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zoho-text">{initial?.id ? 'Edit Event' : 'Create Event'}</h2>
+          <h2 className="text-lg font-semibold text-zoho-text">{isEditing ? 'Edit Event' : 'Create Event'}</h2>
           <button type="button" onClick={onClose} className="text-zoho-muted hover:text-zoho-text text-xl leading-none">×</button>
         </div>
 
@@ -74,13 +89,19 @@ export default function CalendarEventModal({
             <FormField label="Date" required>
               <input className="input" type="date" value={form.event_date} onChange={set('event_date')} />
             </FormField>
-            {canAssign && (
-              <FormField label="Assign to">
-                <select className="input" value={form.owner_id} onChange={set('owner_id')}>
-                  {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </select>
-              </FormField>
-            )}
+            <FormField label="Assign to">
+              <select className="input" value={form.assign_to} onChange={set('assign_to')}>
+                <option value={ASSIGN_TO_ME}>Me{currentUserName && currentUserName !== 'Me' ? ` (${currentUserName})` : ''}</option>
+                {!isEditing && <option value={ASSIGN_TO_ALL}>All team members</option>}
+                {otherMembers.length > 0 && (
+                  <optgroup label="Team members">
+                    {otherMembers.map((u) => (
+                      <option key={u.id || u.value} value={u.id || u.value}>{u.name}</option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </FormField>
           </div>
 
           <label className="flex items-center gap-2 text-sm">
@@ -108,7 +129,7 @@ export default function CalendarEventModal({
               <input type="checkbox" checked={form.remind_on_login} onChange={set('remind_on_login')} />
               Show in login reminders
             </label>
-            {initial?.id && (
+            {isEditing && (
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={form.completed} onChange={set('completed')} />
                 Mark completed
@@ -119,7 +140,7 @@ export default function CalendarEventModal({
 
         <div className="px-6 py-4 border-t border-zoho-border flex items-center justify-between gap-2">
           <div>
-            {initial?.id && onDelete && (
+            {isEditing && onDelete && (
               <button type="button" onClick={onDelete} className="text-sm text-red-600 hover:underline">Delete</button>
             )}
           </div>

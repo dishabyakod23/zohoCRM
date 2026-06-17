@@ -22,7 +22,8 @@ import {
   startOfMonth,
   startOfWeek,
   toDateKey,
-  todayKey,
+  resolveCalendarAssigneeIds,
+  ASSIGN_TO_ME,
 } from '../../lib/calendarHelpers.js';
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '@heroicons/react/24/outline';
 
@@ -34,7 +35,7 @@ function EventPill({ event, onClick }) {
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(event); }}
-      className={`block w-full max-w-full text-left text-[11px] leading-tight px-1.5 py-0.5 rounded truncate shrink-0 ${meta.bg} ${meta.text} hover:opacity-90`}
+      className={`block w-full max-w-full text-left text-xs leading-snug px-2 py-1 rounded truncate shrink-0 ${meta.bg} ${meta.text} hover:opacity-90`}
       title={event.title}
     >
       {!event.all_day && event.start_time ? `${formatTime(event.start_time)} ` : ''}{event.title}
@@ -59,30 +60,30 @@ function MonthDayCell({
       onDoubleClick={() => onCreate(key)}
       onKeyDown={(e) => { if (e.key === 'Enter') onSelect(key); }}
       className={[
-        'relative flex flex-col min-h-0 h-full overflow-hidden',
-        'border-r border-b border-zoho-border p-1.5 cursor-pointer',
+        'relative flex flex-col min-h-[8.5rem] h-full overflow-hidden',
+        'border-r border-b border-zoho-border p-2 cursor-pointer',
         'hover:bg-blue-50/30 transition-colors',
         !inMonth ? 'bg-gray-50/70 text-zoho-muted' : 'bg-white',
         isSelected ? 'bg-brand-50/90 shadow-[inset_0_0_0_2px_rgba(37,99,235,0.85)] z-[1]' : '',
       ].join(' ')}
     >
-      <div className="shrink-0 mb-1 flex justify-end">
+      <div className="shrink-0 mb-1.5 flex justify-end">
         <span
           className={[
-            'inline-flex h-7 w-7 items-center justify-center rounded-full text-xs',
+            'inline-flex h-8 w-8 items-center justify-center rounded-full text-sm',
             isToday ? 'bg-brand-600 text-white font-semibold' : 'text-zoho-text',
           ].join(' ')}
         >
           {day.getDate()}
         </span>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
-        {dayEvents.slice(0, 3).map((e) => (
+      <div
+        className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain"
+        onWheel={(e) => e.stopPropagation()}
+      >
+        {dayEvents.map((e) => (
           <EventPill key={e.id} event={e} onClick={onEdit} />
         ))}
-        {dayEvents.length > 3 && (
-          <p className="shrink-0 px-1 text-[10px] text-zoho-muted">+{dayEvents.length - 3} more</p>
-        )}
       </div>
     </div>
   );
@@ -121,8 +122,8 @@ export default function CalendarPage() {
   }, [view, viewDate]);
 
   useEffect(() => {
-    if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
-  }, [canAssignLeads]);
+    if (canEdit) fetchUsers().then(setUsers).catch(() => setUsers([]));
+  }, [canEdit]);
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
@@ -162,12 +163,29 @@ export default function CalendarPage() {
   const handleSave = async (form) => {
     setSaving(true);
     try {
-      if (editEvent?.id) await calendarApi.updateEvent(editEvent.id, form, ctx);
-      else await calendarApi.createEvent(form, ctx);
+      const payload = { ...form };
+      delete payload.assign_to;
+
+      if (editEvent?.id) {
+        const ownerId = form.assign_to === ASSIGN_TO_ME ? user?.id : form.assign_to;
+        await calendarApi.updateEvent(editEvent.id, { ...payload, owner_id: ownerId }, ctx);
+        showToast('Event saved', 'success');
+      } else {
+        const assigneeIds = resolveCalendarAssigneeIds(form.assign_to, users, user?.id);
+        if (assigneeIds.length === 0) {
+          await calendarApi.createEvent({ ...payload, owner_id: user?.id }, ctx);
+          showToast('Event saved', 'success');
+        } else if (assigneeIds.length <= 1) {
+          await calendarApi.createEvent({ ...payload, owner_id: assigneeIds[0] || user?.id }, ctx);
+          showToast('Event saved', 'success');
+        } else {
+          await calendarApi.createEventsForAssignees(payload, assigneeIds, ctx);
+          showToast(`Event assigned to ${assigneeIds.length} team members`, 'success');
+        }
+      }
       setModalOpen(false);
       setEditEvent(null);
       loadEvents();
-      showToast('Event saved', 'success');
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -191,9 +209,14 @@ export default function CalendarPage() {
     }
   };
 
+  const currentUserName = user?.name
+    || `${user?.first_name || ''} ${user?.last_name || ''}`.trim()
+    || user?.email
+    || 'Me';
+
   return (
     <CRMLayout>
-      <div className="h-[calc(100vh-8rem)] flex flex-col bg-white">
+      <div className="h-[calc(100vh-6rem)] flex flex-col bg-white">
         {/* Google Calendar-style toolbar */}
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-zoho-border shrink-0">
           <button type="button" onClick={() => openCreate(selectedDate)} disabled={!canEdit}
@@ -279,23 +302,25 @@ export default function CalendarPage() {
             {loading ? (
               <div className="flex-1 flex items-center justify-center text-sm text-zoho-muted">Loading calendar…</div>
             ) : view === 'month' ? (
-              <div
-                className="flex-1 min-h-0 grid grid-cols-7 auto-rows-fr border-t border-zoho-border"
-                style={{ gridTemplateRows: `repeat(${monthGrid.length}, minmax(0, 1fr))` }}
-              >
-                {monthGrid.flat().map((day) => (
-                  <MonthDayCell
-                    key={toDateKey(day)}
-                    day={day}
-                    viewDate={viewDate}
-                    today={today}
-                    selectedDate={selectedDate}
-                    eventsByDate={eventsByDate}
-                    onSelect={setSelectedDate}
-                    onCreate={openCreate}
-                    onEdit={openEdit}
-                  />
-                ))}
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <div
+                  className="grid grid-cols-7 border-t border-zoho-border min-h-full"
+                  style={{ gridTemplateRows: `repeat(${monthGrid.length}, minmax(8.5rem, 1fr))` }}
+                >
+                  {monthGrid.flat().map((day) => (
+                    <MonthDayCell
+                      key={toDateKey(day)}
+                      day={day}
+                      viewDate={viewDate}
+                      today={today}
+                      selectedDate={selectedDate}
+                      eventsByDate={eventsByDate}
+                      onSelect={setSelectedDate}
+                      onCreate={openCreate}
+                      onEdit={openEdit}
+                    />
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="flex-1 grid grid-cols-7 min-h-0 divide-x divide-zoho-border">
@@ -333,8 +358,8 @@ export default function CalendarPage() {
         initial={editEvent}
         saving={saving}
         users={users}
-        canAssign={canAssignLeads}
         currentUserId={user?.id}
+        currentUserName={currentUserName}
       />
     </CRMLayout>
   );

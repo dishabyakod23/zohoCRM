@@ -70,11 +70,23 @@ router.get('/reminders', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+async function validateOwnerId(ownerId) {
+  const result = await pool.query(
+    `SELECT id FROM users WHERE id=$1 AND deleted_at IS NULL`,
+    [ownerId]
+  );
+  return result.rows[0]?.id || null;
+}
+
 router.post('/events', requireEdit, async (req, res) => {
   const b = req.body;
   if (!b.title || !b.event_date) return res.status(400).json({ error: 'Title and date are required' });
-  const ownerId = canViewAll(req.user.role) && b.owner_id ? b.owner_id : req.user.id;
   try {
+    let ownerId = req.user.id;
+    if (b.owner_id) {
+      const validOwner = await validateOwnerId(b.owner_id);
+      if (validOwner) ownerId = validOwner;
+    }
     const result = await pool.query(
       `INSERT INTO calendar_events (
         title, description, event_type, event_date, start_time, end_time, all_day,
@@ -100,7 +112,11 @@ const updateEvent = async (req, res) => {
     if (!canViewAll(req.user.role) && existing.rows[0].owner_id !== req.user.id) {
       return res.status(403).json({ error: 'Not allowed to edit this event' });
     }
-    const ownerId = canViewAll(req.user.role) && b.owner_id ? b.owner_id : existing.rows[0].owner_id;
+    let ownerId = existing.rows[0].owner_id;
+    if (b.owner_id) {
+      const validOwner = await validateOwnerId(b.owner_id);
+      if (validOwner) ownerId = validOwner;
+    }
     const result = await pool.query(
       `UPDATE calendar_events SET
         title=COALESCE($1, title), description=$2, event_type=COALESCE($3, event_type),
