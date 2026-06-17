@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
+import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
@@ -58,7 +59,9 @@ export default function AccountDetailPage() {
         title={account.name}
         subtitle={account.industry || 'Account'}
         avatarLabel={account.name?.[0]}
+        badges={account.account_type ? <Badge label={account.account_type} /> : null}
         lastUpdated={account.updated_at ? new Date(account.updated_at).toLocaleString() : undefined}
+        recordNotes={{ relatedType: 'account', recordId: id, canEdit }}
         actions={canDelete && (
           <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
             <TrashIcon className="w-4 h-4" /> Delete
@@ -76,16 +79,16 @@ export default function AccountDetailPage() {
               { name: 'account_name', label: 'Account Name', required: true },
               { name: 'phone', label: 'Phone' },
               { name: 'website', label: 'Website' },
+              { name: 'account_type', label: 'Status', render: (d, set) => (
+                <select className="input" value={d.account_type ?? ''} onChange={(e) => set((p) => ({ ...p, account_type: e.target.value }))}>
+                  <option value="">--None--</option>
+                  {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              ) },
               { name: 'industry', label: 'Industry', render: (d, set) => (
                 <select className="input" value={d.industry ?? ''} onChange={(e) => set((p) => ({ ...p, industry: e.target.value }))}>
                   <option value="">--None--</option>
                   {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
-                </select>
-              ) },
-              { name: 'account_type', label: 'Account Type', render: (d, set) => (
-                <select className="input" value={d.account_type ?? ''} onChange={(e) => set((p) => ({ ...p, account_type: e.target.value }))}>
-                  <option value="">--None--</option>
-                  {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               ) },
               { name: 'annual_revenue', label: 'Annual Revenue' },

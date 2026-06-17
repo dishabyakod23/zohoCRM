@@ -99,6 +99,58 @@ export function pipelineStageLabel(status) {
 
 export const LEAD_MODULE_STATUSES = [PIPELINE_LEAD];
 
+/** Convert menu targets */
+export const CONVERT_TYPE = {
+  STAGE: 'stage',
+  ACCOUNT: 'account',
+};
+
+const CONVERT_REDIRECT = {
+  [PIPELINE_LEAD]: (id) => `/leads/${id}`,
+  [PIPELINE_QUALIFIED]: (id) => `/qualified-leads/${id}`,
+  [PIPELINE_PROPOSAL]: (id) => `/proposals/${id}`,
+  [PIPELINE_RAW]: (id) => `/raw-leads/${id}`,
+};
+
+export function getConvertRedirectPath(target, leadId) {
+  const fn = CONVERT_REDIRECT[target];
+  return fn ? fn(leadId) : `/leads/${leadId}`;
+}
+
+/** Options for the unified Convert dropdown per pipeline stage */
+export function getConvertOptions(stage, { isAdmin = false } = {}) {
+  const opts = [];
+  const add = (option) => {
+    const disabled = option.adminOnly && !isAdmin;
+    opts.push({ ...option, disabled });
+  };
+
+  if (stage === PIPELINE_LEAD) {
+    add({ id: 'qualified_lead', label: 'Qualified Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_QUALIFIED });
+    add({ id: 'proposal', label: 'Proposal', type: CONVERT_TYPE.STAGE, target: PIPELINE_PROPOSAL, proposal: true });
+    add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT });
+  } else if (stage === PIPELINE_QUALIFIED) {
+    add({ id: 'proposal', label: 'Proposal', type: CONVERT_TYPE.STAGE, target: PIPELINE_PROPOSAL, proposal: true });
+    add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT });
+  } else if (stage === PIPELINE_PROPOSAL) {
+    add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT });
+    add({ id: 'lead', label: 'Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD, clearProposal: true, adminOnly: true });
+  } else if (stage === PIPELINE_RAW) {
+    add({ id: 'lead', label: 'Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD });
+  }
+
+  return opts;
+}
+
+export function resolveLeadPipelineStage(lead) {
+  if (!lead) return null;
+  if (isProposalLead(lead)) return PIPELINE_PROPOSAL;
+  if (lead.lead_status === 'qualified_lead') return PIPELINE_QUALIFIED;
+  if (lead.lead_status === 'raw_prospect') return PIPELINE_RAW;
+  if (lead.lead_status === 'contacted') return PIPELINE_LEAD;
+  return lead.lead_status;
+}
+
 export const RAW_LEAD_CSV_HEADERS = [
   'first_name', 'last_name', 'company', 'email', 'phone', 'mobile',
   'title', 'lead_source', 'industry', 'description',

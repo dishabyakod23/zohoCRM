@@ -97,11 +97,11 @@ export const BULK_MODULE_CONFIG = {
   accounts: {
     label: 'Records',
     emailField: null,
-    statusField: null,
-    massUpdateFields: [],
-    update: () => Promise.resolve(),
+    statusField: 'account_type',
+    massUpdateFields: ['status'],
+    update: (id, payload) => accountsApi.updateAccount(id, payload),
     deleteOne: (id) => accountsApi.deleteAccount(id),
-    exportRow: (r) => ({ name: r.name, industry: r.industry, phone: r.phone, city: r.city }),
+    exportRow: (r) => ({ name: r.name, industry: r.industry, phone: r.phone, city: r.city, status: r.account_type }),
     mailingLabel: (r) => `${r.name || ''}\n${[r.city, r.state].filter(Boolean).join(', ')}`,
   },
   deals: {

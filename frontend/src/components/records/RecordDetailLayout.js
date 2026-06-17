@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import RecordNotesTab from './RecordNotesTab.js';
 
 /**
  * Zoho-style record detail page shell: gradient header with avatar,
@@ -16,14 +17,25 @@ export default function RecordDetailLayout({
   actions,
   avatarLabel,
   sidebar,
-  tabs = ['Overview'],
+  tabs,
   defaultTab = 'Overview',
+  recordNotes,
   children,
   tabContent,
 }) {
+  const resolvedTabs = tabs ?? (recordNotes ? ['Overview', 'Notes'] : ['Overview']);
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   const initials = avatarLabel || title?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+  const renderTabBody = (tab) => {
+    if (tabContent) return tabContent(tab);
+    if (tab === 'Notes' && recordNotes) {
+      return <RecordNotesTab relatedType={recordNotes.relatedType} recordId={recordNotes.recordId} canEdit={recordNotes.canEdit} />;
+    }
+    if (tab === defaultTab || tab === resolvedTabs[0]) return children;
+    return <div className="card p-8 text-center text-zoho-muted text-sm">{tab} — coming soon</div>;
+  };
 
   return (
     <div className="min-h-full">
@@ -49,7 +61,7 @@ export default function RecordDetailLayout({
       </div>
 
       <div className="zoho-record-tabs">
-        {tabs.map(tab => (
+        {resolvedTabs.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`zoho-record-tab ${activeTab === tab ? 'zoho-record-tab-active' : 'zoho-record-tab-inactive'}`}>
             {tab}
@@ -60,9 +72,7 @@ export default function RecordDetailLayout({
       <div className="p-6">
         <div className={sidebar ? 'grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-4 items-start' : ''}>
           <div className="min-w-0">
-            {tabContent ? tabContent(activeTab) : (activeTab === defaultTab ? children : (
-              <div className="card p-8 text-center text-zoho-muted text-sm">{activeTab} — coming soon</div>
-            ))}
+            {renderTabBody(activeTab)}
           </div>
           {sidebar && (
             <div className="space-y-4 xl:sticky xl:top-[6.5rem]">

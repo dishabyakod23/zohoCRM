@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../layout/CRMLayout.js';
 import Modal from '../ui/Modal.js';
+import Badge from '../ui/Badge.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import RecordDataTable from '../records/RecordDataTable.js';
 import { useToast } from '../ui/Toast.js';
@@ -132,6 +133,7 @@ export default function PipelineLeadList({ stage, description }) {
       { id: 'email', header: 'Email', cell: (lead) => <span className="text-brand-600">{lead.email || '—'}</span> },
       { id: 'phone', header: 'Phone', cell: (lead) => lead.phone || '—' },
       { id: 'source', header: 'Source', cell: (lead) => lead.source || '—' },
+      { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
       { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || 'Unassigned' },
     ];
     if (config?.allowAssign && canAssignLeads) {

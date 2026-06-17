@@ -34,3 +34,17 @@ export async function updateWeeklyReportSettings(payload) {
   const res = await api.patch('/admin/settings/weekly-report', payload);
   return res.data.data;
 }
+
+export async function listAdminLeadStatuses() {
+  const res = await api.get('/admin/lead-statuses');
+  return res.data.data || [];
+}
+
+export async function createAdminLeadStatus({ label, value }) {
+  const res = await api.post('/admin/lead-statuses', { label, value });
+  return res.data.data;
+}
+
+export async function deleteAdminLeadStatus(value) {
+  await api.delete(`/admin/lead-statuses/${encodeURIComponent(value)}`);
+}

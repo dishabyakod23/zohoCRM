@@ -79,10 +79,12 @@ export async function listLeadAttachments(id) {
   return res.data.data || [];
 }
 
-export async function advanceLeadStage(id, lead_status, { proposal = false } = {}) {
+export async function advanceLeadStage(id, lead_status, { proposal = false, clearProposal = false } = {}) {
   const payload = { lead_status: resolveLeadStatusForApi(lead_status) };
   if (proposal || lead_status === PIPELINE_PROPOSAL) {
     payload.lead_source = PROPOSAL_SOURCE;
+  } else if (clearProposal) {
+    payload.lead_source = null;
   }
   const res = await api.patch(`/leads/${id}`, payload);
   return normalizeLead(res.data.data);

@@ -108,4 +108,34 @@ router.patch('/settings/weekly-report', requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+/* ── Lead statuses (custom) ── */
+
+const {
+  getAllLeadStatuses, addCustomLeadStatus, deleteCustomLeadStatus, slugifyStatus,
+} = require('../utils/leadStatusStore');
+
+router.get('/lead-statuses', requireAdmin, async (_, res) => {
+  try {
+    ok(res, await getAllLeadStatuses());
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/lead-statuses', requireAdmin, async (req, res) => {
+  try {
+    const created = await addCustomLeadStatus(req.body);
+    res.status(201).json({ data: created });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.delete('/lead-statuses/:value', requireAdmin, async (req, res) => {
+  try {
+    const result = await deleteCustomLeadStatus(req.params.value);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

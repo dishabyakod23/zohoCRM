@@ -1,23 +1,18 @@
 const express = require('express');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
+const { getAllLeadStatuses } = require('../utils/leadStatusStore');
 
 const router = express.Router();
 router.use(auth);
 
 const ok = (res, data) => res.json({ data });
 
-router.get('/lead-statuses', (_, res) => ok(res, [
-  { value: 'not_contacted', label: 'Not Contacted' },
-  { value: 'attempted_to_contact', label: 'Attempted to Contact' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'contact_in_future', label: 'Contact in Future' },
-  { value: 'pre_qualified', label: 'Pre-Qualified' },
-  { value: 'not_qualified', label: 'Not Qualified' },
-  { value: 'junk_lead', label: 'Junk Lead' },
-  { value: 'lost_lead', label: 'Lost Lead' },
-  { value: 'none', label: 'None' },
-]));
+router.get('/lead-statuses', async (_, res) => {
+  try {
+    ok(res, await getAllLeadStatuses());
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 router.get('/deal-stages', (_, res) => ok(res, [
   { value: 'qualification', label: 'Qualification' },

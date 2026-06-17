@@ -52,6 +52,7 @@ export default function TaskDetailPage() {
     <CRMLayout>
       <RecordDetailLayout backHref="/tasks" backLabel="Tasks" title={task.title} subtitle={task.assigned_name}
         lastUpdated={task.updated_at ? new Date(task.updated_at).toLocaleString() : undefined}
+        recordNotes={{ relatedType: 'task', recordId: id, canEdit }}
         actions={canDelete && <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5"><TrashIcon className="w-4 h-4" /> Delete</button>}>
         <EditableFieldSection canEdit={canEdit} saving={saving} title="Task Details" values={task} onSave={saveSection}
           fields={[

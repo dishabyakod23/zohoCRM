@@ -52,6 +52,7 @@ export default function ProjectDetailPage() {
     <CRMLayout>
       <RecordDetailLayout backHref="/projects" backLabel="Projects" title={project.name} subtitle={project.account_name}
         badges={<Badge label={project.status_label} />}
+        recordNotes={{ relatedType: 'project', recordId: id, canEdit }}
         actions={canDelete && <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5"><TrashIcon className="w-4 h-4" /> Delete</button>}>
         <EditableFieldSection canEdit={canEdit} saving={saving} title="Project Details" values={project} onSave={saveSection}
           fields={[

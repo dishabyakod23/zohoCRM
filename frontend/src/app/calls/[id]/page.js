@@ -47,6 +47,7 @@ export default function CallDetailPage() {
     <CRMLayout>
       <RecordDetailLayout backHref="/calls" backLabel="Calls" title={call.subject} subtitle={call.call_type_label}
         lastUpdated={call.updated_at ? new Date(call.updated_at).toLocaleString() : undefined}
+        recordNotes={{ relatedType: 'call', recordId: id, canEdit }}
         actions={canDelete && <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5"><TrashIcon className="w-4 h-4" /> Delete</button>}>
         <EditableFieldSection canEdit={canEdit} saving={saving} title="Call Details" values={{ ...call, start_time: call.call_start_at, assigned_to: call.owner_id }} onSave={saveSection}
           fields={[

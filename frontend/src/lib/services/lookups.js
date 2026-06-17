@@ -9,6 +9,12 @@ export const FALLBACK_LEAD_STATUSES = [
   { value: 'contacted', label: 'Contacted' },
   { value: 'qualified_lead', label: 'Qualified Lead' },
   { value: 'deal_lost', label: 'Deal Lost' },
+  { value: 'not_contacted', label: 'Not Contacted' },
+  { value: 'attempted_to_contact', label: 'Attempted to Contact' },
+  { value: 'pre_qualified', label: 'Pre-Qualified' },
+  { value: 'not_qualified', label: 'Not Qualified' },
+  { value: 'junk_lead', label: 'Junk Lead' },
+  { value: 'lost_lead', label: 'Lost Lead' },
 ];
 
 /** Normalize GET /lookups/lead-statuses → { value, label }[] */

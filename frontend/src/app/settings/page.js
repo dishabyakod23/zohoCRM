@@ -12,6 +12,7 @@ import { userDisplayName } from '../../lib/userHelpers.js';
 import { USER_ROLES, ROLE_LABELS, ROLE_ACCESS, roleLabel } from '../../lib/roles.js';
 import * as adminApi from '../../lib/services/admin.js';
 import { triggerWeeklyReport } from '../../lib/services/reports.js';
+import { slugifyStatusValue } from '../../lib/statusHelpers.js';
 
 const EMPTY_USER = {
   email: '',
@@ -24,6 +25,7 @@ const EMPTY_USER = {
 const TABS = [
   { id: 'profile', label: 'My Profile' },
   { id: 'users', label: 'Users & Roles', adminOnly: true },
+  { id: 'statuses', label: 'Lead Statuses', adminOnly: true },
   { id: 'company', label: 'Company Settings', adminOnly: true },
 ];
 
@@ -44,6 +46,13 @@ export default function SettingsPage() {
   const [appSettings, setAppSettings] = useState({ company_name: '', timezone: 'UTC' });
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+
+  const [leadStatuses, setLeadStatuses] = useState([]);
+  const [statusesLoading, setStatusesLoading] = useState(false);
+  const [statusLabel, setStatusLabel] = useState('');
+  const [statusValue, setStatusValue] = useState('');
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [deletingStatus, setDeletingStatus] = useState('');
 
   const visibleTabs = TABS.filter(t => !t.adminOnly || canManageUsers);
 
@@ -72,10 +81,23 @@ export default function SettingsPage() {
     }
   }, [canManageSettings, showToast]);
 
+  const loadLeadStatuses = useCallback(async () => {
+    if (!canManageSettings) return;
+    setStatusesLoading(true);
+    try {
+      setLeadStatuses(await adminApi.listAdminLeadStatuses());
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setStatusesLoading(false);
+    }
+  }, [canManageSettings, showToast]);
+
   useEffect(() => {
     if (tab === 'users') loadUsers();
     if (tab === 'company') loadSettings();
-  }, [tab, loadUsers, loadSettings]);
+    if (tab === 'statuses') loadLeadStatuses();
+  }, [tab, loadUsers, loadSettings, loadLeadStatuses]);
 
   const openCreateUser = () => {
     setEditingUser(null);
@@ -160,6 +182,43 @@ export default function SettingsPage() {
       setSavingSettings(false);
     }
   };
+
+  const addLeadStatus = async () => {
+    if (!statusLabel.trim()) {
+      showToast('Enter a status label');
+      return;
+    }
+    setSavingStatus(true);
+    try {
+      await adminApi.createAdminLeadStatus({
+        label: statusLabel.trim(),
+        value: statusValue.trim() || undefined,
+      });
+      setStatusLabel('');
+      setStatusValue('');
+      showToast('Status added', 'success');
+      loadLeadStatuses();
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  const removeLeadStatus = async (value) => {
+    setDeletingStatus(value);
+    try {
+      await adminApi.deleteAdminLeadStatus(value);
+      showToast('Status removed', 'success');
+      loadLeadStatuses();
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setDeletingStatus('');
+    }
+  };
+
+  const previewValue = statusValue.trim() || slugifyStatusValue(statusLabel);
 
   const handleTriggerReport = async () => {
     try {
@@ -267,6 +326,89 @@ export default function SettingsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {tab === 'statuses' && canManageSettings && (
+          <div className="space-y-4">
+            <div className="card p-5">
+              <h2 className="text-sm font-semibold mb-1">Add Custom Lead Status</h2>
+              <p className="text-xs text-zoho-muted mb-4">Create statuses for your sales pipeline. System statuses cannot be removed.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <FormField label="Status Label" name="status_label">
+                  <input
+                    className="input"
+                    placeholder="e.g. Follow Up Required"
+                    value={statusLabel}
+                    onChange={(e) => setStatusLabel(e.target.value)}
+                  />
+                </FormField>
+                <FormField label="Status Value (optional)" name="status_value">
+                  <input
+                    className="input font-mono text-xs"
+                    placeholder="Auto-generated from label"
+                    value={statusValue}
+                    onChange={(e) => setStatusValue(e.target.value)}
+                  />
+                </FormField>
+              </div>
+              {statusLabel.trim() && (
+                <p className="text-xs text-zoho-muted mb-3">
+                  Saved as: <code className="text-brand-600">{previewValue || '—'}</code>
+                </p>
+              )}
+              <button type="button" onClick={addLeadStatus} disabled={savingStatus || !statusLabel.trim()} className="btn-primary text-xs">
+                {savingStatus ? 'Saving...' : 'Save Status'}
+              </button>
+            </div>
+
+            <div className="card overflow-hidden">
+              <div className="p-4 border-b">
+                <h2 className="text-sm font-semibold">All Lead Statuses</h2>
+                <p className="text-xs text-zoho-muted">Used in lead forms, filters, and mass update actions</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="table-th">Label</th>
+                      <th className="table-th">Value</th>
+                      <th className="table-th">Type</th>
+                      <th className="table-th">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {statusesLoading ? (
+                      <tr><td colSpan={4} className="table-td text-center py-8 text-gray-400">Loading statuses...</td></tr>
+                    ) : leadStatuses.length === 0 ? (
+                      <tr><td colSpan={4} className="table-td text-center py-8 text-gray-400">No statuses found</td></tr>
+                    ) : leadStatuses.map((s) => (
+                      <tr key={s.value}>
+                        <td className="table-td font-medium">{s.label}</td>
+                        <td className="table-td font-mono text-xs text-zoho-muted">{s.value}</td>
+                        <td className="table-td">
+                          <span className={`badge ${s.is_system ? 'bg-gray-100 text-gray-600' : 'bg-brand-50 text-brand-700'}`}>
+                            {s.is_system ? 'System' : 'Custom'}
+                          </span>
+                        </td>
+                        <td className="table-td">
+                          {!s.is_system && (
+                            <button
+                              type="button"
+                              onClick={() => removeLeadStatus(s.value)}
+                              disabled={deletingStatus === s.value}
+                              className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                            >
+                              {deletingStatus === s.value ? 'Removing...' : 'Delete'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

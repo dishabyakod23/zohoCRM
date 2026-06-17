@@ -9,6 +9,10 @@ import { getApiError } from '../../lib/api.js';
 import {
   getBulkConfig, bulkDeleteRecords, exportRecordsCsv, printMailingLabels, sendBulkEmail,
 } from '../../lib/bulkModuleConfig.js';
+import { getNoteMeta } from '../../lib/noteHelpers.js';
+import * as notesApi from '../../lib/services/notes.js';
+import RecordNoteRowIcon from './RecordNoteRowIcon.js';
+import RecordNotesSidePanel from './RecordNotesSidePanel.js';
 import * as tasksApi from '../../lib/services/tasks.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
@@ -71,9 +75,12 @@ export default function RecordDataTable({
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
   const config = useMemo(() => getBulkConfig(moduleKey), [moduleKey]);
+  const noteMeta = useMemo(() => getNoteMeta(moduleKey), [moduleKey]);
   const resolvedConvertOptions = convertOptions ?? config.convertOptions ?? [];
 
   const [selected, setSelected] = useState([]);
+  const [notesCache, setNotesCache] = useState({});
+  const [panelRecord, setPanelRecord] = useState(null);
   const [massUpdateOpen, setMassUpdateOpen] = useState(false);
   const [massField, setMassField] = useState('');
   const [massValue, setMassValue] = useState('');
@@ -108,6 +115,34 @@ export default function RecordDataTable({
     };
     document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!noteMeta.relatedType || records.length === 0) {
+      setNotesCache({});
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(records.map(async (record) => {
+        const recordId = getRowId(record);
+        try {
+          const notes = await notesApi.listNotes(noteMeta.relatedType, recordId);
+          return [recordId, { latest: notes[0] || null, count: notes.length }];
+        } catch {
+          return [recordId, { latest: null, count: 0 }];
+        }
+      }));
+      if (!cancelled) setNotesCache(Object.fromEntries(entries));
+    })();
+    return () => { cancelled = true; };
+  }, [records, noteMeta.relatedType, getRowId]);
+
+  const updateNotesCache = useCallback((recordId, notesList) => {
+    setNotesCache((prev) => ({
+      ...prev,
+      [recordId]: { latest: notesList[0] || null, count: notesList.length },
+    }));
   }, []);
 
   const toggleSelect = useCallback((id) => {
@@ -286,8 +321,11 @@ export default function RecordDataTable({
         <table className="w-full">
           <thead>
             <tr>
-              <th className="table-th w-10">
-                <input type="checkbox" className="rounded border-zoho-border" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" />
+              <th className="table-th w-[4.5rem]">
+                <div className="flex items-center gap-2">
+                  <span className="w-7 shrink-0" aria-hidden="true" />
+                  <input type="checkbox" className="rounded border-zoho-border" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" />
+                </div>
               </th>
               {columns.map((col) => (
                 <th key={col.id} className={`table-th ${col.className || ''}`}>{col.header}</th>
@@ -301,10 +339,21 @@ export default function RecordDataTable({
               <tr><td colSpan={colSpan} className="table-td text-center py-12 text-zoho-muted">{emptyMessage}</td></tr>
             ) : records.map((record) => {
               const id = getRowId(record);
+              const recordLabel = noteMeta.getLabel(record);
+              const cached = notesCache[id] || { latest: null, count: 0 };
               return (
                 <tr key={id} className="hover:bg-brand-50/30 transition-colors">
                   <td className="table-td">
-                    <input type="checkbox" className="rounded border-zoho-border" checked={selected.includes(id)} onChange={() => toggleSelect(id)} />
+                    <div className="flex items-center gap-2">
+                      <RecordNoteRowIcon
+                        latestNote={cached.latest}
+                        noteCount={cached.count}
+                        moduleLabel={noteMeta.moduleLabel}
+                        recordLabel={recordLabel}
+                        onOpen={() => setPanelRecord({ id, label: recordLabel })}
+                      />
+                      <input type="checkbox" className="rounded border-zoho-border" checked={selected.includes(id)} onChange={() => toggleSelect(id)} />
+                    </div>
                   </td>
                   {columns.map((col) => (
                     <td key={col.id} className={`table-td ${col.className || ''}`}>{col.cell(record)}</td>
@@ -369,6 +418,17 @@ export default function RecordDataTable({
           </div>
         </Modal>
       )}
+
+      <RecordNotesSidePanel
+        open={!!panelRecord}
+        onClose={() => setPanelRecord(null)}
+        relatedType={noteMeta.relatedType}
+        recordId={panelRecord?.id}
+        recordLabel={panelRecord?.label}
+        moduleLabel={noteMeta.moduleLabel}
+        canEdit={canEdit}
+        onNotesChange={(notesList) => panelRecord && updateNotesCache(panelRecord.id, notesList)}
+      />
     </>
   );
 }

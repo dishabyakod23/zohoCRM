@@ -54,12 +54,14 @@ module.exports = {
       keyframes: {
         fadeIn: { '0%': { opacity: 0, transform: 'translateY(4px)' }, '100%': { opacity: 1, transform: 'translateY(0)' } },
         scaleIn: { '0%': { opacity: 0, transform: 'scale(0.96)' }, '100%': { opacity: 1, transform: 'scale(1)' } },
+        slideInRight: { '0%': { transform: 'translateX(100%)' }, '100%': { transform: 'translateX(0)' } },
         shimmer: { '0%': { backgroundPosition: '-400px 0' }, '100%': { backgroundPosition: '400px 0' } },
         pulseGlow: { '0%, 100%': { boxShadow: '0 0 0 0 rgba(111,92,245,0.3)' }, '50%': { boxShadow: '0 0 0 6px rgba(111,92,245,0)' } },
       },
       animation: {
         fadeIn: 'fadeIn 0.25s ease-out',
         scaleIn: 'scaleIn 0.18s ease-out',
+        slideInRight: 'slideInRight 0.25s ease-out',
         shimmer: 'shimmer 1.6s infinite linear',
         pulseGlow: 'pulseGlow 2s infinite',
       },

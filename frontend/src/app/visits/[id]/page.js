@@ -50,6 +50,7 @@ export default function VisitDetailPage() {
   return (
     <CRMLayout>
       <RecordDetailLayout backHref="/visits" backLabel="Visits" title={visit.title} subtitle={visit.location}
+        recordNotes={{ relatedType: 'visit', recordId: id, canEdit }}
         actions={canDelete && <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5"><TrashIcon className="w-4 h-4" /> Delete</button>}>
         <EditableFieldSection canEdit={canEdit} saving={saving} title="Visit Details" values={visit} onSave={saveSection}
           fields={[

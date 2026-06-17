@@ -52,6 +52,7 @@ export default function MeetingDetailPage() {
     <CRMLayout>
       <RecordDetailLayout backHref="/meetings" backLabel="Meetings" title={meeting.title} subtitle={meeting.location}
         lastUpdated={meeting.updated_at ? new Date(meeting.updated_at).toLocaleString() : undefined}
+        recordNotes={{ relatedType: 'meeting', recordId: id, canEdit }}
         actions={canDelete && <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5"><TrashIcon className="w-4 h-4" /> Delete</button>}>
         <EditableFieldSection canEdit={canEdit} saving={saving} title="Meeting Details" values={values} onSave={saveSection}
           fields={[

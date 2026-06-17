@@ -77,6 +77,7 @@ export default function DealDetailPage() {
         subtitle={deal.account_name || 'No account linked'}
         badges={<Badge label={deal.stage} />}
         lastUpdated={deal.updated_at ? new Date(deal.updated_at).toLocaleString() : undefined}
+        recordNotes={{ relatedType: 'deal', recordId: id, canEdit }}
         actions={canDelete && (
           <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
             <TrashIcon className="w-4 h-4" /> Delete

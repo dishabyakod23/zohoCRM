@@ -61,6 +61,7 @@ export default function ContactDetailPage() {
         subtitle={contact.title ? `${contact.title}${contact.account_name ? ` at ${contact.account_name}` : ''}` : contact.account_name}
         avatarLabel={`${contact.first_name?.[0] || ''}${contact.last_name?.[0] || ''}`}
         lastUpdated={contact.updated_at ? new Date(contact.updated_at).toLocaleString() : undefined}
+        recordNotes={{ relatedType: 'contact', recordId: id, canEdit }}
         actions={canDelete && (
           <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
             <TrashIcon className="w-4 h-4" /> Delete

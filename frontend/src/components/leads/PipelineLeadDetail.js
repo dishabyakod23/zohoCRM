@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import CRMLayout from '../layout/CRMLayout.js';
 import Modal from '../ui/Modal.js';
 import Badge from '../ui/Badge.js';
+import LeadConvertMenu from './LeadConvertMenu.js';
 import ConfirmDialog from '../ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import RecordDetailLayout, { InfoRow } from '../records/RecordDetailLayout.js';
@@ -13,11 +14,11 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { fetchUsers } from '../../lib/services/lookups.js';
+import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { getPipelineConfig, pipelineStageLabel, isProposalLead, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } from '../../lib/pipelineHelpers.js';
 import { LEAD_SOURCES } from '../../lib/constants.js';
 import {
-  EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon, ArrowPathIcon, UserIcon,
+  EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon, UserIcon,
 } from '@heroicons/react/24/outline';
 
 const INDUSTRIES = ['IT Services', 'E-Commerce', 'EdTech', 'Automotive', 'Finance', 'Healthcare', 'Manufacturing', 'Education', 'Media', 'Real Estate', 'Other'];
@@ -28,15 +29,18 @@ export default function PipelineLeadDetail({ stage }) {
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit, canDelete, canAssignLeads } = usePermissions();
+  const { canEdit, canDelete, canAssignLeads, isSuperAdmin } = usePermissions();
   const [lead, setLead] = useState(null);
   const [users, setUsers] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [convertConfirm, setConvertConfirm] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignUserId, setAssignUserId] = useState('');
   const [saving, setSaving] = useState(false);
-  const [converting, setConverting] = useState(false);
+  const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+
+  useEffect(() => {
+    fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
+  }, []);
 
   useEffect(() => {
     if (canAssignLeads) fetchUsers().then(setUsers).catch(() => {});
@@ -94,21 +98,6 @@ export default function PipelineLeadDetail({ stage }) {
     }
   };
 
-  const handleConvert = async () => {
-    if (!config?.convertTo) return;
-    setConverting(true);
-    try {
-      await leadsApi.advanceLeadStage(id, config.convertTo.status, { proposal: config.convertTo.proposal });
-      showToast(`Converted to ${config.convertTo.label}`, 'success');
-      setConvertConfirm(false);
-      router.push(`${config.convertTo.redirectPath}/${id}`);
-    } catch (err) {
-      showToast(getApiError(err));
-    } finally {
-      setConverting(false);
-    }
-  };
-
   if (!lead) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
 
   const editable = canEdit;
@@ -128,15 +117,18 @@ export default function PipelineLeadDetail({ stage }) {
         backLabel={config.listTitle}
         title={`${lead.first_name} ${lead.last_name}`}
         subtitle={lead.company}
-        badges={<Badge label={pipelineStageLabel(stage)} />}
+        badges={<><Badge label={pipelineStageLabel(stage)} /><Badge label={lead.status} /></>}
         lastUpdated={new Date(lead.updated_at).toLocaleString()}
+        recordNotes={{ relatedType: 'lead', recordId: id, canEdit: editable }}
         actions={
           <>
-            {editable && config?.convertTo && (
-              <button onClick={() => setConvertConfirm(true)} className="btn-primary text-xs flex items-center gap-1.5">
-                <ArrowPathIcon className="w-4 h-4" /> Convert to {config.convertTo.label}
-              </button>
-            )}
+            <LeadConvertMenu
+              stage={stage}
+              leadId={id}
+              leadName={`${lead.first_name} ${lead.last_name}`}
+              canEdit={editable}
+              isAdmin={isSuperAdmin}
+            />
             {canAssignLeads && config?.allowAssign && (
               <button onClick={() => setAssignOpen(true)} className="btn-secondary text-xs flex items-center gap-1.5">
                 <UserIcon className="w-4 h-4" /> Assign
@@ -175,6 +167,7 @@ export default function PipelineLeadDetail({ stage }) {
               { name: 'last_name', label: 'Last Name', required: true },
               { name: 'company', label: 'Company', required: true },
               { name: 'title', label: 'Job Title' },
+              { name: 'lead_status', label: 'Lead Status', format: () => lead.status, render: (d, set) => select(statusOptions)(d, set, 'lead_status') },
               { name: 'source', label: 'Lead Source', render: (d, set) => select(LEAD_SOURCES, null, null)(d, set, 'source') },
               { name: 'industry', label: 'Industry', render: (d, set) => select(INDUSTRIES, null, null)(d, set, 'industry') },
               { name: 'description', label: 'Description', colSpan: true, render: (d, set) => (
@@ -196,14 +189,6 @@ export default function PipelineLeadDetail({ stage }) {
           />
         </div>
       </RecordDetailLayout>
-
-      <ConfirmDialog
-        open={convertConfirm}
-        message={`Convert ${lead.first_name} ${lead.last_name} to ${config?.convertTo?.label}?`}
-        confirmLabel={converting ? 'Converting...' : `Convert to ${config?.convertTo?.label}`}
-        onConfirm={handleConvert}
-        onCancel={() => setConvertConfirm(false)}
-      />
 
       <ConfirmDialog open={deleteConfirm} message={`Delete ${lead.first_name} ${lead.last_name}?`} confirmLabel="Confirm Delete" danger
         onConfirm={async () => {

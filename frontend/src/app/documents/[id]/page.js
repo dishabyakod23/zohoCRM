@@ -46,6 +46,7 @@ export default function DocumentDetailPage() {
   return (
     <CRMLayout>
       <RecordDetailLayout backHref="/documents" backLabel="Documents" title={doc.name} subtitle={doc.file_type}
+        recordNotes={{ relatedType: 'document', recordId: id, canEdit }}
         actions={
           <>
             {canDownload && <button onClick={handleDownload} className="btn-secondary text-xs">Download</button>}

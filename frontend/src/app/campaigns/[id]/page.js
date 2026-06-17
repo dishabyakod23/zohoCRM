@@ -51,6 +51,7 @@ export default function CampaignDetailPage() {
     <CRMLayout>
       <RecordDetailLayout backHref="/campaigns" backLabel="Campaigns" title={campaign.name} badges={<Badge label={campaign.status_label} />}
         lastUpdated={campaign.updated_at ? new Date(campaign.updated_at).toLocaleString() : undefined}
+        recordNotes={{ relatedType: 'campaign', recordId: id, canEdit }}
         actions={canDelete && <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5"><TrashIcon className="w-4 h-4" /> Delete</button>}>
         <EditableFieldSection canEdit={canEdit} saving={saving} title="Campaign Details" values={campaign} onSave={saveSection}
           fields={[
