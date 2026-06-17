@@ -3,6 +3,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth.js';
 import { getApiError } from '../../lib/api.js';
+import { setAuthSessionCookie } from '../../lib/authCookie.js';
+import api from '../../lib/api.js';
+
+function getNextPath() {
+  if (typeof window === 'undefined') return '/dashboard';
+  const next = new URLSearchParams(window.location.search).get('next');
+  return next?.startsWith('/') ? next : '/dashboard';
+}
 
 export default function LoginPage() {
   const { login, user, loading } = useAuth();
@@ -10,9 +18,33 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [restoring, setRestoring] = useState(true);
 
   useEffect(() => {
-    if (!loading && user) router.replace('/dashboard');
+    const nextPath = getNextPath();
+    const token = localStorage.getItem('crm_token');
+    const storedUser = localStorage.getItem('crm_user');
+    if (!token || !storedUser) {
+      setRestoring(false);
+      return;
+    }
+    setAuthSessionCookie();
+    api.get('/auth/me')
+      .then((r) => {
+        localStorage.setItem('crm_user', JSON.stringify(r.data));
+        setAuthSessionCookie();
+        router.replace(nextPath);
+      })
+      .catch(() => {
+        localStorage.removeItem('crm_token');
+        localStorage.removeItem('crm_refresh_token');
+        localStorage.removeItem('crm_user');
+        setRestoring(false);
+      });
+  }, [router]);
+
+  useEffect(() => {
+    if (!loading && user) router.replace(getNextPath());
   }, [user, loading, router]);
 
   const handleSubmit = async (e) => {
@@ -27,7 +59,7 @@ export default function LoginPage() {
     }
   };
 
-  if (loading || user) {
+  if (loading || user || restoring) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-gradient">
         <div className="w-10 h-10 border-[3px] border-white border-t-transparent rounded-full animate-spin" />

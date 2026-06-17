@@ -196,6 +196,20 @@ export async function createProposal(form) {
   });
 }
 
+/** Count leads created since the start of the current calendar month. */
+export async function countLeadsThisMonth() {
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const res = await api.get('/leads', {
+    params: { page: 1, page_size: 100, sort_by: 'created_at', sort_order: 'desc' },
+  });
+  return (res.data.data || []).filter((lead) => {
+    if (!lead.created_at) return false;
+    return new Date(lead.created_at) >= monthStart;
+  }).length;
+}
+
 /** Parse CSV text into row objects keyed by header names */
 export function parseLeadCsv(csvText) {
   const lines = csvText.trim().split(/\r?\n/).filter(Boolean);

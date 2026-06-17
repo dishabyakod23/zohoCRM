@@ -9,6 +9,7 @@ import EditableFieldSection from '../../../components/records/EditableFieldSecti
 import LeadConvertMenu from '../../../components/leads/LeadConvertMenu.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
+import { useMarkRecordViewed } from '../../../hooks/useMarkRecordViewed.js';
 import { getApiError } from '../../../lib/api.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import * as leadsApi from '../../../lib/services/leads.js';
@@ -30,6 +31,8 @@ export default function LeadDetailPage() {
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useMarkRecordViewed('lead', id);
 
   useEffect(() => {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));

@@ -53,7 +53,7 @@ export default function DocumentDetailPage() {
             {canDelete && <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5"><TrashIcon className="w-4 h-4" /> Delete</button>}
           </>
         }>
-        <EditableFieldSection canEdit={canEdit} saving={saving} title="Document Details" values={doc} onSave={saveSection}
+        <EditableFieldSection canEdit={canEdit} saving={saving} title="Document Details" values={{ ...doc, document_name: doc.name || doc.document_name }} onSave={saveSection}
           fields={[
             { name: 'document_name', label: 'Name', format: () => doc.name },
             { name: 'folder', label: 'Folder' },

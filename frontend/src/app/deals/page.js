@@ -33,6 +33,8 @@ export default function DealsPage() {
   const [view, setView] = useState('table');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
@@ -55,8 +57,8 @@ export default function DealsPage() {
     setLoading(true);
     try {
       const result = await dealsApi.listDeals({
-        page: 1,
-        page_size: 50,
+        page,
+        page_size: limit,
         search: debouncedSearch || undefined,
       }, accountMap, stageOptions);
       setDeals(result.data);
@@ -66,9 +68,11 @@ export default function DealsPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, accountMap, stageOptions, showToast]);
+  }, [page, limit, debouncedSearch, accountMap, stageOptions, showToast]);
 
   useEffect(() => { fetchDeals(); }, [fetchDeals]);
+
+  const totalPages = Math.ceil(total / limit) || 1;
 
   const handleSave = async () => {
     const errs = validateRequired({ deal_name: 'Deal Name', account_id: 'Account Name', closing_date: 'Closing Date', stage_value: 'Stage', amount: 'Amount' }, form);
@@ -135,7 +139,7 @@ export default function DealsPage() {
             <div className="px-4 py-3 border-b border-zoho-border">
               <div className="relative max-w-xs">
                 <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zoho-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                <input className="input pl-8 py-1.5 text-xs" placeholder="Search deals…" value={search} onChange={e => setSearch(e.target.value)} />
+                <input className="input pl-8 py-1.5 text-xs" placeholder="Search deals…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
               </div>
             </div>
             <RecordDataTable
@@ -146,6 +150,12 @@ export default function DealsPage() {
               statusOptions={stageOptions}
               onRefresh={fetchDeals}
               emptyMessage="No deals found"
+              pagination={{
+                page,
+                totalPages,
+                onPageChange: setPage,
+                label: total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total}` : '0 records',
+              }}
             />
           </div>
         ) : (

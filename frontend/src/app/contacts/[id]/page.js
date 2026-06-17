@@ -7,6 +7,7 @@ import RecordDetailLayout from '../../../components/records/RecordDetailLayout.j
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
+import { useMarkRecordViewed } from '../../../hooks/useMarkRecordViewed.js';
 import { getApiError } from '../../../lib/api.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import { fetchAccountLookups, accountMapFromLookups } from '../../../lib/services/lookups.js';
@@ -23,6 +24,8 @@ export default function ContactDetailPage() {
   const [accounts, setAccounts] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useMarkRecordViewed('contact', id);
 
   const loadContact = useCallback(() => {
     const map = accountMapFromLookups(accounts);

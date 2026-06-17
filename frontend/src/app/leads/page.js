@@ -14,6 +14,7 @@ import ListToolbar from '../../components/layout/ListToolbar.js';
 import { LIST_VIEWS } from '../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import { filterUnreadRecords } from '../../lib/recordViewTracker.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields } from '../../lib/services/lookups.js';
 
 export default function LeadsPage() {
@@ -48,11 +49,12 @@ export default function LeadsPage() {
     const requestId = ++fetchRequestId.current;
     setLoading(true);
     try {
+      const isUnreadView = activeView === 'Unread Leads';
       const params = {
-        page,
-        page_size: limit,
+        page: isUnreadView ? 1 : page,
+        page_size: isUnreadView ? 200 : limit,
         search: debouncedSearch || undefined,
-        lead_status: statusFilter || PIPELINE_LEAD,
+        lead_status: isUnreadView ? undefined : (statusFilter || PIPELINE_LEAD),
       };
       if (activeView === 'My Leads' && user?.id) params.owner_id = user.id;
       if (activeView === 'Recently Created') {
@@ -68,8 +70,15 @@ export default function LeadsPage() {
         statusOptions,
       });
       if (requestId !== fetchRequestId.current) return;
-      setLeads(result.data);
-      setTotal(result.total);
+      if (isUnreadView) {
+        const unread = filterUnreadRecords(result.data, 'lead');
+        const start = (page - 1) * limit;
+        setLeads(unread.slice(start, start + limit));
+        setTotal(unread.length);
+      } else {
+        setLeads(result.data);
+        setTotal(result.total);
+      }
     } catch (err) {
       if (requestId !== fetchRequestId.current) return;
       showToast(getApiError(err));

@@ -6,10 +6,14 @@ import CRMLayout from '../../components/layout/CRMLayout.js';
 import BulkUpload from '../../components/records/BulkUpload.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
 import { useToast } from '../../components/ui/Toast.js';
+import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../lib/api.js';
+import ListToolbar from '../../components/layout/ListToolbar.js';
+import { LIST_VIEWS } from '../../lib/constants.js';
 import * as contactsApi from '../../lib/services/contacts.js';
+import { filterUnreadRecords } from '../../lib/recordViewTracker.js';
 import { fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
 
 const LIMIT = 15;
@@ -17,6 +21,7 @@ const LIMIT = 15;
 export default function ContactsPage() {
   const router = useRouter();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const { canEdit } = usePermissions();
   const [contacts, setContacts] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -25,6 +30,7 @@ export default function ContactsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
+  const [activeView, setActiveView] = useState('All Contacts');
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
 
@@ -42,19 +48,33 @@ export default function ContactsPage() {
   const fetchContacts = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await contactsApi.listContacts({
-        page,
-        page_size: LIMIT,
+      const isUnreadView = activeView === 'Unread Contacts';
+      const params = {
+        page: isUnreadView ? 1 : page,
+        page_size: isUnreadView ? 200 : LIMIT,
         search: debouncedSearch || undefined,
-      }, accountMap);
-      setContacts(result.data);
-      setTotal(result.total);
+      };
+      if (activeView === 'My Contacts' && user?.id) params.owner_id = user.id;
+      if (activeView === 'Recently Created') {
+        params.sort_by = 'created_at';
+        params.sort_order = 'desc';
+      }
+      const result = await contactsApi.listContacts(params, accountMap);
+      if (isUnreadView) {
+        const unread = filterUnreadRecords(result.data, 'contact');
+        const start = (page - 1) * LIMIT;
+        setContacts(unread.slice(start, start + LIMIT));
+        setTotal(unread.length);
+      } else {
+        setContacts(result.data);
+        setTotal(result.total);
+      }
     } catch (err) {
       showToast(getApiError(err));
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, accountMap, showToast]);
+  }, [page, debouncedSearch, accountMap, showToast, activeView, user?.id]);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
@@ -78,22 +98,23 @@ export default function ContactsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div><h1 className="text-xl font-bold text-gray-900">Contacts</h1><p className="text-xs text-gray-500">{total} contacts</p></div>
-          <div className="flex gap-2">
-            <BulkUpload onDone={fetchContacts} />
-            {canEdit && <Link href="/contacts/create" className="btn-primary">+ New contact</Link>}
-          </div>
+        <ListToolbar
+          moduleName="Contacts"
+          total={total}
+          views={LIST_VIEWS.contacts}
+          activeView={activeView}
+          onViewChange={(v) => { setActiveView(v); setPage(1); }}
+          searchValue={search}
+          onSearch={(v) => { setSearch(v); setPage(1); }}
+          onCreate={canEdit ? () => router.push('/contacts/create') : undefined}
+          createLabel="+ New contact"
+        />
+
+        <div className="flex items-center justify-end gap-2 mb-3">
+          <BulkUpload onDone={fetchContacts} />
         </div>
 
-        <div className="card">
-          <div className="px-4 py-3 border-b border-zoho-border">
-            <div className="relative max-w-xs">
-              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zoho-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              <input className="input pl-8 py-1.5 text-xs" placeholder="Search contacts…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
-            </div>
-          </div>
-
+        <div className="card rounded-tl-none rounded-tr-none border-t-0">
           <RecordDataTable
             moduleKey="contacts"
             records={contacts}

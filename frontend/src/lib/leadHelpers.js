@@ -68,6 +68,9 @@ export function normalizeLead(lead, statusOptions = []) {
 /** Build LeadCreate / LeadUpdate payload — lead_status must be snake_case */
 export function toLeadPayload(form, { partial = false } = {}) {
   const payload = {
+    salutation: form.salutation || null,
+    latitude: form.latitude != null && form.latitude !== '' ? Number(form.latitude) : null,
+    longitude: form.longitude != null && form.longitude !== '' ? Number(form.longitude) : null,
     first_name: form.first_name || null,
     last_name: form.last_name,
     company: form.company,

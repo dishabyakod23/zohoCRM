@@ -72,7 +72,7 @@ export default function ActivitiesPage() {
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-semibold text-zoho-text">Activities</h1>
-          <Link href={`/${tab}`} className="btn-primary text-xs">+ Create {tab === 'tasks' ? 'Task' : tab === 'meetings' ? 'Meeting' : 'Call'}</Link>
+          <Link href={`/${tab}?create=1`} className="btn-primary text-xs">+ Create {tab === 'tasks' ? 'Task' : tab === 'meetings' ? 'Meeting' : 'Call'}</Link>
         </div>
 
         <div className="flex border-b border-zoho-border bg-white rounded-t px-2">

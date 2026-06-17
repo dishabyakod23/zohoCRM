@@ -6,6 +6,7 @@ import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import * as dashboardApi from '../../lib/services/dashboard.js';
 import * as reportsApi from '../../lib/services/reports.js';
+import * as leadsApi from '../../lib/services/leads.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { QUICK_CREATE } from '../../lib/constants.js';
 import { userBriefName } from '../../lib/activityHelpers.js';
@@ -14,6 +15,12 @@ import {
 } from '@heroicons/react/24/outline';
 
 const COLORS = ['#6f5cf5', '#14c8b0', '#ff9f5a', '#ff5fa2', '#3aa0ff', '#ffc94d'];
+
+const DASHBOARD_VIEWS = {
+  'Classic View': { showPipeline: true, showLeadsChart: true, showRecent: true, showTopAccounts: true, showQuickCreate: true },
+  'Manager View': { showPipeline: true, showLeadsChart: false, showRecent: true, showTopAccounts: true, showQuickCreate: false },
+  'My View': { showPipeline: false, showLeadsChart: true, showRecent: true, showTopAccounts: false, showQuickCreate: true },
+};
 
 function Widget({ title, children, className = '' }) {
   return (
@@ -56,12 +63,13 @@ export default function DashboardPage() {
     Promise.all([
       dashboardApi.getDashboardHome(),
       reportsApi.getDealReport({ group_by: 'stage' }),
-    ]).then(([home, dealStageReport]) => {
+      leadsApi.countLeadsThisMonth().catch(() => 0),
+    ]).then(([home, dealStageReport, leadsThisMonth]) => {
       const openRows = (dealStageReport.rows || []).filter(r => !closedStages.has(r.key));
       const pipelineValue = openRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
       const leadsTotal = (home.leads_by_status || []).reduce((s, r) => s + r.count, 0);
       setStats({
-        leads: { total: leadsTotal, this_month: 0 },
+        leads: { total: leadsTotal, this_month: leadsThisMonth },
         deals: {
           open_deals: home.open_deals?.count ?? 0,
           open_value: Number(home.open_deals?.total_amount) || 0,
@@ -101,6 +109,7 @@ export default function DashboardPage() {
   }, [showToast]);
 
   const fmt = (n) => n ? `₹${(n / 100000).toFixed(1)}L` : '₹0';
+  const viewLayout = DASHBOARD_VIEWS[homeView] || DASHBOARD_VIEWS['Classic View'];
 
   return (
     <CRMLayout>
@@ -155,6 +164,7 @@ export default function DashboardPage() {
             />
 
             {/* Pipeline by Stage */}
+            {viewLayout.showPipeline && (
             <Widget title="Pipeline by Stage" className="col-span-12 lg:col-span-7">
               {stats.pipeline?.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -166,8 +176,10 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
               ) : <p className="text-sm text-zoho-muted text-center py-8">No pipeline data</p>}
             </Widget>
+            )}
 
             {/* My Leads by Status */}
+            {viewLayout.showLeadsChart && (
             <Widget title="My Leads by Status" className="col-span-12 lg:col-span-5">
               {stats.leadsByStatus?.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -177,8 +189,10 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
               ) : <p className="text-sm text-zoho-muted text-center py-8">No leads</p>}
             </Widget>
+            )}
 
             {/* Recent Activities */}
+            {viewLayout.showRecent && (
             <Widget title="Recent Activities" className="col-span-12 lg:col-span-6">
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {stats.recentActivities?.map(act => (
@@ -189,7 +203,9 @@ export default function DashboardPage() {
                 ))}
               </div>
             </Widget>
+            )}
 
+            {viewLayout.showTopAccounts && (
             <Widget title="Top Accounts by Revenue" className="col-span-12 lg:col-span-6">
               <div className="space-y-1">
                 {stats.topAccounts?.map((a) => (
@@ -203,8 +219,10 @@ export default function DashboardPage() {
                 ))}
               </div>
             </Widget>
+            )}
 
             {/* Quick Create */}
+            {viewLayout.showQuickCreate && (
             <Widget title="Quick Create" className="col-span-12">
               <div className="flex flex-wrap gap-2">
                 {QUICK_CREATE.map(q => (
@@ -214,6 +232,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             </Widget>
+            )}
           </div>
         ) : <p className="text-zoho-muted">Failed to load dashboard</p>}
       </div>
