@@ -1,4 +1,9 @@
-/** Map list table moduleKey → notes API related_type + display helpers */
+/** Modules with notes API support on the hosted Sales CRM API */
+export const NOTES_API_MODULES = new Set(['leads', 'raw-leads', 'qualified-leads', 'proposals']);
+
+export function notesApiSupported(moduleKey) {
+  return NOTES_API_MODULES.has(moduleKey);
+}
 
 const LEAD_LABEL = (r) => `${r.first_name || ''} ${r.last_name || ''}`.trim() || r.company || 'Lead';
 

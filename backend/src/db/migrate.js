@@ -21,6 +21,12 @@ const migrate = async () => {
         END LOOP;
       END $$;
 
+      -- Proposal amount on all core tables
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS proposal_amount NUMERIC(14,2);
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS proposal_amount NUMERIC(14,2);
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS proposal_amount NUMERIC(14,2);
+      ALTER TABLE deals ADD COLUMN IF NOT EXISTS proposal_amount NUMERIC(14,2);
+
       -- Leads extended fields
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS title VARCHAR(100);
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS mobile VARCHAR(30);
@@ -48,6 +54,11 @@ const migrate = async () => {
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS salutation VARCHAR(20);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS department VARCHAR(100);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS mobile VARCHAR(30);
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_phone VARCHAR(30);
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS home_phone VARCHAR(30);
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS assistant VARCHAR(100);
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS asst_phone VARCHAR(30);
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS email_opt_out BOOLEAN DEFAULT false;
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS secondary_email VARCHAR(150);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lead_source VARCHAR(80);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS reports_to_id INTEGER REFERENCES contacts(id);
@@ -56,16 +67,22 @@ const migrate = async () => {
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS website VARCHAR(200);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS skype_id VARCHAR(100);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS twitter VARCHAR(100);
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS mailing_flat VARCHAR(200);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS mailing_street VARCHAR(200);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS mailing_city VARCHAR(100);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS mailing_state VARCHAR(100);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS mailing_country VARCHAR(100);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS mailing_zip VARCHAR(20);
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS mailing_lat DOUBLE PRECISION;
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS mailing_lng DOUBLE PRECISION;
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_flat VARCHAR(200);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_street VARCHAR(200);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_city VARCHAR(100);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_state VARCHAR(100);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_country VARCHAR(100);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_zip VARCHAR(20);
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_lat DOUBLE PRECISION;
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_lng DOUBLE PRECISION;
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS description TEXT;
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id);
@@ -87,16 +104,22 @@ const migrate = async () => {
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS ownership VARCHAR(80);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS employees INTEGER;
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS sic_code VARCHAR(20);
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS billing_flat VARCHAR(200);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS billing_street VARCHAR(200);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS billing_city VARCHAR(100);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS billing_state VARCHAR(100);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS billing_country VARCHAR(100);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS billing_zip VARCHAR(20);
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS billing_lat DOUBLE PRECISION;
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS billing_lng DOUBLE PRECISION;
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS shipping_flat VARCHAR(200);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS shipping_street VARCHAR(200);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS shipping_city VARCHAR(100);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS shipping_state VARCHAR(100);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS shipping_country VARCHAR(100);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS shipping_zip VARCHAR(20);
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS shipping_lat DOUBLE PRECISION;
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS shipping_lng DOUBLE PRECISION;
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS description TEXT;
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id);

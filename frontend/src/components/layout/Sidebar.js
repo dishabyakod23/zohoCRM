@@ -5,6 +5,15 @@ import { usePathname } from 'next/navigation';
 import { NAV_MODULES, MODULE_ICONS } from '../../lib/constants.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 
+function SidebarToggleIcon({ className = 'w-4 h-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <rect x="4.5" y="5.5" width="15" height="13" rx="2" />
+      <path d="M9.5 5.5v13" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function Sidebar({ mobileOpen = false, onNavigate }) {
   const pathname = usePathname();
   const { canAccessReports } = usePermissions();
@@ -16,6 +25,30 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
     n.label.toLowerCase().includes(moduleSearch.toLowerCase()));
 
   const isActive = (href) => pathname === href || pathname.startsWith(href + '/');
+
+  const toggleCollapsed = () => setCollapsed((c) => !c);
+
+  const toggleBtnClass = 'rounded-lg bg-[#3a4560] hover:bg-[#455270] flex items-center justify-center text-white/75 hover:text-white transition-all duration-200 shadow-sm';
+
+  const collapsedLogoToggle = (
+    <div className="group/logo relative w-9 h-9 shrink-0">
+      <div
+        className="absolute inset-0 w-9 h-9 bg-brand-gradient rounded-xl flex items-center justify-center text-white font-bold text-base shadow-glow
+          transition-all duration-200 ease-out group-hover/logo:opacity-0 group-hover/logo:scale-90 pointer-events-none"
+        aria-hidden="true"
+      >
+        C
+      </div>
+      <button
+        type="button"
+        onClick={toggleCollapsed}
+        aria-label="Expand sidebar"
+        className={`absolute inset-0 w-9 h-9 ${toggleBtnClass} opacity-0 scale-90 group-hover/logo:opacity-100 group-hover/logo:scale-100`}
+      >
+        <SidebarToggleIcon />
+      </button>
+    </div>
+  );
 
   const navLink = (href, label, icon) => (
     <Link key={href} href={href} title={label} onClick={onNavigate}
@@ -29,20 +62,28 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
     <aside className={`${collapsed ? 'w-16' : 'w-60'} bg-sidebar-gradient flex flex-col h-screen shrink-0 transition-all duration-300 shadow-lg z-40
       fixed md:sticky inset-y-0 left-0
       ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-      <div className="px-3 py-3.5 flex items-center gap-2.5 border-b border-white/10">
-        <div className="w-9 h-9 bg-brand-gradient rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0 shadow-glow">C</div>
-        {!collapsed && (
-          <div className="min-w-0">
-            <span className="font-bold text-white text-sm block truncate tracking-tight">CRM</span>
-            <span className="text-[10px] text-white/50">CRM Standard</span>
-          </div>
+      <div className={`px-3 py-3.5 flex items-center border-b border-white/10 min-h-[3.75rem] ${collapsed ? 'justify-center' : 'gap-2.5'}`}>
+        {collapsed ? (
+          collapsedLogoToggle
+        ) : (
+          <>
+            <div className="w-9 h-9 bg-brand-gradient rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0 shadow-glow">C</div>
+            <div className="min-w-0 flex-1">
+              <span className="font-bold text-white text-sm block truncate tracking-tight">CRM</span>
+              <span className="text-[10px] text-white/50">CRM Standard</span>
+            </div>
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-label="Collapse sidebar"
+              className={`w-8 h-8 ${toggleBtnClass} hidden md:flex shrink-0`}
+            >
+              <SidebarToggleIcon />
+            </button>
+          </>
         )}
-        <button type="button" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="ml-auto w-6 h-6 rounded-lg hidden md:flex items-center justify-center text-white/50 text-xs hover:text-white hover:bg-white/10 transition-colors">
-          {collapsed ? '»' : '«'}
-        </button>
         <button type="button" onClick={onNavigate} aria-label="Close menu"
-          className="ml-auto w-6 h-6 rounded-lg flex md:hidden items-center justify-center text-white/70 text-lg hover:text-white hover:bg-white/10">
+          className="ml-auto w-8 h-8 rounded-lg flex md:hidden items-center justify-center text-white/70 text-lg hover:text-white hover:bg-white/10">
           ×
         </button>
       </div>

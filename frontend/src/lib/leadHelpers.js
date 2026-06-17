@@ -92,6 +92,7 @@ export function toLeadPayload(form, { partial = false } = {}) {
     zip_code: form.zip || form.zip_code || null,
     no_of_employees: form.employees || form.no_of_employees || null,
     rating: form.rating || null,
+    proposal_amount: form.proposal_amount || null,
     owner_id: form.owner_id || null,
   };
 

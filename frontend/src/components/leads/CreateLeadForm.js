@@ -17,6 +17,7 @@ export function emptyLeadForm() {
     salutation: '', first_name: '', last_name: '', email: '', phone: '', mobile: '',
     company: '', title: '', lead_status: PIPELINE_LEAD, source: '', industry: '',
     rating: '', website: '', annual_revenue: '', no_of_employees: '',
+    proposal_amount: '',
     street: '', city: '', state: '', zip_code: '', country: 'India',
     description: '',
   };
@@ -132,6 +133,9 @@ export default function CreateLeadForm() {
             </FormField>
             <FormField label="Annual Revenue">
               <input className="input" type="number" placeholder="₹" value={form.annual_revenue} onChange={set('annual_revenue')} />
+            </FormField>
+            <FormField label="Proposal Amount">
+              <input className="input" type="number" placeholder="₹" value={form.proposal_amount} onChange={set('proposal_amount')} />
             </FormField>
             <FormField label="No. of Employees">
               <input className="input" type="number" value={form.no_of_employees} onChange={set('no_of_employees')} />

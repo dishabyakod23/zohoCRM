@@ -19,7 +19,7 @@ import { fetchDealStages, fetchAccountLookups, accountMapFromLookups } from '../
 import * as contactsApi from '../../lib/services/contacts.js';
 import { LEAD_SOURCES, DEAL_TYPES } from '../../lib/constants.js';
 
-const EMPTY = { deal_name: '', amount: '', stage_value: 'qualification', closing_date: '', probability: 10, account_id: '', contact_id: '', deal_type: '', lead_source: '', description: '' };
+const EMPTY = { deal_name: '', amount: '', stage_value: 'qualification', closing_date: '', probability: 10, account_id: '', contact_id: '', deal_type: '', lead_source: '', description: '', proposal_amount: '' };
 
 export default function DealsPage() {
   const { showToast } = useToast();
@@ -217,6 +217,14 @@ export default function DealsPage() {
           </div>
 
           {/* Description */}
+          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Proposal Amount</p>
+          <div className="mb-5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm text-zoho-muted shrink-0">Rs.</span>
+              <input className="input flex-1" type="number" min="0" step="any" placeholder="0.00"
+                value={form.proposal_amount} onChange={e => setForm(p => ({ ...p, proposal_amount: e.target.value }))} />
+            </div>
+          </div>
           <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Description</p>
           <div className="mb-5">
             <textarea className="input min-h-[80px] resize-y" placeholder="Add a description..." value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />

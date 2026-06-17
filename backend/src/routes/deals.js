@@ -73,9 +73,9 @@ router.post('/', requireEdit, async (req, res) => {
     return res.status(400).json({ error: 'Deal name, account, closing date, stage, and amount are required' });
   try {
     const result = await pool.query(
-      `INSERT INTO deals (name, amount, stage, close_date, probability, account_id, contact_id, deal_type, lead_source, description, owner_id, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [dealName, b.amount, b.stage, closeDate, b.probability || 10, b.account_id, b.contact_id || null, b.deal_type, b.lead_source, b.description, b.owner_id || req.user.id, req.user.id]
+      `INSERT INTO deals (name, amount, stage, close_date, probability, account_id, contact_id, deal_type, lead_source, description, proposal_amount, owner_id, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [dealName, b.amount, b.stage, closeDate, b.probability || 10, b.account_id, b.contact_id || null, b.deal_type, b.lead_source, b.description, b.proposal_amount || null, b.owner_id || req.user.id, req.user.id]
     );
     recordOk(res, result.rows[0], 201);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -88,9 +88,9 @@ const updateDeal = async (req, res) => {
   try {
     const result = await pool.query(
       `UPDATE deals SET name=$1, amount=$2, stage=$3, close_date=$4, probability=$5, account_id=$6, contact_id=$7,
-       deal_type=$8, lead_source=$9, description=$10, owner_id=$11, updated_by=$12, updated_at=NOW()
-       WHERE id=$13 AND deleted_at IS NULL RETURNING *`,
-      [dealName, b.amount, b.stage, closeDate, b.probability, b.account_id, b.contact_id || null, b.deal_type, b.lead_source, b.description, b.owner_id, req.user.id, req.params.id]
+       deal_type=$8, lead_source=$9, description=$10, proposal_amount=$11, owner_id=$12, updated_by=$13, updated_at=NOW()
+       WHERE id=$14 AND deleted_at IS NULL RETURNING *`,
+      [dealName, b.amount, b.stage, closeDate, b.probability, b.account_id, b.contact_id || null, b.deal_type, b.lead_source, b.description, b.proposal_amount || null, b.owner_id, req.user.id, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Deal not found' });
     recordOk(res, result.rows[0]);

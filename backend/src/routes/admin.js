@@ -108,11 +108,69 @@ router.patch('/settings/weekly-report', requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-/* ── Lead statuses (custom) ── */
+/* ── Lookup options (hosted API compatible) ── */
 
 const {
-  getAllLeadStatuses, addCustomLeadStatus, deleteCustomLeadStatus, slugifyStatus,
+  LEAD_STATUS_CATEGORY,
+  getLeadStatusLookupCategory,
+  addCustomLeadStatus,
+  updateCustomLeadStatus,
+  deleteCustomLeadStatus,
+  getAllLeadStatuses,
 } = require('../utils/leadStatusStore');
+
+router.get('/lookup-options', requireAdmin, async (_, res) => {
+  try {
+    ok(res, [await getLeadStatusLookupCategory()]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/lookup-options/:category', requireAdmin, async (req, res) => {
+  try {
+    if (req.params.category !== LEAD_STATUS_CATEGORY) {
+      return res.status(404).json({ error: 'Lookup category not found' });
+    }
+    ok(res, await getLeadStatusLookupCategory());
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/lookup-options/:category', requireAdmin, async (req, res) => {
+  try {
+    if (req.params.category !== LEAD_STATUS_CATEGORY) {
+      return res.status(404).json({ error: 'Lookup category not found' });
+    }
+    const created = await addCustomLeadStatus(req.body);
+    res.status(201).json({ data: created });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.patch('/lookup-options/:category/:optionId', requireAdmin, async (req, res) => {
+  try {
+    if (req.params.category !== LEAD_STATUS_CATEGORY) {
+      return res.status(404).json({ error: 'Lookup category not found' });
+    }
+    const updated = await updateCustomLeadStatus(req.params.optionId, req.body);
+    ok(res, updated);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.delete('/lookup-options/:category/:optionId', requireAdmin, async (req, res) => {
+  try {
+    if (req.params.category !== LEAD_STATUS_CATEGORY) {
+      return res.status(404).json({ error: 'Lookup category not found' });
+    }
+    await deleteCustomLeadStatus(req.params.optionId);
+    ok(res, { message: 'Lookup option removed' });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/* ── Lead statuses (legacy aliases) ── */
 
 router.get('/lead-statuses', requireAdmin, async (_, res) => {
   try {

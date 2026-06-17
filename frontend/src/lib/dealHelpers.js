@@ -62,6 +62,7 @@ export function toDealPayload(form, { partial = false } = {}) {
     deal_type: form.deal_type || null,
     lead_source: form.lead_source || null,
     description: form.description || null,
+    proposal_amount: form.proposal_amount || null,
     owner_id: form.owner_id || null,
   };
   if (partial) {

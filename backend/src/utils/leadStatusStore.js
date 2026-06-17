@@ -1,6 +1,8 @@
+const { randomUUID } = require('crypto');
 const pool = require('../db/pool');
 
 const SETTINGS_KEY = 'custom_lead_statuses';
+const LEAD_STATUS_CATEGORY = 'lead-statuses';
 
 /** Pipeline + common CRM statuses — cannot be deleted by admin */
 const SYSTEM_LEAD_STATUSES = [
@@ -26,6 +28,38 @@ function slugifyStatus(label) {
     .replace(/^_+|_+$/g, '');
 }
 
+function systemOption(status, index) {
+  const now = new Date().toISOString();
+  return {
+    id: `system-${status.value}`,
+    category: LEAD_STATUS_CATEGORY,
+    value: status.value,
+    label: status.label,
+    sort_order: index,
+    is_active: true,
+    is_system: true,
+    metadata: null,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+function customOption(entry, index) {
+  const now = new Date().toISOString();
+  return {
+    id: entry.id || entry.value,
+    category: LEAD_STATUS_CATEGORY,
+    value: entry.value,
+    label: entry.label,
+    sort_order: entry.sort_order ?? index + SYSTEM_LEAD_STATUSES.length,
+    is_active: entry.is_active ?? true,
+    is_system: false,
+    metadata: entry.metadata ?? null,
+    created_at: entry.created_at || now,
+    updated_at: entry.updated_at || now,
+  };
+}
+
 async function getCustomLeadStatuses() {
   try {
     const result = await pool.query(`SELECT value FROM settings WHERE key=$1`, [SETTINGS_KEY]);
@@ -33,7 +67,17 @@ async function getCustomLeadStatuses() {
     if (!Array.isArray(raw)) return [];
     return raw
       .filter((item) => item?.value && item?.label)
-      .map((item) => ({ value: item.value, label: item.label, is_system: false }));
+      .map((item) => ({
+        id: item.id || item.value,
+        value: item.value,
+        label: item.label,
+        sort_order: item.sort_order,
+        is_active: item.is_active,
+        metadata: item.metadata,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        is_system: false,
+      }));
   } catch {
     return [];
   }
@@ -50,14 +94,26 @@ async function saveCustomLeadStatuses(statuses) {
 async function getAllLeadStatuses() {
   const custom = await getCustomLeadStatuses();
   const systemValues = new Set(SYSTEM_LEAD_STATUSES.map((s) => s.value));
-  const merged = [
+  return [
     ...SYSTEM_LEAD_STATUSES,
     ...custom.filter((s) => !systemValues.has(s.value)),
   ];
-  return merged;
 }
 
-async function addCustomLeadStatus({ label, value }) {
+async function getLeadStatusLookupCategory() {
+  const custom = await getCustomLeadStatuses();
+  const options = [
+    ...SYSTEM_LEAD_STATUSES.map(systemOption),
+    ...custom.map(customOption),
+  ];
+  return {
+    category: LEAD_STATUS_CATEGORY,
+    label: 'Lead Statuses',
+    options,
+  };
+}
+
+async function addCustomLeadStatus({ label, value, sort_order, is_active = true }) {
   const trimmedLabel = String(label || '').trim();
   if (!trimmedLabel) {
     const err = new Error('Status label is required');
@@ -77,34 +133,70 @@ async function addCustomLeadStatus({ label, value }) {
     throw err;
   }
   const custom = await getCustomLeadStatuses();
-  const entry = { value: slug, label: trimmedLabel, is_system: false };
+  const now = new Date().toISOString();
+  const entry = {
+    id: randomUUID(),
+    value: slug,
+    label: trimmedLabel,
+    sort_order: sort_order ?? custom.length + SYSTEM_LEAD_STATUSES.length,
+    is_active: is_active !== false,
+    metadata: null,
+    created_at: now,
+    updated_at: now,
+  };
   custom.push(entry);
-  await saveCustomLeadStatuses(custom.map(({ value, label }) => ({ value, label })));
-  return entry;
+  await saveCustomLeadStatuses(custom);
+  return customOption(entry, entry.sort_order);
 }
 
-async function deleteCustomLeadStatus(value) {
-  const system = SYSTEM_LEAD_STATUSES.find((s) => s.value === value);
+async function updateCustomLeadStatus(optionId, payload = {}) {
+  const custom = await getCustomLeadStatuses();
+  const idx = custom.findIndex((s) => s.id === optionId || s.value === optionId);
+  if (idx < 0) {
+    const err = new Error('Custom status not found');
+    err.status = 404;
+    throw err;
+  }
+  const current = custom[idx];
+  const updated = {
+    ...current,
+    label: payload.label ?? current.label,
+    sort_order: payload.sort_order ?? current.sort_order,
+    is_active: payload.is_active ?? current.is_active,
+    metadata: payload.metadata ?? current.metadata,
+    updated_at: new Date().toISOString(),
+  };
+  custom[idx] = updated;
+  await saveCustomLeadStatuses(custom);
+  return customOption(updated, updated.sort_order);
+}
+
+async function deleteCustomLeadStatus(optionId) {
+  const custom = await getCustomLeadStatuses();
+  const target = custom.find((s) => s.id === optionId || s.value === optionId);
+  if (!target) {
+    const err = new Error('Custom status not found');
+    err.status = 404;
+    throw err;
+  }
+  const system = SYSTEM_LEAD_STATUSES.find((s) => s.value === target.value || s.value === optionId);
   if (system) {
     const err = new Error('System statuses cannot be deleted');
     err.status = 400;
     throw err;
   }
-  const custom = await getCustomLeadStatuses();
-  const next = custom.filter((s) => s.value !== value);
-  if (next.length === custom.length) {
-    const err = new Error('Custom status not found');
-    err.status = 404;
-    throw err;
-  }
-  await saveCustomLeadStatuses(next.map(({ value, label }) => ({ value, label })));
+  const next = custom.filter((s) => s.id !== target.id && s.value !== target.value);
+  await saveCustomLeadStatuses(next);
   return { message: 'Status removed' };
 }
 
 module.exports = {
+  LEAD_STATUS_CATEGORY,
   SYSTEM_LEAD_STATUSES,
   slugifyStatus,
   getAllLeadStatuses,
+  getLeadStatusLookupCategory,
   addCustomLeadStatus,
+  updateCustomLeadStatus,
   deleteCustomLeadStatus,
 };

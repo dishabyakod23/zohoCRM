@@ -160,6 +160,12 @@ export default function PipelineLeadList({ stage, description }) {
             {stage === PIPELINE_RAW && canEdit && (
               <Link href="/raw-leads/create" className="btn-primary text-xs">+ Create Raw Lead</Link>
             )}
+            {stage === PIPELINE_QUALIFIED && canEdit && (
+              <Link href="/qualified-leads/create" className="btn-primary text-xs">+ Create Qualified Lead</Link>
+            )}
+            {stage === PIPELINE_PROPOSAL && canEdit && (
+              <Link href="/proposals/create" className="btn-primary text-xs">+ Create Proposal</Link>
+            )}
             {config?.allowUpload && canAssignLeads && (
               <button onClick={() => setUploadOpen(true)} className="btn-secondary text-xs">Upload CSV</button>
             )}

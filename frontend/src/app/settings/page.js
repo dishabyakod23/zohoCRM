@@ -192,7 +192,7 @@ export default function SettingsPage() {
     try {
       await adminApi.createAdminLeadStatus({
         label: statusLabel.trim(),
-        value: statusValue.trim() || undefined,
+        value: statusValue.trim() || slugifyStatusValue(statusLabel),
       });
       setStatusLabel('');
       setStatusValue('');
@@ -205,10 +205,10 @@ export default function SettingsPage() {
     }
   };
 
-  const removeLeadStatus = async (value) => {
-    setDeletingStatus(value);
+  const removeLeadStatus = async (optionId) => {
+    setDeletingStatus(optionId);
     try {
-      await adminApi.deleteAdminLeadStatus(value);
+      await adminApi.deleteAdminLeadStatus(optionId);
       showToast('Status removed', 'success');
       loadLeadStatuses();
     } catch (err) {
@@ -334,7 +334,11 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="card p-5">
               <h2 className="text-sm font-semibold mb-1">Add Custom Lead Status</h2>
-              <p className="text-xs text-zoho-muted mb-4">Create statuses for your sales pipeline. System statuses cannot be removed.</p>
+              <p className="text-xs text-zoho-muted mb-4">
+                Manage via <code className="text-brand-600">/admin/lookup-options/lead-statuses</code>.
+                Status value is saved as snake_case (e.g. <code className="text-brand-600">follow_up_required</code>).
+                System statuses cannot be removed.
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                 <FormField label="Status Label" name="status_label">
                   <input
@@ -384,7 +388,7 @@ export default function SettingsPage() {
                     ) : leadStatuses.length === 0 ? (
                       <tr><td colSpan={4} className="table-td text-center py-8 text-gray-400">No statuses found</td></tr>
                     ) : leadStatuses.map((s) => (
-                      <tr key={s.value}>
+                      <tr key={s.id || s.value}>
                         <td className="table-td font-medium">{s.label}</td>
                         <td className="table-td font-mono text-xs text-zoho-muted">{s.value}</td>
                         <td className="table-td">
@@ -393,14 +397,14 @@ export default function SettingsPage() {
                           </span>
                         </td>
                         <td className="table-td">
-                          {!s.is_system && (
+                          {!s.is_system && s.id && (
                             <button
                               type="button"
-                              onClick={() => removeLeadStatus(s.value)}
-                              disabled={deletingStatus === s.value}
+                              onClick={() => removeLeadStatus(s.id)}
+                              disabled={deletingStatus === s.id}
                               className="text-xs text-red-600 hover:underline disabled:opacity-50"
                             >
-                              {deletingStatus === s.value ? 'Removing...' : 'Delete'}
+                              {deletingStatus === s.id ? 'Removing...' : 'Delete'}
                             </button>
                           )}
                         </td>

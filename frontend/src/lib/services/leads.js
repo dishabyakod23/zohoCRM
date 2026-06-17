@@ -1,5 +1,6 @@
 import api from '../api.js';
 import { normalizeLead, toLeadPayload, resolveLeadStatusForApi } from '../leadHelpers.js';
+import { normalizeNote } from './notes.js';
 import { toConvertPayload } from '../dealHelpers.js';
 import {
   PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PROPOSAL_SOURCE,
@@ -62,12 +63,17 @@ export async function convertLead(id, form) {
 
 export async function listLeadNotes(id) {
   const res = await api.get(`/leads/${id}/notes`);
-  return res.data.data || [];
+  return (res.data.data || []).map(normalizeNote);
 }
 
 export async function createLeadNote(id, body) {
   const res = await api.post(`/leads/${id}/notes`, { body });
-  return res.data.data;
+  return normalizeNote(res.data.data);
+}
+
+export async function updateLeadNote(leadId, noteId, body) {
+  const res = await api.patch(`/leads/${leadId}/notes/${noteId}`, { body });
+  return normalizeNote(res.data.data);
 }
 
 export async function deleteLeadNote(leadId, noteId) {
@@ -100,6 +106,22 @@ export async function createRawLead(form) {
     ...form,
     lead_status: form.lead_status || PIPELINE_RAW,
     source: form.source || form.lead_source || 'Manual Entry',
+  });
+}
+
+export async function createQualifiedLead(form) {
+  return createLead({
+    ...form,
+    lead_status: form.lead_status || PIPELINE_QUALIFIED,
+    source: form.source || form.lead_source || 'Manual Entry',
+  });
+}
+
+export async function createProposal(form) {
+  return createLead({
+    ...form,
+    lead_status: PIPELINE_QUALIFIED,
+    source: PROPOSAL_SOURCE,
   });
 }
 

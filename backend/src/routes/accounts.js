@@ -46,9 +46,29 @@ router.post('/', requireEdit, async (req, res) => {
   if (!name || !b.phone) return res.status(400).json({ error: 'Account name and phone are required' });
   try {
     const result = await pool.query(
-      `INSERT INTO accounts (name, industry, website, phone, city, state, zip_code, country, account_type, annual_revenue, description, owner_id, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-      [name, b.industry, b.website, b.phone, b.city, b.state, b.zip_code || b.zip, b.country, b.account_type, b.annual_revenue, b.description, b.owner_id || req.user.id, req.user.id]
+      `INSERT INTO accounts (
+        name, account_site, account_number, account_type, industry, annual_revenue, rating,
+        phone, fax, website, ticker_symbol, ownership, employees, sic_code,
+        parent_account_id,
+        billing_flat, billing_street, billing_city, billing_state, billing_country, billing_zip, billing_lat, billing_lng,
+        shipping_flat, shipping_street, shipping_city, shipping_state, shipping_country, shipping_zip, shipping_lat, shipping_lng,
+        description, proposal_amount, owner_id, created_by
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
+        $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,
+        $32,$33,$34,$35
+      ) RETURNING *`,
+      [
+        name, b.account_site, b.account_number, b.account_type, b.industry,
+        b.annual_revenue || null, b.rating, b.phone, b.fax, b.website,
+        b.ticker_symbol, b.ownership, b.employees || null, b.sic_code,
+        b.parent_account_id || null,
+        b.billing_flat, b.billing_street, b.billing_city, b.billing_state, b.billing_country, b.billing_zip,
+        b.billing_lat || null, b.billing_lng || null,
+        b.shipping_flat, b.shipping_street, b.shipping_city, b.shipping_state, b.shipping_country, b.shipping_zip,
+        b.shipping_lat || null, b.shipping_lng || null,
+        b.description, b.proposal_amount || null, b.owner_id || req.user.id, req.user.id,
+      ]
     );
     recordOk(res, result.rows[0], 201);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -59,10 +79,25 @@ const updateAccount = async (req, res) => {
   const name = b.name || b.account_name;
   try {
     const result = await pool.query(
-      `UPDATE accounts SET name=$1, industry=$2, website=$3, phone=$4, city=$5, state=$6, zip_code=$7, country=$8,
-       account_type=$9, annual_revenue=$10, description=$11, owner_id=$12, updated_by=$13, updated_at=NOW()
-       WHERE id=$14 AND deleted_at IS NULL RETURNING *`,
-      [name, b.industry, b.website, b.phone, b.city, b.state, b.zip_code || b.zip, b.country, b.account_type, b.annual_revenue, b.description, b.owner_id, req.user.id, req.params.id]
+      `UPDATE accounts SET
+        name=$1, account_site=$2, account_number=$3, account_type=$4, industry=$5, annual_revenue=$6, rating=$7,
+        phone=$8, fax=$9, website=$10, ticker_symbol=$11, ownership=$12, employees=$13, sic_code=$14,
+        parent_account_id=$15,
+        billing_flat=$16, billing_street=$17, billing_city=$18, billing_state=$19, billing_country=$20, billing_zip=$21, billing_lat=$22, billing_lng=$23,
+        shipping_flat=$24, shipping_street=$25, shipping_city=$26, shipping_state=$27, shipping_country=$28, shipping_zip=$29, shipping_lat=$30, shipping_lng=$31,
+        description=$32, proposal_amount=$33, owner_id=$34, updated_by=$35, updated_at=NOW()
+       WHERE id=$36 AND deleted_at IS NULL RETURNING *`,
+      [
+        name, b.account_site, b.account_number, b.account_type, b.industry,
+        b.annual_revenue || null, b.rating, b.phone, b.fax, b.website,
+        b.ticker_symbol, b.ownership, b.employees || null, b.sic_code,
+        b.parent_account_id || null,
+        b.billing_flat, b.billing_street, b.billing_city, b.billing_state, b.billing_country, b.billing_zip,
+        b.billing_lat || null, b.billing_lng || null,
+        b.shipping_flat, b.shipping_street, b.shipping_city, b.shipping_state, b.shipping_country, b.shipping_zip,
+        b.shipping_lat || null, b.shipping_lng || null,
+        b.description, b.proposal_amount || null, b.owner_id, req.user.id, req.params.id,
+      ]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Account not found' });
     recordOk(res, result.rows[0]);

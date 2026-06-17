@@ -49,7 +49,7 @@ router.get('/:id/notes', async (req, res) => {
        WHERE n.related_type='lead' AND n.related_id=$1 ORDER BY n.created_at DESC`,
       [req.params.id]
     );
-    res.json({ data: result.rows });
+    res.json({ data: result.rows.map((row) => ({ ...row, body: row.content })) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -60,7 +60,21 @@ router.post('/:id/notes', requireEdit, async (req, res) => {
       `INSERT INTO notes (content, related_type, related_id, owner_id) VALUES ($1,'lead',$2,$3) RETURNING *`,
       [body, req.params.id, req.user.id]
     );
-    recordOk(res, result.rows[0], 201);
+    const row = result.rows[0];
+    recordOk(res, { ...row, body: row.content }, 201);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/:id/notes/:noteId', requireEdit, async (req, res) => {
+  try {
+    const { body } = req.body;
+    const result = await pool.query(
+      `UPDATE notes SET content=$1, updated_at=NOW() WHERE id=$2 AND related_type='lead' AND related_id=$3 RETURNING *`,
+      [body, req.params.noteId, req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Note not found' });
+    const row = result.rows[0];
+    recordOk(res, { ...row, body: row.content });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -103,12 +117,12 @@ router.post('/', requireEdit, async (req, res) => {
   try {
     const result = await pool.query(
       `INSERT INTO leads (first_name, last_name, email, phone, company, source, status, title, mobile, industry,
-        website, rating, annual_revenue, employees, street, city, state, country, zip, description, owner_id, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING *`,
+        website, rating, annual_revenue, employees, street, city, state, country, zip, description, proposal_amount, owner_id, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING *`,
       [b.first_name, b.last_name, b.email, b.phone, b.company, source, status || 'not_contacted',
        b.title, b.mobile, b.industry, b.website, b.rating, b.annual_revenue,
        b.no_of_employees || b.employees, b.street, b.city, b.state, b.country,
-       b.zip_code || b.zip, b.description, b.owner_id || req.user.id, req.user.id]
+       b.zip_code || b.zip, b.description, b.proposal_amount || null, b.owner_id || req.user.id, req.user.id]
     );
     await logAudit({ recordType: 'lead', recordId: result.rows[0].id, action: 'created', userId: req.user.id });
     recordOk(res, result.rows[0], 201);
@@ -123,12 +137,12 @@ const updateLead = async (req, res) => {
     const result = await pool.query(
       `UPDATE leads SET first_name=$1, last_name=$2, email=$3, phone=$4, company=$5, source=$6, status=$7,
        title=$8, mobile=$9, industry=$10, website=$11, rating=$12, annual_revenue=$13, employees=$14,
-       street=$15, city=$16, state=$17, country=$18, zip=$19, description=$20,
-       owner_id=$21, updated_by=$22, updated_at=NOW() WHERE id=$23 AND deleted_at IS NULL RETURNING *`,
+       street=$15, city=$16, state=$17, country=$18, zip=$19, description=$20, proposal_amount=$21,
+       owner_id=$22, updated_by=$23, updated_at=NOW() WHERE id=$24 AND deleted_at IS NULL RETURNING *`,
       [b.first_name, b.last_name, b.email, b.phone, b.company, source, status,
        b.title, b.mobile, b.industry, b.website, b.rating, b.annual_revenue,
        b.no_of_employees || b.employees, b.street, b.city, b.state, b.country,
-       b.zip_code || b.zip, b.description, b.owner_id, req.user.id, req.params.id]
+       b.zip_code || b.zip, b.description, b.proposal_amount || null, b.owner_id, req.user.id, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Lead not found' });
     recordOk(res, result.rows[0]);

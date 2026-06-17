@@ -71,7 +71,7 @@ export function useRecordNotes(relatedType, recordId) {
     }
     setUpdatingId(noteId);
     try {
-      const updated = await notesApi.updateNote(noteId, editText.trim());
+      const updated = await notesApi.updateNote(relatedType, recordId, noteId, editText.trim());
       setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, ...updated, body: updated.body } : n)));
       cancelEdit();
       showToast('Note updated', 'success');
@@ -85,7 +85,7 @@ export function useRecordNotes(relatedType, recordId) {
   const removeNote = async (noteId) => {
     setDeletingId(noteId);
     try {
-      await notesApi.deleteNote(noteId);
+      await notesApi.deleteNote(relatedType, recordId, noteId);
       setNotes((prev) => prev.filter((n) => n.id !== noteId));
       if (editingId === noteId) cancelEdit();
       showToast('Note deleted', 'success');

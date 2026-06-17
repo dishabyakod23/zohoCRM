@@ -9,7 +9,7 @@ import { getApiError } from '../../lib/api.js';
 import {
   getBulkConfig, bulkDeleteRecords, exportRecordsCsv, printMailingLabels, sendBulkEmail,
 } from '../../lib/bulkModuleConfig.js';
-import { getNoteMeta } from '../../lib/noteHelpers.js';
+import { getNoteMeta, notesApiSupported } from '../../lib/noteHelpers.js';
 import * as notesApi from '../../lib/services/notes.js';
 import RecordNoteRowIcon from './RecordNoteRowIcon.js';
 import RecordNotesSidePanel from './RecordNotesSidePanel.js';
@@ -76,6 +76,7 @@ export default function RecordDataTable({
   const { canEdit, canDelete } = usePermissions();
   const config = useMemo(() => getBulkConfig(moduleKey), [moduleKey]);
   const noteMeta = useMemo(() => getNoteMeta(moduleKey), [moduleKey]);
+  const showNotes = notesApiSupported(moduleKey);
   const resolvedConvertOptions = convertOptions ?? config.convertOptions ?? [];
 
   const [selected, setSelected] = useState([]);
@@ -118,7 +119,7 @@ export default function RecordDataTable({
   }, []);
 
   useEffect(() => {
-    if (!noteMeta.relatedType || records.length === 0) {
+    if (!showNotes || !noteMeta.relatedType || records.length === 0) {
       setNotesCache({});
       return undefined;
     }
@@ -136,7 +137,7 @@ export default function RecordDataTable({
       if (!cancelled) setNotesCache(Object.fromEntries(entries));
     })();
     return () => { cancelled = true; };
-  }, [records, noteMeta.relatedType, getRowId]);
+  }, [records, noteMeta.relatedType, getRowId, showNotes]);
 
   const updateNotesCache = useCallback((recordId, notesList) => {
     setNotesCache((prev) => ({
@@ -321,9 +322,9 @@ export default function RecordDataTable({
         <table className="w-full">
           <thead>
             <tr>
-              <th className="table-th w-[4.5rem]">
+              <th className={`table-th ${showNotes ? 'w-[4.5rem]' : 'w-10'}`}>
                 <div className="flex items-center gap-2">
-                  <span className="w-7 shrink-0" aria-hidden="true" />
+                  {showNotes && <span className="w-7 shrink-0" aria-hidden="true" />}
                   <input type="checkbox" className="rounded border-zoho-border" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" />
                 </div>
               </th>
@@ -345,13 +346,15 @@ export default function RecordDataTable({
                 <tr key={id} className="hover:bg-brand-50/30 transition-colors">
                   <td className="table-td">
                     <div className="flex items-center gap-2">
-                      <RecordNoteRowIcon
-                        latestNote={cached.latest}
-                        noteCount={cached.count}
-                        moduleLabel={noteMeta.moduleLabel}
-                        recordLabel={recordLabel}
-                        onOpen={() => setPanelRecord({ id, label: recordLabel })}
-                      />
+                      {showNotes && (
+                        <RecordNoteRowIcon
+                          latestNote={cached.latest}
+                          noteCount={cached.count}
+                          moduleLabel={noteMeta.moduleLabel}
+                          recordLabel={recordLabel}
+                          onOpen={() => setPanelRecord({ id, label: recordLabel })}
+                        />
+                      )}
                       <input type="checkbox" className="rounded border-zoho-border" checked={selected.includes(id)} onChange={() => toggleSelect(id)} />
                     </div>
                   </td>
@@ -420,7 +423,7 @@ export default function RecordDataTable({
       )}
 
       <RecordNotesSidePanel
-        open={!!panelRecord}
+        open={!!panelRecord && showNotes}
         onClose={() => setPanelRecord(null)}
         relatedType={noteMeta.relatedType}
         recordId={panelRecord?.id}

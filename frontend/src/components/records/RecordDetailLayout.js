@@ -23,14 +23,15 @@ export default function RecordDetailLayout({
   children,
   tabContent,
 }) {
-  const resolvedTabs = tabs ?? (recordNotes ? ['Overview', 'Notes'] : ['Overview']);
+  const showNotes = recordNotes?.relatedType === 'lead';
+  const resolvedTabs = tabs ?? (showNotes ? ['Overview', 'Notes'] : ['Overview']);
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   const initials = avatarLabel || title?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
   const renderTabBody = (tab) => {
     if (tabContent) return tabContent(tab);
-    if (tab === 'Notes' && recordNotes) {
+    if (tab === 'Notes' && showNotes && recordNotes) {
       return <RecordNotesTab relatedType={recordNotes.relatedType} recordId={recordNotes.recordId} canEdit={recordNotes.canEdit} />;
     }
     if (tab === defaultTab || tab === resolvedTabs[0]) return children;
