@@ -22,7 +22,6 @@ import {
   startOfMonth,
   startOfWeek,
   toDateKey,
-  todayKey,
   resolveCalendarAssigneeIds,
   ASSIGN_TO_ME,
 } from '../../lib/calendarHelpers.js';
@@ -100,7 +99,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editEvent, setEditEvent] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(todayKey());
+  const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()));
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState([]);
   const [ownerFilter, setOwnerFilter] = useState('');
@@ -145,7 +144,7 @@ export default function CalendarPage() {
   useEffect(() => { loadEvents(); }, [loadEvents]);
 
   const eventsByDate = useMemo(() => groupEventsByDate(events), [events]);
-  const today = todayKey();
+  const today = toDateKey(new Date());
   const monthGrid = useMemo(() => buildMonthGrid(viewDate), [viewDate]);
   const weekDays = useMemo(() => buildWeekDays(viewDate), [viewDate]);
   const selectedEvents = eventsByDate[selectedDate] || [];
@@ -224,7 +223,7 @@ export default function CalendarPage() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-zoho-border shadow-sm hover:shadow text-sm font-medium disabled:opacity-50">
             <PlusIcon className="w-4 h-4" /> Create
           </button>
-          <button type="button" onClick={() => { const n = new Date(); setViewDate(n); setSelectedDate(todayKey()); }}
+          <button type="button" onClick={() => { const n = new Date(); setViewDate(n); setSelectedDate(toDateKey(n)); }}
             className="px-4 py-2 rounded-full border border-zoho-border text-sm font-medium hover:bg-gray-50">
             Today
           </button>
