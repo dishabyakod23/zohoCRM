@@ -9,7 +9,7 @@ import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
-import { validateRequired, validatePastDate } from '../../lib/validators.js';
+import { validateRequired } from '../../lib/validators.js';
 import { FALLBACK_DEAL_STAGES } from '../../lib/dealHelpers.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
@@ -76,8 +76,6 @@ export default function DealsPage() {
 
   const handleSave = async () => {
     const errs = validateRequired({ deal_name: 'Deal Name', account_id: 'Account Name', closing_date: 'Closing Date', stage_value: 'Stage', amount: 'Amount' }, form);
-    const dateErr = validatePastDate(form.closing_date, 'Closing Date');
-    if (dateErr) errs.closing_date = dateErr;
     setErrors(errs);
     if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
     setSaving(true);
@@ -172,11 +170,20 @@ export default function DealsPage() {
                     </div>
                     <div className="flex-1 space-y-2 p-2 bg-gray-50 border rounded-b-lg min-h-40">
                       {byStage(value).map(d => (
-                        <div key={d.id} draggable onDragStart={() => setDragDeal(d)}>
-                        <Link href={`/deals/${d.id}`} className="block bg-white border rounded-lg p-3 shadow-sm cursor-grab hover:border-brand-300 text-xs">
-                          <p className="font-medium">{d.name}</p><p className="text-gray-500">{d.account_name}</p>
-                          <p className="font-semibold mt-1">{fmt(d.amount)}</p>
-                        </Link>
+                        <div key={d.id} className="bg-white border rounded-lg p-3 shadow-sm hover:border-brand-300 text-xs flex gap-2">
+                          <div
+                            draggable
+                            onDragStart={() => setDragDeal(d)}
+                            className="cursor-grab text-gray-400 shrink-0 select-none pt-0.5"
+                            title="Drag to change stage"
+                            aria-label="Drag to change stage"
+                          >
+                            ⋮⋮
+                          </div>
+                          <Link href={`/deals/${d.id}`} className="flex-1 block min-w-0">
+                            <p className="font-medium">{d.name}</p><p className="text-gray-500">{d.account_name}</p>
+                            <p className="font-semibold mt-1">{fmt(d.amount)}</p>
+                          </Link>
                         </div>
                       ))}
                     </div>

@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import StickyNote, { isStickyNotePinned } from './StickyNote.js';
+import { getRecentItemHref } from '../../lib/recentItemHelpers.js';
+import * as dashboardApi from '../../lib/services/dashboard.js';
 
 const ICONS = {
   announcements: (
@@ -58,6 +60,7 @@ function Panel({ title, onClose, children, wide }) {
 export default function BottomUtilityBar() {
   const [active, setActive] = useState(null);
   const [reminders, setReminders] = useState([]);
+  const [announcements, setAnnouncements] = useState(ANNOUNCEMENTS);
   const [recent, setRecent] = useState([]);
   const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
   const [a11y, setA11y] = useState({ largeText: false, highContrast: false });
@@ -80,6 +83,34 @@ export default function BottomUtilityBar() {
     if (key === 'recent') {
       const stored = localStorage.getItem('crm_recent');
       if (stored) setRecent(JSON.parse(stored));
+    }
+    if (key === 'reminders') {
+      dashboardApi.getDashboardHome()
+        .then((home) => {
+          const tasks = [
+            ...(home.tasks?.overdue || []),
+            ...(home.tasks?.due_today || []),
+          ].map((t) => ({
+            id: t.id,
+            title: t.subject || t.title,
+            due_date: t.due_date,
+          }));
+          setReminders(tasks);
+        })
+        .catch(() => setReminders([]));
+    }
+    if (key === 'announcements') {
+      dashboardApi.getDashboardHome()
+        .then((home) => {
+          const fromActivities = (home.recent_activities || []).slice(0, 5).map((a, i) => ({
+            id: a.id || i,
+            title: `${a.action?.replace(/_/g, ' ') || 'Update'} — ${a.entity_type || 'record'}`,
+            body: a.user?.name || a.user?.email || 'System activity',
+            date: a.created_at ? new Date(a.created_at).toLocaleString() : '',
+          }));
+          setAnnouncements(fromActivities.length ? fromActivities : ANNOUNCEMENTS);
+        })
+        .catch(() => setAnnouncements(ANNOUNCEMENTS));
     }
     setActive(prev => prev === key ? null : key);
   };
@@ -148,7 +179,7 @@ export default function BottomUtilityBar() {
       {active === 'announcements' && (
         <Panel title="Announcements" onClose={() => setActive(null)}>
           <div className="space-y-3">
-            {ANNOUNCEMENTS.map(a => (
+            {announcements.map(a => (
               <div key={a.id} className="p-3 rounded-xl border border-zoho-border hover:bg-brand-50/50 hover:border-brand-200 transition-colors">
                 <p className="text-sm font-medium text-zoho-text">{a.title}</p>
                 <p className="text-xs text-zoho-muted mt-1">{a.body}</p>
@@ -166,7 +197,7 @@ export default function BottomUtilityBar() {
           ) : (
             <div className="space-y-2">
               {reminders.map(t => (
-                <Link key={t.id} href="/tasks" onClick={() => setActive(null)}
+                <Link key={t.id} href={`/tasks/${t.id}`} onClick={() => setActive(null)}
                   className="block p-3 rounded-xl border border-zoho-border hover:bg-brand-50 hover:border-brand-200 text-sm transition-colors">
                   <p className="font-medium">{t.title}</p>
                   <p className={`text-xs mt-1 ${new Date(t.due_date) < new Date() ? 'text-red-600' : 'text-zoho-muted'}`}>
@@ -237,11 +268,11 @@ export default function BottomUtilityBar() {
 }
 
 /** Call this when user views a record to populate Recent Items */
-export function trackRecentItem({ type, id, name }) {
+export function trackRecentItem({ type, id, name, href, pipelineStage, lead }) {
   if (typeof window === 'undefined') return;
-  const href = `/${type}s/${id}`;
+  const resolvedHref = href || getRecentItemHref({ type, id, pipelineStage, lead });
   const stored = JSON.parse(localStorage.getItem('crm_recent') || '[]');
-  const filtered = stored.filter(r => r.href !== href);
-  const updated = [{ type, id, name, href, time: Date.now() }, ...filtered].slice(0, 10);
+  const filtered = stored.filter(r => r.href !== resolvedHref);
+  const updated = [{ type, id, name, href: resolvedHref, time: Date.now() }, ...filtered].slice(0, 10);
   localStorage.setItem('crm_recent', JSON.stringify(updated));
 }

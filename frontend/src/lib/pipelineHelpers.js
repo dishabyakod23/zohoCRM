@@ -125,6 +125,13 @@ export function getConvertRedirectPath(target, leadId) {
   return fn ? fn(leadId) : `/leads/${leadId}`;
 }
 
+/** Detail URL for a lead based on pipeline stage (recent items, links). */
+export function getLeadDetailPath(leadOrStage, leadId) {
+  const stage = typeof leadOrStage === 'object' ? resolveLeadPipelineStage(leadOrStage) : leadOrStage;
+  if (stage && CONVERT_REDIRECT[stage]) return CONVERT_REDIRECT[stage](leadId);
+  return `/leads/${leadId}`;
+}
+
 /** Options for the unified Convert dropdown per pipeline stage */
 export function getConvertOptions(stage, { isAdmin = false } = {}) {
   const opts = [];

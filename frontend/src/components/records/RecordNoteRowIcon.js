@@ -1,7 +1,8 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import RecordNoteHoverPreview from './RecordNoteHoverPreview.js';
+import * as notesApi from '../../lib/services/notes.js';
 
 function NoteIconSvg({ className }) {
   return (
@@ -11,32 +12,69 @@ function NoteIconSvg({ className }) {
   );
 }
 
-export default function RecordNoteRowIcon({ latestNote, noteCount = 0, moduleLabel, recordLabel, onOpen }) {
+export default function RecordNoteRowIcon({
+  relatedType,
+  recordId,
+  moduleLabel,
+  recordLabel,
+  onOpen,
+  latestNote: latestNoteProp,
+  noteCount: noteCountProp = 0,
+}) {
   const btnRef = useRef(null);
   const [hover, setHover] = useState(false);
   const [pos, setPos] = useState(null);
+  const [latestNote, setLatestNote] = useState(latestNoteProp || null);
+  const [noteCount, setNoteCount] = useState(noteCountProp);
+  const [loading, setLoading] = useState(false);
+  const loadedRef = useRef(false);
+
+  const loadNotes = useCallback(async () => {
+    if (loadedRef.current || !relatedType || !recordId) return;
+    loadedRef.current = true;
+    setLoading(true);
+    try {
+      const notes = await notesApi.listNotes(relatedType, recordId);
+      setLatestNote(notes[0] || null);
+      setNoteCount(notes.length);
+    } catch {
+      setLatestNote(null);
+      setNoteCount(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [relatedType, recordId]);
 
   const showPreview = () => {
+    loadNotes();
     const rect = btnRef.current?.getBoundingClientRect();
     if (rect) setPos({ top: rect.top, left: rect.right + 8 });
     setHover(true);
   };
+
+  const handleOpen = (e) => {
+    e.stopPropagation();
+    loadNotes().then(() => onOpen());
+  };
+
+  const displayCount = noteCountProp || noteCount;
 
   return (
     <>
       <button
         ref={btnRef}
         type="button"
-        onClick={(e) => { e.stopPropagation(); onOpen(); }}
+        onClick={handleOpen}
         onMouseEnter={showPreview}
         onMouseLeave={() => setHover(false)}
+        onFocus={loadNotes}
         className={`w-7 h-7 rounded border flex items-center justify-center transition-colors shrink-0 ${
-          noteCount > 0
+          displayCount > 0
             ? 'border-brand-200 bg-brand-50 text-brand-600 hover:bg-brand-100'
             : 'border-zoho-border/80 bg-white text-zoho-muted hover:border-brand-200 hover:text-brand-600'
         }`}
-        aria-label={noteCount ? `${noteCount} notes` : 'Notes'}
-        title="Notes"
+        aria-label={displayCount ? `${displayCount} notes` : 'Notes'}
+        title={loading ? 'Loading notes…' : 'Notes'}
       >
         <NoteIconSvg className="w-3.5 h-3.5" />
       </button>

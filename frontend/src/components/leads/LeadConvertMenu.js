@@ -77,6 +77,7 @@ export default function LeadConvertMenu({
   };
 
   const handleAccountConvert = async () => {
+    setConverting(true);
     try {
       const result = await leadsApi.convertLead(leadId, convertForm);
       showToast('Converted to Account', 'success');
@@ -85,6 +86,8 @@ export default function LeadConvertMenu({
       else if (result.account?.id) router.push(`/accounts/${result.account.id}`);
     } catch (err) {
       showToast(getApiError(err));
+    } finally {
+      setConverting(false);
     }
   };
 
@@ -156,8 +159,10 @@ export default function LeadConvertMenu({
               </>
             )}
             <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => setAccountModalOpen(false)} className="btn-secondary">Cancel</button>
-              <button type="button" onClick={handleAccountConvert} className="btn-primary">Convert</button>
+              <button type="button" onClick={() => setAccountModalOpen(false)} className="btn-secondary" disabled={converting}>Cancel</button>
+              <button type="button" onClick={handleAccountConvert} className="btn-primary" disabled={converting}>
+                {converting ? 'Converting...' : 'Convert'}
+              </button>
             </div>
           </div>
         </Modal>

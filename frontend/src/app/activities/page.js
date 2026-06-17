@@ -85,6 +85,11 @@ export default function ActivitiesPage() {
         </div>
 
         <div className="card rounded-t-none">
+          <div className="flex justify-end px-4 py-2 border-b border-zoho-border">
+            <Link href={tabs.find((t) => t.id === tab)?.href || '/tasks'} className="text-xs text-brand-600 hover:text-brand-700 font-medium">
+              View all {tab} →
+            </Link>
+          </div>
           {tab === 'tasks' && (
             <RecordDataTable
               moduleKey="tasks"

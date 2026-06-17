@@ -10,7 +10,6 @@ import {
   getBulkConfig, bulkDeleteRecords, exportRecordsCsv, printMailingLabels, sendBulkEmail,
 } from '../../lib/bulkModuleConfig.js';
 import { getNoteMeta, notesApiSupported } from '../../lib/noteHelpers.js';
-import * as notesApi from '../../lib/services/notes.js';
 import RecordNoteRowIcon from './RecordNoteRowIcon.js';
 import RecordNotesSidePanel from './RecordNotesSidePanel.js';
 import * as tasksApi from '../../lib/services/tasks.js';
@@ -133,7 +132,6 @@ export default function RecordDataTable({
   const showNotes = notesApiSupported(moduleKey);
 
   const [selected, setSelected] = useState([]);
-  const [notesCache, setNotesCache] = useState({});
   const [panelRecord, setPanelRecord] = useState(null);
   const [massUpdateOpen, setMassUpdateOpen] = useState(false);
   const [massField, setMassField] = useState('');
@@ -177,34 +175,6 @@ export default function RecordDataTable({
     };
     document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
-  }, []);
-
-  useEffect(() => {
-    if (!showNotes || !noteMeta.relatedType || records.length === 0) {
-      setNotesCache({});
-      return undefined;
-    }
-    let cancelled = false;
-    (async () => {
-      const entries = await Promise.all(records.map(async (record) => {
-        const recordId = getRowId(record);
-        try {
-          const notes = await notesApi.listNotes(noteMeta.relatedType, recordId);
-          return [recordId, { latest: notes[0] || null, count: notes.length }];
-        } catch {
-          return [recordId, { latest: null, count: 0 }];
-        }
-      }));
-      if (!cancelled) setNotesCache(Object.fromEntries(entries));
-    })();
-    return () => { cancelled = true; };
-  }, [records, noteMeta.relatedType, getRowId, showNotes]);
-
-  const updateNotesCache = useCallback((recordId, notesList) => {
-    setNotesCache((prev) => ({
-      ...prev,
-      [recordId]: { latest: notesList[0] || null, count: notesList.length },
-    }));
   }, []);
 
   const toggleSelect = useCallback((id) => {
@@ -516,15 +486,14 @@ export default function RecordDataTable({
             ) : records.map((record) => {
               const id = getRowId(record);
               const recordLabel = noteMeta.getLabel(record);
-              const cached = notesCache[id] || { latest: null, count: 0 };
               return (
                 <tr key={id} className="hover:bg-brand-50/30 transition-colors">
                   <td className="table-td">
                     <div className="flex items-center gap-2">
                       {showNotes && (
                         <RecordNoteRowIcon
-                          latestNote={cached.latest}
-                          noteCount={cached.count}
+                          relatedType={noteMeta.relatedType}
+                          recordId={id}
                           moduleLabel={noteMeta.moduleLabel}
                           recordLabel={recordLabel}
                           onOpen={() => setPanelRecord({ id, label: recordLabel })}
@@ -607,7 +576,6 @@ export default function RecordDataTable({
         recordLabel={panelRecord?.label}
         moduleLabel={noteMeta.moduleLabel}
         canEdit={canEdit}
-        onNotesChange={(notesList) => panelRecord && updateNotesCache(panelRecord.id, notesList)}
       />
     </>
   );

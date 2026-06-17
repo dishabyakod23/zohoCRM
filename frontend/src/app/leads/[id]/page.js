@@ -41,7 +41,7 @@ export default function LeadDetailPage() {
   const loadLead = useCallback(() => {
     leadsApi.getLead(id).then((r) => {
       setLead(r);
-      trackRecentItem({ type: 'lead', id, name: `${r.first_name} ${r.last_name}` });
+      trackRecentItem({ type: 'lead', id, name: `${r.first_name} ${r.last_name}`, lead: r });
     }).catch(() => {
       showToast('Lead not found');
       router.push('/leads');

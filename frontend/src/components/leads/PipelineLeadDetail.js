@@ -13,6 +13,7 @@ import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
+import { trackRecentItem } from '../layout/BottomUtilityBar.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { getPipelineConfig, pipelineStageLabel, isProposalLead, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } from '../../lib/pipelineHelpers.js';
@@ -62,6 +63,13 @@ export default function PipelineLeadDetail({ stage }) {
       }
       setLead(r);
       setAssignUserId(r.owner_id || user?.id || '');
+      trackRecentItem({
+        type: 'lead',
+        id,
+        name: `${r.first_name} ${r.last_name}`,
+        pipelineStage: stage,
+        lead: r,
+      });
     }).catch(() => {
       showToast('Lead not found');
       router.push(config?.listPath || '/dashboard');

@@ -35,6 +35,8 @@ export const MODULE_TABS = [
   { href: '/activities', label: 'Activities', match: ['/activities', '/tasks', '/meetings', '/calls'] },
   { href: '/campaigns', label: 'Campaigns', match: ['/campaigns'] },
   { href: '/documents', label: 'Documents', match: ['/documents'] },
+  { href: '/visits', label: 'Visits', match: ['/visits'] },
+  { href: '/projects', label: 'Projects', match: ['/projects'] },
   { href: '/reports', label: 'Reports', match: ['/reports'] },
 ];
 
