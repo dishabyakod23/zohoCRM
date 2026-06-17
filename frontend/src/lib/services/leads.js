@@ -1,20 +1,32 @@
 import api from '../api.js';
-import { normalizeLead, toLeadPayload } from '../leadHelpers.js';
+import { normalizeLead, toLeadPayload, resolveLeadStatusForApi } from '../leadHelpers.js';
 import { toConvertPayload } from '../dealHelpers.js';
-import { PIPELINE_RAW } from '../pipelineHelpers.js';
+import {
+  PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PROPOSAL_SOURCE,
+  filterLeadsByPipelineStage, toApiLeadStatus,
+} from '../pipelineHelpers.js';
 
-export async function listLeads({ page = 1, page_size = 15, search, lead_status, owner_id, sort_by, sort_order } = {}) {
+export async function listLeads({ page = 1, page_size = 15, search, lead_status, owner_id, sort_by, sort_order, pipeline_stage } = {}) {
   const params = { page, page_size };
   if (search) params.search = search;
-  if (lead_status) params.lead_status = lead_status;
+  const apiStatus = pipeline_stage === PIPELINE_PROPOSAL || pipeline_stage === PIPELINE_QUALIFIED
+    ? 'qualified_lead'
+    : toApiLeadStatus(lead_status) || (lead_status ? resolveLeadStatusForApi(lead_status) : null);
+  if (apiStatus) params.lead_status = apiStatus;
   if (owner_id) params.owner_id = owner_id;
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
 
   const res = await api.get('/leads', { params });
+  let data = (res.data.data || []).map((lead) => normalizeLead(lead));
+  if (pipeline_stage) {
+    data = filterLeadsByPipelineStage(data, pipeline_stage);
+  } else if (lead_status && toApiLeadStatus(lead_status) === 'qualified_lead' && lead_status !== PIPELINE_PROPOSAL) {
+    data = filterLeadsByPipelineStage(data, 'qualified_lead');
+  }
   return {
-    data: (res.data.data || []).map((lead) => normalizeLead(lead)),
-    total: res.data.meta?.total ?? 0,
+    data,
+    total: pipeline_stage ? data.length : (res.data.meta?.total ?? 0),
     meta: res.data.meta,
   };
 }
@@ -67,8 +79,12 @@ export async function listLeadAttachments(id) {
   return res.data.data || [];
 }
 
-export async function advanceLeadStage(id, lead_status) {
-  const res = await api.patch(`/leads/${id}`, { lead_status });
+export async function advanceLeadStage(id, lead_status, { proposal = false } = {}) {
+  const payload = { lead_status: resolveLeadStatusForApi(lead_status) };
+  if (proposal || lead_status === PIPELINE_PROPOSAL) {
+    payload.lead_source = PROPOSAL_SOURCE;
+  }
+  const res = await api.patch(`/leads/${id}`, payload);
   return normalizeLead(res.data.data);
 }
 
@@ -78,7 +94,11 @@ export async function assignLead(id, owner_id) {
 }
 
 export async function createRawLead(form) {
-  return createLead({ ...form, lead_status: PIPELINE_RAW, source: form.source || form.lead_source || 'Bulk Upload' });
+  return createLead({
+    ...form,
+    lead_status: form.lead_status || PIPELINE_RAW,
+    source: form.source || form.lead_source || 'Manual Entry',
+  });
 }
 
 /** Parse CSV text into row objects keyed by header names */

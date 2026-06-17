@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Badge from '../../components/ui/Badge.js';
+import RecordDataTable from '../../components/records/RecordDataTable.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import * as tasksApi from '../../lib/services/tasks.js';
@@ -17,19 +18,48 @@ export default function ActivitiesPage() {
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchActivities = useCallback(async () => {
     setLoading(true);
-    Promise.all([
-      tasksApi.listTasks({ page: 1, page_size: 10 }),
-      meetingsApi.listMeetings({ page: 1, page_size: 10 }),
-      callsApi.listCalls({ page: 1, page_size: 10 }),
-    ]).then(([t, m, c]) => {
+    try {
+      const [t, m, c] = await Promise.all([
+        tasksApi.listTasks({ page: 1, page_size: 10 }),
+        meetingsApi.listMeetings({ page: 1, page_size: 10 }),
+        callsApi.listCalls({ page: 1, page_size: 10 }),
+      ]);
       setTasks(t.data);
       setMeetings(m.data);
       setCalls(c.data);
-    }).catch(err => showToast(getApiError(err)))
-      .finally(() => setLoading(false));
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setLoading(false);
+    }
   }, [showToast]);
+
+  useEffect(() => { fetchActivities(); }, [fetchActivities]);
+
+  const taskColumns = useMemo(() => [
+    { id: 'subject', header: 'Subject', cell: (t) => <Link href={`/tasks/${t.id}`} className="font-medium text-brand-600 hover:underline">{t.title}</Link> },
+    { id: 'due', header: 'Due Date', cell: (t) => <span className={new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-600' : ''}>{new Date(t.due_date).toLocaleString()}</span> },
+    { id: 'status', header: 'Status', cell: (t) => <Badge label={t.status_label} /> },
+    { id: 'priority', header: 'Priority', cell: (t) => t.priority_label },
+    { id: 'assigned', header: 'Assigned To', cell: (t) => t.assigned_name },
+  ], []);
+
+  const meetingColumns = useMemo(() => [
+    { id: 'title', header: 'Title', cell: (m) => <Link href={`/meetings/${m.id}`} className="font-medium text-brand-600 hover:underline">{m.title}</Link> },
+    { id: 'from', header: 'From', cell: (m) => new Date(m.from_datetime).toLocaleString() },
+    { id: 'to', header: 'To', cell: (m) => new Date(m.to_datetime).toLocaleString() },
+    { id: 'host', header: 'Host', cell: (m) => m.host_name },
+    { id: 'location', header: 'Location', cell: (m) => m.location || '—' },
+  ], []);
+
+  const callColumns = useMemo(() => [
+    { id: 'subject', header: 'Subject', cell: (c) => <Link href={`/calls/${c.id}`} className="font-medium text-brand-600 hover:underline">{c.subject}</Link> },
+    { id: 'type', header: 'Type', cell: (c) => c.call_type_label },
+    { id: 'date', header: 'Date', cell: (c) => new Date(c.start_time).toLocaleString() },
+    { id: 'assigned', header: 'Assigned To', cell: (c) => c.assigned_name },
+  ], []);
 
   const tabs = [
     { id: 'tasks', label: 'Tasks', count: tasks.length, href: '/tasks' },
@@ -54,57 +84,36 @@ export default function ActivitiesPage() {
           ))}
         </div>
 
-        <div className="card rounded-t-none overflow-x-auto">
-          {loading ? <p className="text-center py-10 text-gray-400">Loading...</p> : (
-          <>
+        <div className="card rounded-t-none">
           {tab === 'tasks' && (
-            <table className="w-full">
-              <thead><tr><th className="table-th">Subject</th><th className="table-th">Due Date</th><th className="table-th">Status</th><th className="table-th">Priority</th><th className="table-th">Assigned To</th></tr></thead>
-              <tbody>
-                {tasks.length === 0 ? <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No tasks found</td></tr>
-                : tasks.map(t => (
-                <tr key={t.id} className="hover:bg-brand-50/30">
-                  <td className="table-td font-medium"><Link href="/tasks" className="text-brand-600 hover:underline">{t.title}</Link></td>
-                  <td className={`table-td ${new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-600' : ''}`}>{new Date(t.due_date).toLocaleString()}</td>
-                  <td className="table-td"><Badge label={t.status_label} /></td>
-                  <td className="table-td">{t.priority_label}</td>
-                  <td className="table-td">{t.assigned_name}</td>
-                </tr>
-              ))}</tbody>
-            </table>
+            <RecordDataTable
+              moduleKey="tasks"
+              records={tasks}
+              loading={loading}
+              columns={taskColumns}
+              onRefresh={fetchActivities}
+              emptyMessage="No tasks found"
+            />
           )}
           {tab === 'meetings' && (
-            <table className="w-full">
-              <thead><tr><th className="table-th">Title</th><th className="table-th">From</th><th className="table-th">To</th><th className="table-th">Host</th><th className="table-th">Location</th></tr></thead>
-              <tbody>
-                {meetings.length === 0 ? <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No meetings found</td></tr>
-                : meetings.map(m => (
-                <tr key={m.id} className="hover:bg-brand-50/30">
-                  <td className="table-td font-medium"><Link href="/meetings" className="text-brand-600">{m.title}</Link></td>
-                  <td className="table-td">{new Date(m.from_datetime).toLocaleString()}</td>
-                  <td className="table-td">{new Date(m.to_datetime).toLocaleString()}</td>
-                  <td className="table-td">{m.host_name}</td>
-                  <td className="table-td">{m.location || '—'}</td>
-                </tr>
-              ))}</tbody>
-            </table>
+            <RecordDataTable
+              moduleKey="meetings"
+              records={meetings}
+              loading={loading}
+              columns={meetingColumns}
+              onRefresh={fetchActivities}
+              emptyMessage="No meetings found"
+            />
           )}
           {tab === 'calls' && (
-            <table className="w-full">
-              <thead><tr><th className="table-th">Subject</th><th className="table-th">Type</th><th className="table-th">Date</th><th className="table-th">Assigned To</th></tr></thead>
-              <tbody>
-                {calls.length === 0 ? <tr><td colSpan={4} className="table-td text-center py-8 text-gray-400">No calls found</td></tr>
-                : calls.map(c => (
-                <tr key={c.id} className="hover:bg-brand-50/30">
-                  <td className="table-td font-medium"><Link href="/calls" className="text-brand-600">{c.subject}</Link></td>
-                  <td className="table-td">{c.call_type_label}</td>
-                  <td className="table-td">{new Date(c.start_time).toLocaleString()}</td>
-                  <td className="table-td">{c.assigned_name}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          )}
-          </>
+            <RecordDataTable
+              moduleKey="calls"
+              records={calls}
+              loading={loading}
+              columns={callColumns}
+              onRefresh={fetchActivities}
+              emptyMessage="No calls found"
+            />
           )}
         </div>
       </div>

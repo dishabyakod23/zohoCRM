@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
+import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -73,6 +74,14 @@ export default function CallsPage() {
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
+  const columns = useMemo(() => [
+    { id: 'subject', header: 'Subject', cell: (c) => <Link href={`/calls/${c.id}`} className="font-medium text-brand-600 hover:underline">{c.subject}</Link> },
+    { id: 'type', header: 'Type', cell: (c) => c.call_type_label },
+    { id: 'date', header: 'Date', cell: (c) => new Date(c.start_time).toLocaleString() },
+    { id: 'duration', header: 'Duration', cell: (c) => `${c.duration_minutes} min` },
+    { id: 'assigned', header: 'Assigned To', cell: (c) => c.assigned_name },
+  ], []);
+
   return (
     <CRMLayout>
       <div className="p-6">
@@ -80,22 +89,17 @@ export default function CallsPage() {
           <div><h1 className="text-xl font-bold">Calls</h1><p className="text-xs text-gray-500">{total} calls</p></div>
           {canEdit && <button onClick={openCreate} className="btn-primary">+ Log Call</button>}
         </div>
-        <div className="card overflow-x-auto">
+        <div className="card">
           <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search calls..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
-          <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Subject</th><th className="table-th">Type</th><th className="table-th">Date</th><th className="table-th">Duration</th><th className="table-th">Assigned To</th></tr></thead>
-            <tbody className="divide-y">
-              {loading ? <tr><td colSpan={5} className="table-td text-center py-8">Loading...</td></tr>
-              : items.length === 0 ? <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No calls found</td></tr>
-              : items.map(c => (
-              <tr key={c.id} className="hover:bg-gray-50 group">
-                <td className="table-td font-medium"><Link href={`/calls/${c.id}`} className="text-brand-600 hover:underline">{c.subject}</Link></td>
-                <td className="table-td">{c.call_type_label}</td>
-                <td className="table-td">{new Date(c.start_time).toLocaleString()}</td>
-                <td className="table-td">{c.duration_minutes} min</td>
-                <td className="table-td">{c.assigned_name}</td>
-              </tr>
-            ))}</tbody>
-          </table>
+          <RecordDataTable
+            moduleKey="calls"
+            records={items}
+            loading={loading}
+            columns={columns}
+            onRefresh={fetchItems}
+            emptyMessage="No calls found"
+            pagination={totalPages > 1 ? { page, totalPages, onPageChange: setPage, label: `${page} / ${totalPages}` } : undefined}
+          />
         </div>
       </div>
       {modal && <Modal title="Log Call" onClose={() => setModal(false)}>

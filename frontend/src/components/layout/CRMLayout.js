@@ -4,7 +4,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth.js';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import ModuleTabs from './ModuleTabs';
 import BottomUtilityBar from './BottomUtilityBar';
 
 export default function CRMLayout({ children }) {
@@ -41,7 +40,6 @@ export default function CRMLayout({ children }) {
       <Sidebar mobileOpen={mobileNavOpen} onNavigate={() => setMobileNavOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Header onMenuClick={() => setMobileNavOpen(true)} />
-        <ModuleTabs />
         <main className="flex-1 overflow-auto pb-0">{children}</main>
         <BottomUtilityBar />
       </div>

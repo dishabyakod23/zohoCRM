@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
+import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -80,6 +81,14 @@ export default function TasksPage() {
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
+  const columns = useMemo(() => [
+    { id: 'title', header: 'Title', cell: (t) => <Link href={`/tasks/${t.id}`} className="font-medium text-brand-600 hover:underline">{t.title}</Link> },
+    { id: 'due', header: 'Due Date', cell: (t) => <span className={new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-600 font-medium' : ''}>{new Date(t.due_date).toLocaleString()}</span> },
+    { id: 'assigned', header: 'Assigned To', cell: (t) => t.assigned_name },
+    { id: 'status', header: 'Status', cell: (t) => <Badge label={t.status_label} /> },
+    { id: 'priority', header: 'Priority', cell: (t) => t.priority_label },
+  ], []);
+
   return (
     <CRMLayout>
       <div className="p-6">
@@ -89,34 +98,16 @@ export default function TasksPage() {
         </div>
         <div className="card">
           <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search tasks..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
-          <table className="w-full">
-            <thead className="bg-gray-50"><tr>
-              <th className="table-th">Title</th><th className="table-th">Due Date</th><th className="table-th">Assigned To</th>
-              <th className="table-th">Status</th><th className="table-th">Priority</th>
-            </tr></thead>
-            <tbody className="divide-y divide-gray-50">
-              {loading ? <tr><td colSpan={5} className="table-td text-center py-8">Loading...</td></tr>
-              : tasks.length === 0 ? <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No tasks found</td></tr>
-              : tasks.map(t => (
-                <tr key={t.id} className="hover:bg-gray-50 group">
-                  <td className="table-td font-medium"><Link href={`/tasks/${t.id}`} className="text-brand-600 hover:underline">{t.title}</Link></td>
-                  <td className={`table-td ${new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-600 font-medium' : ''}`}>
-                    {new Date(t.due_date).toLocaleString()}
-                  </td>
-                  <td className="table-td">{t.assigned_name}</td>
-                  <td className="table-td"><Badge label={t.status_label} /></td>
-                  <td className="table-td">{t.priority_label}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {totalPages > 1 && (
-            <div className="flex justify-end gap-2 px-4 py-3 border-t">
-              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="btn-secondary text-xs disabled:opacity-40">Prev</button>
-              <span className="text-xs self-center">{page} / {totalPages}</span>
-              <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="btn-secondary text-xs disabled:opacity-40">Next</button>
-            </div>
-          )}
+          <RecordDataTable
+            moduleKey="tasks"
+            records={tasks}
+            loading={loading}
+            columns={columns}
+            statusOptions={statusOptions}
+            onRefresh={fetchTasks}
+            emptyMessage="No tasks found"
+            pagination={totalPages > 1 ? { page, totalPages, onPageChange: setPage, label: `${page} / ${totalPages}` } : undefined}
+          />
         </div>
       </div>
 

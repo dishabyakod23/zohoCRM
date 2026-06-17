@@ -14,7 +14,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
-import { getPipelineConfig, pipelineStageLabel } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, pipelineStageLabel, isProposalLead, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } from '../../lib/pipelineHelpers.js';
 import { LEAD_SOURCES } from '../../lib/constants.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon, ArrowPathIcon, UserIcon,
@@ -42,9 +42,16 @@ export default function PipelineLeadDetail({ stage }) {
     if (canAssignLeads) fetchUsers().then(setUsers).catch(() => {});
   }, [canAssignLeads]);
 
+  const leadMatchesStage = (r) => {
+    if (stage === PIPELINE_PROPOSAL) return isProposalLead(r);
+    if (stage === PIPELINE_QUALIFIED) return r.lead_status === 'qualified_lead' && !isProposalLead(r);
+    if (stage === PIPELINE_RAW) return r.lead_status === 'raw_prospect';
+    return r.lead_status === stage;
+  };
+
   const loadLead = useCallback(() => {
     leadsApi.getLead(id).then((r) => {
-      if (r.lead_status !== stage) {
+      if (!leadMatchesStage(r)) {
         showToast('This record is not in the expected pipeline stage');
         router.push(config?.listPath || '/dashboard');
         return;
@@ -91,7 +98,7 @@ export default function PipelineLeadDetail({ stage }) {
     if (!config?.convertTo) return;
     setConverting(true);
     try {
-      await leadsApi.advanceLeadStage(id, config.convertTo.status);
+      await leadsApi.advanceLeadStage(id, config.convertTo.status, { proposal: config.convertTo.proposal });
       showToast(`Converted to ${config.convertTo.label}`, 'success');
       setConvertConfirm(false);
       router.push(`${config.convertTo.redirectPath}/${id}`);

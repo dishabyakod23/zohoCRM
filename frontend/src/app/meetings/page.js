@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
+import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -69,6 +70,16 @@ export default function MeetingsPage() {
     }
   };
 
+  const totalPages = Math.ceil(total / LIMIT) || 1;
+
+  const columns = useMemo(() => [
+    { id: 'title', header: 'Title', cell: (m) => <Link href={`/meetings/${m.id}`} className="font-medium text-brand-600 hover:underline">{m.title}</Link> },
+    { id: 'from', header: 'From', cell: (m) => new Date(m.from_datetime).toLocaleString() },
+    { id: 'to', header: 'To', cell: (m) => new Date(m.to_datetime).toLocaleString() },
+    { id: 'host', header: 'Host', cell: (m) => m.host_name },
+    { id: 'location', header: 'Location', cell: (m) => m.location || '—' },
+  ], []);
+
   return (
     <CRMLayout>
       <div className="p-6">
@@ -76,22 +87,17 @@ export default function MeetingsPage() {
           <div><h1 className="text-xl font-bold">Meetings</h1><p className="text-xs text-gray-500">{total} meetings</p></div>
           {canEdit && <button onClick={openCreate} className="btn-primary">+ Create Meeting</button>}
         </div>
-        <div className="card overflow-x-auto">
+        <div className="card">
           <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search meetings..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
-          <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Title</th><th className="table-th">From</th><th className="table-th">To</th><th className="table-th">Host</th><th className="table-th">Location</th></tr></thead>
-            <tbody className="divide-y">
-              {loading ? <tr><td colSpan={5} className="table-td text-center py-8">Loading...</td></tr>
-              : items.length === 0 ? <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No meetings found</td></tr>
-              : items.map(m => (
-              <tr key={m.id} className="hover:bg-gray-50 group">
-                <td className="table-td font-medium"><Link href={`/meetings/${m.id}`} className="text-brand-600 hover:underline">{m.title}</Link></td>
-                <td className="table-td">{new Date(m.from_datetime).toLocaleString()}</td>
-                <td className="table-td">{new Date(m.to_datetime).toLocaleString()}</td>
-                <td className="table-td">{m.host_name}</td>
-                <td className="table-td">{m.location || '—'}</td>
-              </tr>
-            ))}</tbody>
-          </table>
+          <RecordDataTable
+            moduleKey="meetings"
+            records={items}
+            loading={loading}
+            columns={columns}
+            onRefresh={fetchItems}
+            emptyMessage="No meetings found"
+            pagination={totalPages > 1 ? { page, totalPages, onPageChange: setPage, label: `${page} / ${totalPages}` } : undefined}
+          />
         </div>
       </div>
       {modal && <Modal title="Create Meeting" onClose={() => setModal(false)}>

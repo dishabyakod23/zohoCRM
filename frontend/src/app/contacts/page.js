@@ -1,24 +1,21 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
-import Modal from '../../components/ui/Modal.js';
 import BulkUpload from '../../components/records/BulkUpload.js';
-import FormField, { inputClass } from '../../components/forms/FormField.js';
+import RecordDataTable from '../../components/records/RecordDataTable.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
-import { useOpenCreateParam } from '../../hooks/useOpenCreateParam.js';
 import { getApiError } from '../../lib/api.js';
-import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
-import { LEAD_SOURCES } from '../../lib/constants.js';
 
-const EMPTY = { first_name: '', last_name: '', email: '', phone: '', mobile: '', account_id: '', title: '', department: '', lead_source: '', description: '' };
 const LIMIT = 15;
 
 export default function ContactsPage() {
+  const router = useRouter();
   const { showToast } = useToast();
   const { canEdit } = usePermissions();
   const [contacts, setContacts] = useState([]);
@@ -28,10 +25,6 @@ export default function ContactsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState(EMPTY);
-  const [errors, setErrors] = useState({});
-  const [saving, setSaving] = useState(false);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
 
@@ -39,8 +32,12 @@ export default function ContactsPage() {
     fetchAccountLookups().then(setAccounts).catch(() => setAccounts([]));
   }, []);
 
-  const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
-  useOpenCreateParam(canEdit, openCreate);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !canEdit) return;
+    if (new URLSearchParams(window.location.search).get('create') === '1') {
+      router.replace('/contacts/create');
+    }
+  }, [canEdit, router]);
 
   const fetchContacts = useCallback(async () => {
     setLoading(true);
@@ -61,29 +58,22 @@ export default function ContactsPage() {
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
-  const handleSave = async () => {
-    const errs = validateRequired({ last_name: 'Last Name', account_id: 'Account Name', email: 'Email', phone: 'Phone' }, form);
-    const emailErr = validateEmail(form.email);
-    const phoneErr = validatePhone(form.phone);
-    if (emailErr) errs.email = emailErr;
-    if (phoneErr) errs.phone = phoneErr;
-    setErrors(errs);
-    if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
-    setSaving(true);
-    try {
-      await contactsApi.createContact(form);
-      setModal(false);
-      fetchContacts();
-      showToast('Contact saved', 'success');
-    } catch (err) {
-      showToast(getApiError(err));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const initials = (c) => `${c.first_name?.[0] || ''}${c.last_name?.[0] || ''}`.toUpperCase();
   const totalPages = Math.ceil(total / LIMIT) || 1;
+
+  const columns = useMemo(() => [
+    { id: 'contact', header: 'Contact', cell: (c) => (
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold shrink-0">{initials(c)}</div>
+        <Link href={`/contacts/${c.id}`} className="font-medium text-brand-600 hover:text-brand-700">{c.first_name} {c.last_name}</Link>
+      </div>
+    ) },
+    { id: 'title', header: 'Title', cell: (c) => c.title || '—' },
+    { id: 'company', header: 'Company', cell: (c) => c.account_name || '—' },
+    { id: 'email', header: 'Email', cell: (c) => <span className="text-brand-600">{c.email || '—'}</span> },
+    { id: 'phone', header: 'Phone', cell: (c) => c.phone || '—' },
+    { id: 'owner', header: 'Owner', cell: (c) => c.owner_name || '—' },
+  ], []);
 
   return (
     <CRMLayout>
@@ -92,7 +82,7 @@ export default function ContactsPage() {
           <div><h1 className="text-xl font-bold text-gray-900">Contacts</h1><p className="text-xs text-gray-500">{total} contacts</p></div>
           <div className="flex gap-2">
             <BulkUpload endpoint="/contacts" onDone={fetchContacts} templateHeaders={['first_name', 'last_name', 'email', 'phone', 'account_name']} />
-            {canEdit && <button onClick={openCreate} className="btn-primary">+ New contact</button>}
+            {canEdit && <Link href="/contacts/create" className="btn-primary">+ New contact</Link>}
           </div>
         </div>
 
@@ -104,92 +94,17 @@ export default function ContactsPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr>
-                  <th className="table-th">Contact</th>
-                  <th className="table-th">Title</th>
-                  <th className="table-th">Company</th>
-                  <th className="table-th">Email</th>
-                  <th className="table-th">Phone</th>
-                  <th className="table-th">Owner</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? <tr><td colSpan={6} className="table-td text-center text-zoho-muted py-12">Loading…</td></tr>
-                : contacts.length === 0 ? <tr><td colSpan={6} className="table-td text-center text-zoho-muted py-12">No contacts found</td></tr>
-                : contacts.map(c => (
-                  <tr key={c.id} className="hover:bg-brand-50/30 transition-colors">
-                    <td className="table-td">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold shrink-0">{initials(c)}</div>
-                        <Link href={`/contacts/${c.id}`} className="font-medium text-brand-600 hover:text-brand-700">{c.first_name} {c.last_name}</Link>
-                      </div>
-                    </td>
-                    <td className="table-td">{c.title || '—'}</td>
-                    <td className="table-td">{c.account_name || '—'}</td>
-                    <td className="table-td text-brand-600">{c.email || '—'}</td>
-                    <td className="table-td">{c.phone || '—'}</td>
-                    <td className="table-td">{c.owner_name || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex items-center justify-between px-4 py-3 border-t border-zoho-border/60">
-            <p className="text-xs text-zoho-muted">Page {page} of {totalPages}</p>
-            <div className="flex gap-2">
-              <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="btn-secondary-sm disabled:opacity-40">← Prev</button>
-              <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages} className="btn-secondary-sm disabled:opacity-40">Next →</button>
-            </div>
-          </div>
+          <RecordDataTable
+            moduleKey="contacts"
+            records={contacts}
+            loading={loading}
+            columns={columns}
+            onRefresh={fetchContacts}
+            emptyMessage="No contacts found"
+            pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
+          />
         </div>
       </div>
-
-      {modal && (
-        <Modal title="New Contact" onClose={() => setModal(false)}>
-          {/* Contact Information */}
-          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Contact Information</p>
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            <FormField label="First Name" name="first_name"><input className="input" value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} /></FormField>
-            <FormField label="Last Name" required error={errors.last_name} name="last_name"><input className={inputClass(errors.last_name)} value={form.last_name} onChange={e => { setForm(p => ({ ...p, last_name: e.target.value })); setErrors(er => ({ ...er, last_name: null })); }} /></FormField>
-            <FormField label="Account Name" required error={errors.account_id} name="account_id">
-              <select className={inputClass(errors.account_id)} value={form.account_id} onChange={e => { setForm(p => ({ ...p, account_id: e.target.value })); setErrors(er => ({ ...er, account_id: null })); }}>
-                <option value="">--None--</option>
-                {accounts.map(a => <option key={a.value} value={a.value}>{a.label || a.name}</option>)}
-              </select>
-            </FormField>
-            <FormField label="Job Title"><input className="input" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></FormField>
-            <FormField label="Department"><input className="input" value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value }))} /></FormField>
-            <FormField label="Lead Source">
-              <select className="input" value={form.lead_source} onChange={e => setForm(p => ({ ...p, lead_source: e.target.value }))}>
-                <option value="">--None--</option>{LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}
-              </select>
-            </FormField>
-          </div>
-
-          {/* Contact Details */}
-          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Contact Details</p>
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            <FormField label="Email" required error={errors.email} name="email"><input className={inputClass(errors.email)} type="email" value={form.email} onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setErrors(er => ({ ...er, email: null })); }} /></FormField>
-            <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); setErrors(er => ({ ...er, phone: null })); }} /></FormField>
-            <FormField label="Mobile"><input className="input" value={form.mobile} onChange={e => setForm(p => ({ ...p, mobile: e.target.value }))} /></FormField>
-          </div>
-
-          {/* Description */}
-          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Description</p>
-          <div className="mb-5">
-            <textarea className="input min-h-[80px] resize-y" placeholder="Add a description..." value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
-          </div>
-
-          <div className="flex gap-2 justify-end pt-3 border-t border-zoho-border">
-            <button onClick={() => setModal(false)} className="btn-secondary">Cancel</button>
-            <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save Contact'}</button>
-          </div>
-        </Modal>
-      )}
     </CRMLayout>
   );
 }

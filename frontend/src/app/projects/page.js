@@ -4,6 +4,7 @@ import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
+import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -67,6 +68,13 @@ export default function ProjectsPage() {
     }
   };
 
+  const columns = useMemo(() => [
+    { id: 'name', header: 'Name', cell: (p) => <Link href={`/projects/${p.id}`} className="font-medium text-brand-600 hover:underline">{p.name}</Link> },
+    { id: 'account', header: 'Account', cell: (p) => p.account_name || '—' },
+    { id: 'status', header: 'Status', cell: (p) => <Badge label={p.status_label} /> },
+    { id: 'dates', header: 'Dates', cell: (p) => <span className="text-xs">{p.start_date || '—'} → {p.end_date || '—'}</span> },
+  ], []);
+
   return (
     <CRMLayout>
       <div className="p-6">
@@ -74,20 +82,16 @@ export default function ProjectsPage() {
           <h1 className="text-xl font-bold">Projects</h1>
           {canEdit && <button onClick={openCreate} className="btn-primary">+ Create Project</button>}
         </div>
-        <div className="card overflow-x-auto">
-          <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Name</th><th className="table-th">Account</th><th className="table-th">Status</th><th className="table-th">Dates</th></tr></thead>
-            <tbody className="divide-y">
-              {loading ? <tr><td colSpan={4} className="table-td text-center py-8">Loading...</td></tr>
-              : items.length === 0 ? <tr><td colSpan={4} className="table-td text-center py-8 text-gray-400">No projects found</td></tr>
-              : items.map(p => (
-              <tr key={p.id} className="hover:bg-gray-50 group">
-                <td className="table-td font-medium"><Link href={`/projects/${p.id}`} className="text-brand-600 hover:underline">{p.name}</Link></td>
-                <td className="table-td">{p.account_name || '—'}</td>
-                <td className="table-td"><Badge label={p.status_label} /></td>
-                <td className="table-td text-xs">{p.start_date || '—'} → {p.end_date || '—'}</td>
-              </tr>
-            ))}</tbody>
-          </table>
+        <div className="card">
+          <RecordDataTable
+            moduleKey="projects"
+            records={items}
+            loading={loading}
+            columns={columns}
+            statusOptions={statusOptions}
+            onRefresh={fetchItems}
+            emptyMessage="No projects found"
+          />
         </div>
       </div>
       {modal && <Modal title="Create Project" onClose={() => setModal(false)}>

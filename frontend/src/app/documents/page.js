@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
+import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -76,6 +77,13 @@ export default function DocumentsPage() {
     }
   };
 
+  const columns = useMemo(() => [
+    { id: 'name', header: 'Name', cell: (d) => <Link href={`/documents/${d.id}`} className="font-medium text-brand-600 hover:underline">{d.name}</Link> },
+    { id: 'type', header: 'Type', cell: (d) => d.file_type || '—' },
+    { id: 'size', header: 'Size', cell: (d) => d.file_size ? `${(d.file_size / 1024).toFixed(1)} KB` : '—' },
+    { id: 'owner', header: 'Owner', cell: (d) => d.owner_name },
+  ], []);
+
   return (
     <CRMLayout>
       <div className="p-6">
@@ -85,19 +93,14 @@ export default function DocumentsPage() {
         </div>
         <div className="card">
           <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search documents..." value={search} onChange={e => setSearch(e.target.value)} /></div>
-          <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Name</th><th className="table-th">Type</th><th className="table-th">Size</th><th className="table-th">Owner</th></tr></thead>
-            <tbody className="divide-y">
-              {loading ? <tr><td colSpan={4} className="table-td text-center py-8">Loading...</td></tr>
-              : docs.length === 0 ? <tr><td colSpan={4} className="table-td text-center py-8 text-gray-400">No documents found</td></tr>
-              : docs.map(d => (
-              <tr key={d.id} className="hover:bg-gray-50 group">
-                <td className="table-td font-medium"><Link href={`/documents/${d.id}`} className="text-brand-600 hover:underline">{d.name}</Link></td>
-                <td className="table-td">{d.file_type || '—'}</td>
-                <td className="table-td">{d.file_size ? `${(d.file_size / 1024).toFixed(1)} KB` : '—'}</td>
-                <td className="table-td">{d.owner_name}</td>
-              </tr>
-            ))}</tbody>
-          </table>
+          <RecordDataTable
+            moduleKey="documents"
+            records={docs}
+            loading={loading}
+            columns={columns}
+            onRefresh={fetchDocs}
+            emptyMessage="No documents found"
+          />
         </div>
       </div>
 

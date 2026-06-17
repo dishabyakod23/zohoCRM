@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
+import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -66,6 +67,14 @@ export default function VisitsPage() {
     }
   };
 
+  const columns = useMemo(() => [
+    { id: 'title', header: 'Title', cell: (v) => <Link href={`/visits/${v.id}`} className="font-medium text-brand-600 hover:underline">{v.title}</Link> },
+    { id: 'date', header: 'Date', cell: (v) => new Date(v.visit_date).toLocaleString() },
+    { id: 'account', header: 'Account', cell: (v) => v.account_name || '—' },
+    { id: 'location', header: 'Location', cell: (v) => v.location || '—' },
+    { id: 'status', header: 'Status', cell: (v) => v.status_label },
+  ], []);
+
   return (
     <CRMLayout>
       <div className="p-6">
@@ -73,21 +82,16 @@ export default function VisitsPage() {
           <h1 className="text-xl font-bold">Visits</h1>
           {canEdit && <button onClick={openCreate} className="btn-primary">+ Log Visit</button>}
         </div>
-        <div className="card overflow-x-auto">
-          <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Title</th><th className="table-th">Date</th><th className="table-th">Account</th><th className="table-th">Location</th><th className="table-th">Status</th></tr></thead>
-            <tbody className="divide-y">
-              {loading ? <tr><td colSpan={5} className="table-td text-center py-8">Loading...</td></tr>
-              : items.length === 0 ? <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No visits found</td></tr>
-              : items.map(v => (
-              <tr key={v.id} className="hover:bg-gray-50 group">
-                <td className="table-td font-medium"><Link href={`/visits/${v.id}`} className="text-brand-600 hover:underline">{v.title}</Link></td>
-                <td className="table-td">{new Date(v.visit_date).toLocaleString()}</td>
-                <td className="table-td">{v.account_name || '—'}</td>
-                <td className="table-td">{v.location || '—'}</td>
-                <td className="table-td">{v.status_label}</td>
-              </tr>
-            ))}</tbody>
-          </table>
+        <div className="card">
+          <RecordDataTable
+            moduleKey="visits"
+            records={items}
+            loading={loading}
+            columns={columns}
+            statusOptions={statusOptions}
+            onRefresh={fetchItems}
+            emptyMessage="No visits found"
+          />
         </div>
       </div>
       {modal && <Modal title="Log Visit" onClose={() => setModal(false)}>

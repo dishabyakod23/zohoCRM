@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
+import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -74,6 +75,16 @@ export default function CampaignsPage() {
     }
   };
 
+  const totalPages = Math.ceil(total / LIMIT) || 1;
+
+  const columns = useMemo(() => [
+    { id: 'name', header: 'Name', cell: (c) => <Link href={`/campaigns/${c.id}`} className="font-medium text-brand-600 hover:underline">{c.name}</Link> },
+    { id: 'type', header: 'Type', cell: (c) => c.type_label },
+    { id: 'status', header: 'Status', cell: (c) => <Badge label={c.status_label} /> },
+    { id: 'dates', header: 'Dates', cell: (c) => <span className="text-xs">{c.start_date} → {c.end_date}</span> },
+    { id: 'members', header: 'Members', cell: (c) => c.member_count || 0 },
+  ], []);
+
   return (
     <CRMLayout>
       <div className="p-6">
@@ -81,22 +92,18 @@ export default function CampaignsPage() {
           <div><h1 className="text-xl font-bold">Campaigns</h1><p className="text-xs text-gray-500">{total} campaigns</p></div>
           {canEdit && <button onClick={openCreate} className="btn-primary">+ Create Campaign</button>}
         </div>
-        <div className="card overflow-x-auto">
+        <div className="card">
           <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search campaigns..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
-          <table className="w-full"><thead className="bg-gray-50"><tr><th className="table-th">Name</th><th className="table-th">Type</th><th className="table-th">Status</th><th className="table-th">Dates</th><th className="table-th">Members</th></tr></thead>
-            <tbody className="divide-y">
-              {loading ? <tr><td colSpan={5} className="table-td text-center py-8">Loading...</td></tr>
-              : items.length === 0 ? <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No campaigns found</td></tr>
-              : items.map(c => (
-              <tr key={c.id} className="hover:bg-gray-50 group">
-                <td className="table-td font-medium"><Link href={`/campaigns/${c.id}`} className="text-brand-600 hover:underline">{c.name}</Link></td>
-                <td className="table-td">{c.type_label}</td>
-                <td className="table-td"><Badge label={c.status_label} /></td>
-                <td className="table-td text-xs">{c.start_date} → {c.end_date}</td>
-                <td className="table-td">{c.member_count || 0}</td>
-              </tr>
-            ))}</tbody>
-          </table>
+          <RecordDataTable
+            moduleKey="campaigns"
+            records={items}
+            loading={loading}
+            columns={columns}
+            statusOptions={statusOptions}
+            onRefresh={fetchItems}
+            emptyMessage="No campaigns found"
+            pagination={totalPages > 1 ? { page, totalPages, onPageChange: setPage, label: `${page} / ${totalPages}` } : undefined}
+          />
         </div>
       </div>
       {modal && <Modal title="Create Campaign" onClose={() => setModal(false)}>

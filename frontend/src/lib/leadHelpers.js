@@ -1,4 +1,4 @@
-import { pipelineStageLabel, PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } from './pipelineHelpers.js';
+import { pipelineStageLabel, PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, toApiLeadStatus } from './pipelineHelpers.js';
 
 /** Map API snake_case lead_status to display label (fallback when lookups unavailable) */
 const STATUS_LABELS = {
@@ -11,6 +11,12 @@ const STATUS_LABELS = {
   not_contacted: 'Not Contacted',
   pre_qualified: 'Pre-Qualified',
   not_qualified: 'Not Qualified',
+  raw_prospect: 'Raw Lead',
+  raw_lead: 'Raw Lead',
+  lead: 'Lead',
+  qualified_lead: 'Qualified Lead',
+  proposal: 'Proposal',
+  deal_lost: 'Deal Lost',
   [PIPELINE_RAW]: 'Raw Lead',
   [PIPELINE_LEAD]: 'Lead',
   [PIPELINE_QUALIFIED]: 'Qualified Lead',
@@ -27,12 +33,15 @@ export function leadStatusLabel(status, options = []) {
   return STATUS_LABELS[status] || pipelineStageLabel(status) || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-/** Ensure API receives lowercase snake_case from lookups (never display labels) */
+/** Ensure API receives valid LeadStatus enum value */
 export function resolveLeadStatusForApi(status) {
-  if (!status) return 'not_contacted';
+  if (!status) return 'raw_prospect';
+  if (status === PIPELINE_PROPOSAL) return 'qualified_lead';
+  const mapped = toApiLeadStatus(status);
+  if (mapped) return mapped;
   if (SNAKE_CASE_RE.test(status)) return status;
   const fromLabel = Object.entries(STATUS_LABELS).find(([, label]) => label === status);
-  if (fromLabel) return fromLabel[0];
+  if (fromLabel) return toApiLeadStatus(fromLabel[0]) || fromLabel[0];
   return status.toLowerCase().replace(/ /g, '_').replace(/-/g, '_');
 }
 
@@ -70,7 +79,13 @@ export function toLeadPayload(form, { partial = false } = {}) {
     lead_status: resolveLeadStatusForApi(form.lead_status || form.status),
     description: form.description || null,
     website: form.website || null,
-    street: form.street || null,
+    annual_revenue: form.annual_revenue || null,
+    fax: form.fax || null,
+    skype_id: form.skype_id || null,
+    secondary_email: form.secondary_email || null,
+    twitter: form.twitter || null,
+    email_opt_out: form.email_opt_out ?? false,
+    street: [form.building, form.street].filter(Boolean).join(', ') || form.street || null,
     city: form.city || null,
     state: form.state || null,
     country: form.country || null,

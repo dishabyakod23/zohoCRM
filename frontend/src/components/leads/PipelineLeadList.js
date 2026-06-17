@@ -1,10 +1,10 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../layout/CRMLayout.js';
 import Modal from '../ui/Modal.js';
-import Badge from '../ui/Badge.js';
 import FormField, { inputClass } from '../forms/FormField.js';
+import RecordDataTable from '../records/RecordDataTable.js';
 import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
@@ -12,13 +12,20 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
-import { getPipelineConfig, RAW_LEAD_CSV_HEADERS } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } from '../../lib/pipelineHelpers.js';
+import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+
+const STAGE_MODULE_KEY = {
+  [PIPELINE_RAW]: 'raw-leads',
+  [PIPELINE_QUALIFIED]: 'qualified-leads',
+  [PIPELINE_PROPOSAL]: 'proposals',
+};
 
 export default function PipelineLeadList({ stage, description }) {
   const config = getPipelineConfig(stage);
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canAssignLeads } = usePermissions();
+  const { canAssignLeads, canEdit } = usePermissions();
   const [leads, setLeads] = useState([]);
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -33,6 +40,11 @@ export default function PipelineLeadList({ stage, description }) {
   const [assignModal, setAssignModal] = useState(null);
   const [assignUserId, setAssignUserId] = useState('');
   const [assigning, setAssigning] = useState(false);
+  const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+
+  useEffect(() => {
+    fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
+  }, []);
 
   useEffect(() => {
     if (canAssignLeads) fetchUsers().then(setUsers).catch(() => {});
@@ -45,7 +57,8 @@ export default function PipelineLeadList({ stage, description }) {
         page,
         page_size: limit,
         search: debouncedSearch || undefined,
-        lead_status: stage,
+        lead_status: config?.apiStatus || stage,
+        pipeline_stage: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL].includes(stage) ? stage : undefined,
       });
       setLeads(result.data);
       setTotal(result.total);
@@ -110,6 +123,28 @@ export default function PipelineLeadList({ stage, description }) {
   };
 
   const totalPages = Math.ceil(total / limit) || 1;
+  const moduleKey = STAGE_MODULE_KEY[stage] || 'raw-leads';
+
+  const columns = useMemo(() => {
+    const cols = [
+      { id: 'name', header: 'Name', cell: (lead) => <Link href={config.detailPath(lead.id)} className="font-medium text-brand-600 hover:text-brand-700">{lead.first_name} {lead.last_name}</Link> },
+      { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
+      { id: 'email', header: 'Email', cell: (lead) => <span className="text-brand-600">{lead.email || '—'}</span> },
+      { id: 'phone', header: 'Phone', cell: (lead) => lead.phone || '—' },
+      { id: 'source', header: 'Source', cell: (lead) => lead.source || '—' },
+      { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || 'Unassigned' },
+    ];
+    if (config?.allowAssign && canAssignLeads) {
+      cols.push({
+        id: 'assign',
+        header: 'Assign',
+        cell: (lead) => (
+          <button type="button" onClick={() => { setAssignModal(lead); setAssignUserId(lead.owner_id || user?.id || ''); }} className="text-xs text-brand-600 hover:underline">Assign</button>
+        ),
+      });
+    }
+    return cols;
+  }, [config, canAssignLeads, user?.id]);
 
   return (
     <CRMLayout>
@@ -120,6 +155,9 @@ export default function PipelineLeadList({ stage, description }) {
             {description && <p className="text-sm text-zoho-muted mt-1">{description}</p>}
           </div>
           <div className="flex flex-wrap gap-2">
+            {stage === PIPELINE_RAW && canEdit && (
+              <Link href="/raw-leads/create" className="btn-primary text-xs">+ Create Raw Lead</Link>
+            )}
             {config?.allowUpload && canAssignLeads && (
               <button onClick={() => setUploadOpen(true)} className="btn-secondary text-xs">Upload CSV</button>
             )}
@@ -140,60 +178,20 @@ export default function PipelineLeadList({ stage, description }) {
         </div>
 
         <div className="card">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr>
-                  <th className="table-th">Name</th>
-                  <th className="table-th">Company</th>
-                  <th className="table-th">Email</th>
-                  <th className="table-th">Phone</th>
-                  <th className="table-th">Source</th>
-                  <th className="table-th">Owner</th>
-                  {config?.allowAssign && canAssignLeads && <th className="table-th">Assign</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={config?.allowAssign && canAssignLeads ? 7 : 6} className="table-td text-center py-12 text-zoho-muted">Loading…</td></tr>
-                ) : leads.length === 0 ? (
-                  <tr><td colSpan={config?.allowAssign && canAssignLeads ? 7 : 6} className="table-td text-center py-12 text-zoho-muted">No records found</td></tr>
-                ) : leads.map((lead) => (
-                  <tr key={lead.id} className="hover:bg-brand-50/30 transition-colors">
-                    <td className="table-td font-medium">
-                      <Link href={config.detailPath(lead.id)} className="text-brand-600 hover:text-brand-700">
-                        {lead.first_name} {lead.last_name}
-                      </Link>
-                    </td>
-                    <td className="table-td">{lead.company || '—'}</td>
-                    <td className="table-td text-brand-600">{lead.email || '—'}</td>
-                    <td className="table-td">{lead.phone || '—'}</td>
-                    <td className="table-td">{lead.source || '—'}</td>
-                    <td className="table-td">{lead.owner_name || 'Unassigned'}</td>
-                    {config?.allowAssign && canAssignLeads && (
-                      <td className="table-td">
-                        <button
-                          type="button"
-                          onClick={() => { setAssignModal(lead); setAssignUserId(lead.owner_id || user?.id || ''); }}
-                          className="text-xs text-brand-600 hover:underline"
-                        >
-                          Assign
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3 border-t border-zoho-border/60">
-            <p className="text-xs text-zoho-muted">{total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total}` : '0 records'}</p>
-            <div className="flex gap-2">
-              <button onClick={() => setPage((p) => p - 1)} disabled={page === 1} className="btn-secondary-sm disabled:opacity-40">← Prev</button>
-              <span className="btn-secondary-sm pointer-events-none">{page} / {totalPages}</span>
-              <button onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages} className="btn-secondary-sm disabled:opacity-40">Next →</button>
-            </div>
-          </div>
+          <RecordDataTable
+            moduleKey={moduleKey}
+            records={leads}
+            loading={loading}
+            columns={columns}
+            statusOptions={statusOptions}
+            onRefresh={fetchLeads}
+            pagination={{
+              page,
+              totalPages,
+              onPageChange: setPage,
+              label: total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total}` : '0 records',
+            }}
+          />
         </div>
       </div>
 

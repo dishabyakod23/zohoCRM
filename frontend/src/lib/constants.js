@@ -66,9 +66,9 @@ export const NAV_MODULES = [
 ];
 
 export const QUICK_CREATE = [
-  { label: 'Lead', href: '/leads?create=1', group: 'Sales' },
-  { label: 'Contact', href: '/contacts?create=1', group: 'Sales' },
-  { label: 'Account', href: '/accounts?create=1', group: 'Sales' },
+  { label: 'Lead', href: '/leads/create', group: 'Sales' },
+  { label: 'Contact', href: '/contacts/create', group: 'Sales' },
+  { label: 'Account', href: '/accounts/create', group: 'Sales' },
   { label: 'Deal', href: '/deals?create=1', group: 'Sales' },
   { label: 'Task', href: '/tasks?create=1', group: 'Activities' },
   { label: 'Meeting', href: '/meetings?create=1', group: 'Activities' },

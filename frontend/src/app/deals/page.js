@@ -5,6 +5,7 @@ import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
+import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
@@ -104,6 +105,15 @@ export default function DealsPage() {
   const fmt = (n) => n ? `₹${(n / 100000).toFixed(1)}L` : '—';
   const byStage = (stageValue) => deals.filter(d => d.stage_value === stageValue);
 
+  const columns = useMemo(() => [
+    { id: 'name', header: 'Deal Name', cell: (d) => <Link href={`/deals/${d.id}`} className="font-medium text-brand-600 hover:text-brand-700">{d.name}</Link> },
+    { id: 'account', header: 'Account', cell: (d) => d.account_name || '—' },
+    { id: 'amount', header: 'Amount', cell: (d) => fmt(d.amount) },
+    { id: 'stage', header: 'Stage', cell: (d) => <Badge label={d.stage} /> },
+    { id: 'close_date', header: 'Closing Date', cell: (d) => d.close_date ? new Date(d.close_date).toLocaleDateString() : '—' },
+    { id: 'probability', header: 'Probability', cell: (d) => `${d.probability}%` },
+  ], []);
+
   return (
     <CRMLayout>
       <div className="p-6">
@@ -128,25 +138,15 @@ export default function DealsPage() {
                 <input className="input pl-8 py-1.5 text-xs" placeholder="Search deals…" value={search} onChange={e => setSearch(e.target.value)} />
               </div>
             </div>
-            {loading ? <p className="table-td text-center text-zoho-muted py-12">Loading…</p> : (
-              <table className="w-full">
-                <thead><tr>
-                  <th className="table-th">Deal Name</th><th className="table-th">Account</th><th className="table-th">Amount</th>
-                  <th className="table-th">Stage</th><th className="table-th">Closing Date</th><th className="table-th">Probability</th>
-                </tr></thead>
-                <tbody>{deals.length === 0 ? (
-                  <tr><td colSpan={6} className="table-td text-center text-zoho-muted py-12">No deals found</td></tr>
-                ) : deals.map(d => (
-                  <tr key={d.id} className="hover:bg-brand-50/30 transition-colors">
-                    <td className="table-td font-medium"><Link href={`/deals/${d.id}`} className="text-brand-600 hover:text-brand-700">{d.name}</Link></td>
-                    <td className="table-td">{d.account_name || '—'}</td><td className="table-td">{fmt(d.amount)}</td>
-                    <td className="table-td"><Badge label={d.stage} /></td>
-                    <td className="table-td">{d.close_date ? new Date(d.close_date).toLocaleDateString() : '—'}</td>
-                    <td className="table-td">{d.probability}%</td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            )}
+            <RecordDataTable
+              moduleKey="deals"
+              records={deals}
+              loading={loading}
+              columns={columns}
+              statusOptions={stageOptions}
+              onRefresh={fetchDeals}
+              emptyMessage="No deals found"
+            />
           </div>
         ) : (
           <div className="overflow-x-auto pb-4">

@@ -1,38 +1,34 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
-import Modal from '../../components/ui/Modal.js';
-import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
-import { useOpenCreateParam } from '../../hooks/useOpenCreateParam.js';
 import { getApiError } from '../../lib/api.js';
-import { validateRequired } from '../../lib/validators.js';
 import * as accountsApi from '../../lib/services/accounts.js';
-import { ACCOUNT_TYPES } from '../../lib/constants.js';
+import RecordDataTable from '../../components/records/RecordDataTable.js';
 
-const INDUSTRIES = ['IT Services', 'E-Commerce', 'Automotive', 'EdTech', 'FinTech', 'Healthcare', 'Manufacturing', 'Retail', 'Other'];
-const EMPTY = { account_name: '', phone: '', industry: '', account_type: '', website: '', annual_revenue: '', city: '', state: '', zip_code: '', country: 'India', description: '' };
 const LIMIT = 15;
 
 export default function AccountsPage() {
+  const router = useRouter();
   const { showToast } = useToast();
   const { canEdit } = usePermissions();
   const [accounts, setAccounts] = useState([]);
-  const [errors, setErrors] = useState({});
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState(EMPTY);
-  const [saving, setSaving] = useState(false);
 
-  const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
-  useOpenCreateParam(canEdit, openCreate);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !canEdit) return;
+    if (new URLSearchParams(window.location.search).get('create') === '1') {
+      router.replace('/accounts/create');
+    }
+  }, [canEdit, router]);
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -53,31 +49,28 @@ export default function AccountsPage() {
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
-  const handleSave = async () => {
-    const errs = validateRequired({ account_name: 'Account Name', phone: 'Phone' }, form);
-    setErrors(errs);
-    if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
-    setSaving(true);
-    try {
-      await accountsApi.createAccount(form);
-      setModal(false);
-      fetchAccounts();
-      showToast('Account saved', 'success');
-    } catch (err) {
-      showToast(getApiError(err));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const totalPages = Math.ceil(total / LIMIT) || 1;
+
+  const columns = useMemo(() => [
+    { id: 'name', header: 'Company', cell: (a) => (
+      <div className="flex items-center gap-2.5">
+        <div className="w-7 h-7 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center text-xs font-semibold shrink-0">{(a.name || '?')[0]}</div>
+        <Link href={`/accounts/${a.id}`} className="font-medium text-brand-600 hover:text-brand-700">{a.name}</Link>
+      </div>
+    ) },
+    { id: 'industry', header: 'Industry', cell: (a) => a.industry || '—' },
+    { id: 'website', header: 'Website', cell: (a) => a.website ? <a href={a.website} target="_blank" rel="noreferrer" className="text-brand-600 hover:text-brand-700 text-xs">{a.website.replace('https://', '')}</a> : '—' },
+    { id: 'phone', header: 'Phone', cell: (a) => a.phone || '—' },
+    { id: 'city', header: 'City', cell: (a) => a.city || '—' },
+    { id: 'owner', header: 'Owner', cell: (a) => a.owner_name || '—' },
+  ], []);
 
   return (
     <CRMLayout>
       <div className="p-6">
         <div className="flex items-center justify-between mb-5">
           <div><h1 className="text-xl font-bold text-gray-900">Accounts</h1><p className="text-xs text-gray-500">{total} accounts</p></div>
-          {canEdit && <button onClick={openCreate} className="btn-primary">+ New account</button>}
+          {canEdit && <Link href="/accounts/create" className="btn-primary">+ New account</Link>}
         </div>
 
         <div className="card">
@@ -87,93 +80,17 @@ export default function AccountsPage() {
               <input className="input pl-8 py-1.5 text-xs" placeholder="Search accounts…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr>
-                  <th className="table-th">Company</th>
-                  <th className="table-th">Industry</th>
-                  <th className="table-th">Website</th>
-                  <th className="table-th">Phone</th>
-                  <th className="table-th">City</th>
-                  <th className="table-th">Owner</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? <tr><td colSpan={6} className="table-td text-center text-zoho-muted py-12">Loading…</td></tr>
-                : accounts.length === 0 ? <tr><td colSpan={6} className="table-td text-center text-zoho-muted py-12">No accounts found</td></tr>
-                : accounts.map(a => (
-                  <tr key={a.id} className="hover:bg-brand-50/30 transition-colors">
-                    <td className="table-td">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center text-xs font-semibold shrink-0">{(a.name || '?')[0]}</div>
-                        <Link href={`/accounts/${a.id}`} className="font-medium text-brand-600 hover:text-brand-700">{a.name}</Link>
-                      </div>
-                    </td>
-                    <td className="table-td">{a.industry || '—'}</td>
-                    <td className="table-td">
-                      {a.website ? <a href={a.website} target="_blank" rel="noreferrer" className="text-brand-600 hover:text-brand-700 text-xs">{a.website.replace('https://', '')}</a> : '—'}
-                    </td>
-                    <td className="table-td">{a.phone || '—'}</td>
-                    <td className="table-td">{a.city || '—'}</td>
-                    <td className="table-td">{a.owner_name || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3 border-t border-zoho-border/60">
-            <p className="text-xs text-zoho-muted">Page {page} of {totalPages}</p>
-            <div className="flex gap-2">
-              <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="btn-secondary-sm disabled:opacity-40">← Prev</button>
-              <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages} className="btn-secondary-sm disabled:opacity-40">Next →</button>
-            </div>
-          </div>
+          <RecordDataTable
+            moduleKey="accounts"
+            records={accounts}
+            loading={loading}
+            columns={columns}
+            onRefresh={fetchAccounts}
+            emptyMessage="No accounts found"
+            pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
+          />
         </div>
       </div>
-
-      {modal && (
-        <Modal title="New Account" onClose={() => setModal(false)}>
-          {/* Account Information */}
-          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Account Information</p>
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            <div className="col-span-2"><FormField label="Account Name" required error={errors.account_name} name="account_name"><input className={inputClass(errors.account_name)} value={form.account_name} onChange={e => { setForm(p => ({ ...p, account_name: e.target.value })); setErrors(er => ({ ...er, account_name: null })); }} /></FormField></div>
-            <FormField label="Phone" required error={errors.phone} name="phone"><input className={inputClass(errors.phone)} value={form.phone} onChange={e => { setForm(p => ({ ...p, phone: e.target.value })); setErrors(er => ({ ...er, phone: null })); }} /></FormField>
-            <FormField label="Website"><input className="input" placeholder="https://" value={form.website} onChange={e => setForm(p => ({ ...p, website: e.target.value }))} /></FormField>
-            <FormField label="Industry">
-              <select className="input" value={form.industry} onChange={e => setForm(p => ({ ...p, industry: e.target.value }))}>
-                <option value="">--None--</option>{INDUSTRIES.map(i => <option key={i}>{i}</option>)}
-              </select>
-            </FormField>
-            <FormField label="Account Type">
-              <select className="input" value={form.account_type} onChange={e => setForm(p => ({ ...p, account_type: e.target.value }))}>
-                <option value="">--None--</option>{ACCOUNT_TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </FormField>
-            <FormField label="Annual Revenue"><input className="input" type="number" placeholder="₹" value={form.annual_revenue} onChange={e => setForm(p => ({ ...p, annual_revenue: e.target.value }))} /></FormField>
-          </div>
-
-          {/* Address Information */}
-          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Address Information</p>
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            <FormField label="City"><input className="input" value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))} /></FormField>
-            <FormField label="State"><input className="input" value={form.state} onChange={e => setForm(p => ({ ...p, state: e.target.value }))} /></FormField>
-            <FormField label="Zip Code"><input className="input" value={form.zip_code} onChange={e => setForm(p => ({ ...p, zip_code: e.target.value }))} /></FormField>
-            <FormField label="Country"><input className="input" value={form.country} onChange={e => setForm(p => ({ ...p, country: e.target.value }))} /></FormField>
-          </div>
-
-          {/* Description */}
-          <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Description</p>
-          <div className="mb-5">
-            <textarea className="input min-h-[80px] resize-y" placeholder="Add a description..." value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
-          </div>
-
-          <div className="flex gap-2 justify-end pt-3 border-t border-zoho-border">
-            <button onClick={() => setModal(false)} className="btn-secondary">Cancel</button>
-            <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save Account'}</button>
-          </div>
-        </Modal>
-      )}
     </CRMLayout>
   );
 }
