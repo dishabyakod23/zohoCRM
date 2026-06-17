@@ -7,6 +7,7 @@ export function normalizeAccount(account) {
     name: account.name || account.account_name,
     account_name: account.account_name || account.name,
     owner_name: ownerName(account) || account.owner_name,
+    deal_size: account.deal_size ?? account.proposal_amount ?? null,
   };
 }
 
@@ -19,7 +20,7 @@ export function toAccountPayload(form, { partial = false } = {}) {
     industry: form.industry || null,
     annual_revenue: form.annual_revenue || null,
     rating: form.rating || null,
-    phone: form.phone,
+    phone: form.phone || null,
     fax: form.fax || null,
     website: form.website || null,
     ticker_symbol: form.ticker_symbol || null,
@@ -44,7 +45,8 @@ export function toAccountPayload(form, { partial = false } = {}) {
     shipping_lat: form.shipping_lat || null,
     shipping_lng: form.shipping_lng || null,
     description: form.description || null,
-    proposal_amount: form.proposal_amount || null,
+    deal_size: form.deal_size || null,
+    proposal_amount: form.deal_size || form.proposal_amount || null,
     owner_id: form.owner_id || null,
   };
   if (partial) {

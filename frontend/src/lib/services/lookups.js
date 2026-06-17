@@ -61,6 +61,15 @@ export async function fetchAccountLookups() {
   return parseLookupOptions(res.data.data).map(a => ({ ...a, name: a.label }));
 }
 
+export async function fetchContactLookups() {
+  const res = await api.get('/lookups/contacts');
+  return (res.data.data || []).map((c) => ({
+    value: c.value ?? c.id,
+    label: (c.label ?? `${c.first_name || ''} ${c.last_name || ''}`.trim()) || c.email || c.value,
+    email: c.email,
+  })).filter((c) => c.value);
+}
+
 async function fetchLookup(path, labelFn) {
   const res = await api.get(path);
   return parseLookupOptions(res.data.data, labelFn);
@@ -85,7 +94,29 @@ const MASS_UPDATE_FIELD_LOOKUPS = {
   source: '/lookups/lead-sources',
   lead_source: '/lookups/lead-sources',
   convert: '/lookups/pipeline-convert-targets',
+  owner_id: '/lookups/users',
+  owner: '/lookups/users',
+  lead_owner: '/lookups/users',
 };
+
+export function isLeadOwnerMassUpdateField(fieldDef) {
+  if (!fieldDef) return false;
+  const field = normalizeMassUpdateField(fieldDef);
+  const value = String(field.value || '').toLowerCase();
+  const label = String(field.label || '').toLowerCase();
+  return value === 'owner_id'
+    || value === 'owner'
+    || value === 'lead_owner'
+    || label === 'owner'
+    || label === 'lead owner'
+    || label.includes('lead owner');
+}
+
+/** Remove owner field from mass-update list when user cannot reassign leads. */
+export function filterLeadMassUpdateFields(fields, { canChangeOwner = false } = {}) {
+  if (canChangeOwner) return fields || [];
+  return (fields || []).filter((f) => !isLeadOwnerMassUpdateField(f));
+}
 
 export function isConvertMassUpdateField(fieldDef) {
   if (!fieldDef) return false;
@@ -117,9 +148,10 @@ export async function fetchLeadSources() {
   return parseLookupOptions(res.data.data);
 }
 
-export async function fetchLeadMassUpdateFields() {
+export async function fetchLeadMassUpdateFields({ canChangeOwner = false } = {}) {
   const res = await api.get('/lookups/lead-mass-update-fields');
-  return (res.data.data || []).map(normalizeMassUpdateField);
+  const fields = (res.data.data || []).map(normalizeMassUpdateField);
+  return filterLeadMassUpdateFields(fields, { canChangeOwner });
 }
 
 export async function fetchPipelineConvertTargets() {

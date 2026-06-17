@@ -31,20 +31,15 @@ export const MODULE_TABS = [
   { href: '/qualified-leads', label: 'Qualified', match: ['/qualified-leads'] },
   { href: '/proposals', label: 'Proposals', match: ['/proposals'] },
   { href: '/accounts', label: 'Accounts', match: ['/accounts'] },
-  { href: '/deals', label: 'Deals', match: ['/deals'] },
-  { href: '/activities', label: 'Activities', match: ['/activities', '/tasks', '/meetings', '/calls'] },
+  { href: '/calendar', label: 'Calendar', match: ['/calendar'] },
   { href: '/campaigns', label: 'Campaigns', match: ['/campaigns'] },
-  { href: '/documents', label: 'Documents', match: ['/documents'] },
-  { href: '/visits', label: 'Visits', match: ['/visits'] },
   { href: '/projects', label: 'Projects', match: ['/projects'] },
   { href: '/reports', label: 'Reports', match: ['/reports'] },
 ];
 
 export const MODULE_ICONS = {
   Home: '🏠', Contacts: '👤', Leads: '🎯', 'Raw Leads': '📥', Qualified: '✅', Proposals: '📝',
-  Accounts: '🏢', Deals: '💰',
-  Activities: '📋', Campaigns: '📣', Documents: '📄', Reports: '📊',
-  Tasks: '✓', Meetings: '📅', Calls: '📞', Visits: '📍', Projects: '📁',
+  Accounts: '🏢', Calendar: '📅', Campaigns: '📣', Reports: '📊', Projects: '📁',
 };
 
 export const NAV_MODULES = [
@@ -56,14 +51,8 @@ export const NAV_MODULES = [
   { href: '/qualified-leads', label: 'Qualified Leads', section: 'modules', icon: 'Qualified' },
   { href: '/proposals', label: 'Proposals', section: 'modules', icon: 'Proposals' },
   { href: '/accounts', label: 'Accounts', section: 'modules', icon: 'Accounts' },
-  { href: '/deals', label: 'Deals', section: 'modules', icon: 'Deals' },
-  { href: '/activities', label: 'Activities', section: 'modules', icon: 'Activities' },
-  { href: '/tasks', label: 'Tasks', section: 'modules', icon: 'Tasks', parent: 'Activities' },
-  { href: '/meetings', label: 'Meetings', section: 'modules', icon: 'Meetings', parent: 'Activities' },
-  { href: '/calls', label: 'Calls', section: 'modules', icon: 'Calls', parent: 'Activities' },
+  { href: '/calendar', label: 'Calendar', section: 'modules', icon: 'Calendar' },
   { href: '/campaigns', label: 'Campaigns', section: 'modules', icon: 'Campaigns' },
-  { href: '/documents', label: 'Documents', section: 'modules', icon: 'Documents' },
-  { href: '/visits', label: 'Visits', section: 'modules', icon: 'Visits' },
   { href: '/projects', label: 'Projects', section: 'modules', icon: 'Projects' },
 ];
 
@@ -71,10 +60,8 @@ export const QUICK_CREATE = [
   { label: 'Lead', href: '/leads/create', group: 'Sales' },
   { label: 'Contact', href: '/contacts/create', group: 'Sales' },
   { label: 'Account', href: '/accounts/create', group: 'Sales' },
-  { label: 'Deal', href: '/deals?create=1', group: 'Sales' },
-  { label: 'Task', href: '/tasks?create=1', group: 'Activities' },
-  { label: 'Meeting', href: '/meetings?create=1', group: 'Activities' },
-  { label: 'Call', href: '/calls?create=1', group: 'Activities' },
+  { label: 'Proposal', href: '/proposals/create', group: 'Sales' },
+  { label: 'Calendar Event', href: '/calendar', group: 'Sales' },
   { label: 'Campaign', href: '/campaigns?create=1', group: 'Marketing' },
 ];
 
@@ -82,7 +69,6 @@ export const LIST_VIEWS = {
   leads: ['All Leads', 'My Leads', 'Unread Leads', 'Recently Created', 'Recently Modified'],
   contacts: ['All Contacts', 'My Contacts', 'Unread Contacts', 'Recently Created'],
   accounts: ['All Accounts', 'My Accounts', 'Recently Created'],
-  deals: ['All Deals', 'My Deals', 'Open Deals', 'Closing This Month'],
 };
 
 import { getRolePermissions } from './roles.js';

@@ -11,6 +11,7 @@ import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { useMarkRecordViewed } from '../../../hooks/useMarkRecordViewed.js';
 import { getApiError } from '../../../lib/api.js';
+import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import * as leadsApi from '../../../lib/services/leads.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../../lib/services/lookups.js';
@@ -53,6 +54,13 @@ export default function LeadDetailPage() {
   }, [id, loadLead]);
 
   const saveSection = async (payload) => {
+    if (payload.email) {
+      const uniqueErr = await validateEmailUnique(payload.email, { excludeLeadId: id });
+      if (uniqueErr) {
+        showToast(uniqueErr);
+        throw new Error(uniqueErr);
+      }
+    }
     setSaving(true);
     try {
       await leadsApi.updateLead(id, payload);

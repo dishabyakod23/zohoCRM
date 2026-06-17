@@ -13,7 +13,6 @@ const COLORS = ['#378ADD', '#639922', '#EF9F27', '#D85A30', '#1D9E75', '#E24B4A'
 
 const EXPORT_PATHS = {
   leads: { path: '/reports/leads/export', group_by: 'source' },
-  deals: { path: '/reports/deals/export', group_by: 'stage' },
   accounts: { path: '/reports/accounts/export', group_by: 'industry' },
   campaigns: { path: '/reports/campaigns/export' },
 };
@@ -177,9 +176,7 @@ export default function ReportsPage() {
 
   const tabs = [
     { id: 'leads', label: 'Lead Reports' },
-    { id: 'deals', label: 'Deal Reports' },
     { id: 'accounts', label: 'Account Reports' },
-    { id: 'activity', label: 'Activity Reports' },
     { id: 'campaigns', label: 'Campaign Reports' },
     ...(admin ? [{ id: 'weekly', label: 'Weekly Reports' }] : []),
   ];

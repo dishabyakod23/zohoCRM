@@ -9,6 +9,7 @@ import { getApiError } from '../../lib/api.js';
 import { LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES } from '../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
+import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 
@@ -46,7 +47,7 @@ export default function CreateLeadForm() {
     setErrors((er) => ({ ...er, [field]: null }));
   };
 
-  const validate = () => {
+  const validate = async () => {
     const errs = validateRequired(REQUIRED, form);
     const emailErr = validateEmail(form.email);
     if (emailErr) errs.email = emailErr;
@@ -54,9 +55,13 @@ export default function CreateLeadForm() {
       const phoneErr = validatePhone(form.phone);
       if (phoneErr) errs.phone = phoneErr;
     }
+    if (!errs.email && form.email) {
+      const uniqueErr = await validateEmailUnique(form.email);
+      if (uniqueErr) errs.email = uniqueErr;
+    }
     setErrors(errs);
     if (Object.keys(errs).length) {
-      showToast('Please fill in all required fields before saving.');
+      showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in all required fields before saving.');
       document.querySelector(`[data-field="${Object.keys(errs)[0]}"]`)?.scrollIntoView({ behavior: 'smooth' });
       return false;
     }
@@ -64,7 +69,7 @@ export default function CreateLeadForm() {
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    if (!(await validate())) return;
     setSaving(true);
     try {
       const created = await leadsApi.createLead(form);

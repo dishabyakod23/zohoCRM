@@ -5,10 +5,11 @@ export function normalizeProject(project, accountMap = {}) {
   const account = accountMap[project.account_id];
   return {
     ...project,
-    name: project.project_name,
+    name: project.project_name || project.name,
     account_name: account?.label || account?.name,
     status_label: formatEnumLabel(project.status),
     owner_name: assigneeName(project),
+    deal_size: project.deal_size ?? project.budget ?? null,
   };
 }
 
@@ -21,7 +22,7 @@ function toProjectPayload(form) {
     status: form.status,
     start_date: form.start_date ? toDateOnly(form.start_date) : undefined,
     end_date: form.end_date ? toDateOnly(form.end_date) : undefined,
-    budget: form.budget || null,
+    budget: form.budget ?? form.deal_size ?? null,
     actual_cost: form.actual_cost || null,
     description: form.description,
     owner_id: form.owner_id || null,

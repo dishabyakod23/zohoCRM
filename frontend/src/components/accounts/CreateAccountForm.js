@@ -10,9 +10,14 @@ import { getApiError } from '../../lib/api.js';
 import { ACCOUNT_TYPES, RATINGS, INDUSTRIES } from '../../lib/constants.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as accountsApi from '../../lib/services/accounts.js';
-import { fetchAccountLookups, fetchUsers } from '../../lib/services/lookups.js';
+import { fetchAccountLookups, fetchContactLookups, fetchUsers } from '../../lib/services/lookups.js';
+import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 const OWNERSHIP_OPTIONS = ['Public', 'Private', 'Subsidiary', 'Other'];
+
+export function emptyProjectRow() {
+  return { name: '', deal_size: '' };
+}
 
 export function emptyAccountForm() {
   return {
@@ -26,7 +31,9 @@ export function emptyAccountForm() {
     shipping_flat: '', shipping_street: '', shipping_city: '', shipping_state: '',
     shipping_country: '', shipping_zip: '', shipping_lat: '', shipping_lng: '',
     description: '',
-    proposal_amount: '',
+    deal_size: '',
+    contact_ids: [],
+    projects: [emptyProjectRow()],
   };
 }
 
@@ -100,10 +107,12 @@ export default function CreateAccountForm() {
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState([]);
   const [parentAccounts, setParentAccounts] = useState([]);
+  const [contactOptions, setContactOptions] = useState([]);
 
   useEffect(() => {
     fetchUsers().then(setUsers).catch(() => setUsers([]));
     fetchAccountLookups().then(setParentAccounts).catch(() => setParentAccounts([]));
+    fetchContactLookups().then(setContactOptions).catch(() => setContactOptions([]));
   }, []);
 
   const set = (field) => (e) => {
@@ -125,8 +134,35 @@ export default function CreateAccountForm() {
     }));
   };
 
+  const toggleContact = (contactId) => {
+    setForm((f) => ({
+      ...f,
+      contact_ids: f.contact_ids.includes(contactId)
+        ? f.contact_ids.filter((id) => id !== contactId)
+        : [...f.contact_ids, contactId],
+    }));
+  };
+
+  const updateProject = (index, field, value) => {
+    setForm((f) => ({
+      ...f,
+      projects: f.projects.map((row, i) => (i === index ? { ...row, [field]: value } : row)),
+    }));
+  };
+
+  const addProjectRow = () => {
+    setForm((f) => ({ ...f, projects: [...f.projects, emptyProjectRow()] }));
+  };
+
+  const removeProjectRow = (index) => {
+    setForm((f) => ({
+      ...f,
+      projects: f.projects.length > 1 ? f.projects.filter((_, i) => i !== index) : [emptyProjectRow()],
+    }));
+  };
+
   const handleSave = async () => {
-    const errs = validateRequired({ account_name: 'Account Name', phone: 'Phone' }, form);
+    const errs = validateRequired({ account_name: 'Account Name' }, form);
     setErrors(errs);
     if (Object.keys(errs).length) {
       showToast('Please fill in all required fields before saving.');
@@ -134,7 +170,7 @@ export default function CreateAccountForm() {
     }
     setSaving(true);
     try {
-      const created = await accountsApi.createAccount(form);
+      const created = await accountsApi.createAccountWithRelations(form);
       showToast('Account saved', 'success');
       router.push(created?.id ? `/accounts/${created.id}` : '/accounts');
     } catch (err) {
@@ -225,7 +261,7 @@ export default function CreateAccountForm() {
               </select>
             </FormField>
 
-            <FormField label="Phone" required error={errors.phone} name="phone">
+            <FormField label="Phone" error={errors.phone} name="phone">
               <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} />
             </FormField>
 
@@ -265,15 +301,71 @@ export default function CreateAccountForm() {
             <AddressBlock prefix="shipping" label="Shipping Address" form={form} set={set} copyFrom={copyBillingToShipping} />
           </div>
 
+          {/* ── Deal & Related Records ── */}
+          <SectionTitle>Deal & Related Records</SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+            <FormField label="Deal Size" name="deal_size">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm text-zoho-muted shrink-0">Rs.</span>
+                <input className="input flex-1" type="number" min="0" step="any"
+                  value={form.deal_size} onChange={set('deal_size')} />
+              </div>
+            </FormField>
+          </div>
+
+          <FormField label="Contact List" name="contact_ids">
+            {contactOptions.length === 0 ? (
+              <p className="text-sm text-zoho-muted">No contacts available. Create contacts first, then link them here.</p>
+            ) : (
+              <div className="border border-zoho-border rounded-lg max-h-48 overflow-y-auto divide-y divide-zoho-border">
+                {contactOptions.map((contact) => (
+                  <label key={contact.value} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                      checked={form.contact_ids.includes(contact.value)}
+                      onChange={() => toggleContact(contact.value)}
+                    />
+                    <span className="text-sm text-zoho-text">{contact.label}</span>
+                    {contact.email && <span className="text-xs text-zoho-muted ml-auto">{contact.email}</span>}
+                  </label>
+                ))}
+              </div>
+            )}
+          </FormField>
+
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider">Projects</p>
+              <button type="button" onClick={addProjectRow} className="text-xs text-brand-600 hover:underline inline-flex items-center gap-1">
+                <PlusIcon className="w-3.5 h-3.5" /> Add Project
+              </button>
+            </div>
+            <div className="space-y-3">
+              {form.projects.map((project, index) => (
+                <div key={index} className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-3 items-end">
+                  <FormField label={index === 0 ? 'Project Name' : undefined} name={`project_name_${index}`}>
+                    <input className="input" placeholder="Project name"
+                      value={project.name} onChange={(e) => updateProject(index, 'name', e.target.value)} />
+                  </FormField>
+                  <FormField label={index === 0 ? 'Deal Size' : undefined} name={`project_deal_size_${index}`}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm text-zoho-muted shrink-0">Rs.</span>
+                      <input className="input flex-1" type="number" min="0" step="any" placeholder="0"
+                        value={project.deal_size} onChange={(e) => updateProject(index, 'deal_size', e.target.value)} />
+                    </div>
+                  </FormField>
+                  <button type="button" onClick={() => removeProjectRow(index)}
+                    className="btn-secondary px-2.5 py-2 mb-0.5" title="Remove project">
+                    <TrashIcon className="w-4 h-4 text-gray-500" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* ── Description ── */}
           <SectionTitle>Description Information</SectionTitle>
-          <FormField label="Proposal Amount" name="proposal_amount">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm text-zoho-muted shrink-0">Rs.</span>
-              <input className="input flex-1" type="number" min="0" step="any"
-                value={form.proposal_amount} onChange={set('proposal_amount')} />
-            </div>
-          </FormField>
           <FormField label="Description" name="description">
             <textarea className="input min-h-[100px] resize-y" placeholder="Add a description…"
               value={form.description} onChange={set('description')} />

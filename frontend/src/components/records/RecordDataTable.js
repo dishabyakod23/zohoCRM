@@ -14,10 +14,12 @@ import RecordNoteRowIcon from './RecordNoteRowIcon.js';
 import RecordNotesSidePanel from './RecordNotesSidePanel.js';
 import * as tasksApi from '../../lib/services/tasks.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
-import { fetchUsers, fetchMassUpdateFieldOptions, fetchPipelineConvertTargets, fetchLostReasons, isConvertMassUpdateField } from '../../lib/services/lookups.js';
+import { fetchUsers, fetchMassUpdateFieldOptions, fetchPipelineConvertTargets, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
 
 const defaultGetRowId = (r) => r.id;
+
+const LEAD_MODULE_KEYS = new Set(['leads', 'raw-leads', 'qualified-leads', 'proposals']);
 
 const CAMPAIGN_MEMBER_TYPES = {
   leads: 'lead',
@@ -126,7 +128,7 @@ export default function RecordDataTable({
   massUpdateHandler,
 }) {
   const { showToast } = useToast();
-  const { canEdit, canDelete } = usePermissions();
+  const { canEdit, canDelete, canAssignLeads } = usePermissions();
   const config = useMemo(() => getBulkConfig(moduleKey), [moduleKey]);
   const noteMeta = useMemo(() => getNoteMeta(moduleKey), [moduleKey]);
   const showNotes = notesApiSupported(moduleKey);
@@ -195,10 +197,15 @@ export default function RecordDataTable({
     setLoadingMassFields(true);
     setDynamicMassFields([]);
     massUpdateFieldsLoader()
-      .then(setDynamicMassFields)
+      .then((fields) => {
+        const filtered = LEAD_MODULE_KEYS.has(moduleKey)
+          ? filterLeadMassUpdateFields(fields, { canChangeOwner: canAssignLeads })
+          : fields;
+        setDynamicMassFields(filtered);
+      })
       .catch(() => setDynamicMassFields([]))
       .finally(() => setLoadingMassFields(false));
-  }, [massUpdateOpen, massUpdateFieldsLoader]);
+  }, [massUpdateOpen, massUpdateFieldsLoader, moduleKey, canAssignLeads]);
 
   useEffect(() => {
     if (!massField) {

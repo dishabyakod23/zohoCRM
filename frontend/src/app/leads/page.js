@@ -21,7 +21,7 @@ export default function LeadsPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit } = usePermissions();
+  const { canEdit, canAssignLeads } = usePermissions();
   const [leads, setLeads] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -91,6 +91,11 @@ export default function LeadsPage() {
 
   const totalPages = Math.ceil(total / limit) || 1;
 
+  const loadMassUpdateFields = useCallback(
+    () => fetchLeadMassUpdateFields({ canChangeOwner: canAssignLeads }),
+    [canAssignLeads],
+  );
+
   const columns = useMemo(() => [
     { id: 'name', header: 'Lead Name', cell: (lead) => <Link href={`/leads/${lead.id}`} className="font-medium text-brand-600 hover:text-brand-700">{lead.first_name} {lead.last_name}</Link> },
     { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
@@ -133,7 +138,7 @@ export default function LeadsPage() {
             statusOptions={statusOptions}
             onRefresh={fetchLeads}
             emptyMessage="No leads found"
-            massUpdateFieldsLoader={fetchLeadMassUpdateFields}
+            massUpdateFieldsLoader={loadMassUpdateFields}
             massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
             pagination={{
               page,

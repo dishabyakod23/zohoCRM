@@ -17,7 +17,7 @@ export function toContactPayload(form, { partial = false } = {}) {
     last_name: form.last_name,
     account_id: form.account_id,
     email: form.email,
-    phone: form.phone,
+    phone: form.phone || null,
     other_phone: form.other_phone || null,
     home_phone: form.home_phone || null,
     mobile: form.mobile || null,

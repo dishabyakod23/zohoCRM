@@ -41,25 +41,27 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', requireEdit, async (req, res) => {
-  const { name, status, start_date, end_date, account_id, deal_id, description } = req.body;
-  if (!name) return res.status(400).json({ error: 'Project name required' });
+  const b = req.body;
+  const projectName = b.name || b.project_name;
+  if (!projectName) return res.status(400).json({ error: 'Project name required' });
   try {
     const result = await pool.query(
-      `INSERT INTO projects (name, status, start_date, end_date, account_id, deal_id, description, owner_id, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8) RETURNING *`,
-      [name, status || 'not_started', start_date, end_date, account_id || null, deal_id || null, description, req.user.id]
+      `INSERT INTO projects (name, status, start_date, end_date, account_id, deal_id, description, budget, owner_id, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9) RETURNING *`,
+      [projectName, b.status || 'not_started', b.start_date, b.end_date, b.account_id || null, b.deal_id || null, b.description, b.budget || b.deal_size || null, req.user.id]
     );
     recordOk(res, result.rows[0], 201);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 const updateProject = async (req, res) => {
-  const { name, status, start_date, end_date, account_id, deal_id, description } = req.body;
+  const b = req.body;
+  const projectName = b.name || b.project_name;
   try {
     const result = await pool.query(
-      `UPDATE projects SET name=$1, status=$2, start_date=$3, end_date=$4, account_id=$5, deal_id=$6, description=$7, updated_at=NOW()
-       WHERE id=$8 AND deleted_at IS NULL RETURNING *`,
-      [name, status, start_date, end_date, account_id || null, deal_id || null, description, req.params.id]
+      `UPDATE projects SET name=$1, status=$2, start_date=$3, end_date=$4, account_id=$5, deal_id=$6, description=$7, budget=$8, updated_at=NOW()
+       WHERE id=$9 AND deleted_at IS NULL RETURNING *`,
+      [projectName, b.status, b.start_date, b.end_date, b.account_id || null, b.deal_id || null, b.description, b.budget || b.deal_size || null, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Project not found' });
     recordOk(res, result.rows[0]);

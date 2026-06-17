@@ -13,10 +13,11 @@ import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
+import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { trackRecentItem } from '../layout/BottomUtilityBar.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
-import { getPipelineConfig, pipelineStageLabel, isProposalLead, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, pipelineStageLabel, isProposalLead, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, proposalDealStatusLabel } from '../../lib/pipelineHelpers.js';
 import { LEAD_SOURCES } from '../../lib/constants.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon, UserIcon,
@@ -79,6 +80,13 @@ export default function PipelineLeadDetail({ stage }) {
   useEffect(() => { loadLead(); }, [loadLead]);
 
   const saveSection = async (payload) => {
+    if (payload.email) {
+      const uniqueErr = await validateEmailUnique(payload.email, { excludeLeadId: id });
+      if (uniqueErr) {
+        showToast(uniqueErr);
+        throw new Error(uniqueErr);
+      }
+    }
     setSaving(true);
     try {
       await leadsApi.updateLead(id, payload);
@@ -184,6 +192,25 @@ export default function PipelineLeadDetail({ stage }) {
               ) },
             ]}
           />
+          {stage === PIPELINE_PROPOSAL && (
+            <EditableFieldSection
+              title="Proposal Information"
+              canEdit={editable}
+              saving={saving}
+              values={lead}
+              onSave={saveSection}
+              fields={[
+                { name: 'proposal_date', label: 'Proposal Date', format: (v) => (v ? new Date(v).toLocaleDateString() : null), render: (d, set) => (
+                  <input className="input" type="date" value={(d.proposal_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, proposal_date: e.target.value }))} />
+                ) },
+                { name: 'deal_size', label: 'Size of the Deal', format: (v) => (v != null && v !== '' ? `Rs. ${Number(v).toLocaleString('en-IN')}` : null) },
+                { name: 'closure_date', label: 'Closure Date', format: (v) => (v ? new Date(v).toLocaleDateString() : null), render: (d, set) => (
+                  <input className="input" type="date" value={(d.closure_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, closure_date: e.target.value }))} />
+                ) },
+                { name: 'deal_status', label: 'Deal Status', format: () => lead.deal_status_label || proposalDealStatusLabel(lead.deal_status), render: (d, set) => select(PROPOSAL_DEAL_STATUSES)(d, set, 'deal_status') },
+              ]}
+            />
+          )}
           <EditableFieldSection
             title="Contact Information"
             canEdit={editable}

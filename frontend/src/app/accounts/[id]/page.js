@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
@@ -10,11 +11,20 @@ import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { getApiError } from '../../../lib/api.js';
 import * as accountsApi from '../../../lib/services/accounts.js';
+import * as contactsApi from '../../../lib/services/contacts.js';
+import * as projectsApi from '../../../lib/services/projects.js';
 import { ACCOUNT_TYPES } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 const INDUSTRIES = ['IT Services', 'E-Commerce', 'Automotive', 'EdTech', 'FinTech', 'Healthcare', 'Manufacturing', 'Retail', 'Other'];
+
+function formatCurrency(value) {
+  if (value == null || value === '') return '—';
+  const num = Number(value);
+  if (Number.isNaN(num)) return value;
+  return `Rs. ${num.toLocaleString('en-IN')}`;
+}
 
 export default function AccountDetailPage() {
   const { id } = useParams();
@@ -22,12 +32,20 @@ export default function AccountDetailPage() {
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
   const [account, setAccount] = useState(null);
+  const [contacts, setContacts] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const loadAccount = useCallback(() => {
-    accountsApi.getAccount(id).then((r) => {
+    Promise.all([
+      accountsApi.getAccount(id),
+      contactsApi.listContacts({ account_id: id, page_size: 100 }),
+      projectsApi.listProjects({ account_id: id, page_size: 100 }),
+    ]).then(([r, contactResult, projectResult]) => {
       setAccount({ ...r, account_name: r.name || r.account_name });
+      setContacts(contactResult.data || []);
+      setProjects(projectResult.data || []);
       trackRecentItem({ type: 'account', id, name: r.name });
     }).catch(() => {
       showToast('Account not found');
@@ -78,6 +96,7 @@ export default function AccountDetailPage() {
             onSave={saveSection}
             fields={[
               { name: 'account_name', label: 'Account Name', required: true },
+              { name: 'deal_size', label: 'Deal Size', format: (v) => formatCurrency(v ?? account.deal_size) },
               { name: 'phone', label: 'Phone' },
               { name: 'website', label: 'Website' },
               { name: 'account_type', label: 'Status', render: (d, set) => (
@@ -109,6 +128,57 @@ export default function AccountDetailPage() {
               { name: 'country', label: 'Country' },
             ]}
           />
+
+          <div className="card p-4">
+            <h3 className="text-sm font-semibold text-zoho-text mb-3">Contact List</h3>
+            {contacts.length === 0 ? (
+              <p className="text-sm text-zoho-muted">No contacts linked to this account.</p>
+            ) : (
+              <ul className="divide-y divide-zoho-border">
+                {contacts.map((contact) => (
+                  <li key={contact.id} className="py-2 flex items-center justify-between gap-3">
+                    <Link href={`/contacts/${contact.id}`} className="text-sm font-medium text-brand-600 hover:underline">
+                      {[contact.first_name, contact.last_name].filter(Boolean).join(' ') || contact.email || 'Contact'}
+                    </Link>
+                    <span className="text-xs text-zoho-muted">{contact.email || contact.phone || '—'}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="card p-4">
+            <h3 className="text-sm font-semibold text-zoho-text mb-3">Projects</h3>
+            {projects.length === 0 ? (
+              <p className="text-sm text-zoho-muted">No projects linked to this account.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-zoho-muted border-b border-zoho-border">
+                      <th className="pb-2 font-medium">Project</th>
+                      <th className="pb-2 font-medium">Deal Size</th>
+                      <th className="pb-2 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zoho-border">
+                    {projects.map((project) => (
+                      <tr key={project.id}>
+                        <td className="py-2">
+                          <Link href={`/projects/${project.id}`} className="font-medium text-brand-600 hover:underline">
+                            {project.name || project.project_name}
+                          </Link>
+                        </td>
+                        <td className="py-2">{formatCurrency(project.budget ?? project.deal_size)}</td>
+                        <td className="py-2">{project.status_label || project.status || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
           <EditableFieldSection
             title="Description"
             canEdit={canEdit}

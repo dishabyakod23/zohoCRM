@@ -9,6 +9,7 @@ import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { useMarkRecordViewed } from '../../../hooks/useMarkRecordViewed.js';
 import { getApiError } from '../../../lib/api.js';
+import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import { fetchAccountLookups, accountMapFromLookups } from '../../../lib/services/lookups.js';
 import { LEAD_SOURCES } from '../../../lib/constants.js';
@@ -42,6 +43,13 @@ export default function ContactDetailPage() {
   useEffect(() => { if (accounts.length >= 0) loadContact(); }, [loadContact, accounts]);
 
   const saveSection = async (payload) => {
+    if (payload.email) {
+      const uniqueErr = await validateEmailUnique(payload.email, { excludeContactId: id });
+      if (uniqueErr) {
+        showToast(uniqueErr);
+        throw new Error(uniqueErr);
+      }
+    }
     setSaving(true);
     try {
       await contactsApi.updateContact(id, payload);

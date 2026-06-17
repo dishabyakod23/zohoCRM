@@ -35,6 +35,7 @@ app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/documents', require('./routes/documents'));
 app.use('/api/visits', require('./routes/visits'));
 app.use('/api/projects', require('./routes/projects'));
+app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/recycle', require('./routes/recycle'));

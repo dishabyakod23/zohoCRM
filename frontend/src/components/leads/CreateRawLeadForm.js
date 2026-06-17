@@ -6,8 +6,10 @@ import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import { validateRequired, validateEmail } from '../../lib/validators.js';
+import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { PIPELINE_RAW } from '../../lib/pipelineHelpers.js';
@@ -80,6 +82,7 @@ export default function CreateRawLeadForm() {
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
+  const { canAssignLeads } = usePermissions();
   const [form, setForm] = useState(() => emptyRawLeadForm(user?.id || ''));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -106,7 +109,7 @@ export default function CreateRawLeadForm() {
     }));
   };
 
-  const validate = () => {
+  const validate = async () => {
     const errs = validateRequired(REQUIRED, form);
     const emailErr = validateEmail(form.email);
     if (emailErr) errs.email = emailErr;
@@ -114,15 +117,20 @@ export default function CreateRawLeadForm() {
       const secErr = validateEmail(form.secondary_email);
       if (secErr) errs.secondary_email = secErr;
     }
+    if (!errs.email && form.email) {
+      const uniqueErr = await validateEmailUnique(form.email);
+      if (uniqueErr) errs.email = uniqueErr;
+    }
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+    if (Object.keys(errs).length) {
+      showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in required fields.');
+      return false;
+    }
+    return true;
   };
 
   const handleSave = async () => {
-    if (!validate()) {
-      showToast('Please fill in required fields.');
-      return;
-    }
+    if (!(await validate())) return;
     setSaving(true);
     try {
       const created = await leadsApi.createRawLead(form);
@@ -148,6 +156,7 @@ export default function CreateRawLeadForm() {
         <div className="card p-6">
           <SectionTitle>Lead Information</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+            {canAssignLeads && (
             <FormField label="Lead Owner" name="owner_id">
               <select className="input" value={form.owner_id} onChange={set('owner_id')}>
                 {users.length === 0 && user && (
@@ -158,6 +167,7 @@ export default function CreateRawLeadForm() {
                 ))}
               </select>
             </FormField>
+            )}
             <div className="sm:col-span-2 grid grid-cols-[120px_1fr] gap-3">
               <FormField label="First Name">
                 {noneSelect(form.salutation, set('salutation'), SALUTATIONS)}
@@ -168,6 +178,9 @@ export default function CreateRawLeadForm() {
             </div>
             <FormField label="Title" name="title">
               <input className="input" value={form.title} onChange={set('title')} />
+            </FormField>
+            <FormField label="Email" required error={errors.email} name="email">
+              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
             </FormField>
             <FormField label="Phone" name="phone">
               <input className="input" value={form.phone} onChange={set('phone')} />
@@ -198,9 +211,6 @@ export default function CreateRawLeadForm() {
             </FormField>
             <FormField label="Last Name" required error={errors.last_name} name="last_name">
               <input className={inputClass(errors.last_name)} value={form.last_name} onChange={set('last_name')} />
-            </FormField>
-            <FormField label="Email" required error={errors.email} name="email">
-              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
             </FormField>
             <FormField label="Fax" name="fax">
               <input className="input" value={form.fax} onChange={set('fax')} />

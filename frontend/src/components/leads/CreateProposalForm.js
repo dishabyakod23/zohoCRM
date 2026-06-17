@@ -11,9 +11,10 @@ export default function CreateProposalForm() {
       title="Create Proposal"
       saveLabel="Save Proposal"
       successToast="Proposal created"
-      emptyFormDefaults={{ lead_status: PIPELINE_QUALIFIED, source: PROPOSAL_SOURCE }}
+      emptyFormDefaults={{ lead_status: PIPELINE_QUALIFIED, source: PROPOSAL_SOURCE, deal_status: 'active_proposal' }}
       createFn={leadsApi.createProposal}
       showLeadSource={false}
+      showProposalFields
     />
   );
 }

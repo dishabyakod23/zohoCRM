@@ -4,6 +4,10 @@ import Link from 'next/link';
 import StickyNote, { isStickyNotePinned } from './StickyNote.js';
 import { getRecentItemHref } from '../../lib/recentItemHelpers.js';
 import * as dashboardApi from '../../lib/services/dashboard.js';
+import * as calendarApi from '../../lib/services/calendar.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
+import { eventTypeMeta, formatShortDate, formatTime, todayKey } from '../../lib/calendarHelpers.js';
 
 const ICONS = {
   announcements: (
@@ -58,6 +62,8 @@ function Panel({ title, onClose, children, wide }) {
 }
 
 export default function BottomUtilityBar() {
+  const { user } = useAuth();
+  const { canAssignLeads } = usePermissions();
   const [active, setActive] = useState(null);
   const [reminders, setReminders] = useState([]);
   const [announcements, setAnnouncements] = useState(ANNOUNCEMENTS);
@@ -79,24 +85,21 @@ export default function BottomUtilityBar() {
     localStorage.setItem('crm_a11y', JSON.stringify(a11y));
   }, [a11y]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    calendarApi.getLoginReminders({ userId: user.id, isAdmin: canAssignLeads })
+      .then(setReminders)
+      .catch(() => setReminders([]));
+  }, [user?.id, canAssignLeads]);
+
   const toggle = (key) => {
     if (key === 'recent') {
       const stored = localStorage.getItem('crm_recent');
       if (stored) setRecent(JSON.parse(stored));
     }
     if (key === 'reminders') {
-      dashboardApi.getDashboardHome()
-        .then((home) => {
-          const tasks = [
-            ...(home.tasks?.overdue || []),
-            ...(home.tasks?.due_today || []),
-          ].map((t) => ({
-            id: t.id,
-            title: t.subject || t.title,
-            due_date: t.due_date,
-          }));
-          setReminders(tasks);
-        })
+      calendarApi.getLoginReminders({ userId: user?.id, isAdmin: canAssignLeads })
+        .then(setReminders)
         .catch(() => setReminders([]));
     }
     if (key === 'announcements') {
@@ -196,15 +199,24 @@ export default function BottomUtilityBar() {
             <p className="text-sm text-zoho-muted text-center py-6">No pending reminders</p>
           ) : (
             <div className="space-y-2">
-              {reminders.map(t => (
-                <Link key={t.id} href={`/tasks/${t.id}`} onClick={() => setActive(null)}
-                  className="block p-3 rounded-xl border border-zoho-border hover:bg-brand-50 hover:border-brand-200 text-sm transition-colors">
-                  <p className="font-medium">{t.title}</p>
-                  <p className={`text-xs mt-1 ${new Date(t.due_date) < new Date() ? 'text-red-600' : 'text-zoho-muted'}`}>
-                    Due: {new Date(t.due_date).toLocaleString()}
-                  </p>
-                </Link>
-              ))}
+              {reminders.map((t) => {
+                const meta = eventTypeMeta(t.event_type);
+                const today = todayKey();
+                const overdue = t.event_date < today;
+                return (
+                  <Link key={t.id} href="/calendar" onClick={() => setActive(null)}
+                    className="block p-3 rounded-xl border border-zoho-border hover:bg-brand-50 hover:border-brand-200 text-sm transition-colors">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium">{t.title}</p>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${meta.bg} ${meta.text}`}>{meta.label}</span>
+                    </div>
+                    <p className={`text-xs mt-1 ${overdue ? 'text-red-600' : 'text-zoho-muted'}`}>
+                      {t.event_date === today ? 'Due today' : overdue ? `Overdue · ${formatShortDate(t.event_date)}` : formatShortDate(t.event_date)}
+                      {t.start_time && !t.all_day ? ` · ${formatTime(t.start_time)}` : ''}
+                    </p>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </Panel>
@@ -254,9 +266,9 @@ export default function BottomUtilityBar() {
               <p className="font-medium mb-2">Quick Tips</p>
               <ul className="text-xs text-zoho-muted space-y-1.5 list-disc pl-4">
                 <li>Use the + button to quickly create records</li>
-                <li>Global search finds leads, contacts, deals & more</li>
-                <li>Drag deals in Kanban view to change stage</li>
-                <li>Convert leads to accounts, contacts & deals</li>
+                <li>Global search finds leads, contacts, and accounts</li>
+                <li>Move leads through Raw → Qualified → Proposal stages</li>
+                <li>Convert leads to accounts and contacts</li>
               </ul>
             </div>
             <p className="text-xs text-zoho-muted">API: api-salescrm.duckdns.org</p>

@@ -6,12 +6,23 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import ModuleTabs from './ModuleTabs';
 import BottomUtilityBar from './BottomUtilityBar';
+import LoginReminderModal from '../calendar/LoginReminderModal.js';
+import * as calendarApi from '../../lib/services/calendar.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
+import { todayKey } from '../../lib/calendarHelpers.js';
+
+function dismissKey(userId) {
+  return `crm_reminders_dismissed_${userId}_${todayKey()}`;
+}
 
 export default function CRMLayout({ children }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { canAssignLeads } = usePermissions();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [loginReminders, setLoginReminders] = useState([]);
+  const [showLoginReminders, setShowLoginReminders] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -20,6 +31,31 @@ export default function CRMLayout({ children }) {
   useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!user?.id || pathname === '/login') return;
+
+    const pendingLogin = sessionStorage.getItem('crm_show_login_reminders') === '1';
+    const dismissed = localStorage.getItem(dismissKey(user.id)) === '1';
+    if (!pendingLogin && dismissed) return;
+
+    calendarApi.getLoginReminders({ userId: user.id, isAdmin: canAssignLeads })
+      .then((items) => {
+        if (items.length > 0) {
+          setLoginReminders(items);
+          setShowLoginReminders(true);
+        }
+        sessionStorage.removeItem('crm_show_login_reminders');
+      })
+      .catch(() => {
+        sessionStorage.removeItem('crm_show_login_reminders');
+      });
+  }, [user?.id, canAssignLeads, pathname]);
+
+  const dismissLoginReminders = () => {
+    if (user?.id) localStorage.setItem(dismissKey(user.id), '1');
+    setShowLoginReminders(false);
+  };
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-mesh-bg bg-[#f6f6fc]">
@@ -45,6 +81,13 @@ export default function CRMLayout({ children }) {
         <main className="flex-1 overflow-auto pb-0">{children}</main>
         <BottomUtilityBar />
       </div>
+
+      <LoginReminderModal
+        open={showLoginReminders}
+        events={loginReminders}
+        onClose={dismissLoginReminders}
+        onDismissToday={dismissLoginReminders}
+      />
     </div>
   );
 }

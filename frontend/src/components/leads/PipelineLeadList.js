@@ -13,14 +13,28 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
-import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel } from '../../lib/pipelineHelpers.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields } from '../../lib/services/lookups.js';
+import CsvImportModal from '../records/CsvImportModal.js';
 
 const STAGE_MODULE_KEY = {
   [PIPELINE_RAW]: 'raw-leads',
   [PIPELINE_QUALIFIED]: 'qualified-leads',
   [PIPELINE_PROPOSAL]: 'proposals',
 };
+
+function formatDate(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString();
+}
+
+function formatDealSize(value) {
+  if (value == null || value === '') return '—';
+  const num = Number(value);
+  if (Number.isNaN(num)) return value;
+  return `Rs. ${num.toLocaleString('en-IN')}`;
+}
 
 export default function PipelineLeadList({ stage, description }) {
   const config = getPipelineConfig(stage);
@@ -36,10 +50,6 @@ export default function PipelineLeadList({ stage, description }) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [uploadFile, setUploadFile] = useState(null);
-  const [importPreview, setImportPreview] = useState(null);
-  const [validatingImport, setValidatingImport] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [assignModal, setAssignModal] = useState(null);
   const [assignUserId, setAssignUserId] = useState('');
   const [assigning, setAssigning] = useState(false);
@@ -79,34 +89,15 @@ export default function PipelineLeadList({ stage, description }) {
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
-  const handleValidateImport = async () => {
-    if (!uploadFile) { showToast('Choose a CSV file first'); return; }
-    setValidatingImport(true);
+  const downloadTemplate = async () => {
     try {
-      const result = await leadsApi.importLeadsFile(uploadFile, { dry_run: true });
-      setImportPreview(result);
-      if (!result.ready_count) showToast('No valid rows found in file');
-    } catch (err) {
-      showToast(getApiError(err));
-    } finally {
-      setValidatingImport(false);
-    }
-  };
-
-  const handleImport = async () => {
-    if (!uploadFile) { showToast('Choose a CSV file first'); return; }
-    setImporting(true);
-    try {
-      const result = await leadsApi.importLeadsFile(uploadFile, { dry_run: false });
-      showToast(`Imported ${result.imported_count ?? result.ready_count ?? 0} lead(s)`, 'success');
-      setUploadOpen(false);
-      setUploadFile(null);
-      setImportPreview(null);
-      fetchLeads();
-    } catch (err) {
-      showToast(getApiError(err));
-    } finally {
-      setImporting(false);
+      await leadsApi.downloadLeadImportTemplate();
+    } catch {
+      const blob = new Blob([RAW_LEAD_CSV_HEADERS.join(',') + '\n'], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'raw-leads-template.csv';
+      a.click();
     }
   };
 
@@ -126,29 +117,28 @@ export default function PipelineLeadList({ stage, description }) {
     }
   };
 
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadFile(file);
-    setImportPreview(null);
-  };
-
-  const downloadTemplate = async () => {
-    try {
-      await leadsApi.downloadLeadImportTemplate();
-    } catch {
-      const blob = new Blob([RAW_LEAD_CSV_HEADERS.join(',') + '\n'], { type: 'text/csv' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'raw-leads-template.csv';
-      a.click();
-    }
-  };
+  const loadMassUpdateFields = useCallback(
+    () => fetchLeadMassUpdateFields({ canChangeOwner: canAssignLeads }),
+    [canAssignLeads],
+  );
 
   const totalPages = Math.ceil(total / limit) || 1;
   const moduleKey = STAGE_MODULE_KEY[stage] || 'raw-leads';
 
   const columns = useMemo(() => {
+    if (stage === PIPELINE_PROPOSAL) {
+      const cols = [
+        { id: 'name', header: 'Name', cell: (lead) => <Link href={config.detailPath(lead.id)} className="font-medium text-brand-600 hover:text-brand-700">{lead.first_name} {lead.last_name}</Link> },
+        { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
+        { id: 'proposal_date', header: 'Proposal Date', cell: (lead) => formatDate(lead.proposal_date) },
+        { id: 'deal_size', header: 'Deal Size', cell: (lead) => formatDealSize(lead.deal_size ?? lead.proposal_amount) },
+        { id: 'closure_date', header: 'Closure Date', cell: (lead) => formatDate(lead.closure_date) },
+        { id: 'deal_status', header: 'Deal Status', cell: (lead) => <Badge label={lead.deal_status_label || proposalDealStatusLabel(lead.deal_status)} /> },
+        { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || 'Unassigned' },
+      ];
+      return cols;
+    }
+
     const cols = [
       { id: 'name', header: 'Name', cell: (lead) => <Link href={config.detailPath(lead.id)} className="font-medium text-brand-600 hover:text-brand-700">{lead.first_name} {lead.last_name}</Link> },
       { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
@@ -215,7 +205,7 @@ export default function PipelineLeadList({ stage, description }) {
             columns={columns}
             statusOptions={statusOptions}
             onRefresh={fetchLeads}
-            massUpdateFieldsLoader={fetchLeadMassUpdateFields}
+            massUpdateFieldsLoader={loadMassUpdateFields}
             massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
             pagination={{
               page,
@@ -227,32 +217,15 @@ export default function PipelineLeadList({ stage, description }) {
         </div>
       </div>
 
-      {uploadOpen && (
-        <Modal title="Upload Raw Leads" onClose={() => setUploadOpen(false)}>
-          <div className="space-y-3">
-            <p className="text-sm text-zoho-muted">Upload a CSV file. Required columns include first_name, last_name, and company.</p>
-            <button type="button" onClick={downloadTemplate} className="text-xs text-brand-600 hover:underline">Download CSV template</button>
-            <input type="file" accept=".csv" onChange={handleFile} className="text-sm" />
-            {uploadFile && !importPreview && (
-              <button type="button" onClick={handleValidateImport} disabled={validatingImport} className="btn-secondary w-full text-xs">
-                {validatingImport ? 'Validating...' : 'Validate file'}
-              </button>
-            )}
-            {importPreview && (
-              <div className="text-xs space-y-1">
-                <p className="text-green-700">{importPreview.ready_count} row(s) ready to import</p>
-                {importPreview.error_count > 0 && <p className="text-red-600">{importPreview.error_count} error(s)</p>}
-              </div>
-            )}
-            <div className="flex gap-2 justify-end pt-2">
-              <button onClick={() => setUploadOpen(false)} className="btn-secondary">Cancel</button>
-              <button onClick={handleImport} disabled={importing || !uploadFile || !(importPreview?.ready_count > 0)} className="btn-primary">
-                {importing ? 'Importing...' : 'Import Leads'}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <CsvImportModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        title="Upload CSV — Raw Leads"
+        module="leads"
+        importFn={leadsApi.importLeadsFile}
+        downloadTemplate={downloadTemplate}
+        onDone={fetchLeads}
+      />
 
       {assignModal && (
         <Modal title={`Assign ${assignModal.first_name} ${assignModal.last_name}`} onClose={() => setAssignModal(null)}>

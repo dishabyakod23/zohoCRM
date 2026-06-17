@@ -7,6 +7,18 @@ export const PIPELINE_QUALIFIED = 'qualified_lead';
 export const PIPELINE_PROPOSAL = 'proposal';
 export const PROPOSAL_SOURCE = 'Proposal';
 
+/** Deal status values shown on proposal records */
+export const PROPOSAL_DEAL_STATUSES = [
+  { value: 'active_proposal', label: 'Active Proposal' },
+  { value: 'deal_lost', label: 'Deal Lost' },
+];
+
+export function proposalDealStatusLabel(status) {
+  if (!status) return '—';
+  const match = PROPOSAL_DEAL_STATUSES.find((s) => s.value === status);
+  return match?.label || pipelineStageLabel(status);
+}
+
 export const PIPELINE_STAGE_ORDER = [
   PIPELINE_RAW,
   PIPELINE_LEAD,

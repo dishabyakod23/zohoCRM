@@ -8,7 +8,8 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { LEAD_SOURCES, SALUTATIONS } from '../../lib/constants.js';
-import { validateRequired, validateEmail } from '../../lib/validators.js';
+import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
+import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchAccountLookups, fetchUsers } from '../../lib/services/lookups.js';
 
@@ -131,12 +132,20 @@ export default function CreateContactForm() {
   };
 
   const handleSave = async () => {
-    const errs = validateRequired({ last_name: 'Last Name', account_id: 'Account Name', email: 'Email', phone: 'Phone' }, form);
+    const errs = validateRequired({ last_name: 'Last Name', account_id: 'Account Name', email: 'Email' }, form);
     const emailErr = validateEmail(form.email);
     if (emailErr) errs.email = emailErr;
+    if (form.phone) {
+      const phoneErr = validatePhone(form.phone);
+      if (phoneErr) errs.phone = phoneErr;
+    }
+    if (!errs.email && form.email) {
+      const uniqueErr = await validateEmailUnique(form.email);
+      if (uniqueErr) errs.email = uniqueErr;
+    }
     setErrors(errs);
     if (Object.keys(errs).length) {
-      showToast('Please fill in all required fields before saving.');
+      showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in all required fields before saving.');
       return;
     }
     setSaving(true);
@@ -199,6 +208,10 @@ export default function CreateContactForm() {
               <input className={inputClass(errors.last_name)} value={form.last_name} onChange={set('last_name')} />
             </FormField>
 
+            <FormField label="Email" required error={errors.email} name="email">
+              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
+            </FormField>
+
             <FormField label="Account Name" required error={errors.account_id} name="account_id">
               <select className={inputClass(errors.account_id)} value={form.account_id} onChange={set('account_id')}>
                 <option value="">—None—</option>
@@ -206,11 +219,7 @@ export default function CreateContactForm() {
               </select>
             </FormField>
 
-            <FormField label="Email" required error={errors.email} name="email">
-              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
-            </FormField>
-
-            <FormField label="Phone" required error={errors.phone} name="phone">
+            <FormField label="Phone" error={errors.phone} name="phone">
               <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} />
             </FormField>
 

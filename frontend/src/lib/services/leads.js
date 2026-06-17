@@ -193,6 +193,7 @@ export async function createProposal(form) {
     ...form,
     lead_status: PIPELINE_QUALIFIED,
     source: PROPOSAL_SOURCE,
+    deal_status: form.deal_status || 'active_proposal',
   });
 }
 

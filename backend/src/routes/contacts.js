@@ -42,10 +42,16 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', requireEdit, async (req, res) => {
   const b = req.body;
-  if (!b.last_name || !b.account_id || !b.email || !b.phone)
-    return res.status(400).json({ error: 'Last name, account, email, and phone are required' });
+  if (!b.last_name || !b.account_id || !b.email)
+    return res.status(400).json({ error: 'Last name, account, and email are required' });
   const dup = await pool.query(`SELECT id FROM contacts WHERE email=$1 AND deleted_at IS NULL`, [b.email]);
-  if (dup.rows[0]) return res.status(409).json({ error: 'A record with this email already exists', existingId: dup.rows[0].id });
+  const dupLead = await pool.query(`SELECT id FROM leads WHERE email=$1 AND deleted_at IS NULL`, [b.email]);
+  if (dup.rows[0] || dupLead.rows[0]) {
+    return res.status(409).json({
+      error: 'A record with this email already exists',
+      existingId: dup.rows[0]?.id || dupLead.rows[0]?.id,
+    });
+  }
   try {
     const result = await pool.query(
       `INSERT INTO contacts (
@@ -61,7 +67,7 @@ router.post('/', requireEdit, async (req, res) => {
         $23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43
       ) RETURNING *`,
       [
-        b.salutation, b.first_name, b.last_name, b.email, b.phone, b.other_phone, b.home_phone, b.mobile, b.fax,
+        b.salutation, b.first_name, b.last_name, b.email, b.phone || null, b.other_phone, b.home_phone, b.mobile, b.fax,
         b.secondary_email, b.skype_id, b.twitter, b.email_opt_out || false,
         b.title, b.department, b.account_id, b.lead_source, b.reports_to_id || null,
         b.assistant, b.asst_phone, b.date_of_birth || null, b.website,
@@ -78,6 +84,22 @@ router.post('/', requireEdit, async (req, res) => {
 
 const updateContact = async (req, res) => {
   const b = req.body;
+  if (b.email) {
+    const dupContact = await pool.query(
+      `SELECT id FROM contacts WHERE email=$1 AND deleted_at IS NULL AND id != $2`,
+      [b.email, req.params.id],
+    );
+    const dupLead = await pool.query(
+      `SELECT id FROM leads WHERE email=$1 AND deleted_at IS NULL`,
+      [b.email],
+    );
+    if (dupContact.rows[0] || dupLead.rows[0]) {
+      return res.status(409).json({
+        error: 'A record with this email already exists',
+        existingId: dupContact.rows[0]?.id || dupLead.rows[0]?.id,
+      });
+    }
+  }
   try {
     const result = await pool.query(
       `UPDATE contacts SET
@@ -127,10 +149,10 @@ router.post('/bulk-upload', requireEdit, async (req, res) => {
       const email = row[mapping?.email || 'email'];
       const phone = row[mapping?.phone || 'phone'];
       const account_name = row[mapping?.account_name || 'account_name'];
-      if (!last_name || !email || !phone || !account_name) { errors.push({ row: row._row, error: 'Missing mandatory fields' }); continue; }
+      if (!last_name || !email || !account_name) { errors.push({ row: row._row, error: 'Missing mandatory fields' }); continue; }
       const acct = await pool.query(`SELECT id FROM accounts WHERE name ILIKE $1 AND deleted_at IS NULL`, [account_name]);
       if (!acct.rows[0]) { errors.push({ row: row._row, error: `Account not found: ${account_name}` }); continue; }
-      ready.push({ ...row, last_name, email, phone, account_id: acct.rows[0].id });
+      ready.push({ ...row, last_name, email, phone: phone || null, account_id: acct.rows[0].id });
     }
     res.json({ data: { ready: ready.length, errors: errors.length, readyRecords: ready, errorRecords: errors } });
   } catch (err) { res.status(500).json({ error: err.message }); }

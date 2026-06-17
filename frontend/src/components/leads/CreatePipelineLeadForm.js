@@ -8,7 +8,9 @@ import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { getApiError } from '../../lib/api.js';
 import { validateRequired, validateEmail } from '../../lib/validators.js';
+import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import { PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
 import {
   LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES,
 } from '../../lib/constants.js';
@@ -34,6 +36,10 @@ export function emptyPipelineLeadForm(ownerId = '', defaults = {}) {
     industry: '',
     annual_revenue: '',
     proposal_amount: '',
+    proposal_date: '',
+    deal_size: '',
+    closure_date: '',
+    deal_status: 'active_proposal',
     email_opt_out: false,
     company: '',
     last_name: '',
@@ -86,6 +92,7 @@ export default function CreatePipelineLeadForm({
   createFn,
   showLeadStatus = false,
   showLeadSource = true,
+  showProposalFields = false,
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -116,7 +123,7 @@ export default function CreatePipelineLeadForm({
     }));
   };
 
-  const validate = () => {
+  const validate = async () => {
     const errs = validateRequired(REQUIRED, form);
     const emailErr = validateEmail(form.email);
     if (emailErr) errs.email = emailErr;
@@ -124,15 +131,20 @@ export default function CreatePipelineLeadForm({
       const secErr = validateEmail(form.secondary_email);
       if (secErr) errs.secondary_email = secErr;
     }
+    if (!errs.email && form.email) {
+      const uniqueErr = await validateEmailUnique(form.email);
+      if (uniqueErr) errs.email = uniqueErr;
+    }
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+    if (Object.keys(errs).length) {
+      showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in required fields.');
+      return false;
+    }
+    return true;
   };
 
   const handleSave = async () => {
-    if (!validate()) {
-      showToast('Please fill in required fields.');
-      return;
-    }
+    if (!(await validate())) return;
     setSaving(true);
     try {
       const created = await createFn(form);
@@ -179,6 +191,9 @@ export default function CreatePipelineLeadForm({
             <FormField label="Title" name="title">
               <input className="input" value={form.title} onChange={set('title')} />
             </FormField>
+            <FormField label="Email" required error={errors.email} name="email">
+              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
+            </FormField>
             <FormField label="Phone" name="phone">
               <input className="input" value={form.phone} onChange={set('phone')} />
             </FormField>
@@ -199,12 +214,14 @@ export default function CreatePipelineLeadForm({
                 <input className="input pl-10" type="number" value={form.annual_revenue} onChange={set('annual_revenue')} />
               </div>
             </FormField>
-            <FormField label="Proposal Amount" name="proposal_amount">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zoho-muted">Rs.</span>
-                <input className="input pl-10" type="number" value={form.proposal_amount} onChange={set('proposal_amount')} />
-              </div>
-            </FormField>
+            {!showProposalFields && (
+              <FormField label="Proposal Amount" name="proposal_amount">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zoho-muted">Rs.</span>
+                  <input className="input pl-10" type="number" value={form.proposal_amount} onChange={set('proposal_amount')} />
+                </div>
+              </FormField>
+            )}
             <FormField label="Email Opt Out" name="email_opt_out">
               <label className="flex items-center gap-2 text-sm h-10">
                 <input type="checkbox" checked={form.email_opt_out} onChange={set('email_opt_out')} />
@@ -216,9 +233,6 @@ export default function CreatePipelineLeadForm({
             </FormField>
             <FormField label="Last Name" required error={errors.last_name} name="last_name">
               <input className={inputClass(errors.last_name)} value={form.last_name} onChange={set('last_name')} />
-            </FormField>
-            <FormField label="Email" required error={errors.email} name="email">
-              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
             </FormField>
             <FormField label="Fax" name="fax">
               <input className="input" value={form.fax} onChange={set('fax')} />
@@ -250,6 +264,29 @@ export default function CreatePipelineLeadForm({
               </div>
             </FormField>
           </div>
+
+          {showProposalFields && (
+            <>
+              <SectionTitle>Proposal Information</SectionTitle>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <FormField label="Proposal Date" name="proposal_date">
+                  <input className="input" type="date" value={form.proposal_date?.slice?.(0, 10) || form.proposal_date || ''} onChange={set('proposal_date')} />
+                </FormField>
+                <FormField label="Size of the Deal" name="deal_size">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zoho-muted">Rs.</span>
+                    <input className="input pl-10" type="number" min="0" step="any" value={form.deal_size} onChange={set('deal_size')} />
+                  </div>
+                </FormField>
+                <FormField label="Closure Date" name="closure_date">
+                  <input className="input" type="date" value={form.closure_date?.slice?.(0, 10) || form.closure_date || ''} onChange={set('closure_date')} />
+                </FormField>
+                <FormField label="Deal Status" name="deal_status">
+                  {noneSelect(form.deal_status, set('deal_status'), PROPOSAL_DEAL_STATUSES)}
+                </FormField>
+              </div>
+            </>
+          )}
 
           <SectionTitle>Address Information</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">

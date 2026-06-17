@@ -23,8 +23,13 @@ const migrate = async () => {
 
       -- Proposal amount on all core tables
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS proposal_amount NUMERIC(14,2);
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS proposal_date DATE;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS closure_date DATE;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS deal_size NUMERIC(14,2);
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS deal_status VARCHAR(50);
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS proposal_amount NUMERIC(14,2);
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS proposal_amount NUMERIC(14,2);
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS deal_size NUMERIC(14,2);
       ALTER TABLE deals ADD COLUMN IF NOT EXISTS proposal_amount NUMERIC(14,2);
 
       -- Leads extended fields
@@ -273,6 +278,27 @@ const migrate = async () => {
         account_id INTEGER REFERENCES accounts(id),
         deal_id INTEGER REFERENCES deals(id),
         description TEXT,
+        owner_id INTEGER REFERENCES users(id),
+        created_by INTEGER REFERENCES users(id),
+        deleted_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS budget NUMERIC(14,2);
+
+      -- Calendar events (tasks, deadlines, to-dos)
+      CREATE TABLE IF NOT EXISTS calendar_events (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(200) NOT NULL,
+        description TEXT,
+        event_type VARCHAR(50) DEFAULT 'task',
+        event_date DATE NOT NULL,
+        start_time TIME,
+        end_time TIME,
+        all_day BOOLEAN DEFAULT true,
+        completed BOOLEAN DEFAULT false,
+        remind_on_login BOOLEAN DEFAULT true,
         owner_id INTEGER REFERENCES users(id),
         created_by INTEGER REFERENCES users(id),
         deleted_at TIMESTAMPTZ,

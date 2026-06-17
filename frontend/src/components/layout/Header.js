@@ -6,7 +6,6 @@ import { useAuth } from '../../hooks/useAuth.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import * as accountsApi from '../../lib/services/accounts.js';
-import * as dealsApi from '../../lib/services/deals.js';
 import { useToast } from '../ui/Toast.js';
 import ConfirmDialog from '../ui/ConfirmDialog.js';
 import { getApiError } from '../../lib/api.js';
@@ -49,13 +48,11 @@ export default function Header({ onMenuClick }) {
         leadsApi.listLeads({ search, page_size: 4 }),
         contactsApi.listContacts({ search, page_size: 4 }),
         accountsApi.listAccounts({ search, page_size: 4 }),
-        dealsApi.listDeals({ search, page_size: 4 }),
-      ]).then(([leads, contacts, accounts, deals]) => {
+      ]).then(([leads, contacts, accounts]) => {
         setResults([
           ...leads.data.map(l => ({ type: 'lead', id: l.id, name: `${l.first_name || ''} ${l.last_name}`.trim(), sub: l.company })),
           ...contacts.data.map(c => ({ type: 'contact', id: c.id, name: `${c.first_name || ''} ${c.last_name}`.trim(), sub: c.account_name })),
           ...accounts.data.map(a => ({ type: 'account', id: a.id, name: a.name, sub: a.industry })),
-          ...deals.data.map(d => ({ type: 'deal', id: d.id, name: d.name, sub: d.account_name })),
         ].slice(0, 12));
       }).catch((err) => {
         setResults([]);
@@ -65,7 +62,7 @@ export default function Header({ onMenuClick }) {
     return () => clearTimeout(t);
   }, [search]);
 
-  const typeRoute = { lead: 'leads', contact: 'contacts', account: 'accounts', deal: 'deals', task: 'tasks' };
+  const typeRoute = { lead: 'leads', contact: 'contacts', account: 'accounts' };
 
   const handleResultClick = (r) => {
     setShowResults(false);
