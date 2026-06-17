@@ -1,3 +1,5 @@
+import { pipelineStageLabel, PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } from './pipelineHelpers.js';
+
 /** Map API snake_case lead_status to display label (fallback when lookups unavailable) */
 const STATUS_LABELS = {
   none: 'None',
@@ -9,6 +11,10 @@ const STATUS_LABELS = {
   not_contacted: 'Not Contacted',
   pre_qualified: 'Pre-Qualified',
   not_qualified: 'Not Qualified',
+  [PIPELINE_RAW]: 'Raw Lead',
+  [PIPELINE_LEAD]: 'Lead',
+  [PIPELINE_QUALIFIED]: 'Qualified Lead',
+  [PIPELINE_PROPOSAL]: 'Proposal',
 };
 
 const SNAKE_CASE_RE = /^[a-z][a-z0-9_]*$/;
@@ -18,7 +24,7 @@ export function leadStatusLabel(status, options = []) {
   const lookupOptions = Array.isArray(options) ? options : [];
   const fromLookup = lookupOptions.find(o => o.value === status);
   if (fromLookup) return fromLookup.label;
-  return STATUS_LABELS[status] || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return STATUS_LABELS[status] || pipelineStageLabel(status) || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 /** Ensure API receives lowercase snake_case from lookups (never display labels) */

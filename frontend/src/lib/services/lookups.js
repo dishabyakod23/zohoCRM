@@ -5,6 +5,10 @@ import { parseLookupOptions } from '../recordHelpers.js';
 
 /** Fallback when lookups API is unavailable */
 export const FALLBACK_LEAD_STATUSES = [
+  { value: 'raw_lead', label: 'Raw Lead' },
+  { value: 'lead', label: 'Lead' },
+  { value: 'qualified_lead', label: 'Qualified Lead' },
+  { value: 'proposal', label: 'Proposal' },
   { value: 'none', label: 'None' },
   { value: 'attempted_to_contact', label: 'Attempted to Contact' },
   { value: 'contact_in_future', label: 'Contact in Future' },

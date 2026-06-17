@@ -26,7 +26,10 @@ export const INDUSTRIES = ['IT Services', 'E-Commerce', 'EdTech', 'Automotive', 
 export const MODULE_TABS = [
   { href: '/dashboard', label: 'Home', match: ['/dashboard'] },
   { href: '/contacts', label: 'Contacts', match: ['/contacts'] },
+  { href: '/raw-leads', label: 'Raw Leads', match: ['/raw-leads'] },
   { href: '/leads', label: 'Leads', match: ['/leads'] },
+  { href: '/qualified-leads', label: 'Qualified', match: ['/qualified-leads'] },
+  { href: '/proposals', label: 'Proposals', match: ['/proposals'] },
   { href: '/accounts', label: 'Accounts', match: ['/accounts'] },
   { href: '/deals', label: 'Deals', match: ['/deals'] },
   { href: '/activities', label: 'Activities', match: ['/activities', '/tasks', '/meetings', '/calls'] },
@@ -36,7 +39,8 @@ export const MODULE_TABS = [
 ];
 
 export const MODULE_ICONS = {
-  Home: '🏠', Contacts: '👤', Leads: '🎯', Accounts: '🏢', Deals: '💰',
+  Home: '🏠', Contacts: '👤', Leads: '🎯', 'Raw Leads': '📥', Qualified: '✅', Proposals: '📝',
+  Accounts: '🏢', Deals: '💰',
   Activities: '📋', Campaigns: '📣', Documents: '📄', Reports: '📊',
   Tasks: '✓', Meetings: '📅', Calls: '📞', Visits: '📍', Projects: '📁',
 };
@@ -45,7 +49,10 @@ export const NAV_MODULES = [
   { href: '/dashboard', label: 'Home', section: 'main', icon: 'Home' },
   { href: '/reports', label: 'Reports', section: 'main', icon: 'Reports' },
   { href: '/contacts', label: 'Contacts', section: 'modules', icon: 'Contacts' },
+  { href: '/raw-leads', label: 'Raw Leads', section: 'modules', icon: 'Raw Leads' },
   { href: '/leads', label: 'Leads', section: 'modules', icon: 'Leads' },
+  { href: '/qualified-leads', label: 'Qualified Leads', section: 'modules', icon: 'Qualified' },
+  { href: '/proposals', label: 'Proposals', section: 'modules', icon: 'Proposals' },
   { href: '/accounts', label: 'Accounts', section: 'modules', icon: 'Accounts' },
   { href: '/deals', label: 'Deals', section: 'modules', icon: 'Deals' },
   { href: '/activities', label: 'Activities', section: 'modules', icon: 'Activities' },

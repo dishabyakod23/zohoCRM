@@ -40,6 +40,7 @@ export function getRolePermissions(role) {
     canManageWeeklyReports: superAdmin,
     canAccessReports: !viewer,
     canBulkDelete: superAdmin || salesManager,
+    canAssignLeads: superAdmin || salesManager,
     canQuickCreate: !viewer,
     isSuperAdmin: superAdmin,
     isViewer: viewer,

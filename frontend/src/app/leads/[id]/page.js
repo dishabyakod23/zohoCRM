@@ -16,6 +16,7 @@ import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../../lib/services
 import { fetchDealStages } from '../../../lib/services/lookups.js';
 import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { LEAD_SOURCES, SALUTATIONS, RATINGS } from '../../../lib/constants.js';
+import { PIPELINE_LEAD, PIPELINE_QUALIFIED } from '../../../lib/pipelineHelpers.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon, ArrowPathIcon,
 } from '@heroicons/react/24/outline';
@@ -32,6 +33,8 @@ export default function LeadDetailPage() {
   const [noteText, setNoteText] = useState('');
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [stageOptions, setStageOptions] = useState(FALLBACK_DEAL_STAGES);
+  const [convertPipelineConfirm, setConvertPipelineConfirm] = useState(false);
+  const [convertingPipeline, setConvertingPipeline] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
   const [convertConfirm, setConvertConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -73,6 +76,20 @@ export default function LeadDetailPage() {
     }
   };
 
+  const handleConvertPipeline = async () => {
+    setConvertingPipeline(true);
+    try {
+      await leadsApi.advanceLeadStage(id, PIPELINE_QUALIFIED);
+      showToast('Converted to Qualified Lead', 'success');
+      setConvertPipelineConfirm(false);
+      router.push(`/qualified-leads/${id}`);
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setConvertingPipeline(false);
+    }
+  };
+
   const handleConvert = async () => {
     try {
       const result = await leadsApi.convertLead(id, convertForm);
@@ -99,6 +116,7 @@ export default function LeadDetailPage() {
 
   if (!lead) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
 
+  const isPipelineLead = lead.lead_status === PIPELINE_LEAD;
   const editable = canEdit && !lead.is_converted;
   const select = (opts, key = 'value', labelKey = 'label') => (draft, setDraft, field) => (
     <select className="input" value={draft[field] ?? ''} onChange={(e) => setDraft((d) => ({ ...d, [field]: e.target.value }))}>
@@ -120,9 +138,14 @@ export default function LeadDetailPage() {
         tabs={['Overview', 'Notes']}
         actions={
           <>
+            {editable && isPipelineLead && (
+              <button onClick={() => setConvertPipelineConfirm(true)} className="btn-primary text-xs flex items-center gap-1.5">
+                <ArrowPathIcon className="w-4 h-4" /> Convert to Qualified Lead
+              </button>
+            )}
             {editable && !lead.is_converted && (
-              <button onClick={() => setConvertConfirm(true)} className="btn-primary text-xs flex items-center gap-1.5">
-                <ArrowPathIcon className="w-4 h-4" /> Convert
+              <button onClick={() => setConvertConfirm(true)} className="btn-secondary text-xs flex items-center gap-1.5">
+                <ArrowPathIcon className="w-4 h-4" /> Convert to Account
               </button>
             )}
             {canDelete && (
@@ -234,6 +257,11 @@ export default function LeadDetailPage() {
           return null;
         }}
       />
+
+      <ConfirmDialog open={convertPipelineConfirm}
+        message={`Move ${lead.first_name} ${lead.last_name} to Qualified Leads?`}
+        confirmLabel={convertingPipeline ? 'Converting...' : 'Convert to Qualified Lead'}
+        onConfirm={handleConvertPipeline} onCancel={() => setConvertPipelineConfirm(false)} />
 
       <ConfirmDialog open={convertConfirm} message={`Convert ${lead.first_name} ${lead.last_name} into Account, Contact, and optional Deal?`} confirmLabel="Yes, Convert"
         onConfirm={() => { setConvertConfirm(false); setConvertOpen(true); }} onCancel={() => setConvertConfirm(false)} />

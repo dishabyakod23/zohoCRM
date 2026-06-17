@@ -14,13 +14,14 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
 import { LEAD_SOURCES, LIST_VIEWS, SALUTATIONS, RATINGS } from '../../lib/constants.js';
+import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 
 const EMPTY = {
   salutation: '', first_name: '', last_name: '', email: '', phone: '', mobile: '',
-  company: '', title: '', lead_status: 'not_contacted', source: '', industry: '',
+  company: '', title: '', lead_status: PIPELINE_LEAD, source: '', industry: '',
   rating: '', website: '', annual_revenue: '', no_of_employees: '',
   street: '', city: '', state: '', zip_code: '', country: 'India',
   description: '',
@@ -67,7 +68,7 @@ export default function LeadsPage() {
         page,
         page_size: limit,
         search: debouncedSearch || undefined,
-        lead_status: statusFilter || undefined,
+        lead_status: statusFilter || PIPELINE_LEAD,
       };
       if (activeView === 'My Leads' && user?.id) params.owner_id = user.id;
       if (activeView === 'Recently Created') {
@@ -150,8 +151,8 @@ export default function LeadsPage() {
           createLabel="+ Create Lead"
         >
           <select className="input w-40 text-xs" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
-            <option value="">All statuses</option>
-            {statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            <option value="">Active leads</option>
+            {statusOptions.filter(s => !['raw_lead', 'qualified_lead', 'proposal'].includes(s.value)).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
           <select className="input w-28 text-xs" value={limit} onChange={e => { setLimit(+e.target.value); setPage(1); }}>
             {[10, 15, 25, 50].map(n => <option key={n} value={n}>{n} per page</option>)}

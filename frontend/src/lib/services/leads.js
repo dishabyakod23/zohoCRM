@@ -1,6 +1,7 @@
 import api from '../api.js';
 import { normalizeLead, toLeadPayload } from '../leadHelpers.js';
 import { toConvertPayload } from '../dealHelpers.js';
+import { PIPELINE_RAW } from '../pipelineHelpers.js';
 
 export async function listLeads({ page = 1, page_size = 15, search, lead_status, owner_id, sort_by, sort_order } = {}) {
   const params = { page, page_size };
@@ -64,4 +65,61 @@ export async function deleteLeadNote(leadId, noteId) {
 export async function listLeadAttachments(id) {
   const res = await api.get(`/leads/${id}/attachments`);
   return res.data.data || [];
+}
+
+export async function advanceLeadStage(id, lead_status) {
+  const res = await api.patch(`/leads/${id}`, { lead_status });
+  return normalizeLead(res.data.data);
+}
+
+export async function assignLead(id, owner_id) {
+  const res = await api.patch(`/leads/${id}`, { owner_id });
+  return normalizeLead(res.data.data);
+}
+
+export async function createRawLead(form) {
+  return createLead({ ...form, lead_status: PIPELINE_RAW, source: form.source || form.lead_source || 'Bulk Upload' });
+}
+
+/** Parse CSV text into row objects keyed by header names */
+export function parseLeadCsv(csvText) {
+  const lines = csvText.trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+  return lines.slice(1).map((line, index) => {
+    const values = line.split(',').map((v) => v.trim());
+    const row = { _row: index + 2 };
+    headers.forEach((h, i) => { row[h] = values[i] || ''; });
+    return row;
+  });
+}
+
+export async function importRawLeads(rows) {
+  const results = { success: 0, failed: 0, errors: [] };
+  for (const row of rows) {
+    if (!row.last_name?.trim() || !row.company?.trim()) {
+      results.failed += 1;
+      results.errors.push({ row: row._row, error: 'Last name and company are required' });
+      continue;
+    }
+    try {
+      await createRawLead({
+        first_name: row.first_name || '',
+        last_name: row.last_name,
+        company: row.company,
+        email: row.email || `raw-${Date.now()}-${row._row}@import.local`,
+        phone: row.phone || '0000000000',
+        mobile: row.mobile || null,
+        title: row.title || null,
+        source: row.lead_source || 'Bulk Upload',
+        industry: row.industry || null,
+        description: row.description || null,
+      });
+      results.success += 1;
+    } catch (err) {
+      results.failed += 1;
+      results.errors.push({ row: row._row, error: err.response?.data?.message || err.message || 'Import failed' });
+    }
+  }
+  return results;
 }
