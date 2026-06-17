@@ -40,7 +40,7 @@ export default function MeetingDetailPage() {
       });
       load();
       showToast('Meeting updated', 'success');
-    } catch (err) { showToast(getApiError(err)); }
+    } catch (err) { showToast(getApiError(err)); throw err; }
     finally { setSaving(false); }
   };
 

@@ -41,7 +41,7 @@ export default function VisitDetailPage() {
       await visitsApi.updateVisit(id, { ...payload, title: payload.title ?? payload.visit_name });
       load();
       showToast('Visit updated', 'success');
-    } catch (err) { showToast(getApiError(err)); }
+    } catch (err) { showToast(getApiError(err)); throw err; }
     finally { setSaving(false); }
   };
 

@@ -37,7 +37,7 @@ export default function CallDetailPage() {
       await callsApi.updateCall(id, { ...payload, start_time: payload.start_time ?? payload.call_start_at, assigned_to: payload.assigned_to ?? payload.owner_id });
       load();
       showToast('Call updated', 'success');
-    } catch (err) { showToast(getApiError(err)); }
+    } catch (err) { showToast(getApiError(err)); throw err; }
     finally { setSaving(false); }
   };
 

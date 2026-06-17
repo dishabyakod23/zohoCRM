@@ -27,8 +27,12 @@ export default function EditableFieldSection({
   const cancel = () => setEditing(false);
 
   const save = async () => {
-    await onSave(draft);
-    setEditing(false);
+    try {
+      await onSave(draft);
+      setEditing(false);
+    } catch {
+      // Stay in edit mode when save fails; onSave shows the error toast.
+    }
   };
 
   const display = (f) => {

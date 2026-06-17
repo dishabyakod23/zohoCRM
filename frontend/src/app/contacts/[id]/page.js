@@ -46,6 +46,7 @@ export default function ContactDetailPage() {
       showToast('Contact updated', 'success');
     } catch (err) {
       showToast(getApiError(err));
+      throw err;
     } finally {
       setSaving(false);
     }

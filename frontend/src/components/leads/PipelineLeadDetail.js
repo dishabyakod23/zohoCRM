@@ -78,6 +78,7 @@ export default function PipelineLeadDetail({ stage }) {
       showToast('Updated', 'success');
     } catch (err) {
       showToast(getApiError(err));
+      throw err;
     } finally {
       setSaving(false);
     }

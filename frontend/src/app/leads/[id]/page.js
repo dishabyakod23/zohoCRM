@@ -57,6 +57,7 @@ export default function LeadDetailPage() {
       showToast('Lead updated', 'success');
     } catch (err) {
       showToast(getApiError(err));
+      throw err;
     } finally {
       setSaving(false);
     }

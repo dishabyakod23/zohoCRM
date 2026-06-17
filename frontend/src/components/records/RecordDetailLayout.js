@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import RecordNotesTab from './RecordNotesTab.js';
+import { notesSupportedRelatedType } from '../../lib/noteHelpers.js';
 
 /**
  * Zoho-style record detail page shell: gradient header with avatar,
@@ -23,7 +24,9 @@ export default function RecordDetailLayout({
   children,
   tabContent,
 }) {
-  const showNotes = ['lead', 'contact', 'account'].includes(recordNotes?.relatedType);
+  const showNotes = recordNotes?.relatedType
+    && recordNotes?.recordId
+    && notesSupportedRelatedType(recordNotes.relatedType);
   const resolvedTabs = tabs ?? (showNotes ? ['Overview', 'Notes'] : ['Overview']);
   const [activeTab, setActiveTab] = useState(defaultTab);
 

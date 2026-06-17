@@ -60,6 +60,7 @@ export default function DealDetailPage() {
       showToast('Deal updated', 'success');
     } catch (err) {
       showToast(getApiError(err));
+      throw err;
     } finally {
       setSaving(false);
     }
@@ -79,12 +80,12 @@ export default function DealDetailPage() {
     }
   };
 
-  const isClosedLost = String(deal.stage_value || deal.stage || '').toLowerCase().includes('closed_lost')
-    || String(deal.stage || '').toLowerCase().includes('closed lost');
-
   const fmt = (n) => (n != null && n !== '' ? `₹${Number(n).toLocaleString()}` : '—');
 
   if (!deal) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
+
+  const isClosedLost = String(deal.stage_value || deal.stage || '').toLowerCase().includes('closed_lost')
+    || String(deal.stage || '').toLowerCase().includes('closed lost');
 
   return (
     <CRMLayout>

@@ -5,43 +5,59 @@ export function normalizeNote(note) {
   return {
     ...note,
     body: note.body || note.content || '',
+    owner_name: note.owner_name || note.created_by_name || note.author_name || '',
   };
 }
 
-const ENTITY_NOTE_PATHS = {
-  lead: (id) => `/leads/${id}/notes`,
-  contact: (id) => `/contacts/${id}/notes`,
-  account: (id) => `/accounts/${id}/notes`,
-};
-
-function entityNotesPath(relatedType, relatedId) {
-  const build = ENTITY_NOTE_PATHS[relatedType];
-  return build ? build(relatedId) : null;
+function entityParams(relatedType, relatedId) {
+  return {
+    entity_type: relatedType,
+    entity_id: relatedId,
+    related_type: relatedType,
+    related_id: relatedId,
+  };
 }
 
+function noteCreatePayload(relatedType, relatedId, body) {
+  return {
+    ...entityParams(relatedType, relatedId),
+    body,
+    content: body,
+  };
+}
+
+function parseListResponse(res) {
+  const raw = res.data?.data ?? res.data;
+  const rows = Array.isArray(raw) ? raw : [];
+  return rows.map(normalizeNote);
+}
+
+function parseSingleResponse(res) {
+  const raw = res.data?.data ?? res.data;
+  return normalizeNote(raw);
+}
+
+/** GET /notes?entity_type=&entity_id= */
 export async function listNotes(relatedType, relatedId) {
-  const base = entityNotesPath(relatedType, relatedId);
-  if (!base) return [];
-  const res = await api.get(base);
-  return (res.data?.data || []).map(normalizeNote);
+  if (!relatedType || !relatedId) return [];
+  const res = await api.get('/notes', { params: entityParams(relatedType, relatedId) });
+  return parseListResponse(res);
 }
 
+/** POST /notes */
 export async function createNote(relatedType, relatedId, body) {
-  const base = entityNotesPath(relatedType, relatedId);
-  if (!base) throw new Error(`Notes not supported for ${relatedType}`);
-  const res = await api.post(base, { body });
-  return normalizeNote(res.data?.data ?? res.data);
+  if (!relatedType || !relatedId) throw new Error('Related record is required');
+  const res = await api.post('/notes', noteCreatePayload(relatedType, relatedId, body));
+  return parseSingleResponse(res);
 }
 
-export async function updateNote(relatedType, relatedId, noteId, body) {
-  const base = entityNotesPath(relatedType, relatedId);
-  if (!base) throw new Error(`Notes not supported for ${relatedType}`);
-  const res = await api.patch(`${base}/${noteId}`, { body });
-  return normalizeNote(res.data?.data ?? res.data);
+/** PATCH /notes/{note_id} */
+export async function updateNote(_relatedType, _relatedId, noteId, body) {
+  const res = await api.patch(`/notes/${noteId}`, { body, content: body });
+  return parseSingleResponse(res);
 }
 
-export async function deleteNote(relatedType, relatedId, noteId) {
-  const base = entityNotesPath(relatedType, relatedId);
-  if (!base) throw new Error(`Notes not supported for ${relatedType}`);
-  await api.delete(`${base}/${noteId}`);
+/** DELETE /notes/{note_id} */
+export async function deleteNote(_relatedType, _relatedId, noteId) {
+  await api.delete(`/notes/${noteId}`);
 }

@@ -32,7 +32,7 @@ export default function DocumentDetailPage() {
       await documentsApi.updateDocument(id, payload);
       load();
       showToast('Document updated', 'success');
-    } catch (err) { showToast(getApiError(err)); }
+    } catch (err) { showToast(getApiError(err)); throw err; }
     finally { setSaving(false); }
   };
 

@@ -1,15 +1,34 @@
 import api from '../api.js';
 import { normalizeLead, toLeadPayload, resolveLeadStatusForApi } from '../leadHelpers.js';
-import { normalizeNote } from './notes.js';
 import { toConvertPayload } from '../dealHelpers.js';
 import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
 import {
-  PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PROPOSAL_SOURCE,
+  PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PIPELINE_LEAD, PROPOSAL_SOURCE,
   filterLeadsByPipelineStage, toApiLeadStatus,
 } from '../pipelineHelpers.js';
 
+const CONVERT_MASS_TARGETS = new Set(['account', 'contact', 'deal']);
+
+async function fetchAllLeadPages(params, statusOptions) {
+  const pageSize = 100;
+  let page = 1;
+  let all = [];
+  let serverTotal = 0;
+
+  while (page <= 50) {
+    const res = await api.get('/leads', { params: { ...params, page, page_size: pageSize } });
+    const batch = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
+    serverTotal = res.data.meta?.total ?? all.length + batch.length;
+    all = all.concat(batch);
+    if (batch.length === 0 || all.length >= serverTotal) break;
+    page += 1;
+  }
+
+  return all;
+}
+
 export async function listLeads({ page = 1, page_size = 15, search, lead_status, owner_id, sort_by, sort_order, pipeline_stage, statusOptions } = {}) {
-  const params = { page, page_size };
+  const params = {};
   if (search) params.search = search;
   const apiStatus = pipeline_stage === PIPELINE_PROPOSAL || pipeline_stage === PIPELINE_QUALIFIED
     ? 'qualified_lead'
@@ -21,16 +40,25 @@ export async function listLeads({ page = 1, page_size = 15, search, lead_status,
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
 
-  const res = await api.get('/leads', { params });
-  let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
   if (pipeline_stage) {
-    data = filterLeadsByPipelineStage(data, pipeline_stage);
-  } else if (lead_status && toApiLeadStatus(lead_status) === 'qualified_lead' && lead_status !== PIPELINE_PROPOSAL) {
+    const allLeads = await fetchAllLeadPages(params, statusOptions);
+    const filtered = filterLeadsByPipelineStage(allLeads, pipeline_stage);
+    const start = (page - 1) * page_size;
+    return {
+      data: filtered.slice(start, start + page_size),
+      total: filtered.length,
+      meta: { total: filtered.length },
+    };
+  }
+
+  const res = await api.get('/leads', { params: { ...params, page, page_size } });
+  let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
+  if (lead_status && toApiLeadStatus(lead_status) === 'qualified_lead' && lead_status !== PIPELINE_PROPOSAL) {
     data = filterLeadsByPipelineStage(data, 'qualified_lead');
   }
   return {
     data,
-    total: pipeline_stage ? data.length : (res.data.meta?.total ?? 0),
+    total: res.data.meta?.total ?? 0,
     meta: res.data.meta,
   };
 }
@@ -66,28 +94,33 @@ export async function massUpdateLeads(ids, field, value, { lost_reason } = {}) {
   return res.data.data;
 }
 
+/** Route mass-update Convert to per-lead conversion; other fields use bulk API. */
+export async function applyLeadMassUpdate(ids, field, value, extras = {}) {
+  const fieldKey = String(field || '').toLowerCase();
+  if (fieldKey === 'convert') {
+    const target = String(value || '').toLowerCase();
+    let success = 0;
+    for (const id of ids) {
+      if (CONVERT_MASS_TARGETS.has(target)) {
+        await convertLead(id, { create_deal: target === 'deal' });
+      } else {
+        await advanceLeadStage(id, value, {
+          proposal: target === 'proposal' || value === PIPELINE_PROPOSAL,
+          clearProposal: target === 'lead' || target === PIPELINE_LEAD || value === PIPELINE_LEAD,
+        });
+      }
+      success += 1;
+    }
+    return { success_count: success, updated: success };
+  }
+
+  const apiField = fieldKey === 'status' ? 'lead_status' : field;
+  return massUpdateLeads(ids, apiField, value, extras);
+}
+
 export async function convertLead(id, form) {
   const res = await api.post(`/leads/${id}/convert`, toConvertPayload(form));
   return res.data.data;
-}
-
-export async function listLeadNotes(id) {
-  const res = await api.get(`/leads/${id}/notes`);
-  return (res.data.data || []).map(normalizeNote);
-}
-
-export async function createLeadNote(id, body) {
-  const res = await api.post(`/leads/${id}/notes`, { body });
-  return normalizeNote(res.data.data);
-}
-
-export async function updateLeadNote(leadId, noteId, body) {
-  const res = await api.patch(`/leads/${leadId}/notes/${noteId}`, { body });
-  return normalizeNote(res.data.data);
-}
-
-export async function deleteLeadNote(leadId, noteId) {
-  await api.delete(`/leads/${leadId}/notes/${noteId}`);
 }
 
 export async function listLeadAttachments(id) {

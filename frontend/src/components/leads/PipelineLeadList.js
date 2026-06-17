@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../layout/CRMLayout.js';
 import Modal from '../ui/Modal.js';
@@ -44,6 +44,7 @@ export default function PipelineLeadList({ stage, description }) {
   const [assignUserId, setAssignUserId] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const fetchRequestId = useRef(0);
 
   useEffect(() => {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
@@ -54,6 +55,7 @@ export default function PipelineLeadList({ stage, description }) {
   }, [canAssignLeads]);
 
   const fetchLeads = useCallback(async () => {
+    const requestId = ++fetchRequestId.current;
     setLoading(true);
     try {
       const result = await leadsApi.listLeads({
@@ -64,14 +66,16 @@ export default function PipelineLeadList({ stage, description }) {
         lead_status: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PIPELINE_RAW].includes(stage) ? undefined : (config?.apiStatus || stage),
         statusOptions,
       });
+      if (requestId !== fetchRequestId.current) return;
       setLeads(result.data);
       setTotal(result.total);
     } catch (err) {
+      if (requestId !== fetchRequestId.current) return;
       showToast(getApiError(err));
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, stage, showToast, statusOptions]);
+  }, [page, limit, debouncedSearch, stage, config?.apiStatus, showToast, statusOptions]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -184,7 +188,7 @@ export default function PipelineLeadList({ stage, description }) {
             {stage === PIPELINE_PROPOSAL && canEdit && (
               <Link href="/proposals/create" className="btn-primary text-xs">+ Create Proposal</Link>
             )}
-            {config?.allowUpload && canAssignLeads && (
+            {config?.allowUpload && canEdit && (
               <button onClick={() => setUploadOpen(true)} className="btn-secondary text-xs">Upload CSV</button>
             )}
           </div>
@@ -212,7 +216,7 @@ export default function PipelineLeadList({ stage, description }) {
             statusOptions={statusOptions}
             onRefresh={fetchLeads}
             massUpdateFieldsLoader={fetchLeadMassUpdateFields}
-            massUpdateHandler={(ids, field, value, extras) => leadsApi.massUpdateLeads(ids, field, value, extras)}
+            massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
             pagination={{
               page,
               totalPages,

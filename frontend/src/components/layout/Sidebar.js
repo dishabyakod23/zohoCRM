@@ -21,7 +21,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
   const [moduleSearch, setModuleSearch] = useState('');
 
   const mainNav = NAV_MODULES.filter(n => n.section === 'main' && (n.href !== '/reports' || canAccessReports));
-  const modules = NAV_MODULES.filter(n => n.section === 'modules' && !n.parent &&
+  const modules = NAV_MODULES.filter(n => n.section === 'modules' &&
     n.label.toLowerCase().includes(moduleSearch.toLowerCase()));
 
   const isActive = (href) => pathname === href || pathname.startsWith(href + '/');

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
@@ -31,6 +31,7 @@ export default function LeadsPage() {
   const [limit, setLimit] = useState(15);
   const [activeView, setActiveView] = useState('All Leads');
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const fetchRequestId = useRef(0);
 
   useEffect(() => {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
@@ -44,6 +45,7 @@ export default function LeadsPage() {
   }, [canEdit, router]);
 
   const fetchLeads = useCallback(async () => {
+    const requestId = ++fetchRequestId.current;
     setLoading(true);
     try {
       const params = {
@@ -65,12 +67,14 @@ export default function LeadsPage() {
         ...params,
         statusOptions,
       });
+      if (requestId !== fetchRequestId.current) return;
       setLeads(result.data);
       setTotal(result.total);
     } catch (err) {
+      if (requestId !== fetchRequestId.current) return;
       showToast(getApiError(err));
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestId.current) setLoading(false);
     }
   }, [page, limit, debouncedSearch, statusFilter, activeView, user?.id, showToast, statusOptions]);
 
@@ -121,7 +125,7 @@ export default function LeadsPage() {
             onRefresh={fetchLeads}
             emptyMessage="No leads found"
             massUpdateFieldsLoader={fetchLeadMassUpdateFields}
-            massUpdateHandler={(ids, field, value, extras) => leadsApi.massUpdateLeads(ids, field, value, extras)}
+            massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
             pagination={{
               page,
               totalPages,

@@ -49,7 +49,7 @@ export default function ProjectsPage() {
     }
   }, [accountMap, showToast]);
 
-  useEffect(() => { if (accounts.length) fetchItems(); }, [fetchItems, accounts.length]);
+  useEffect(() => { fetchItems(); }, [fetchItems]);
 
   const save = async () => {
     const errs = validateRequired({ name: 'Project Name', account_id: 'Account', start_date: 'Start Date' }, form);

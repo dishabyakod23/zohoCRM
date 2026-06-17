@@ -42,7 +42,7 @@ export default function TaskDetailPage() {
       await tasksApi.updateTask(id, { ...payload, title: payload.title ?? payload.subject, assigned_to: payload.assigned_to ?? payload.assigned_to_id });
       load();
       showToast('Task updated', 'success');
-    } catch (err) { showToast(getApiError(err)); }
+    } catch (err) { showToast(getApiError(err)); throw err; }
     finally { setSaving(false); }
   };
 

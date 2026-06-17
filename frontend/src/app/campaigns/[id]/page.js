@@ -41,7 +41,7 @@ export default function CampaignDetailPage() {
       await campaignsApi.updateCampaign(id, { ...payload, name: payload.name ?? payload.campaign_name, type: payload.type ?? payload.campaign_type });
       load();
       showToast('Campaign updated', 'success');
-    } catch (err) { showToast(getApiError(err)); }
+    } catch (err) { showToast(getApiError(err)); throw err; }
     finally { setSaving(false); }
   };
 

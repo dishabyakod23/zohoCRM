@@ -45,6 +45,7 @@ export default function AccountDetailPage() {
       showToast('Account updated', 'success');
     } catch (err) {
       showToast(getApiError(err));
+      throw err;
     } finally {
       setSaving(false);
     }

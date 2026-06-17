@@ -1,8 +1,42 @@
-/** Modules with notes API support on the hosted Sales CRM API */
-export const NOTES_API_MODULES = new Set(['leads', 'raw-leads', 'qualified-leads', 'proposals', 'contacts', 'accounts']);
+/** CRM modules that support record notes via GET/POST /notes */
+export const NOTES_API_MODULES = new Set([
+  'leads',
+  'raw-leads',
+  'qualified-leads',
+  'proposals',
+  'contacts',
+  'accounts',
+  'deals',
+  'tasks',
+  'calls',
+  'meetings',
+  'campaigns',
+  'documents',
+  'visits',
+  'projects',
+]);
+
+/** entity_type values accepted by GET/POST /api/v1/notes */
+export const NOTES_ENTITY_TYPES = new Set([
+  'lead',
+  'contact',
+  'account',
+  'deal',
+  'task',
+  'call',
+  'meeting',
+  'campaign',
+  'document',
+  'visit',
+  'project',
+]);
 
 export function notesApiSupported(moduleKey) {
   return NOTES_API_MODULES.has(moduleKey);
+}
+
+export function notesSupportedRelatedType(relatedType) {
+  return NOTES_ENTITY_TYPES.has(relatedType);
 }
 
 const LEAD_LABEL = (r) => `${r.first_name || ''} ${r.last_name || ''}`.trim() || r.company || 'Lead';

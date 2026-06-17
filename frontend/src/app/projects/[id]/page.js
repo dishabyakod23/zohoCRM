@@ -42,7 +42,7 @@ export default function ProjectDetailPage() {
       await projectsApi.updateProject(id, { ...payload, name: payload.name ?? payload.project_name });
       load();
       showToast('Project updated', 'success');
-    } catch (err) { showToast(getApiError(err)); }
+    } catch (err) { showToast(getApiError(err)); throw err; }
     finally { setSaving(false); }
   };
 

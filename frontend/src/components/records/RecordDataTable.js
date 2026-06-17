@@ -20,6 +20,14 @@ import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers
 
 const defaultGetRowId = (r) => r.id;
 
+const CAMPAIGN_MEMBER_TYPES = {
+  leads: 'lead',
+  'raw-leads': 'lead',
+  'qualified-leads': 'lead',
+  proposals: 'lead',
+  contacts: 'contact',
+};
+
 function MassUpdatePanel({
   open, field, value, onFieldChange, onValueChange, onCancel, onUpdate, updating,
   statusOptions, massUpdateFields, dynamicFields, loadingFields,
@@ -147,6 +155,7 @@ export default function RecordDataTable({
   const [users, setUsers] = useState([]);
   const [taskForm, setTaskForm] = useState({ title: '', due_date: '', assigned_to: '', description: '' });
   const [savingTask, setSavingTask] = useState(false);
+  const [savingCampaign, setSavingCampaign] = useState(false);
   const menuRef = useRef(null);
 
   const selectedRecords = useMemo(
@@ -402,10 +411,26 @@ export default function RecordDataTable({
 
   const addToCampaign = async () => {
     if (!selectedCampaign) return;
-    showToast(`Added ${selected.length} record(s) to campaign`, 'success');
-    setCampaignModal(false);
-    setSelectedCampaign('');
-    clearSelection();
+    const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
+    if (!memberType) {
+      showToast('Add to Campaign is only supported for Leads and Contacts lists');
+      return;
+    }
+    setSavingCampaign(true);
+    try {
+      await Promise.all(selected.map((id) => campaignsApi.addCampaignMember(selectedCampaign, {
+        member_type: memberType,
+        member_id: id,
+      })));
+      showToast(`Added ${selected.length} record(s) to campaign`, 'success');
+      setCampaignModal(false);
+      setSelectedCampaign('');
+      clearSelection();
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setSavingCampaign(false);
+    }
   };
 
   const colSpan = columns.length + 1;
@@ -567,7 +592,9 @@ export default function RecordDataTable({
           </FormField>
           <div className="flex gap-2 justify-end pt-4">
             <button onClick={() => setCampaignModal(false)} className="btn-secondary">Cancel</button>
-            <button onClick={addToCampaign} disabled={!selectedCampaign} className="btn-primary">Add to Campaign</button>
+            <button onClick={addToCampaign} disabled={!selectedCampaign || savingCampaign} className="btn-primary">
+              {savingCampaign ? 'Adding...' : 'Add to Campaign'}
+            </button>
           </div>
         </Modal>
       )}

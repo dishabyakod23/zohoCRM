@@ -130,7 +130,7 @@ export const BULK_MODULE_CONFIG = {
     massUpdateFields: ['status'],
     update: (id, payload) => callsApi.updateCall(id, payload),
     deleteOne: (id) => callsApi.deleteCall(id),
-    exportRow: (r) => ({ subject: r.subject, call_type: r.call_type, date: r.call_date }),
+    exportRow: (r) => ({ subject: r.subject, call_type: r.call_type, date: r.start_time || r.call_start_at || r.call_date }),
     mailingLabel: (r) => r.subject || '',
   },
   meetings: {
@@ -139,7 +139,7 @@ export const BULK_MODULE_CONFIG = {
     massUpdateFields: [],
     update: () => Promise.resolve(),
     deleteOne: (id) => meetingsApi.deleteMeeting(id),
-    exportRow: (r) => ({ title: r.title, from: r.from_time, to: r.to_time }),
+    exportRow: (r) => ({ title: r.title, from: r.from_datetime || r.from_time, to: r.to_datetime || r.to_time }),
     mailingLabel: (r) => r.title || '',
   },
   campaigns: {
@@ -166,7 +166,7 @@ export const BULK_MODULE_CONFIG = {
     massUpdateFields: ['status'],
     update: (id, payload) => visitsApi.updateVisit(id, payload),
     deleteOne: (id) => visitsApi.deleteVisit(id),
-    exportRow: (r) => ({ name: r.visit_name, date: r.visit_date, status: r.status }),
+    exportRow: (r) => ({ name: r.title || r.visit_name, date: r.visit_date, status: r.status }),
     mailingLabel: (r) => r.visit_name || '',
   },
   projects: {
@@ -175,7 +175,7 @@ export const BULK_MODULE_CONFIG = {
     massUpdateFields: ['status'],
     update: (id, payload) => projectsApi.updateProject(id, payload),
     deleteOne: (id) => projectsApi.deleteProject(id),
-    exportRow: (r) => ({ name: r.project_name, status: r.status }),
+    exportRow: (r) => ({ name: r.name || r.project_name, status: r.status }),
     mailingLabel: (r) => r.project_name || '',
   },
 };
