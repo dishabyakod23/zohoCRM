@@ -22,6 +22,7 @@ import {
   startOfMonth,
   startOfWeek,
   toDateKey,
+  todayKey,
   resolveCalendarAssigneeIds,
   ASSIGN_TO_ME,
 } from '../../lib/calendarHelpers.js';
