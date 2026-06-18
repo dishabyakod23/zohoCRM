@@ -74,7 +74,7 @@ export default function Header({ onMenuClick }) {
 
   return (
     <>
-      <header className="h-14 bg-white/80 backdrop-blur-md border-b border-zoho-border flex items-center gap-3 px-4 sticky top-0 z-30">
+      <header className="h-14 bg-white border-b border-zoho-border flex items-center gap-3 px-4 sticky top-0 z-30">
         <button type="button" onClick={onMenuClick} aria-label="Open navigation menu"
           className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center text-zoho-muted hover:bg-brand-50 hover:text-brand-600">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -110,7 +110,7 @@ export default function Header({ onMenuClick }) {
         {canQuickCreate && (
         <div className="relative" ref={quickRef}>
           <button onClick={() => setShowQuick(!showQuick)} aria-label="Quick create" aria-expanded={showQuick}
-            className="w-9 h-9 rounded-xl bg-brand-gradient text-white font-bold text-lg leading-none shadow-soft hover:shadow-card transition-all duration-150" title="Quick Create">+</button>
+            className="w-9 h-9 rounded-xl bg-brand-500 text-white font-bold text-lg leading-none shadow-soft hover:bg-brand-600 transition-all duration-150" title="Quick Create">+</button>
           {showQuick && (
             <div className="absolute right-0 top-full mt-2 bg-white border border-zoho-border rounded-xl shadow-card-hover py-2 w-52 z-50 animate-scaleIn origin-top-right">
               <p className="px-3 py-1 text-[10px] font-bold text-brand-600 uppercase tracking-wide">Quick Create</p>
@@ -148,7 +148,7 @@ export default function Header({ onMenuClick }) {
 
           <div className="relative" ref={profileRef}>
             <button onClick={() => setShowProfile(!showProfile)} aria-label="User profile menu" aria-expanded={showProfile}
-              className="w-9 h-9 rounded-xl bg-brand-gradient text-white text-xs font-bold hover:shadow-glow transition-shadow">
+              className="w-9 h-9 rounded-xl bg-brand-500 text-white text-xs font-bold hover:bg-brand-600 transition-colors">
               {userInitial(user)}
             </button>
             {showProfile && (

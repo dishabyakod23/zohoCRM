@@ -64,7 +64,7 @@ function MonthDayCell({
         'border-r border-b border-zoho-border p-2 cursor-pointer',
         'hover:bg-blue-50/30 transition-colors',
         !inMonth ? 'bg-gray-50/70 text-zoho-muted' : 'bg-white',
-        isSelected ? 'bg-brand-50/90 shadow-[inset_0_0_0_2px_rgba(37,99,235,0.85)] z-[1]' : '',
+        isSelected ? 'bg-brand-50/90 shadow-[inset_0_0_0_2px_theme(colors.brand.500)] z-[1]' : '',
       ].join(' ')}
     >
       <div className="shrink-0 mb-1.5 flex justify-end">
@@ -104,11 +104,6 @@ export default function CalendarPage() {
   const [users, setUsers] = useState([]);
   const [ownerFilter, setOwnerFilter] = useState('');
 
-  const ctx = useMemo(() => ({
-    userId: user?.id,
-    isAdmin: canAssignLeads,
-  }), [user?.id, canAssignLeads]);
-
   const range = useMemo(() => {
     if (view === 'week') {
       const start = startOfWeek(viewDate);
@@ -131,7 +126,6 @@ export default function CalendarPage() {
       const data = await calendarApi.listEvents({
         ...range,
         owner_id: ownerFilter || undefined,
-        ...ctx,
       });
       setEvents(data);
     } catch (err) {
@@ -139,7 +133,7 @@ export default function CalendarPage() {
     } finally {
       setLoading(false);
     }
-  }, [range, ownerFilter, ctx, showToast]);
+  }, [range, ownerFilter, showToast]);
 
   useEffect(() => { loadEvents(); }, [loadEvents]);
 
@@ -155,9 +149,15 @@ export default function CalendarPage() {
     setModalOpen(true);
   };
 
-  const openEdit = (event) => {
+  const openEdit = async (event) => {
     setEditEvent(event);
     setModalOpen(true);
+    try {
+      const fresh = await calendarApi.getEvent(event.id);
+      setEditEvent(fresh);
+    } catch (err) {
+      showToast(getApiError(err));
+    }
   };
 
   const handleSave = async (form) => {
@@ -168,18 +168,18 @@ export default function CalendarPage() {
 
       if (editEvent?.id) {
         const ownerId = form.assign_to === ASSIGN_TO_ME ? user?.id : form.assign_to;
-        await calendarApi.updateEvent(editEvent.id, { ...payload, owner_id: ownerId }, ctx);
+        await calendarApi.updateEvent(editEvent.id, { ...payload, owner_id: ownerId });
         showToast('Event saved', 'success');
       } else {
         const assigneeIds = resolveCalendarAssigneeIds(form.assign_to, users, user?.id);
         if (assigneeIds.length === 0) {
-          await calendarApi.createEvent({ ...payload, owner_id: user?.id }, ctx);
+          await calendarApi.createEvent({ ...payload, owner_id: user?.id });
           showToast('Event saved', 'success');
         } else if (assigneeIds.length <= 1) {
-          await calendarApi.createEvent({ ...payload, owner_id: assigneeIds[0] || user?.id }, ctx);
+          await calendarApi.createEvent({ ...payload, owner_id: assigneeIds[0] || user?.id });
           showToast('Event saved', 'success');
         } else {
-          await calendarApi.createEventsForAssignees(payload, assigneeIds, ctx);
+          await calendarApi.createEventsForAssignees(payload, assigneeIds);
           showToast(`Event assigned to ${assigneeIds.length} team members`, 'success');
         }
       }
@@ -197,7 +197,7 @@ export default function CalendarPage() {
     if (!editEvent?.id) return;
     setSaving(true);
     try {
-      await calendarApi.deleteEvent(editEvent.id, ctx);
+      await calendarApi.deleteEvent(editEvent.id);
       setModalOpen(false);
       setEditEvent(null);
       loadEvents();

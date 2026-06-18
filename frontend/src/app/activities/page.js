@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
+import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
 import { useToast } from '../../components/ui/Toast.js';
@@ -9,6 +10,7 @@ import { getApiError } from '../../lib/api.js';
 import * as tasksApi from '../../lib/services/tasks.js';
 import * as meetingsApi from '../../lib/services/meetings.js';
 import * as callsApi from '../../lib/services/calls.js';
+import { tableLinkClass } from '../../lib/tableStyles.js';
 
 export default function ActivitiesPage() {
   const { showToast } = useToast();
@@ -39,7 +41,7 @@ export default function ActivitiesPage() {
   useEffect(() => { fetchActivities(); }, [fetchActivities]);
 
   const taskColumns = useMemo(() => [
-    { id: 'subject', header: 'Subject', cell: (t) => <Link href={`/tasks/${t.id}`} className="font-medium text-brand-600 hover:underline">{t.title}</Link> },
+    { id: 'subject', header: 'Subject', cell: (t) => <Link href={`/tasks/${t.id}`} className={tableLinkClass}>{t.title}</Link> },
     { id: 'due', header: 'Due Date', cell: (t) => <span className={new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-600' : ''}>{new Date(t.due_date).toLocaleString()}</span> },
     { id: 'status', header: 'Status', cell: (t) => <Badge label={t.status_label} /> },
     { id: 'priority', header: 'Priority', cell: (t) => t.priority_label },
@@ -47,7 +49,7 @@ export default function ActivitiesPage() {
   ], []);
 
   const meetingColumns = useMemo(() => [
-    { id: 'title', header: 'Title', cell: (m) => <Link href={`/meetings/${m.id}`} className="font-medium text-brand-600 hover:underline">{m.title}</Link> },
+    { id: 'title', header: 'Title', cell: (m) => <Link href={`/meetings/${m.id}`} className={tableLinkClass}>{m.title}</Link> },
     { id: 'from', header: 'From', cell: (m) => new Date(m.from_datetime).toLocaleString() },
     { id: 'to', header: 'To', cell: (m) => new Date(m.to_datetime).toLocaleString() },
     { id: 'host', header: 'Host', cell: (m) => m.host_name },
@@ -55,7 +57,7 @@ export default function ActivitiesPage() {
   ], []);
 
   const callColumns = useMemo(() => [
-    { id: 'subject', header: 'Subject', cell: (c) => <Link href={`/calls/${c.id}`} className="font-medium text-brand-600 hover:underline">{c.subject}</Link> },
+    { id: 'subject', header: 'Subject', cell: (c) => <Link href={`/calls/${c.id}`} className={tableLinkClass}>{c.subject}</Link> },
     { id: 'type', header: 'Type', cell: (c) => c.call_type_label },
     { id: 'date', header: 'Date', cell: (c) => new Date(c.start_time).toLocaleString() },
     { id: 'assigned', header: 'Assigned To', cell: (c) => c.assigned_name },
@@ -69,11 +71,16 @@ export default function ActivitiesPage() {
 
   return (
     <CRMLayout>
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-semibold text-zoho-text">Activities</h1>
-          <Link href={`/${tab}?create=1`} className="btn-primary text-xs">+ Create {tab === 'tasks' ? 'Task' : tab === 'meetings' ? 'Meeting' : 'Call'}</Link>
-        </div>
+      <div className="p-6">
+        <ListPageHeader
+          title="Activities"
+          subtitle="Recent tasks, meetings, and calls."
+          primaryAction={(
+            <Link href={`/${tab}?create=1`} className="btn-primary-sm">
+              Create {tab === 'tasks' ? 'Task' : tab === 'meetings' ? 'Meeting' : 'Call'}
+            </Link>
+          )}
+        />
 
         <div className="flex border-b border-zoho-border bg-white rounded-t px-2">
           {tabs.map(t => (

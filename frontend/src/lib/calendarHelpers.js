@@ -1,5 +1,5 @@
 export const EVENT_TYPES = [
-  { value: 'task', label: 'Task', color: '#4285f4', bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-400' },
+  { value: 'task', label: 'Task', color: '#E53935', bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-400' },
   { value: 'deadline', label: 'Deadline', color: '#ea4335', bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-400' },
   { value: 'todo', label: 'To-Do', color: '#34a853', bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-400' },
 ];
@@ -132,9 +132,15 @@ export function resolveCalendarAssigneeIds(assignTo, users = [], currentUserId) 
 
 export function normalizeEvent(event) {
   if (!event) return event;
+  const parseTime = (value) => (value ? String(value).slice(0, 5) : '');
   return {
     ...event,
     event_date: toDateKey(event.event_date),
+    start_time: parseTime(event.start_time),
+    end_time: parseTime(event.end_time),
+    all_day: event.all_day !== false,
+    completed: !!event.completed,
+    remind_on_login: event.remind_on_login !== false,
     event_type_label: eventTypeMeta(event.event_type).label,
   };
 }

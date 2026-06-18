@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
+import ListPageHeader from '../../components/layout/ListPageHeader.js';
+import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
@@ -18,6 +20,7 @@ import * as dealsApi from '../../lib/services/deals.js';
 import { fetchDealStages, fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { LEAD_SOURCES, DEAL_TYPES } from '../../lib/constants.js';
+import { tableLinkClass } from '../../lib/tableStyles.js';
 
 const EMPTY = { deal_name: '', amount: '', stage_value: 'qualification', closing_date: '', probability: 10, account_id: '', contact_id: '', deal_type: '', lead_source: '', description: '', proposal_amount: '' };
 
@@ -108,7 +111,7 @@ export default function DealsPage() {
   const byStage = (stageValue) => deals.filter(d => d.stage_value === stageValue);
 
   const columns = useMemo(() => [
-    { id: 'name', header: 'Deal Name', cell: (d) => <Link href={`/deals/${d.id}`} className="font-medium text-brand-600 hover:text-brand-700">{d.name}</Link> },
+    { id: 'name', header: 'Deal Name', cell: (d) => <Link href={`/deals/${d.id}`} className={tableLinkClass}>{d.name}</Link> },
     { id: 'account', header: 'Account', cell: (d) => d.account_name || '—' },
     { id: 'amount', header: 'Amount', cell: (d) => fmt(d.amount) },
     { id: 'stage', header: 'Stage', cell: (d) => <Badge label={d.stage} /> },
@@ -119,27 +122,32 @@ export default function DealsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div><h1 className="text-xl font-bold">Deals</h1><p className="text-xs text-gray-500">{total} deals</p></div>
-          <div className="flex gap-2">
-            <div className="flex border border-gray-200 rounded-lg overflow-hidden">
-              <button onClick={() => setView('table')} className={`px-3 py-1.5 text-xs ${view === 'table' ? 'bg-brand-500 text-white' : 'bg-white text-gray-600'}`}>List</button>
-              <button onClick={() => setView('kanban')} className={`px-3 py-1.5 text-xs ${view === 'kanban' ? 'bg-brand-500 text-white' : 'bg-white text-gray-600'}`}>Kanban</button>
+        <ListPageHeader
+          title="Deals"
+          subtitle="Track opportunities through your sales pipeline."
+          secondaryActions={(
+            <div className="flex border border-zoho-border rounded-lg overflow-hidden">
+              <button type="button" onClick={() => setView('table')} className={`px-3 py-1.5 text-xs ${view === 'table' ? 'bg-brand-500 text-white' : 'bg-white text-zoho-muted hover:text-zoho-text'}`}>List</button>
+              <button type="button" onClick={() => setView('kanban')} className={`px-3 py-1.5 text-xs border-l border-zoho-border ${view === 'kanban' ? 'bg-brand-500 text-white' : 'bg-white text-zoho-muted hover:text-zoho-text'}`}>Kanban</button>
             </div>
-            {canEdit && (
-            <button onClick={openCreate} className="btn-primary">+ Create Deal</button>
-            )}
-          </div>
-        </div>
+          )}
+          primaryAction={canEdit ? (
+            <button type="button" onClick={openCreate} className="btn-primary-sm">Create Deal</button>
+          ) : null}
+        />
 
         {view === 'table' ? (
-          <div className="card">
-            <div className="px-4 py-3 border-b border-zoho-border">
-              <div className="relative max-w-xs">
-                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zoho-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                <input className="input pl-8 py-1.5 text-xs" placeholder="Search deals…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
-              </div>
-            </div>
+          <>
+            <ListSearchBar
+              search={search}
+              onSearchChange={(v) => { setSearch(v); setPage(1); }}
+              placeholder="Search deals…"
+              limit={limit}
+              onLimitChange={(n) => { setLimit(n); setPage(1); }}
+              total={total}
+              totalLabel="deals"
+            />
+            <div className="card">
             <RecordDataTable
               moduleKey="deals"
               records={deals}
@@ -155,7 +163,8 @@ export default function DealsPage() {
                 label: total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total}` : '0 records',
               }}
             />
-          </div>
+            </div>
+          </>
         ) : (
           <div className="overflow-x-auto pb-4">
             {loading ? <p className="text-center text-gray-400 py-10">Loading...</p> : (

@@ -19,11 +19,11 @@ export default function BulkUpload({ onDone }) {
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="btn-secondary">Bulk Upload</button>
+      <button type="button" onClick={() => setOpen(true)} className="btn-secondary-sm">Import CSV</button>
       <CsvImportModal
         open={open}
         onClose={() => setOpen(false)}
-        title="Upload CSV — Contacts"
+        title="Import CSV — Contacts"
         module="contacts"
         importFn={contactsApi.importContactsFile}
         downloadTemplate={downloadTemplate}

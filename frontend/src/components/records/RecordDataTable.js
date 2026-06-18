@@ -478,7 +478,7 @@ export default function RecordDataTable({
       )}
 
       <div className={`overflow-x-auto ${selected.length > 0 ? '' : ''}`}>
-        <table className="w-full">
+        <table className="record-data-table w-full">
           <thead>
             <tr>
               <th className={`table-th ${showNotes ? 'w-[4.5rem]' : 'w-10'}`}>
@@ -501,7 +501,7 @@ export default function RecordDataTable({
               const id = getRowId(record);
               const recordLabel = noteMeta.getLabel(record);
               return (
-                <tr key={id} className="hover:bg-brand-50/30 transition-colors">
+                <tr key={id} className="hover:bg-neutral-50 transition-colors">
                   <td className="table-td">
                     <div className="flex items-center gap-2">
                       {showNotes && (

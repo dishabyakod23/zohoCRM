@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV_MODULES, MODULE_ICONS } from '../../lib/constants.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import Logo from '../ui/Logo.js';
 
 function SidebarToggleIcon({ className = 'w-4 h-4' }) {
   return (
@@ -28,22 +29,18 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
 
   const toggleCollapsed = () => setCollapsed((c) => !c);
 
-  const toggleBtnClass = 'rounded-lg bg-[#3a4560] hover:bg-[#455270] flex items-center justify-center text-white/75 hover:text-white transition-all duration-200 shadow-sm';
+  const toggleBtnClass = 'rounded-lg bg-neutral-800 hover:bg-neutral-700 flex items-center justify-center text-white/75 hover:text-white transition-all duration-200 shadow-sm';
 
   const collapsedLogoToggle = (
-    <div className="group/logo relative w-9 h-9 shrink-0">
-      <div
-        className="absolute inset-0 w-9 h-9 bg-brand-gradient rounded-xl flex items-center justify-center text-white font-bold text-base shadow-glow
-          transition-all duration-200 ease-out group-hover/logo:opacity-0 group-hover/logo:scale-90 pointer-events-none"
-        aria-hidden="true"
-      >
-        C
+    <div className="group/logo relative w-10 h-10 shrink-0">
+      <div className="absolute inset-0 flex items-center justify-center transition-all duration-200 ease-out group-hover/logo:opacity-0 group-hover/logo:scale-90 pointer-events-none">
+        <Logo size="sm" />
       </div>
       <button
         type="button"
         onClick={toggleCollapsed}
         aria-label="Expand sidebar"
-        className={`absolute inset-0 w-9 h-9 ${toggleBtnClass} opacity-0 scale-90 group-hover/logo:opacity-100 group-hover/logo:scale-100`}
+        className={`absolute inset-0 w-10 h-10 ${toggleBtnClass} opacity-0 scale-90 group-hover/logo:opacity-100 group-hover/logo:scale-100`}
       >
         <SidebarToggleIcon />
       </button>
@@ -67,10 +64,10 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
           collapsedLogoToggle
         ) : (
           <>
-            <div className="w-9 h-9 bg-brand-gradient rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0 shadow-glow">C</div>
+            <Logo size="sm" />
             <div className="min-w-0 flex-1">
               <span className="font-bold text-white text-sm block truncate tracking-tight">CRM</span>
-              <span className="text-[10px] text-white/50">CRM Standard</span>
+              <span className="text-[10px] text-white/50">Sales Platform</span>
             </div>
             <button
               type="button"
@@ -112,7 +109,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
 
       {!collapsed && (
         <div className="p-3 border-t border-white/10 text-[10px] text-white/40 text-center">
-          <span className="bg-brand-gradient bg-clip-text text-transparent font-semibold">NextGen UI</span>
+          <span className="text-brand-400 font-semibold">CRM Standard</span>
         </div>
       )}
     </aside>

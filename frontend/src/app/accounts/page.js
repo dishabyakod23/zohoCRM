@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
+import ListPageHeader from '../../components/layout/ListPageHeader.js';
+import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
 import { useToast } from '../../components/ui/Toast.js';
@@ -10,6 +12,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../lib/api.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import { ACCOUNT_TYPES } from '../../lib/constants.js';
+import { tableLinkClass, tableEmailClass, tableAvatarSmClass } from '../../lib/tableStyles.js';
 
 const LIMIT = 15;
 
@@ -49,12 +52,12 @@ export default function AccountsPage() {
   const columns = useMemo(() => [
     { id: 'name', header: 'Company', cell: (a) => (
       <div className="flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center text-xs font-semibold shrink-0">{(a.name || '?')[0]}</div>
-        <Link href={`/accounts/${a.id}`} className="font-medium text-brand-600 hover:text-brand-700">{a.name}</Link>
+        <div className={tableAvatarSmClass}>{(a.name || '?')[0]}</div>
+        <Link href={`/accounts/${a.id}`} className={tableLinkClass}>{a.name}</Link>
       </div>
     ) },
     { id: 'industry', header: 'Industry', cell: (a) => a.industry || '—' },
-    { id: 'website', header: 'Website', cell: (a) => a.website ? <a href={a.website} target="_blank" rel="noreferrer" className="text-brand-600 hover:text-brand-700 text-xs">{a.website.replace('https://', '')}</a> : '—' },
+    { id: 'website', header: 'Website', cell: (a) => a.website ? <a href={a.website} target="_blank" rel="noreferrer" className={`${tableEmailClass} text-xs hover:text-zoho-text hover:underline`}>{a.website.replace('https://', '')}</a> : '—' },
     { id: 'phone', header: 'Phone', cell: (a) => a.phone || '—' },
     { id: 'status', header: 'Status', cell: (a) => <Badge label={a.account_type || '—'} /> },
     { id: 'city', header: 'City', cell: (a) => a.city || '—' },
@@ -64,18 +67,23 @@ export default function AccountsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div><h1 className="text-xl font-bold text-gray-900">Accounts</h1><p className="text-xs text-gray-500">{total} accounts</p></div>
-          {canEdit && <Link href="/accounts/create" className="btn-primary">+ New account</Link>}
-        </div>
+        <ListPageHeader
+          title="Accounts"
+          subtitle="Companies and organizations in your CRM."
+          primaryAction={canEdit ? (
+            <Link href="/accounts/create" className="btn-primary-sm">Create Account</Link>
+          ) : null}
+        />
+
+        <ListSearchBar
+          search={search}
+          onSearchChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Search accounts…"
+          total={total}
+          totalLabel="accounts"
+        />
 
         <div className="card">
-          <div className="px-4 py-3 border-b border-zoho-border">
-            <div className="relative max-w-xs">
-              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zoho-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              <input className="input pl-8 py-1.5 text-xs" placeholder="Search accounts…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
-            </div>
-          </div>
           <RecordDataTable
             moduleKey="accounts"
             records={accounts}

@@ -11,10 +11,12 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
+import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { LIST_VIEWS } from '../../lib/constants.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { filterUnreadRecords } from '../../lib/recordViewTracker.js';
 import { fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
+import { tableLinkClass, tableEmailClass, tableAvatarClass } from '../../lib/tableStyles.js';
 
 const LIMIT = 15;
 
@@ -84,13 +86,13 @@ export default function ContactsPage() {
   const columns = useMemo(() => [
     { id: 'contact', header: 'Contact', cell: (c) => (
       <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold shrink-0">{initials(c)}</div>
-        <Link href={`/contacts/${c.id}`} className="font-medium text-brand-600 hover:text-brand-700">{c.first_name} {c.last_name}</Link>
+        <div className={tableAvatarClass}>{initials(c)}</div>
+        <Link href={`/contacts/${c.id}`} className={tableLinkClass}>{c.first_name} {c.last_name}</Link>
       </div>
     ) },
     { id: 'title', header: 'Title', cell: (c) => c.title || '—' },
     { id: 'company', header: 'Company', cell: (c) => c.account_name || '—' },
-    { id: 'email', header: 'Email', cell: (c) => <span className="text-brand-600">{c.email || '—'}</span> },
+    { id: 'email', header: 'Email', cell: (c) => <span className={tableEmailClass}>{c.email || '—'}</span> },
     { id: 'phone', header: 'Phone', cell: (c) => c.phone || '—' },
     { id: 'owner', header: 'Owner', cell: (c) => c.owner_name || '—' },
   ], []);
@@ -98,6 +100,17 @@ export default function ContactsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
+        <ListPageHeader
+          title="Contacts"
+          subtitle="People linked to your accounts and deals."
+          secondaryActions={canEdit ? <BulkUpload onDone={fetchContacts} /> : null}
+          primaryAction={canEdit ? (
+            <button type="button" onClick={() => router.push('/contacts/create')} className="btn-primary-sm">
+              Create Contact
+            </button>
+          ) : null}
+        />
+
         <ListToolbar
           moduleName="Contacts"
           total={total}
@@ -106,13 +119,7 @@ export default function ContactsPage() {
           onViewChange={(v) => { setActiveView(v); setPage(1); }}
           searchValue={search}
           onSearch={(v) => { setSearch(v); setPage(1); }}
-          onCreate={canEdit ? () => router.push('/contacts/create') : undefined}
-          createLabel="+ New contact"
         />
-
-        <div className="flex items-center justify-end gap-2 mb-3">
-          <BulkUpload onDone={fetchContacts} />
-        </div>
 
         <div className="card rounded-tl-none rounded-tr-none border-t-0">
           <RecordDataTable

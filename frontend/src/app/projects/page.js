@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
+import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
@@ -12,6 +13,7 @@ import { getApiError } from '../../lib/api.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as projectsApi from '../../lib/services/projects.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchProjectStatuses } from '../../lib/services/lookups.js';
+import { tableLinkClass } from '../../lib/tableStyles.js';
 
 const EMPTY = { name: '', account_id: '', status: 'planning', start_date: '', end_date: '', description: '' };
 
@@ -69,7 +71,7 @@ export default function ProjectsPage() {
   };
 
   const columns = useMemo(() => [
-    { id: 'name', header: 'Name', cell: (p) => <Link href={`/projects/${p.id}`} className="font-medium text-brand-600 hover:underline">{p.name}</Link> },
+    { id: 'name', header: 'Name', cell: (p) => <Link href={`/projects/${p.id}`} className={tableLinkClass}>{p.name}</Link> },
     { id: 'account', header: 'Account', cell: (p) => p.account_name || '—' },
     { id: 'status', header: 'Status', cell: (p) => <Badge label={p.status_label} /> },
     { id: 'dates', header: 'Dates', cell: (p) => <span className="text-xs">{p.start_date || '—'} → {p.end_date || '—'}</span> },
@@ -78,10 +80,14 @@ export default function ProjectsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
-        <div className="flex justify-between mb-5">
-          <h1 className="text-xl font-bold">Projects</h1>
-          {canEdit && <button onClick={openCreate} className="btn-primary">+ Create Project</button>}
-        </div>
+        <ListPageHeader
+          title="Projects"
+          subtitle="Track delivery work linked to accounts."
+          primaryAction={canEdit ? (
+            <button type="button" onClick={openCreate} className="btn-primary-sm">Create Project</button>
+          ) : null}
+        />
+
         <div className="card">
           <RecordDataTable
             moduleKey="projects"

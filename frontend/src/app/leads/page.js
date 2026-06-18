@@ -11,11 +11,13 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
+import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { LIST_VIEWS } from '../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { filterUnreadRecords } from '../../lib/recordViewTracker.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields } from '../../lib/services/lookups.js';
+import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -97,9 +99,9 @@ export default function LeadsPage() {
   );
 
   const columns = useMemo(() => [
-    { id: 'name', header: 'Lead Name', cell: (lead) => <Link href={`/leads/${lead.id}`} className="font-medium text-brand-600 hover:text-brand-700">{lead.first_name} {lead.last_name}</Link> },
+    { id: 'name', header: 'Lead Name', cell: (lead) => <Link href={`/leads/${lead.id}`} className={tableLinkClass}>{lead.first_name} {lead.last_name}</Link> },
     { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
-    { id: 'email', header: 'Email', cell: (lead) => <span className="text-brand-600">{lead.email || '—'}</span> },
+    { id: 'email', header: 'Email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
     { id: 'phone', header: 'Phone', cell: (lead) => lead.phone || '—' },
     { id: 'source', header: 'Source', cell: (lead) => lead.source || '—' },
     { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
@@ -109,16 +111,24 @@ export default function LeadsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
+        <ListPageHeader
+          title="Leads"
+          subtitle="Manage and track sales leads through the pipeline."
+          primaryAction={canEdit ? (
+            <button type="button" onClick={() => router.push('/leads/create')} className="btn-primary-sm">
+              Create Lead
+            </button>
+          ) : null}
+        />
+
         <ListToolbar
           moduleName="Leads"
           total={total}
           views={LIST_VIEWS.leads}
           activeView={activeView}
-          onViewChange={v => { setActiveView(v); setPage(1); }}
+          onViewChange={(v) => { setActiveView(v); setPage(1); }}
           searchValue={search}
-          onSearch={v => { setSearch(v); setPage(1); }}
-          onCreate={canEdit ? () => router.push('/leads/create') : undefined}
-          createLabel="+ Create Lead"
+          onSearch={(v) => { setSearch(v); setPage(1); }}
         >
           <select className="input w-40 text-xs" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
             <option value="">Active leads</option>

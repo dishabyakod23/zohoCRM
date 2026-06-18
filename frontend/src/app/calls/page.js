@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
+import ListPageHeader from '../../components/layout/ListPageHeader.js';
+import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
@@ -13,6 +15,7 @@ import { getApiError } from '../../lib/api.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as callsApi from '../../lib/services/calls.js';
 import { fetchCallTypes, fetchUsers } from '../../lib/services/lookups.js';
+import { tableLinkClass } from '../../lib/tableStyles.js';
 
 const EMPTY = { subject: '', call_type: 'outbound', start_time: '', assigned_to: '', duration_minutes: 15, description: '' };
 const LIMIT = 15;
@@ -75,7 +78,7 @@ export default function CallsPage() {
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
   const columns = useMemo(() => [
-    { id: 'subject', header: 'Subject', cell: (c) => <Link href={`/calls/${c.id}`} className="font-medium text-brand-600 hover:underline">{c.subject}</Link> },
+    { id: 'subject', header: 'Subject', cell: (c) => <Link href={`/calls/${c.id}`} className={tableLinkClass}>{c.subject}</Link> },
     { id: 'type', header: 'Type', cell: (c) => c.call_type_label },
     { id: 'date', header: 'Date', cell: (c) => new Date(c.start_time).toLocaleString() },
     { id: 'duration', header: 'Duration', cell: (c) => `${c.duration_minutes} min` },
@@ -85,12 +88,23 @@ export default function CallsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
-        <div className="flex justify-between mb-5">
-          <div><h1 className="text-xl font-bold">Calls</h1><p className="text-xs text-gray-500">{total} calls</p></div>
-          {canEdit && <button onClick={openCreate} className="btn-primary">+ Log Call</button>}
-        </div>
+        <ListPageHeader
+          title="Calls"
+          subtitle="Log and review phone conversations."
+          primaryAction={canEdit ? (
+            <button type="button" onClick={openCreate} className="btn-primary-sm">Create Call</button>
+          ) : null}
+        />
+
+        <ListSearchBar
+          search={search}
+          onSearchChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Search calls…"
+          total={total}
+          totalLabel="calls"
+        />
+
         <div className="card">
-          <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search calls..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
           <RecordDataTable
             moduleKey="calls"
             records={items}
@@ -102,7 +116,7 @@ export default function CallsPage() {
           />
         </div>
       </div>
-      {modal && <Modal title="Log Call" onClose={() => setModal(false)}>
+      {modal && <Modal title="Create Call" onClose={() => setModal(false)}>
         <div className="space-y-3">
           <FormField label="Call Subject" required error={errors.subject} name="subject"><input className={inputClass(errors.subject)} value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))} /></FormField>
           <FormField label="Call Type" required><select className="input" value={form.call_type} onChange={e => setForm(p => ({ ...p, call_type: e.target.value }))}>{callTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></FormField>

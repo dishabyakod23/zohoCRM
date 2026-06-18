@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AuthShell from '../../components/auth/AuthShell.js';
+import PasswordInput from '../../components/forms/PasswordInput.js';
 import { getApiError } from '../../lib/api.js';
 import * as authApi from '../../lib/services/auth.js';
 
@@ -105,9 +106,7 @@ function ResetPasswordForm() {
         </div>
         <div>
           <label className="label">New password</label>
-          <input
-            className="input"
-            type="password"
+          <PasswordInput
             value={form.new_password}
             onChange={set('new_password')}
             minLength={8}
@@ -117,9 +116,7 @@ function ResetPasswordForm() {
         </div>
         <div>
           <label className="label">Confirm password</label>
-          <input
-            className="input"
-            type="password"
+          <PasswordInput
             value={form.confirm_password}
             onChange={set('confirm_password')}
             minLength={8}
@@ -138,8 +135,8 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={(
-      <div className="min-h-screen flex items-center justify-center bg-brand-gradient">
-        <div className="w-10 h-10 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="w-10 h-10 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )}
     >

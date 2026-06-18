@@ -22,21 +22,6 @@ export const CAMPAIGN_TYPES = ['Email', 'Social', 'Webinar', 'Conference', 'Adve
 export const CAMPAIGN_STATUSES = ['Planning', 'Active', 'Inactive', 'Completed'];
 export const INDUSTRIES = ['IT Services', 'E-Commerce', 'EdTech', 'Automotive', 'Finance', 'Healthcare', 'Manufacturing', 'Other'];
 
-/** Zoho-style horizontal module tabs (top navigation) */
-export const MODULE_TABS = [
-  { href: '/dashboard', label: 'Home', match: ['/dashboard'] },
-  { href: '/contacts', label: 'Contacts', match: ['/contacts'] },
-  { href: '/raw-leads', label: 'Raw Leads', match: ['/raw-leads'] },
-  { href: '/leads', label: 'Leads', match: ['/leads'] },
-  { href: '/qualified-leads', label: 'Qualified', match: ['/qualified-leads'] },
-  { href: '/proposals', label: 'Proposals', match: ['/proposals'] },
-  { href: '/accounts', label: 'Accounts', match: ['/accounts'] },
-  { href: '/calendar', label: 'Calendar', match: ['/calendar'] },
-  { href: '/campaigns', label: 'Campaigns', match: ['/campaigns'] },
-  { href: '/projects', label: 'Projects', match: ['/projects'] },
-  { href: '/reports', label: 'Reports', match: ['/reports'] },
-];
-
 export const MODULE_ICONS = {
   Home: '🏠', Contacts: '👤', Leads: '🎯', 'Raw Leads': '📥', Qualified: '✅', Proposals: '📝',
   Accounts: '🏢', Calendar: '📅', Campaigns: '📣', Reports: '📊', Projects: '📁',

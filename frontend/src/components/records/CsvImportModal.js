@@ -19,7 +19,7 @@ const STEPS = { upload: 'upload', mapping: 'mapping', preview: 'preview' };
 export default function CsvImportModal({
   open,
   onClose,
-  title = 'Upload CSV',
+  title = 'Import CSV',
   module = 'leads',
   importFn,
   downloadTemplate,
@@ -261,7 +261,7 @@ export default function CsvImportModal({
                 disabled={importing}
                 className="btn-primary text-xs"
               >
-                {importing ? 'Importing…' : 'Import'}
+                {importing ? 'Importing…' : 'Import CSV'}
               </button>
             </div>
           </div>

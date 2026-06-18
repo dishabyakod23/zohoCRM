@@ -1,128 +1,109 @@
 import api from '../api.js';
-import { normalizeEvent, toDateKey, todayKey } from '../calendarHelpers.js';
+import { normalizeEvent, toDateKey } from '../calendarHelpers.js';
 
-const STORAGE_PREFIX = 'crm_calendar_events';
+/**
+ * Calendar API — https://api-salescrm.duckdns.org/docs#/Calendar
+ * GET/POST   /calendar/events
+ * GET        /calendar/reminders
+ * GET/PATCH/DELETE /calendar/events/{event_id}
+ */
 
-function storageKey(userId) {
-  return `${STORAGE_PREFIX}_${userId || 'guest'}`;
+function extractData(res) {
+  return res?.data?.data;
 }
 
-function readLocal(userId) {
-  if (typeof window === 'undefined') return [];
-  try {
-    return JSON.parse(localStorage.getItem(storageKey(userId)) || '[]');
-  } catch {
-    return [];
-  }
+function extractList(res) {
+  const data = extractData(res);
+  return Array.isArray(data) ? data : [];
 }
 
-function writeLocal(userId, events) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(storageKey(userId), JSON.stringify(events));
+/** API expects HH:MM:SS or null */
+export function formatTimeForApi(value) {
+  if (value == null || value === '') return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  if (/^\d{2}:\d{2}:\d{2}$/.test(raw)) return raw;
+  if (/^\d{2}:\d{2}$/.test(raw)) return `${raw}:00`;
+  return raw;
 }
 
-function localId() {
-  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
+/** Map form → CalendarEventCreate / CalendarEventUpdate */
+export function buildCalendarEventBody(form, { forUpdate = false } = {}) {
+  const allDay = form.all_day !== false;
+  const body = {
+    title: form.title != null ? String(form.title).trim() : undefined,
+    description: form.description != null ? (form.description || null) : undefined,
+    event_type: form.event_type || undefined,
+    event_date: form.event_date ? toDateKey(form.event_date) : undefined,
+    start_time: allDay ? null : formatTimeForApi(form.start_time),
+    end_time: allDay ? null : formatTimeForApi(form.end_time),
+    all_day: allDay,
+    completed: form.completed != null ? !!form.completed : undefined,
+    remind_on_login: form.remind_on_login != null ? form.remind_on_login !== false : undefined,
+    owner_id: form.owner_id || undefined,
+  };
 
-function filterLocal(events, { from, to, ownerId, userId, isAdmin }) {
-  return events.filter((e) => {
-    const date = toDateKey(e.event_date);
-    if (from && date < from) return false;
-    if (to && date > to) return false;
-    if (!isAdmin && String(e.owner_id) !== String(userId)) return false;
-    if (isAdmin && ownerId && String(e.owner_id) !== String(ownerId)) return false;
-    return true;
-  });
-}
-
-function useLocalFallback(err) {
-  const status = err?.response?.status;
-  return status === 404 || status === 501 || status === 405;
-}
-
-export async function listEvents({ from, to, owner_id, userId, isAdmin } = {}) {
-  try {
-    const params = { from, to };
-    if (owner_id) params.owner_id = owner_id;
-    const res = await api.get('/calendar/events', { params });
-    return (res.data.data || []).map(normalizeEvent);
-  } catch (err) {
-    if (!useLocalFallback(err)) throw err;
-    return filterLocal(readLocal(userId), { from, to, ownerId: owner_id, userId, isAdmin }).map(normalizeEvent);
-  }
-}
-
-export async function getLoginReminders({ userId, isAdmin } = {}) {
-  try {
-    const res = await api.get('/calendar/reminders');
-    return (res.data.data || []).map(normalizeEvent);
-  } catch (err) {
-    if (!useLocalFallback(err)) throw err;
-    const today = todayKey();
-    return filterLocal(readLocal(userId), { from: '1970-01-01', to: today, userId, isAdmin })
-      .filter((e) => !e.completed && e.remind_on_login !== false)
-      .map(normalizeEvent);
-  }
-}
-
-export async function createEvent(form, { userId, isAdmin } = {}) {
-  try {
-    const res = await api.post('/calendar/events', form);
-    return normalizeEvent(res.data.data);
-  } catch (err) {
-    if (!useLocalFallback(err)) throw err;
-    const events = readLocal(userId);
-    const ownerId = form.owner_id || userId;
-    const created = normalizeEvent({
-      ...form,
-      id: localId(),
-      owner_id: ownerId,
-      created_by: userId,
-      owner_name: null,
+  if (forUpdate) {
+    Object.keys(body).forEach((key) => {
+      if (body[key] === undefined) delete body[key];
     });
-    events.push(created);
-    writeLocal(userId, events);
-    return created;
   }
+
+  return body;
 }
 
-export async function createEventsForAssignees(form, assigneeIds = [], ctx = {}) {
-  const payload = { ...form };
-  delete payload.assign_to;
+/** GET /calendar/events — list events (optional from, to, owner_id) */
+export async function listEvents({ from, to, owner_id } = {}) {
+  const params = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  if (owner_id) params.owner_id = owner_id;
+
+  const res = await api.get('/calendar/events', { params });
+  return extractList(res).map(normalizeEvent);
+}
+
+/** GET /calendar/events/{event_id} */
+export async function getEvent(eventId) {
+  const res = await api.get(`/calendar/events/${eventId}`);
+  const data = extractData(res);
+  if (!data) throw new Error('Event not found');
+  return normalizeEvent(data);
+}
+
+/** GET /calendar/reminders — login reminder events */
+export async function getLoginReminders() {
+  const res = await api.get('/calendar/reminders');
+  return extractList(res).map(normalizeEvent);
+}
+
+/** POST /calendar/events */
+export async function createEvent(form) {
+  const res = await api.post('/calendar/events', buildCalendarEventBody(form));
+  const data = extractData(res);
+  if (!data) throw new Error('Failed to create event');
+  return normalizeEvent(data);
+}
+
+/** Create one event per assignee (POST /calendar/events with owner_id) */
+export async function createEventsForAssignees(form, assigneeIds = []) {
   const ids = [...new Set(assigneeIds.filter(Boolean))];
   const created = [];
   for (const owner_id of ids) {
-    created.push(await createEvent({ ...payload, owner_id }, ctx));
+    created.push(await createEvent({ ...form, owner_id }));
   }
   return created;
 }
 
-export async function updateEvent(id, form, { userId, isAdmin } = {}) {
-  try {
-    const res = await api.patch(`/calendar/events/${id}`, form);
-    return normalizeEvent(res.data.data);
-  } catch (err) {
-    if (!useLocalFallback(err)) throw err;
-    const events = readLocal(userId);
-    const idx = events.findIndex((e) => String(e.id) === String(id));
-    if (idx < 0) throw new Error('Event not found');
-    if (!isAdmin && String(events[idx].owner_id) !== String(userId)) throw new Error('Not allowed');
-    events[idx] = normalizeEvent({ ...events[idx], ...form });
-    writeLocal(userId, events);
-    return events[idx];
-  }
+/** PATCH /calendar/events/{event_id} */
+export async function updateEvent(id, form) {
+  const res = await api.patch(`/calendar/events/${id}`, buildCalendarEventBody(form, { forUpdate: true }));
+  const data = extractData(res);
+  if (!data) throw new Error('Failed to update event');
+  return normalizeEvent(data);
 }
 
-export async function deleteEvent(id, { userId, isAdmin } = {}) {
-  try {
-    await api.delete(`/calendar/events/${id}`);
-  } catch (err) {
-    if (!useLocalFallback(err)) throw err;
-    const events = readLocal(userId);
-    const target = events.find((e) => String(e.id) === String(id));
-    if (!target) return;
-    if (!isAdmin && String(target.owner_id) !== String(userId)) throw new Error('Not allowed');
-    writeLocal(userId, events.filter((e) => String(e.id) !== String(id)));
-  }
+/** DELETE /calendar/events/{event_id} */
+export async function deleteEvent(id) {
+  await api.delete(`/calendar/events/${id}`);
 }

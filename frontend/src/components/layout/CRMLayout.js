@@ -4,11 +4,9 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth.js';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import ModuleTabs from './ModuleTabs';
 import BottomUtilityBar from './BottomUtilityBar';
 import LoginReminderModal from '../calendar/LoginReminderModal.js';
 import * as calendarApi from '../../lib/services/calendar.js';
-import { usePermissions } from '../../hooks/usePermissions.js';
 import { todayKey } from '../../lib/calendarHelpers.js';
 
 function dismissKey(userId) {
@@ -19,7 +17,6 @@ export default function CRMLayout({ children }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { canAssignLeads } = usePermissions();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [loginReminders, setLoginReminders] = useState([]);
   const [showLoginReminders, setShowLoginReminders] = useState(false);
@@ -39,7 +36,7 @@ export default function CRMLayout({ children }) {
     const dismissed = localStorage.getItem(dismissKey(user.id)) === '1';
     if (!pendingLogin && dismissed) return;
 
-    calendarApi.getLoginReminders({ userId: user.id, isAdmin: canAssignLeads })
+    calendarApi.getLoginReminders()
       .then((items) => {
         if (items.length > 0) {
           setLoginReminders(items);
@@ -50,7 +47,7 @@ export default function CRMLayout({ children }) {
       .catch(() => {
         sessionStorage.removeItem('crm_show_login_reminders');
       });
-  }, [user?.id, canAssignLeads, pathname]);
+  }, [user?.id, pathname]);
 
   const dismissLoginReminders = () => {
     if (user?.id) localStorage.setItem(dismissKey(user.id), '1');
@@ -58,7 +55,7 @@ export default function CRMLayout({ children }) {
   };
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-mesh-bg bg-[#f6f6fc]">
+    <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-10 h-10 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
@@ -77,7 +74,6 @@ export default function CRMLayout({ children }) {
       <Sidebar mobileOpen={mobileNavOpen} onNavigate={() => setMobileNavOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Header onMenuClick={() => setMobileNavOpen(true)} />
-        <ModuleTabs />
         <main className="flex-1 overflow-auto pb-0">{children}</main>
         <BottomUtilityBar />
       </div>

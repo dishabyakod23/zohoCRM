@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
+import ListPageHeader from '../../components/layout/ListPageHeader.js';
+import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
@@ -13,6 +15,7 @@ import { getApiError } from '../../lib/api.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as meetingsApi from '../../lib/services/meetings.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
+import { tableLinkClass } from '../../lib/tableStyles.js';
 
 const EMPTY = { title: '', from_datetime: '', to_datetime: '', host_id: '', location: '', description: '' };
 const REQUIRED = { title: 'Meeting Title', from_datetime: 'From Date & Time', to_datetime: 'To Date & Time', host_id: 'Host' };
@@ -73,7 +76,7 @@ export default function MeetingsPage() {
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
   const columns = useMemo(() => [
-    { id: 'title', header: 'Title', cell: (m) => <Link href={`/meetings/${m.id}`} className="font-medium text-brand-600 hover:underline">{m.title}</Link> },
+    { id: 'title', header: 'Title', cell: (m) => <Link href={`/meetings/${m.id}`} className={tableLinkClass}>{m.title}</Link> },
     { id: 'from', header: 'From', cell: (m) => new Date(m.from_datetime).toLocaleString() },
     { id: 'to', header: 'To', cell: (m) => new Date(m.to_datetime).toLocaleString() },
     { id: 'host', header: 'Host', cell: (m) => m.host_name },
@@ -83,12 +86,23 @@ export default function MeetingsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
-        <div className="flex justify-between mb-5">
-          <div><h1 className="text-xl font-bold">Meetings</h1><p className="text-xs text-gray-500">{total} meetings</p></div>
-          {canEdit && <button onClick={openCreate} className="btn-primary">+ Create Meeting</button>}
-        </div>
+        <ListPageHeader
+          title="Meetings"
+          subtitle="Schedule and review customer meetings."
+          primaryAction={canEdit ? (
+            <button type="button" onClick={openCreate} className="btn-primary-sm">Create Meeting</button>
+          ) : null}
+        />
+
+        <ListSearchBar
+          search={search}
+          onSearchChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Search meetings…"
+          total={total}
+          totalLabel="meetings"
+        />
+
         <div className="card">
-          <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search meetings..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
           <RecordDataTable
             moduleKey="meetings"
             records={items}

@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
+import ListPageHeader from '../../components/layout/ListPageHeader.js';
+import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
@@ -14,6 +16,7 @@ import { getApiError } from '../../lib/api.js';
 import { validateRequired, validatePastDate } from '../../lib/validators.js';
 import * as tasksApi from '../../lib/services/tasks.js';
 import { fetchTaskStatuses, fetchTaskPriorities, fetchUsers } from '../../lib/services/lookups.js';
+import { tableLinkClass } from '../../lib/tableStyles.js';
 
 const EMPTY = { title: '', due_date: '', assigned_to: '', status: 'not_started', priority: 'normal', description: '' };
 const REQUIRED = { title: 'Task Title', due_date: 'Due Date', assigned_to: 'Assigned To', status: 'Status' };
@@ -82,7 +85,7 @@ export default function TasksPage() {
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
   const columns = useMemo(() => [
-    { id: 'title', header: 'Title', cell: (t) => <Link href={`/tasks/${t.id}`} className="font-medium text-brand-600 hover:underline">{t.title}</Link> },
+    { id: 'title', header: 'Title', cell: (t) => <Link href={`/tasks/${t.id}`} className={tableLinkClass}>{t.title}</Link> },
     { id: 'due', header: 'Due Date', cell: (t) => <span className={new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-600 font-medium' : ''}>{new Date(t.due_date).toLocaleString()}</span> },
     { id: 'assigned', header: 'Assigned To', cell: (t) => t.assigned_name },
     { id: 'status', header: 'Status', cell: (t) => <Badge label={t.status_label} /> },
@@ -92,12 +95,23 @@ export default function TasksPage() {
   return (
     <CRMLayout>
       <div className="p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div><h1 className="text-xl font-bold">Tasks</h1><p className="text-xs text-gray-500">{total} tasks</p></div>
-          {canEdit && <button onClick={openCreate} className="btn-primary">+ Create Task</button>}
-        </div>
+        <ListPageHeader
+          title="Tasks"
+          subtitle="Track to-dos and follow-ups across your team."
+          primaryAction={canEdit ? (
+            <button type="button" onClick={openCreate} className="btn-primary-sm">Create Task</button>
+          ) : null}
+        />
+
+        <ListSearchBar
+          search={search}
+          onSearchChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Search tasks…"
+          total={total}
+          totalLabel="tasks"
+        />
+
         <div className="card">
-          <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search tasks..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
           <RecordDataTable
             moduleKey="tasks"
             records={tasks}

@@ -87,7 +87,7 @@ export default function BottomUtilityBar() {
 
   useEffect(() => {
     if (!user?.id) return;
-    calendarApi.getLoginReminders({ userId: user.id, isAdmin: canAssignLeads })
+    calendarApi.getLoginReminders()
       .then(setReminders)
       .catch(() => setReminders([]));
   }, [user?.id, canAssignLeads]);
@@ -98,7 +98,7 @@ export default function BottomUtilityBar() {
       if (stored) setRecent(JSON.parse(stored));
     }
     if (key === 'reminders') {
-      calendarApi.getLoginReminders({ userId: user?.id, isAdmin: canAssignLeads })
+      calendarApi.getLoginReminders()
         .then(setReminders)
         .catch(() => setReminders([]));
     }

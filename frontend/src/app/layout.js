@@ -6,8 +6,8 @@ import { ToastProvider } from '../components/ui/Toast.js';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata = {
-  title: 'CRM — Sales Dashboard',
-  description: 'Internal Sales CRM Platform',
+  title: 'CRM — Sales Platform',
+  description: 'Industry-standard Sales CRM',
 };
 
 export default function RootLayout({ children }) {

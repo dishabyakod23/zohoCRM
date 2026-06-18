@@ -6,6 +6,8 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { getApiError } from '../../lib/api.js';
 import { setAuthSessionCookie } from '../../lib/authCookie.js';
 import api from '../../lib/api.js';
+import Logo from '../../components/ui/Logo.js';
+import PasswordInput from '../../components/forms/PasswordInput.js';
 
 function getNextPath() {
   if (typeof window === 'undefined') return '/dashboard';
@@ -62,24 +64,25 @@ export default function LoginPage() {
 
   if (loading || user || restoring) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-brand-gradient">
-        <div className="w-10 h-10 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="w-10 h-10 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-brand-gradient flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute -top-24 -left-24 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
-      <div className="absolute -bottom-32 -right-16 w-[28rem] h-[28rem] bg-white/10 rounded-full blur-3xl" />
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute -top-24 -left-24 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl" />
+      <div className="absolute -bottom-32 -right-16 w-[28rem] h-[28rem] bg-brand-500/5 rounded-full blur-3xl" />
 
-      <div className="relative bg-white/95 backdrop-blur rounded-2xl shadow-card-hover w-full max-w-md p-8 animate-scaleIn">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-9 h-9 bg-brand-gradient rounded-xl flex items-center justify-center text-white font-bold shadow-glow">C</div>
-          <span className="text-xl font-bold text-gray-900">CRM</span>
+      <div className="relative bg-white rounded-2xl shadow-card-hover w-full max-w-md p-8 animate-scaleIn border border-zoho-border">
+        <div className="flex items-center gap-3 mb-6">
+          <Logo size="md" />
+          <div>
+            <h1 className="text-2xl font-bold text-black mb-1">Welcome back</h1>
+            <p className="text-zoho-muted text-sm">Sign in to your CRM account</p>
+          </div>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h1>
-        <p className="text-gray-500 text-sm mb-6">Sign in to your CRM account</p>
 
         {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm animate-fadeIn">{error}</div>}
 
@@ -91,8 +94,12 @@ export default function LoginPage() {
           </div>
           <div>
             <label className="label">Password</label>
-            <input className="input" type="password" value={form.password}
-              onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required />
+            <PasswordInput
+              value={form.password}
+              onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+              required
+              autoComplete="current-password"
+            />
             <div className="mt-2 flex justify-end">
               <Link
                 href="/forgot-password"
@@ -107,7 +114,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-xs text-gray-400">
+        <p className="mt-4 text-center text-xs text-zoho-muted">
           Sign in with your Sales CRM account credentials
         </p>
       </div>

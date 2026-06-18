@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
+import ListPageHeader from '../../components/layout/ListPageHeader.js';
+import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
@@ -14,6 +16,7 @@ import * as leadsApi from '../../lib/services/leads.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import * as dealsApi from '../../lib/services/deals.js';
 import { fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
+import { tableLinkClass } from '../../lib/tableStyles.js';
 
 const ENTITY_TYPES = [
   { value: 'account', label: 'Account' },
@@ -144,7 +147,7 @@ export default function DocumentsPage() {
   };
 
   const columns = useMemo(() => [
-    { id: 'name', header: 'Name', cell: (d) => <Link href={`/documents/${d.id}`} className="font-medium text-brand-600 hover:underline">{d.name}</Link> },
+    { id: 'name', header: 'Name', cell: (d) => <Link href={`/documents/${d.id}`} className={tableLinkClass}>{d.name}</Link> },
     { id: 'type', header: 'Type', cell: (d) => d.file_type || '—' },
     { id: 'size', header: 'Size', cell: (d) => d.file_size ? `${(d.file_size / 1024).toFixed(1)} KB` : '—' },
     { id: 'owner', header: 'Owner', cell: (d) => d.owner_name },
@@ -153,12 +156,23 @@ export default function DocumentsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
-        <div className="flex justify-between mb-5">
-          <h1 className="text-xl font-bold">Documents</h1>
-          {canEdit && <button onClick={openUpload} className="btn-primary">+ Upload</button>}
-        </div>
+        <ListPageHeader
+          title="Documents"
+          subtitle="Files attached to accounts, leads, contacts, and deals."
+          primaryAction={canEdit ? (
+            <button type="button" onClick={openUpload} className="btn-primary-sm">Upload Document</button>
+          ) : null}
+        />
+
+        <ListSearchBar
+          search={search}
+          onSearchChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Search documents…"
+          total={total}
+          totalLabel="documents"
+        />
+
         <div className="card">
-          <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search documents..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
           <RecordDataTable
             moduleKey="documents"
             records={docs}

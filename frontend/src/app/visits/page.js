@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
+import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import Modal from '../../components/ui/Modal.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
@@ -11,6 +12,7 @@ import { getApiError } from '../../lib/api.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as visitsApi from '../../lib/services/visits.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchVisitStatuses } from '../../lib/services/lookups.js';
+import { tableLinkClass } from '../../lib/tableStyles.js';
 
 const EMPTY = { title: '', visit_date: '', location: '', status: 'planned', account_id: '' };
 
@@ -68,7 +70,7 @@ export default function VisitsPage() {
   };
 
   const columns = useMemo(() => [
-    { id: 'title', header: 'Title', cell: (v) => <Link href={`/visits/${v.id}`} className="font-medium text-brand-600 hover:underline">{v.title}</Link> },
+    { id: 'title', header: 'Title', cell: (v) => <Link href={`/visits/${v.id}`} className={tableLinkClass}>{v.title}</Link> },
     { id: 'date', header: 'Date', cell: (v) => new Date(v.visit_date).toLocaleString() },
     { id: 'account', header: 'Account', cell: (v) => v.account_name || '—' },
     { id: 'location', header: 'Location', cell: (v) => v.location || '—' },
@@ -78,10 +80,14 @@ export default function VisitsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
-        <div className="flex justify-between mb-5">
-          <h1 className="text-xl font-bold">Visits</h1>
-          {canEdit && <button onClick={openCreate} className="btn-primary">+ Log Visit</button>}
-        </div>
+        <ListPageHeader
+          title="Visits"
+          subtitle="Plan and track on-site customer visits."
+          primaryAction={canEdit ? (
+            <button type="button" onClick={openCreate} className="btn-primary-sm">Create Visit</button>
+          ) : null}
+        />
+
         <div className="card">
           <RecordDataTable
             moduleKey="visits"
@@ -94,7 +100,7 @@ export default function VisitsPage() {
           />
         </div>
       </div>
-      {modal && <Modal title="Log Visit" onClose={() => setModal(false)}>
+      {modal && <Modal title="Create Visit" onClose={() => setModal(false)}>
         <div className="space-y-3">
           <FormField label="Visit Name" required error={errors.title}><input className={inputClass(errors.title)} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></FormField>
           <FormField label="Visit Date" required error={errors.visit_date}><input className={inputClass(errors.visit_date)} type="datetime-local" value={form.visit_date?.slice(0, 16)} onChange={e => setForm(p => ({ ...p, visit_date: e.target.value }))} /></FormField>

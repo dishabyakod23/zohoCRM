@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
+import ListPageHeader from '../../components/layout/ListPageHeader.js';
+import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
@@ -14,6 +16,7 @@ import { getApiError } from '../../lib/api.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
 import { fetchCampaignTypes, fetchCampaignStatuses } from '../../lib/services/lookups.js';
+import { tableLinkClass } from '../../lib/tableStyles.js';
 
 const EMPTY = { name: '', type: 'email', status: 'planning', start_date: '', end_date: '', expected_revenue: '', description: '' };
 const LIMIT = 15;
@@ -78,7 +81,7 @@ export default function CampaignsPage() {
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
   const columns = useMemo(() => [
-    { id: 'name', header: 'Name', cell: (c) => <Link href={`/campaigns/${c.id}`} className="font-medium text-brand-600 hover:underline">{c.name}</Link> },
+    { id: 'name', header: 'Name', cell: (c) => <Link href={`/campaigns/${c.id}`} className={tableLinkClass}>{c.name}</Link> },
     { id: 'type', header: 'Type', cell: (c) => c.type_label },
     { id: 'status', header: 'Status', cell: (c) => <Badge label={c.status_label} /> },
     { id: 'dates', header: 'Dates', cell: (c) => <span className="text-xs">{c.start_date} → {c.end_date}</span> },
@@ -88,12 +91,23 @@ export default function CampaignsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
-        <div className="flex justify-between mb-5">
-          <div><h1 className="text-xl font-bold">Campaigns</h1><p className="text-xs text-gray-500">{total} campaigns</p></div>
-          {canEdit && <button onClick={openCreate} className="btn-primary">+ Create Campaign</button>}
-        </div>
+        <ListPageHeader
+          title="Campaigns"
+          subtitle="Manage marketing campaigns and outreach."
+          primaryAction={canEdit ? (
+            <button type="button" onClick={openCreate} className="btn-primary-sm">Create Campaign</button>
+          ) : null}
+        />
+
+        <ListSearchBar
+          search={search}
+          onSearchChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Search campaigns…"
+          total={total}
+          totalLabel="campaigns"
+        />
+
         <div className="card">
-          <div className="p-4 border-b"><input className="input max-w-xs" placeholder="Search campaigns..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>
           <RecordDataTable
             moduleKey="campaigns"
             records={items}

@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../layout/CRMLayout.js';
+import ListPageHeader from '../layout/ListPageHeader.js';
+import ListSearchBar from '../layout/ListSearchBar.js';
 import Modal from '../ui/Modal.js';
 import Badge from '../ui/Badge.js';
 import FormField, { inputClass } from '../forms/FormField.js';
@@ -16,6 +18,7 @@ import { fetchUsers } from '../../lib/services/lookups.js';
 import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel } from '../../lib/pipelineHelpers.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields } from '../../lib/services/lookups.js';
 import CsvImportModal from '../records/CsvImportModal.js';
+import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
 
 const STAGE_MODULE_KEY = {
   [PIPELINE_RAW]: 'raw-leads',
@@ -128,7 +131,7 @@ export default function PipelineLeadList({ stage, description }) {
   const columns = useMemo(() => {
     if (stage === PIPELINE_PROPOSAL) {
       const cols = [
-        { id: 'name', header: 'Name', cell: (lead) => <Link href={config.detailPath(lead.id)} className="font-medium text-brand-600 hover:text-brand-700">{lead.first_name} {lead.last_name}</Link> },
+        { id: 'name', header: 'Name', cell: (lead) => <Link href={config.detailPath(lead.id)} className={tableLinkClass}>{lead.first_name} {lead.last_name}</Link> },
         { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
         { id: 'proposal_date', header: 'Proposal Date', cell: (lead) => formatDate(lead.proposal_date) },
         { id: 'deal_size', header: 'Deal Size', cell: (lead) => formatDealSize(lead.deal_size ?? lead.proposal_amount) },
@@ -140,9 +143,9 @@ export default function PipelineLeadList({ stage, description }) {
     }
 
     const cols = [
-      { id: 'name', header: 'Name', cell: (lead) => <Link href={config.detailPath(lead.id)} className="font-medium text-brand-600 hover:text-brand-700">{lead.first_name} {lead.last_name}</Link> },
+      { id: 'name', header: 'Name', cell: (lead) => <Link href={config.detailPath(lead.id)} className={tableLinkClass}>{lead.first_name} {lead.last_name}</Link> },
       { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
-      { id: 'email', header: 'Email', cell: (lead) => <span className="text-brand-600">{lead.email || '—'}</span> },
+      { id: 'email', header: 'Email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
       { id: 'phone', header: 'Phone', cell: (lead) => lead.phone || '—' },
       { id: 'source', header: 'Source', cell: (lead) => lead.source || '—' },
       { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
@@ -153,49 +156,49 @@ export default function PipelineLeadList({ stage, description }) {
         id: 'assign',
         header: 'Assign',
         cell: (lead) => (
-          <button type="button" onClick={() => { setAssignModal(lead); setAssignUserId(lead.owner_id || user?.id || ''); }} className="text-xs text-brand-600 hover:underline">Assign</button>
+          <button type="button" onClick={() => { setAssignModal(lead); setAssignUserId(lead.owner_id || user?.id || ''); }} className={tableActionClass}>Assign</button>
         ),
       });
     }
     return cols;
   }, [config, canAssignLeads, user?.id]);
 
+  const createLabel = stage === PIPELINE_RAW
+    ? 'Create Raw Lead'
+    : stage === PIPELINE_QUALIFIED
+      ? 'Create Qualified Lead'
+      : 'Create Proposal';
+
+  const createHref = stage === PIPELINE_RAW
+    ? '/raw-leads/create'
+    : stage === PIPELINE_QUALIFIED
+      ? '/qualified-leads/create'
+      : '/proposals/create';
+
   return (
     <CRMLayout>
       <div className="p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-          <div>
-            <h1 className="text-lg font-semibold text-zoho-text">{config?.listTitle}</h1>
-            {description && <p className="text-sm text-zoho-muted mt-1">{description}</p>}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {stage === PIPELINE_RAW && canEdit && (
-              <Link href="/raw-leads/create" className="btn-primary text-xs">+ Create Raw Lead</Link>
-            )}
-            {stage === PIPELINE_QUALIFIED && canEdit && (
-              <Link href="/qualified-leads/create" className="btn-primary text-xs">+ Create Qualified Lead</Link>
-            )}
-            {stage === PIPELINE_PROPOSAL && canEdit && (
-              <Link href="/proposals/create" className="btn-primary text-xs">+ Create Proposal</Link>
-            )}
-            {config?.allowUpload && canEdit && (
-              <button onClick={() => setUploadOpen(true)} className="btn-secondary text-xs">Upload CSV</button>
-            )}
-          </div>
-        </div>
+        <ListPageHeader
+          title={config?.listTitle}
+          subtitle={description}
+          secondaryActions={config?.allowUpload && canEdit ? (
+            <button type="button" onClick={() => setUploadOpen(true)} className="btn-secondary-sm">
+              Import CSV
+            </button>
+          ) : null}
+          primaryAction={canEdit ? (
+            <Link href={createHref} className="btn-primary-sm">{createLabel}</Link>
+          ) : null}
+        />
 
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <input
-            className="input max-w-xs text-sm"
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          />
-          <select className="input w-28 text-xs" value={limit} onChange={(e) => { setLimit(+e.target.value); setPage(1); }}>
-            {[10, 15, 25, 50].map((n) => <option key={n} value={n}>{n} per page</option>)}
-          </select>
-          <span className="text-xs text-zoho-muted ml-auto">{total} record{total === 1 ? '' : 's'}</span>
-        </div>
+        <ListSearchBar
+          search={search}
+          onSearchChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Search…"
+          limit={limit}
+          onLimitChange={(n) => { setLimit(n); setPage(1); }}
+          total={total}
+        />
 
         <div className="card">
           <RecordDataTable
@@ -220,7 +223,7 @@ export default function PipelineLeadList({ stage, description }) {
       <CsvImportModal
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
-        title="Upload CSV — Raw Leads"
+        title="Import CSV — Raw Leads"
         module="leads"
         importFn={leadsApi.importLeadsFile}
         downloadTemplate={downloadTemplate}

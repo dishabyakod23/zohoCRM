@@ -4,6 +4,7 @@ import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
+import PasswordInput from '../../components/forms/PasswordInput.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useToast } from '../../components/ui/Toast.js';
@@ -453,9 +454,12 @@ export default function SettingsPage() {
               </FormField>
             )}
             <FormField label={editingUser ? 'New Password (optional)' : 'Password'} required={!editingUser} error={userErrors.password} name="password">
-              <input className={inputClass(userErrors.password)} type="password" value={userForm.password}
+              <PasswordInput
+                className={inputClass(userErrors.password)}
+                value={userForm.password}
                 onChange={e => { setUserForm(f => ({ ...f, password: e.target.value })); setUserErrors(er => ({ ...er, password: null })); }}
-                placeholder={editingUser ? 'Leave blank to keep current' : 'Min. 8 characters'} />
+                placeholder={editingUser ? 'Leave blank to keep current' : 'Min. 8 characters'}
+              />
             </FormField>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="First Name" name="first_name">
