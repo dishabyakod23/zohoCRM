@@ -9,6 +9,7 @@ import ConfirmDialog from '../ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import RecordDetailLayout, { InfoRow } from '../records/RecordDetailLayout.js';
 import EditableFieldSection from '../records/EditableFieldSection.js';
+import EditableEmailField from '../forms/EditableEmailField.js';
 import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -218,7 +219,13 @@ export default function PipelineLeadDetail({ stage }) {
             values={lead}
             onSave={saveSection}
             fields={[
-              { name: 'email', label: 'Email' },
+              { name: 'email', label: 'Email', render: (d, set) => (
+                <EditableEmailField
+                  value={d.email}
+                  onChange={(e) => set((p) => ({ ...p, email: e.target.value }))}
+                  excludeLeadId={id}
+                />
+              ) },
               { name: 'phone', label: 'Phone' },
               { name: 'mobile', label: 'Mobile' },
             ]}

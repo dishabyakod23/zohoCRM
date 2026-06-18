@@ -15,8 +15,10 @@ import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { LIST_VIEWS } from '../../lib/constants.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { filterUnreadRecords } from '../../lib/recordViewTracker.js';
-import { fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
+import { fetchAccountLookups, accountMapFromLookups, fetchUsers } from '../../lib/services/lookups.js';
 import { tableLinkClass, tableEmailClass, tableAvatarClass } from '../../lib/tableStyles.js';
+import { TextFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
+import { EMPTY_CONTACT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 
 const LIMIT = 15;
 
@@ -33,11 +35,14 @@ export default function ContactsPage() {
   const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
   const [activeView, setActiveView] = useState('All Contacts');
+  const [filters, setFilters] = useState(EMPTY_CONTACT_FILTERS);
+  const [users, setUsers] = useState([]);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
 
   useEffect(() => {
     fetchAccountLookups().then(setAccounts).catch(() => setAccounts([]));
+    fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, []);
 
   useEffect(() => {
@@ -61,6 +66,9 @@ export default function ContactsPage() {
         params.sort_by = 'created_at';
         params.sort_order = 'desc';
       }
+      if (activeView !== 'My Contacts') {
+        params.filters = filters;
+      }
       const result = await contactsApi.listContacts(params, accountMap);
       if (isUnreadView) {
         const unread = filterUnreadRecords(result.data, 'contact');
@@ -76,7 +84,7 @@ export default function ContactsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, accountMap, showToast, activeView, user?.id]);
+  }, [page, debouncedSearch, accountMap, showToast, activeView, user?.id, filters]);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
@@ -119,7 +127,15 @@ export default function ContactsPage() {
           onViewChange={(v) => { setActiveView(v); setPage(1); }}
           searchValue={search}
           onSearch={(v) => { setSearch(v); setPage(1); }}
-        />
+        >
+          <TextFilter label="Company" value={filters.company} onChange={(v) => { setFilters((f) => ({ ...f, company: v })); setPage(1); }} />
+          <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => { setFilters((f) => ({ ...f, owner_id: v })); setPage(1); }} />
+          {countActiveFilters(filters) > 0 && (
+            <button type="button" onClick={() => { setFilters(EMPTY_CONTACT_FILTERS); setPage(1); }} className="btn-secondary text-xs py-1.5">
+              Clear filters
+            </button>
+          )}
+        </ListToolbar>
 
         <div className="card rounded-tl-none rounded-tr-none border-t-0">
           <RecordDataTable

@@ -6,6 +6,10 @@ import {
   PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PIPELINE_LEAD, PROPOSAL_SOURCE,
   filterLeadsByPipelineStage, toApiLeadStatus,
 } from '../pipelineHelpers.js';
+import {
+  applyLeadRecordFilters,
+  hasLeadClientFilters,
+} from '../listRecordFilters.js';
 
 const CONVERT_MASS_TARGETS = new Set(['account', 'contact', 'deal']);
 
@@ -27,22 +31,44 @@ async function fetchAllLeadPages(params, statusOptions) {
   return all;
 }
 
-export async function listLeads({ page = 1, page_size = 15, search, lead_status, owner_id, sort_by, sort_order, pipeline_stage, statusOptions } = {}) {
+export async function listLeads({
+  page = 1,
+  page_size = 15,
+  search,
+  lead_status,
+  owner_id,
+  sort_by,
+  sort_order,
+  pipeline_stage,
+  statusOptions,
+  filters = {},
+} = {}) {
   const params = {};
   if (search) params.search = search;
+
+  const mergedOwnerId = filters.owner_id || owner_id;
+  const mergedStatus = filters.status || lead_status;
+
   const apiStatus = pipeline_stage === PIPELINE_PROPOSAL || pipeline_stage === PIPELINE_QUALIFIED
     ? 'qualified_lead'
     : pipeline_stage === PIPELINE_RAW
       ? null
-      : toApiLeadStatus(lead_status) || (lead_status ? resolveLeadStatusForApi(lead_status) : null);
+      : toApiLeadStatus(mergedStatus) || (mergedStatus ? resolveLeadStatusForApi(mergedStatus) : null);
   if (apiStatus) params.lead_status = apiStatus;
-  if (owner_id) params.owner_id = owner_id;
+  if (mergedOwnerId) params.owner_id = mergedOwnerId;
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
 
-  if (pipeline_stage) {
+  const needsClientPipeline = Boolean(pipeline_stage);
+  const needsClientFilter = hasLeadClientFilters(filters);
+  const fetchAll = needsClientPipeline || needsClientFilter;
+
+  if (fetchAll) {
     const allLeads = await fetchAllLeadPages(params, statusOptions);
-    const filtered = filterLeadsByPipelineStage(allLeads, pipeline_stage);
+    let filtered = pipeline_stage
+      ? filterLeadsByPipelineStage(allLeads, pipeline_stage)
+      : allLeads;
+    filtered = applyLeadRecordFilters(filtered, filters);
     const start = (page - 1) * page_size;
     return {
       data: filtered.slice(start, start + page_size),
@@ -53,7 +79,7 @@ export async function listLeads({ page = 1, page_size = 15, search, lead_status,
 
   const res = await api.get('/leads', { params: { ...params, page, page_size } });
   let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
-  if (lead_status && toApiLeadStatus(lead_status) === 'qualified_lead' && lead_status !== PIPELINE_PROPOSAL) {
+  if (mergedStatus && toApiLeadStatus(mergedStatus) === 'qualified_lead' && mergedStatus !== PIPELINE_PROPOSAL) {
     data = filterLeadsByPipelineStage(data, 'qualified_lead');
   }
   return {

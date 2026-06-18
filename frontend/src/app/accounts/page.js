@@ -11,8 +11,11 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../lib/api.js';
 import * as accountsApi from '../../lib/services/accounts.js';
-import { ACCOUNT_TYPES } from '../../lib/constants.js';
+import { ACCOUNT_TYPES, INDUSTRIES } from '../../lib/constants.js';
 import { tableLinkClass, tableEmailClass, tableAvatarSmClass } from '../../lib/tableStyles.js';
+import { TextFilter, SelectFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
+import { fetchUsers } from '../../lib/services/lookups.js';
+import { EMPTY_ACCOUNT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 
 const LIMIT = 15;
 
@@ -27,6 +30,12 @@ export default function AccountsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState(EMPTY_ACCOUNT_FILTERS);
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    fetchUsers().then(setUsers).catch(() => setUsers([]));
+  }, []);
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -35,6 +44,7 @@ export default function AccountsPage() {
         page,
         page_size: LIMIT,
         search: debouncedSearch || undefined,
+        filters,
       });
       setAccounts(result.data);
       setTotal(result.total);
@@ -43,7 +53,7 @@ export default function AccountsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, showToast]);
+  }, [page, debouncedSearch, filters, showToast]);
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
@@ -64,6 +74,14 @@ export default function AccountsPage() {
     { id: 'owner', header: 'Owner', cell: (a) => a.owner_name || '—' },
   ], []);
 
+  const industryOptions = INDUSTRIES.map((value) => ({ value, label: value }));
+  const statusOptions = ACCOUNT_STATUS_OPTIONS;
+
+  const updateFilter = (key, value) => {
+    setFilters((current) => ({ ...current, [key]: value }));
+    setPage(1);
+  };
+
   return (
     <CRMLayout>
       <div className="p-6">
@@ -81,6 +99,18 @@ export default function AccountsPage() {
           placeholder="Search accounts…"
           total={total}
           totalLabel="accounts"
+          hasActiveFilters={countActiveFilters(filters) > 0}
+          onClearFilters={() => { setFilters(EMPTY_ACCOUNT_FILTERS); setPage(1); }}
+          filterFields={(
+            <>
+              <SelectFilter label="Industry" value={filters.industry} onChange={(v) => updateFilter('industry', v)} options={industryOptions} emptyLabel="All industries" />
+              <TextFilter label="Website" value={filters.website} onChange={(v) => updateFilter('website', v)} />
+              <TextFilter label="Phone" value={filters.phone} onChange={(v) => updateFilter('phone', v)} />
+              <SelectFilter label="Status" value={filters.status} onChange={(v) => updateFilter('status', v)} options={statusOptions} emptyLabel="All statuses" />
+              <TextFilter label="City" value={filters.city} onChange={(v) => updateFilter('city', v)} />
+              <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
+            </>
+          )}
         />
 
         <div className="card">

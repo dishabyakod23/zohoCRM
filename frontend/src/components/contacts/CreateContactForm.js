@@ -10,6 +10,7 @@ import { getApiError } from '../../lib/api.js';
 import { LEAD_SOURCES, SALUTATIONS } from '../../lib/constants.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
+import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchAccountLookups, fetchUsers } from '../../lib/services/lookups.js';
 
@@ -99,6 +100,7 @@ export default function CreateContactForm() {
   const [saving, setSaving] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [users, setUsers] = useState([]);
+  const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
   const [contacts, setContacts] = useState([]);
 
   useEffect(() => {
@@ -140,7 +142,7 @@ export default function CreateContactForm() {
       if (phoneErr) errs.phone = phoneErr;
     }
     if (!errs.email && form.email) {
-      const uniqueErr = await validateEmailUnique(form.email);
+      const uniqueErr = emailError || await validateEmailUnique(form.email);
       if (uniqueErr) errs.email = uniqueErr;
     }
     setErrors(errs);
@@ -172,7 +174,7 @@ export default function CreateContactForm() {
           <h1 className="text-lg font-semibold text-zoho-text">Create Contact</h1>
           <div className="flex gap-2">
             <Link href="/contacts" className="btn-secondary">Cancel</Link>
-            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
+            <button type="button" onClick={handleSave} disabled={saving || checkingEmail || !!emailError} className="btn-primary">
               {saving ? 'Saving…' : 'Save Contact'}
             </button>
           </div>
@@ -208,8 +210,13 @@ export default function CreateContactForm() {
               <input className={inputClass(errors.last_name)} value={form.last_name} onChange={set('last_name')} />
             </FormField>
 
-            <FormField label="Email" required error={errors.email} name="email">
-              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
+            <FormField label="Email" required error={errors.email || emailError} name="email">
+              <div>
+                <input className={inputClass(errors.email || emailError)} type="email" value={form.email} onChange={set('email')} />
+                {checkingEmail && !(errors.email || emailError) && (
+                  <p className="text-xs text-zoho-muted mt-1">Checking availability…</p>
+                )}
+              </div>
             </FormField>
 
             <FormField label="Account Name" required error={errors.account_id} name="account_id">

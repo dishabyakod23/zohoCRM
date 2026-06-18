@@ -1,11 +1,32 @@
 import api from '../api.js';
+import { formatEnumLabel } from '../activityHelpers.js';
+
+export const RECYCLE_ENTITY_TYPES = [
+  { value: '', label: 'All types' },
+  { value: 'lead', label: 'Lead' },
+  { value: 'contact', label: 'Contact' },
+  { value: 'account', label: 'Account' },
+  { value: 'deal', label: 'Deal' },
+  { value: 'task', label: 'Task' },
+  { value: 'meeting', label: 'Meeting' },
+  { value: 'call', label: 'Call' },
+  { value: 'campaign', label: 'Campaign' },
+  { value: 'visit', label: 'Visit' },
+  { value: 'project', label: 'Project' },
+  { value: 'document', label: 'Document' },
+];
 
 export function normalizeRecycleItem(item) {
+  if (!item) return item;
+  const entityType = item.entity_type || item.record_type;
   return {
     ...item,
-    id: item._composite_id || item.id,
-    record_type: item.entity_type,
-    name: item.entity_name,
+    id: item.id,
+    entity_type: entityType,
+    entity_type_label: formatEnumLabel(entityType),
+    entity_name: item.entity_name || '—',
+    name: item.entity_name || '—',
+    record_type: entityType,
   };
 }
 
@@ -22,9 +43,10 @@ export async function listRecycleBin({ page = 1, page_size = 20, entity_type } =
 
 export async function restoreRecycleItem(recycleId) {
   const res = await api.post(`/recycle-bin/${recycleId}/restore`);
-  return res.data;
+  return res.data?.data || res.data;
 }
 
 export async function deleteRecycleItem(recycleId) {
-  await api.delete(`/recycle-bin/${recycleId}`);
+  const res = await api.delete(`/recycle-bin/${recycleId}`);
+  return res.data?.data || res.data;
 }

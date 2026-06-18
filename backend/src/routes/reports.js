@@ -202,11 +202,11 @@ router.get('/export/:type', requireDownload, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-/* ── Weekly report ── */
+/* ── Weekly report (legacy alias — prefer /admin/reports/weekly/trigger) ── */
 router.post('/weekly/trigger', async (req, res) => {
   try {
-    const { generateWeeklyReport } = require('../jobs/weeklyReport');
-    const result = await generateWeeklyReport();
+    const { sendWeeklyReport } = require('../services/weeklyReportBuilder');
+    const result = await sendWeeklyReport({ triggerType: 'manual' });
     res.json({ data: result });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

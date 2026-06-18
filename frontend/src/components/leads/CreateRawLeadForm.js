@@ -10,6 +10,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import { validateRequired, validateEmail } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
+import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { PIPELINE_RAW } from '../../lib/pipelineHelpers.js';
@@ -88,6 +89,7 @@ export default function CreateRawLeadForm() {
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
 
   useEffect(() => {
     if (user?.id) setForm((f) => ({ ...f, owner_id: f.owner_id || user.id }));
@@ -118,7 +120,7 @@ export default function CreateRawLeadForm() {
       if (secErr) errs.secondary_email = secErr;
     }
     if (!errs.email && form.email) {
-      const uniqueErr = await validateEmailUnique(form.email);
+      const uniqueErr = emailError || await validateEmailUnique(form.email);
       if (uniqueErr) errs.email = uniqueErr;
     }
     setErrors(errs);
@@ -179,8 +181,13 @@ export default function CreateRawLeadForm() {
             <FormField label="Title" name="title">
               <input className="input" value={form.title} onChange={set('title')} />
             </FormField>
-            <FormField label="Email" required error={errors.email} name="email">
-              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
+            <FormField label="Email" required error={errors.email || emailError} name="email">
+              <div>
+                <input className={inputClass(errors.email || emailError)} type="email" value={form.email} onChange={set('email')} />
+                {checkingEmail && !(errors.email || emailError) && (
+                  <p className="text-xs text-zoho-muted mt-1">Checking availability…</p>
+                )}
+              </div>
             </FormField>
             <FormField label="Phone" name="phone">
               <input className="input" value={form.phone} onChange={set('phone')} />
@@ -284,7 +291,7 @@ export default function CreateRawLeadForm() {
 
           <div className="flex gap-2 justify-end pt-6 mt-4 border-t border-zoho-border">
             <Link href="/raw-leads" className="btn-secondary">Cancel</Link>
-            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
+            <button type="button" onClick={handleSave} disabled={saving || checkingEmail || !!emailError} className="btn-primary">
               {saving ? 'Saving...' : 'Save Raw Lead'}
             </button>
           </div>

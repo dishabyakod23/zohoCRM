@@ -14,11 +14,13 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { fetchUsers } from '../../lib/services/lookups.js';
-import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel } from '../../lib/pipelineHelpers.js';
-import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields } from '../../lib/services/lookups.js';
+import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
 import CsvImportModal from '../records/CsvImportModal.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
+import { TextFilter, SelectFilter, OwnerFilter, DateFilter } from '../layout/ListFilterFields.js';
+import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
+
+import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 
 const STAGE_MODULE_KEY = {
   [PIPELINE_RAW]: 'raw-leads',
@@ -50,6 +52,7 @@ export default function PipelineLeadList({ stage, description }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
+  const [filters, setFilters] = useState(EMPTY_LEAD_FILTERS);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -57,15 +60,17 @@ export default function PipelineLeadList({ stage, description }) {
   const [assignUserId, setAssignUserId] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const [sourceOptions, setSourceOptions] = useState([]);
   const fetchRequestId = useRef(0);
 
   useEffect(() => {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
+    fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
   }, []);
 
   useEffect(() => {
-    if (canAssignLeads) fetchUsers().then(setUsers).catch(() => {});
-  }, [canAssignLeads]);
+    fetchUsers().then(setUsers).catch(() => {});
+  }, []);
 
   const fetchLeads = useCallback(async () => {
     const requestId = ++fetchRequestId.current;
@@ -77,6 +82,7 @@ export default function PipelineLeadList({ stage, description }) {
         search: debouncedSearch || undefined,
         pipeline_stage: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL].includes(stage) ? stage : stage === PIPELINE_RAW ? PIPELINE_RAW : undefined,
         lead_status: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PIPELINE_RAW].includes(stage) ? undefined : (config?.apiStatus || stage),
+        filters,
         statusOptions,
       });
       if (requestId !== fetchRequestId.current) return;
@@ -88,7 +94,7 @@ export default function PipelineLeadList({ stage, description }) {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, stage, config?.apiStatus, showToast, statusOptions]);
+  }, [page, limit, debouncedSearch, filters, stage, config?.apiStatus, showToast, statusOptions]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -175,6 +181,52 @@ export default function PipelineLeadList({ stage, description }) {
       ? '/qualified-leads/create'
       : '/proposals/create';
 
+  const updateFilter = (key, value) => {
+    setFilters((current) => ({ ...current, [key]: value }));
+    setPage(1);
+  };
+
+  const proposalFilters = (
+    <>
+      <TextFilter label="Company" value={filters.company} onChange={(v) => updateFilter('company', v)} />
+      <DateFilter label="Proposal from" value={filters.proposal_date_from} onChange={(v) => updateFilter('proposal_date_from', v)} />
+      <DateFilter label="Proposal to" value={filters.proposal_date_to} onChange={(v) => updateFilter('proposal_date_to', v)} />
+      <TextFilter label="Deal size min" value={filters.deal_size_min} onChange={(v) => updateFilter('deal_size_min', v)} placeholder="Min amount" className="w-28" />
+      <TextFilter label="Deal size max" value={filters.deal_size_max} onChange={(v) => updateFilter('deal_size_max', v)} placeholder="Max amount" className="w-28" />
+      <DateFilter label="Closure from" value={filters.closure_date_from} onChange={(v) => updateFilter('closure_date_from', v)} />
+      <DateFilter label="Closure to" value={filters.closure_date_to} onChange={(v) => updateFilter('closure_date_to', v)} />
+      <SelectFilter
+        label="Deal Status"
+        value={filters.deal_status}
+        onChange={(v) => updateFilter('deal_status', v)}
+        options={PROPOSAL_DEAL_STATUSES}
+        emptyLabel="All deal statuses"
+      />
+      <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
+    </>
+  );
+
+  const leadFilters = (
+    <>
+      <TextFilter label="Company" value={filters.company} onChange={(v) => updateFilter('company', v)} />
+      <SelectFilter
+        label="Source"
+        value={filters.source}
+        onChange={(v) => updateFilter('source', v)}
+        options={sourceOptions}
+        emptyLabel="All sources"
+      />
+      <SelectFilter
+        label="Status"
+        value={filters.status}
+        onChange={(v) => updateFilter('status', v)}
+        options={statusOptions}
+        emptyLabel="All statuses"
+      />
+      <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
+    </>
+  );
+
   return (
     <CRMLayout>
       <div className="p-6">
@@ -198,6 +250,9 @@ export default function PipelineLeadList({ stage, description }) {
           limit={limit}
           onLimitChange={(n) => { setLimit(n); setPage(1); }}
           total={total}
+          hasActiveFilters={countActiveFilters(filters) > 0}
+          onClearFilters={() => { setFilters(EMPTY_LEAD_FILTERS); setPage(1); }}
+          filterFields={stage === PIPELINE_PROPOSAL ? proposalFilters : leadFilters}
         />
 
         <div className="card">

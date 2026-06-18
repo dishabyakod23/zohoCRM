@@ -24,12 +24,13 @@ export const INDUSTRIES = ['IT Services', 'E-Commerce', 'EdTech', 'Automotive', 
 
 export const MODULE_ICONS = {
   Home: '🏠', Contacts: '👤', Leads: '🎯', 'Raw Leads': '📥', Qualified: '✅', Proposals: '📝',
-  Accounts: '🏢', Calendar: '📅', Campaigns: '📣', Reports: '📊', Projects: '📁',
+  Accounts: '🏢', Calendar: '📅', Campaigns: '📣', Reports: '📊', Projects: '📁', 'Recycle Bin': '🗑️',
 };
 
 export const NAV_MODULES = [
   { href: '/dashboard', label: 'Home', section: 'main', icon: 'Home' },
   { href: '/reports', label: 'Reports', section: 'main', icon: 'Reports' },
+  { href: '/recycle-bin', label: 'Recycle Bin', section: 'main', icon: 'Recycle Bin' },
   { href: '/contacts', label: 'Contacts', section: 'modules', icon: 'Contacts' },
   { href: '/raw-leads', label: 'Raw Leads', section: 'modules', icon: 'Raw Leads' },
   { href: '/leads', label: 'Leads', section: 'modules', icon: 'Leads' },

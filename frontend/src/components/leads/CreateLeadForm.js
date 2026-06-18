@@ -10,6 +10,7 @@ import { LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES } from '../../lib/consta
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
+import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 
@@ -37,6 +38,7 @@ export default function CreateLeadForm() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
 
   useEffect(() => {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
@@ -56,7 +58,7 @@ export default function CreateLeadForm() {
       if (phoneErr) errs.phone = phoneErr;
     }
     if (!errs.email && form.email) {
-      const uniqueErr = await validateEmailUnique(form.email);
+      const uniqueErr = emailError || await validateEmailUnique(form.email);
       if (uniqueErr) errs.email = uniqueErr;
     }
     setErrors(errs);
@@ -154,8 +156,13 @@ export default function CreateLeadForm() {
 
           <SectionTitle>Contact Information</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            <FormField label="Email" required error={errors.email} name="email">
-              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
+            <FormField label="Email" required error={errors.email || emailError} name="email">
+              <div>
+                <input className={inputClass(errors.email || emailError)} type="email" value={form.email} onChange={set('email')} />
+                {checkingEmail && !(errors.email || emailError) && (
+                  <p className="text-xs text-zoho-muted mt-1">Checking availability…</p>
+                )}
+              </div>
             </FormField>
             <FormField label="Phone" error={errors.phone} name="phone">
               <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} />
@@ -193,7 +200,7 @@ export default function CreateLeadForm() {
 
           <div className="flex gap-2 justify-end pt-6 mt-4 border-t border-zoho-border">
             <Link href="/leads" className="btn-secondary">Cancel</Link>
-            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
+            <button type="button" onClick={handleSave} disabled={saving || checkingEmail || !!emailError} className="btn-primary">
               {saving ? 'Saving...' : 'Save Lead'}
             </button>
           </div>

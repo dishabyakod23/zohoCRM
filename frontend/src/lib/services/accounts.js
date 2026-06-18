@@ -2,13 +2,60 @@ import api from '../api.js';
 import { normalizeAccount, toAccountPayload } from '../accountHelpers.js';
 import * as contactsApi from './contacts.js';
 import * as projectsApi from './projects.js';
+import {
+  applyAccountRecordFilters,
+  hasAccountClientFilters,
+} from '../listRecordFilters.js';
 
-export async function listAccounts({ page = 1, page_size = 15, search, owner_id, sort_by, sort_order } = {}) {
+async function fetchAllAccountPages(params) {
+  const pageSize = 100;
+  let page = 1;
+  let all = [];
+  let serverTotal = 0;
+
+  while (page <= 50) {
+    const res = await api.get('/accounts', { params: { ...params, page, page_size: pageSize } });
+    const batch = (res.data.data || []).map(normalizeAccount);
+    serverTotal = res.data.meta?.total ?? all.length + batch.length;
+    all = all.concat(batch);
+    if (batch.length === 0 || all.length >= serverTotal) break;
+    page += 1;
+  }
+
+  return all;
+}
+
+export async function listAccounts({
+  page = 1,
+  page_size = 15,
+  search,
+  owner_id,
+  sort_by,
+  sort_order,
+  filters = {},
+} = {}) {
   const params = { page, page_size };
   if (search) params.search = search;
-  if (owner_id) params.owner_id = owner_id;
+  const mergedOwnerId = filters.owner_id || owner_id;
+  if (mergedOwnerId) params.owner_id = mergedOwnerId;
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
+
+  if (hasAccountClientFilters(filters)) {
+    const allAccounts = await fetchAllAccountPages({
+      search,
+      owner_id: mergedOwnerId,
+      sort_by,
+      sort_order,
+    });
+    const filtered = applyAccountRecordFilters(allAccounts, filters);
+    const start = (page - 1) * page_size;
+    return {
+      data: filtered.slice(start, start + page_size),
+      total: filtered.length,
+      meta: { total: filtered.length },
+    };
+  }
 
   const res = await api.get('/accounts', { params });
   return {

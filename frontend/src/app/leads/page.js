@@ -16,8 +16,10 @@ import { LIST_VIEWS } from '../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { filterUnreadRecords } from '../../lib/recordViewTracker.js';
-import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields } from '../../lib/services/lookups.js';
+import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
+import { TextFilter, SelectFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
+import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -29,15 +31,19 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
-  const [statusFilter, setStatusFilter] = useState('');
+  const [filters, setFilters] = useState(EMPTY_LEAD_FILTERS);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
   const [activeView, setActiveView] = useState('All Leads');
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const [sourceOptions, setSourceOptions] = useState([]);
+  const [users, setUsers] = useState([]);
   const fetchRequestId = useRef(0);
 
   useEffect(() => {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
+    fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
+    fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, []);
 
   useEffect(() => {
@@ -56,7 +62,8 @@ export default function LeadsPage() {
         page: isUnreadView ? 1 : page,
         page_size: isUnreadView ? 200 : limit,
         search: debouncedSearch || undefined,
-        lead_status: isUnreadView ? undefined : (statusFilter || PIPELINE_LEAD),
+        lead_status: isUnreadView ? undefined : (filters.status || PIPELINE_LEAD),
+        filters: isUnreadView ? {} : filters,
       };
       if (activeView === 'My Leads' && user?.id) params.owner_id = user.id;
       if (activeView === 'Recently Created') {
@@ -87,7 +94,7 @@ export default function LeadsPage() {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, statusFilter, activeView, user?.id, showToast, statusOptions]);
+  }, [page, limit, debouncedSearch, filters, activeView, user?.id, showToast, statusOptions]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -130,13 +137,30 @@ export default function LeadsPage() {
           searchValue={search}
           onSearch={(v) => { setSearch(v); setPage(1); }}
         >
-          <select className="input w-40 text-xs" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
-            <option value="">Active leads</option>
-            {statusOptions.filter(s => !['raw_prospect', 'qualified_lead', 'deal_lost'].includes(s.value)).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
+          <TextFilter label="Company" value={filters.company} onChange={(v) => { setFilters((f) => ({ ...f, company: v })); setPage(1); }} />
+          <SelectFilter
+            label="Source"
+            value={filters.source}
+            onChange={(v) => { setFilters((f) => ({ ...f, source: v })); setPage(1); }}
+            options={sourceOptions}
+            emptyLabel="All sources"
+          />
+          <SelectFilter
+            label="Status"
+            value={filters.status}
+            onChange={(v) => { setFilters((f) => ({ ...f, status: v })); setPage(1); }}
+            options={statusOptions.filter((s) => !['raw_prospect', 'qualified_lead', 'deal_lost'].includes(s.value))}
+            emptyLabel="Active leads"
+          />
+          <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => { setFilters((f) => ({ ...f, owner_id: v })); setPage(1); }} />
           <select className="input w-28 text-xs" value={limit} onChange={e => { setLimit(+e.target.value); setPage(1); }}>
             {[10, 15, 25, 50].map(n => <option key={n} value={n}>{n} per page</option>)}
           </select>
+          {countActiveFilters(filters) > 0 && (
+            <button type="button" onClick={() => { setFilters(EMPTY_LEAD_FILTERS); setPage(1); }} className="btn-secondary text-xs py-1.5">
+              Clear filters
+            </button>
+          )}
         </ListToolbar>
 
         <div className="card rounded-tl-none rounded-tr-none border-t-0 mb-4">

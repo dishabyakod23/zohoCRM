@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { getApiError } from '../../lib/api.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
+import { leadStatusLabel } from '../../lib/leadHelpers.js';
 import * as reportsApi from '../../lib/services/reports.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -392,17 +393,71 @@ export default function ReportsPage() {
                 </div>
 
                 {summary && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[['New Leads', summary.new_leads_total], ['Converted', summary.converted_leads], ['Deals Won', summary.deals_won_count], ['Tasks Done', summary.tasks_completed]].map(([l, v]) => (
-                      <div key={l} className="card p-4 text-center"><p className="text-xs text-gray-500">{l}</p><p className="text-2xl font-bold mt-1">{v ?? 0}</p></div>
-                    ))}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {[['Total Leads', summary.total_leads], ['New This Week', summary.new_leads_total], ['Converted', summary.converted_leads], ['Deals Won', summary.deals_won_count]].map(([l, v]) => (
+                        <div key={l} className="card p-4 text-center"><p className="text-xs text-gray-500">{l}</p><p className="text-2xl font-bold mt-1">{v ?? 0}</p></div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="card p-5">
+                        <h3 className="font-semibold mb-1 text-brand-700">All leads by status</h3>
+                        <p className="text-xs text-gray-500 mb-4">Current pipeline breakdown — primary email content</p>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="table-th">Status</th>
+                                <th className="table-th text-right">Count</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {(summary.leads_by_status || []).length === 0 ? (
+                                <tr><td colSpan={2} className="table-td text-center py-6 text-gray-400">No lead data</td></tr>
+                              ) : (summary.leads_by_status || []).map((row) => (
+                                <tr key={row.label}>
+                                  <td className="table-td">{leadStatusLabel(row.label)}</td>
+                                  <td className="table-td text-right font-medium">{row.count}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div className="card p-5">
+                        <h3 className="font-semibold mb-1 text-brand-700">New leads this week by status</h3>
+                        <p className="text-xs text-gray-500 mb-4">Leads created during {weeklyPreview?.period_start} – {weeklyPreview?.period_end}</p>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="table-th">Status</th>
+                                <th className="table-th text-right">Count</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {(summary.new_leads_by_status || []).length === 0 ? (
+                                <tr><td colSpan={2} className="table-td text-center py-6 text-gray-400">No new leads this week</td></tr>
+                              ) : (summary.new_leads_by_status || []).map((row) => (
+                                <tr key={row.label}>
+                                  <td className="table-td">{leadStatusLabel(row.label)}</td>
+                                  <td className="table-td text-right font-medium">{row.count}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
                 {weeklyPreview && (
                   <div className="card p-5">
-                    <h3 className="font-semibold mb-2">Preview — {weeklyPreview.company_name}</h3>
-                    <p className="text-xs text-gray-500 mb-4">{weeklyPreview.period_start} to {weeklyPreview.period_end}</p>
+                    <h3 className="font-semibold mb-2">Email preview — {weeklyPreview.company_name}</h3>
+                    <p className="text-xs text-gray-500 mb-4">Leads by status is the main section sent to recipients · {weeklyPreview.period_start} to {weeklyPreview.period_end}</p>
                     <div className="border rounded-lg overflow-hidden bg-white max-h-[480px] overflow-y-auto">
                       <iframe title="Weekly report preview" srcDoc={weeklyPreview.html_body} className="w-full min-h-[400px] border-0" sandbox="" />
                     </div>

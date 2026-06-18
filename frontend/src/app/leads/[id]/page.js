@@ -6,6 +6,7 @@ import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout, { InfoRow } from '../../../components/records/RecordDetailLayout.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
+import EditableEmailField from '../../../components/forms/EditableEmailField.js';
 import LeadConvertMenu from '../../../components/leads/LeadConvertMenu.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
@@ -157,7 +158,13 @@ export default function LeadDetailPage() {
                 values={lead}
                 onSave={saveSection}
                 fields={[
-                  { name: 'email', label: 'Email' },
+                  { name: 'email', label: 'Email', render: (d, set) => (
+                    <EditableEmailField
+                      value={d.email}
+                      onChange={(e) => set((p) => ({ ...p, email: e.target.value }))}
+                      excludeLeadId={id}
+                    />
+                  ) },
                   { name: 'phone', label: 'Phone' },
                   { name: 'mobile', label: 'Mobile' },
                 ]}

@@ -5,6 +5,7 @@ import CRMLayout from '../../../components/layout/CRMLayout.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
+import EditableEmailField from '../../../components/forms/EditableEmailField.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { useMarkRecordViewed } from '../../../hooks/useMarkRecordViewed.js';
@@ -114,7 +115,13 @@ export default function ContactDetailPage() {
             values={contact}
             onSave={saveSection}
             fields={[
-              { name: 'email', label: 'Email' },
+              { name: 'email', label: 'Email', render: (d, set) => (
+                <EditableEmailField
+                  value={d.email}
+                  onChange={(e) => set((p) => ({ ...p, email: e.target.value }))}
+                  excludeContactId={id}
+                />
+              ) },
               { name: 'phone', label: 'Phone' },
               { name: 'mobile', label: 'Mobile' },
             ]}

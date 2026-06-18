@@ -13,6 +13,7 @@ import { userDisplayName } from '../../lib/userHelpers.js';
 import { USER_ROLES, ROLE_LABELS, ROLE_ACCESS, roleLabel } from '../../lib/roles.js';
 import * as adminApi from '../../lib/services/admin.js';
 import { triggerWeeklyReport } from '../../lib/services/reports.js';
+import * as authApi from '../../lib/services/auth.js';
 import { slugifyStatusValue } from '../../lib/statusHelpers.js';
 
 const EMPTY_USER = {
@@ -31,7 +32,7 @@ const TABS = [
 ];
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { canManageUsers, canManageSettings, roleAccess, roleLabel: myRoleLabel } = usePermissions();
   const { showToast } = useToast();
 
@@ -54,6 +55,12 @@ export default function SettingsPage() {
   const [statusValue, setStatusValue] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
   const [deletingStatus, setDeletingStatus] = useState('');
+
+  const [passwordForm, setPasswordForm] = useState({ otp: '', new_password: '', confirm_password: '' });
+  const [passwordErrors, setPasswordErrors] = useState({});
+  const [codeSent, setCodeSent] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const visibleTabs = TABS.filter(t => !t.adminOnly || canManageUsers);
 
@@ -230,6 +237,55 @@ export default function SettingsPage() {
     }
   };
 
+  const sendPasswordResetCode = async () => {
+    if (!user?.email) return;
+    setSendingCode(true);
+    try {
+      const message = await authApi.forgotPassword(user.email);
+      setCodeSent(true);
+      showToast(message, 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const validatePasswordForm = () => {
+    const errs = {};
+    const otp = passwordForm.otp.trim();
+    if (!/^\d{6}$/.test(otp)) errs.otp = 'Enter the 6-digit code from your email.';
+    if (!passwordForm.new_password || passwordForm.new_password.length < 8) {
+      errs.new_password = 'Password must be at least 8 characters.';
+    }
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      errs.confirm_password = 'Passwords do not match.';
+    }
+    setPasswordErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    if (!validatePasswordForm() || !user?.email) return;
+    setResettingPassword(true);
+    try {
+      const message = await authApi.resetPassword({
+        email: user.email,
+        otp: passwordForm.otp.trim(),
+        new_password: passwordForm.new_password,
+      });
+      showToast(message || 'Password updated. Please sign in again.', 'success');
+      setPasswordForm({ otp: '', new_password: '', confirm_password: '' });
+      setCodeSent(false);
+      setTimeout(() => logout(), 1500);
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   return (
     <CRMLayout>
       <div className="p-6 max-w-3xl mx-auto w-full">
@@ -254,6 +310,77 @@ export default function SettingsPage() {
                 <div><dt className="text-zoho-muted text-xs">Email</dt><dd>{user?.email}</dd></div>
                 <div><dt className="text-zoho-muted text-xs">Role</dt><dd className="text-brand-600">{myRoleLabel}</dd></div>
               </dl>
+            </div>
+            <div className="card p-5">
+              <h2 className="text-sm font-semibold mb-1">Password</h2>
+              <p className="text-sm text-zoho-muted mb-4">
+                Reset your password with a verification code sent to <span className="font-medium text-zoho-text">{user?.email}</span>.
+              </p>
+              {!codeSent ? (
+                <button
+                  type="button"
+                  onClick={sendPasswordResetCode}
+                  disabled={sendingCode || !user?.email}
+                  className="btn-secondary text-xs"
+                >
+                  {sendingCode ? 'Sending code…' : 'Send reset code'}
+                </button>
+              ) : (
+                <form onSubmit={handlePasswordReset} className="space-y-3 max-w-md">
+                  <FormField label="Reset code" required error={passwordErrors.otp} name="otp">
+                    <input
+                      className={inputClass(passwordErrors.otp)}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={passwordForm.otp}
+                      onChange={(e) => {
+                        setPasswordForm((f) => ({ ...f, otp: e.target.value.replace(/\D/g, '').slice(0, 6) }));
+                        setPasswordErrors((er) => ({ ...er, otp: null }));
+                      }}
+                      placeholder="000000"
+                      autoComplete="one-time-code"
+                    />
+                  </FormField>
+                  <FormField label="New password" required error={passwordErrors.new_password} name="new_password">
+                    <PasswordInput
+                      className={inputClass(passwordErrors.new_password)}
+                      value={passwordForm.new_password}
+                      onChange={(e) => {
+                        setPasswordForm((f) => ({ ...f, new_password: e.target.value }));
+                        setPasswordErrors((er) => ({ ...er, new_password: null }));
+                      }}
+                      minLength={8}
+                      autoComplete="new-password"
+                    />
+                  </FormField>
+                  <FormField label="Confirm password" required error={passwordErrors.confirm_password} name="confirm_password">
+                    <PasswordInput
+                      className={inputClass(passwordErrors.confirm_password)}
+                      value={passwordForm.confirm_password}
+                      onChange={(e) => {
+                        setPasswordForm((f) => ({ ...f, confirm_password: e.target.value }));
+                        setPasswordErrors((er) => ({ ...er, confirm_password: null }));
+                      }}
+                      minLength={8}
+                      autoComplete="new-password"
+                    />
+                  </FormField>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button type="submit" disabled={resettingPassword} className="btn-primary text-xs">
+                      {resettingPassword ? 'Updating…' : 'Update password'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={sendPasswordResetCode}
+                      disabled={sendingCode}
+                      className="btn-secondary text-xs"
+                    >
+                      {sendingCode ? 'Sending…' : 'Resend code'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
             <div className="card p-5">
               <h2 className="text-sm font-semibold mb-2">Your Access</h2>

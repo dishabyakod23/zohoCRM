@@ -1,4 +1,5 @@
 import api from '../api.js';
+import { buildWeeklyReportHtml, normalizeStatusRows } from '../weeklyReportEmail.js';
 
 function dateParams({ date_from, date_to } = {}) {
   const params = {};
@@ -94,7 +95,46 @@ export function setUserReportIncluded(settings, userId, included) {
 
 export async function previewWeeklyReport() {
   const res = await api.get('/admin/reports/weekly/preview');
-  return res.data.data;
+  const preview = res.data.data;
+  const periodStart = preview.period_start;
+  const periodEnd = preview.period_end;
+
+  const [allStatus, weekStatus] = await Promise.all([
+    getLeadReport({ group_by: 'status' }),
+    getLeadReport({ group_by: 'status', date_from: periodStart, date_to: periodEnd }),
+  ]);
+
+  const leadsByStatusAll = allStatus.rows?.length
+    ? allStatus.rows
+    : (preview.summary?.leads_by_status || []);
+  const newLeadsByStatus = weekStatus.rows?.length
+    ? weekStatus.rows
+    : (preview.summary?.new_leads_by_status || []);
+
+  const allRows = normalizeStatusRows(leadsByStatusAll);
+  const weekRows = normalizeStatusRows(newLeadsByStatus);
+  const summary = {
+    ...preview.summary,
+    leads_by_status: allRows.map((row) => ({ label: row.raw, count: row.count })),
+    new_leads_by_status: weekRows.map((row) => ({ label: row.raw, count: row.count })),
+    new_leads_total: weekRows.reduce((sum, row) => sum + row.count, 0),
+    total_leads: allRows.reduce((sum, row) => sum + row.count, 0),
+  };
+
+  const html_body = buildWeeklyReportHtml({
+    companyName: preview.company_name,
+    periodStart,
+    periodEnd,
+    leadsByStatusAll,
+    newLeadsByStatus,
+    summary,
+  });
+
+  return {
+    ...preview,
+    html_body,
+    summary,
+  };
 }
 
 export async function triggerWeeklyReport() {

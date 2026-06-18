@@ -12,6 +12,10 @@ const migrate = async () => {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS weekly_report_enabled BOOLEAN DEFAULT true;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
+      ALTER TABLE weekly_report_logs ADD COLUMN IF NOT EXISTS report_period_start DATE;
+      ALTER TABLE weekly_report_logs ADD COLUMN IF NOT EXISTS report_period_end DATE;
+      ALTER TABLE weekly_report_logs ADD COLUMN IF NOT EXISTS trigger_type VARCHAR(30) DEFAULT 'scheduled';
+
       -- Soft delete + audit columns on core tables
       DO $$ DECLARE t TEXT; BEGIN
         FOREACH t IN ARRAY ARRAY['leads','contacts','accounts','deals','users'] LOOP

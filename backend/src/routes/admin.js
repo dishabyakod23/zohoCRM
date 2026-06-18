@@ -108,6 +108,51 @@ router.patch('/settings/weekly-report', requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+/* ── Weekly reports ── */
+
+const {
+  buildWeeklyReportPreview,
+  sendWeeklyReport,
+} = require('../services/weeklyReportBuilder');
+
+router.get('/reports/weekly/preview', requireAdmin, async (_, res) => {
+  try {
+    ok(res, await buildWeeklyReportPreview());
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/reports/weekly/trigger', requireAdmin, async (_, res) => {
+  try {
+    ok(res, await sendWeeklyReport({ triggerType: 'manual' }));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/reports/weekly/logs', requireAdmin, async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.page_size || '20', 10)));
+    const offset = (page - 1) * pageSize;
+
+    const [rows, count] = await Promise.all([
+      pool.query(
+        `SELECT id, recipient_email, recipient_id AS recipient_user_id,
+                report_period_start, report_period_end,
+                LOWER(status) AS status, trigger_type, error_message, sent_at, sent_at AS created_at
+         FROM weekly_report_logs
+         ORDER BY sent_at DESC NULLS LAST, id DESC
+         LIMIT $1 OFFSET $2`,
+        [pageSize, offset]
+      ),
+      pool.query(`SELECT COUNT(*)::int AS total FROM weekly_report_logs`),
+    ]);
+
+    res.json({
+      data: rows.rows,
+      meta: { total: count.rows[0].total, page, page_size: pageSize },
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 /* ── Lookup options (hosted API compatible) ── */
 
 const {

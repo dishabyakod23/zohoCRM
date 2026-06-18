@@ -13,6 +13,7 @@ import {
   getMappedFieldKeys,
   validateMapping,
 } from '../../lib/csvHelpers.js';
+import { importValidationNotice } from '../../lib/importHelpers.js';
 
 const STEPS = { upload: 'upload', mapping: 'mapping', preview: 'preview' };
 
@@ -103,7 +104,9 @@ export default function CsvImportModal({
       const mappedFile = buildMappedFile();
       const result = await importFn(mappedFile, { dry_run: true });
       setPreview(result);
-      if (!result.ready_count) showToast('No valid rows found after mapping');
+      if (!result.ready_count) {
+        showToast(importValidationNotice(result) || 'No valid rows found after mapping');
+      }
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -126,7 +129,7 @@ export default function CsvImportModal({
         setPreview(dryResult);
         readyCount = dryResult.ready_count;
         if (!readyCount) {
-          showToast('No valid rows found after mapping');
+          showToast(importValidationNotice(dryResult) || 'No valid rows found after mapping');
           return;
         }
       }
@@ -230,13 +233,25 @@ export default function CsvImportModal({
           {preview && (
             <div className="text-xs space-y-1 border-t border-zoho-border pt-3">
               <p className="text-green-700">{preview.ready_count} row(s) ready to import</p>
+              {preview.warning_count > 0 && (
+                <>
+                  <p className="text-red-600">{preview.warning_count} row(s) skipped</p>
+                  {preview.warningRecords?.length > 0 && (
+                    <div className="max-h-24 overflow-y-auto bg-red-50 p-2 rounded">
+                      {preview.warningRecords.slice(0, 8).map((w, i) => (
+                        <p key={i}>Row {w.row}: {w.message}</p>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
               {preview.error_count > 0 && (
                 <>
                   <p className="text-red-600">{preview.error_count} error(s)</p>
                   {preview.errorRecords?.length > 0 && (
                     <div className="max-h-24 overflow-y-auto bg-red-50 p-2 rounded">
                       {preview.errorRecords.slice(0, 8).map((e, i) => (
-                        <p key={i}>Row {e.row}: {e.error}</p>
+                        <p key={i}>Row {e.row}: {e.message}</p>
                       ))}
                     </div>
                   )}
