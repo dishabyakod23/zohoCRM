@@ -19,7 +19,7 @@ export default function BulkUpload({ onDone }) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="btn-secondary-sm">Import CSV</button>
+      <button type="button" onClick={() => setOpen(true)} className="btn-secondary-sm">Bulk Upload</button>
       <CsvImportModal
         open={open}
         onClose={() => setOpen(false)}

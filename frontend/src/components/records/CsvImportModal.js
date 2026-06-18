@@ -261,7 +261,7 @@ export default function CsvImportModal({
                 disabled={importing}
                 className="btn-primary text-xs"
               >
-                {importing ? 'Importing…' : 'Import CSV'}
+                {importing ? 'Importing…' : 'Bulk Upload'}
               </button>
             </div>
           </div>

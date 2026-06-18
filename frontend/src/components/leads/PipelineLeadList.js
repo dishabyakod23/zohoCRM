@@ -183,7 +183,7 @@ export default function PipelineLeadList({ stage, description }) {
           subtitle={description}
           secondaryActions={config?.allowUpload && canEdit ? (
             <button type="button" onClick={() => setUploadOpen(true)} className="btn-secondary-sm">
-              Import CSV
+              Bulk Upload
             </button>
           ) : null}
           primaryAction={canEdit ? (
