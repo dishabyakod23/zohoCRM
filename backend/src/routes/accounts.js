@@ -53,11 +53,11 @@ router.post('/', requireEdit, async (req, res) => {
         parent_account_id,
         billing_flat, billing_street, billing_city, billing_state, billing_country, billing_zip, billing_lat, billing_lng,
         shipping_flat, shipping_street, shipping_city, shipping_state, shipping_country, shipping_zip, shipping_lat, shipping_lng,
-        description, proposal_amount, deal_size, owner_id, created_by
+        description, proposal_amount, deal_size, currency, owner_id, created_by
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
         $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,
-        $32,$33,$34,$35,$36
+        $32,$33,$34,$35,$36,$37
       ) RETURNING *`,
       [
         name, b.account_site, b.account_number, b.account_type, b.industry,
@@ -69,7 +69,7 @@ router.post('/', requireEdit, async (req, res) => {
         b.shipping_flat, b.shipping_street, b.shipping_city, b.shipping_state, b.shipping_country, b.shipping_zip,
         b.shipping_lat || null, b.shipping_lng || null,
         b.description, b.proposal_amount || b.deal_size || null, b.deal_size || b.proposal_amount || null,
-        b.owner_id || req.user.id, req.user.id,
+        b.currency || 'INR', b.owner_id || req.user.id, req.user.id,
       ]
     );
     recordOk(res, result.rows[0], 201);
@@ -87,8 +87,8 @@ const updateAccount = async (req, res) => {
         parent_account_id=$15,
         billing_flat=$16, billing_street=$17, billing_city=$18, billing_state=$19, billing_country=$20, billing_zip=$21, billing_lat=$22, billing_lng=$23,
         shipping_flat=$24, shipping_street=$25, shipping_city=$26, shipping_state=$27, shipping_country=$28, shipping_zip=$29, shipping_lat=$30, shipping_lng=$31,
-        description=$32, proposal_amount=$33, deal_size=$34, owner_id=$35, updated_by=$36, updated_at=NOW()
-       WHERE id=$37 AND deleted_at IS NULL RETURNING *`,
+        description=$32, proposal_amount=$33, deal_size=$34, currency=COALESCE($35, currency), owner_id=$36, updated_by=$37, updated_at=NOW()
+       WHERE id=$38 AND deleted_at IS NULL RETURNING *`,
       [
         name, b.account_site, b.account_number, b.account_type, b.industry,
         b.annual_revenue || null, b.rating, b.phone, b.fax, b.website,
@@ -99,7 +99,7 @@ const updateAccount = async (req, res) => {
         b.shipping_flat, b.shipping_street, b.shipping_city, b.shipping_state, b.shipping_country, b.shipping_zip,
         b.shipping_lat || null, b.shipping_lng || null,
         b.description, b.proposal_amount || b.deal_size || null, b.deal_size || b.proposal_amount || null,
-        b.owner_id, req.user.id, req.params.id,
+        b.currency || null, b.owner_id, req.user.id, req.params.id,
       ]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Account not found' });

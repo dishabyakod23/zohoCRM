@@ -16,6 +16,7 @@ import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { LEAD_SOURCES, DEAL_TYPES } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
+import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
 
 export default function DealDetailPage() {
   const { id } = useParams();
@@ -80,7 +81,7 @@ export default function DealDetailPage() {
     }
   };
 
-  const fmt = (n) => (n != null && n !== '' ? `₹${Number(n).toLocaleString()}` : '—');
+  const fmt = (n, currency) => formatMoney(n, currency || deal?.currency);
 
   if (!deal) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
 
@@ -130,7 +131,12 @@ export default function DealDetailPage() {
                   {contacts.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
                 </select>
               ) },
-              { name: 'amount', label: 'Amount (₹)', format: (v) => fmt(v) },
+              { name: 'amount', label: 'Amount', format: (v) => fmt(v, deal.currency) },
+              { name: 'currency', label: 'Currency', render: (d, set) => (
+                <select className="input" value={d.currency ?? deal.currency ?? 'INR'} onChange={(e) => set((p) => ({ ...p, currency: e.target.value }))}>
+                  {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+                </select>
+              ) },
               { name: 'closing_date', label: 'Closing Date', format: (v) => (v ? new Date(v).toLocaleDateString() : null), render: (d, set) => (
                 <input className="input" type="date" value={(d.closing_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, closing_date: e.target.value }))} />
               ) },

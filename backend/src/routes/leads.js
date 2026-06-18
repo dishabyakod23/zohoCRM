@@ -149,15 +149,15 @@ router.post('/', requireEdit, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO leads (first_name, last_name, email, phone, company, source, status, title, mobile, industry,
         website, rating, annual_revenue, employees, street, city, state, country, zip, description,
-        proposal_amount, proposal_date, closure_date, deal_size, deal_status, owner_id, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27) RETURNING *`,
+        proposal_amount, proposal_date, closure_date, deal_size, deal_status, currency, owner_id, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28) RETURNING *`,
       [b.first_name, b.last_name, b.email, b.phone || null, b.company, source, status || 'not_contacted',
        b.title, b.mobile, b.industry, b.website, b.rating, b.annual_revenue,
        b.no_of_employees || b.employees, b.street, b.city, b.state, b.country,
        b.zip_code || b.zip, b.description,
        b.proposal_amount || b.deal_size || null, b.proposal_date || null, b.closure_date || null,
        b.deal_size || b.proposal_amount || null, b.deal_status || null,
-       b.owner_id || req.user.id, req.user.id]
+       b.currency || 'INR', b.owner_id || req.user.id, req.user.id]
     );
     await logAudit({ recordType: 'lead', recordId: result.rows[0].id, action: 'created', userId: req.user.id });
     recordOk(res, result.rows[0], 201);
@@ -190,14 +190,14 @@ const updateLead = async (req, res) => {
        title=$8, mobile=$9, industry=$10, website=$11, rating=$12, annual_revenue=$13, employees=$14,
        street=$15, city=$16, state=$17, country=$18, zip=$19, description=$20,
        proposal_amount=$21, proposal_date=$22, closure_date=$23, deal_size=$24, deal_status=$25,
-       owner_id=$26, updated_by=$27, updated_at=NOW() WHERE id=$28 AND deleted_at IS NULL RETURNING *`,
+       currency=COALESCE($26, currency), owner_id=$27, updated_by=$28, updated_at=NOW() WHERE id=$29 AND deleted_at IS NULL RETURNING *`,
       [b.first_name, b.last_name, b.email, b.phone, b.company, source, status,
        b.title, b.mobile, b.industry, b.website, b.rating, b.annual_revenue,
        b.no_of_employees || b.employees, b.street, b.city, b.state, b.country,
        b.zip_code || b.zip, b.description,
        b.proposal_amount || b.deal_size || null, b.proposal_date || null, b.closure_date || null,
        b.deal_size || b.proposal_amount || null, b.deal_status || null,
-       b.owner_id, req.user.id, req.params.id]
+       b.currency || null, b.owner_id, req.user.id, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Lead not found' });
     recordOk(res, result.rows[0]);

@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const bcrypt = require('bcryptjs');
 const auth = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/roles');
+const { requireAdmin, requireManagerOrAdmin } = require('../middleware/roles');
 
 const router = express.Router();
 router.use(auth);
@@ -115,6 +115,14 @@ const {
   sendWeeklyReport,
 } = require('../services/weeklyReportBuilder');
 
+const {
+  buildPerformanceReportPreview,
+  sendPerformanceReport,
+  listPerformanceUsers,
+  canAccessUser,
+  getDefaultPeriod,
+} = require('../services/performanceReportBuilder');
+
 router.get('/reports/weekly/preview', requireAdmin, async (_, res) => {
   try {
     ok(res, await buildWeeklyReportPreview());
@@ -144,6 +152,79 @@ router.get('/reports/weekly/logs', requireAdmin, async (req, res) => {
         [pageSize, offset]
       ),
       pool.query(`SELECT COUNT(*)::int AS total FROM weekly_report_logs`),
+    ]);
+
+    res.json({
+      data: rows.rows,
+      meta: { total: count.rows[0].total, page, page_size: pageSize },
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/* ── Individual performance reports (manager + admin) ── */
+
+router.get('/reports/performance/users', requireManagerOrAdmin, async (req, res) => {
+  try {
+    ok(res, await listPerformanceUsers(req.user));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/reports/performance/preview', requireManagerOrAdmin, async (req, res) => {
+  try {
+    const userId = req.query.user_id;
+    if (!userId) return res.status(400).json({ error: 'user_id is required' });
+    if (!(await canAccessUser(req.user, userId))) {
+      return res.status(403).json({ error: 'Not allowed to view this user' });
+    }
+    const defaults = getDefaultPeriod();
+    const preview = await buildPerformanceReportPreview(
+      userId,
+      req.query.date_from || defaults.period_start,
+      req.query.date_to || defaults.period_end,
+    );
+    if (!preview) return res.status(404).json({ error: 'User not found' });
+    ok(res, preview);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/reports/performance/send', requireManagerOrAdmin, async (req, res) => {
+  try {
+    const userId = req.body.user_id;
+    if (!userId) return res.status(400).json({ error: 'user_id is required' });
+    if (!(await canAccessUser(req.user, userId))) {
+      return res.status(403).json({ error: 'Not allowed to send report for this user' });
+    }
+    const defaults = getDefaultPeriod();
+    const result = await sendPerformanceReport({
+      userId,
+      periodStart: req.body.date_from || defaults.period_start,
+      periodEnd: req.body.date_to || defaults.period_end,
+      sentBy: req.user,
+    });
+    ok(res, result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/reports/performance/logs', requireManagerOrAdmin, async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.page_size || '20', 10)));
+    const offset = (page - 1) * pageSize;
+
+    const [rows, count] = await Promise.all([
+      pool.query(
+        `SELECT l.id, l.user_id, l.recipient_email, l.sent_by_id,
+                u.name AS user_name, s.name AS sent_by_name,
+                l.report_period_start, l.report_period_end,
+                LOWER(l.status) AS status, l.error_message, l.sent_at
+         FROM performance_report_logs l
+         LEFT JOIN users u ON u.id = l.user_id
+         LEFT JOIN users s ON s.id = l.sent_by_id
+         ORDER BY l.sent_at DESC NULLS LAST, l.id DESC
+         LIMIT $1 OFFSET $2`,
+        [pageSize, offset]
+      ),
+      pool.query(`SELECT COUNT(*)::int AS total FROM performance_report_logs`),
     ]);
 
     res.json({

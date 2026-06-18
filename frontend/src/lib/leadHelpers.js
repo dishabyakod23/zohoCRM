@@ -1,5 +1,6 @@
 import { pipelineStageLabel, PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, toApiLeadStatus, proposalDealStatusLabel } from './pipelineHelpers.js';
 import { toDateOnly } from './activityHelpers.js';
+import { DEFAULT_CURRENCY } from './currencies.js';
 
 /** Map API snake_case lead_status to display label (fallback when lookups unavailable) */
 const STATUS_LABELS = {
@@ -68,6 +69,7 @@ export function normalizeLead(lead, statusOptions = []) {
     deal_size: lead.deal_size ?? lead.proposal_amount ?? null,
     deal_status: lead.deal_status || null,
     deal_status_label: proposalDealStatusLabel(lead.deal_status),
+    currency: lead.currency || DEFAULT_CURRENCY,
   };
 }
 
@@ -107,6 +109,7 @@ export function toLeadPayload(form, { partial = false } = {}) {
     proposal_date: form.proposal_date ? toDateOnly(form.proposal_date) : null,
     closure_date: form.closure_date ? toDateOnly(form.closure_date) : null,
     deal_status: form.deal_status || null,
+    currency: form.currency || DEFAULT_CURRENCY,
     owner_id: form.owner_id || null,
   };
 

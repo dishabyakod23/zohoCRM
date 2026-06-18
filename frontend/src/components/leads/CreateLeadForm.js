@@ -13,6 +13,8 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 
 export function emptyLeadForm() {
   return {
@@ -22,6 +24,7 @@ export function emptyLeadForm() {
     proposal_amount: '',
     street: '', city: '', state: '', zip_code: '', country: 'India',
     description: '',
+    currency: DEFAULT_CURRENCY,
   };
 }
 
@@ -140,11 +143,21 @@ export default function CreateLeadForm() {
                 {RATINGS.map((r) => <option key={r}>{r}</option>)}
               </select>
             </FormField>
-            <FormField label="Annual Revenue">
-              <input className="input" type="number" placeholder="₹" value={form.annual_revenue} onChange={set('annual_revenue')} />
+            <FormField label="Annual Revenue" name="annual_revenue">
+              <CurrencyAmountInput
+                amount={form.annual_revenue}
+                currency={form.currency}
+                onAmountChange={set('annual_revenue')}
+                onCurrencyChange={set('currency')}
+              />
             </FormField>
-            <FormField label="Proposal Amount">
-              <input className="input" type="number" placeholder="₹" value={form.proposal_amount} onChange={set('proposal_amount')} />
+            <FormField label="Proposal Amount" name="proposal_amount">
+              <CurrencyAmountInput
+                amount={form.proposal_amount}
+                currency={form.currency}
+                onAmountChange={set('proposal_amount')}
+                onCurrencyChange={set('currency')}
+              />
             </FormField>
             <FormField label="No. of Employees">
               <input className="input" type="number" value={form.no_of_employees} onChange={set('no_of_employees')} />

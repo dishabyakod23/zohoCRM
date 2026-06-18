@@ -16,15 +16,9 @@ import * as projectsApi from '../../../lib/services/projects.js';
 import { ACCOUNT_TYPES } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
+import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
 
 const INDUSTRIES = ['IT Services', 'E-Commerce', 'Automotive', 'EdTech', 'FinTech', 'Healthcare', 'Manufacturing', 'Retail', 'Other'];
-
-function formatCurrency(value) {
-  if (value == null || value === '') return '—';
-  const num = Number(value);
-  if (Number.isNaN(num)) return value;
-  return `Rs. ${num.toLocaleString('en-IN')}`;
-}
 
 export default function AccountDetailPage() {
   const { id } = useParams();
@@ -96,7 +90,7 @@ export default function AccountDetailPage() {
             onSave={saveSection}
             fields={[
               { name: 'account_name', label: 'Account Name', required: true },
-              { name: 'deal_size', label: 'Deal Size', format: (v) => formatCurrency(v ?? account.deal_size) },
+              { name: 'deal_size', label: 'Deal Size', format: (v) => formatMoney(v ?? account.deal_size, account.currency) },
               { name: 'phone', label: 'Phone' },
               { name: 'website', label: 'Website' },
               { name: 'account_type', label: 'Status', render: (d, set) => (
@@ -111,7 +105,12 @@ export default function AccountDetailPage() {
                   {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
                 </select>
               ) },
-              { name: 'annual_revenue', label: 'Annual Revenue' },
+              { name: 'annual_revenue', label: 'Annual Revenue', format: (v) => formatMoney(v, account.currency) },
+              { name: 'currency', label: 'Currency', render: (d, set) => (
+                <select className="input" value={d.currency ?? account.currency ?? 'INR'} onChange={(e) => set((p) => ({ ...p, currency: e.target.value }))}>
+                  {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+                </select>
+              ) },
               { name: 'owner_name', label: 'Owner', format: () => account.owner_name },
             ]}
           />
@@ -169,7 +168,7 @@ export default function AccountDetailPage() {
                             {project.name || project.project_name}
                           </Link>
                         </td>
-                        <td className="py-2">{formatCurrency(project.budget ?? project.deal_size)}</td>
+                        <td className="py-2">{formatMoney(project.budget ?? project.deal_size, account.currency)}</td>
                         <td className="py-2">{project.status_label || project.status || '—'}</td>
                       </tr>
                     ))}

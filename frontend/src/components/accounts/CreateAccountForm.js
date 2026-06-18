@@ -12,6 +12,8 @@ import { validateRequired } from '../../lib/validators.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import { fetchAccountLookups, fetchContactLookups, fetchUsers } from '../../lib/services/lookups.js';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 
 const OWNERSHIP_OPTIONS = ['Public', 'Private', 'Subsidiary', 'Other'];
 
@@ -32,6 +34,7 @@ export function emptyAccountForm() {
     shipping_country: '', shipping_zip: '', shipping_lat: '', shipping_lng: '',
     description: '',
     deal_size: '',
+    currency: DEFAULT_CURRENCY,
     contact_ids: [],
     projects: [emptyProjectRow()],
   };
@@ -247,11 +250,12 @@ export default function CreateAccountForm() {
             </FormField>
 
             <FormField label="Annual Revenue" name="annual_revenue">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm text-zoho-muted shrink-0">Rs.</span>
-                <input className="input flex-1" type="number" min="0" step="any"
-                  value={form.annual_revenue} onChange={set('annual_revenue')} />
-              </div>
+              <CurrencyAmountInput
+                amount={form.annual_revenue}
+                currency={form.currency}
+                onAmountChange={set('annual_revenue')}
+                onCurrencyChange={set('currency')}
+              />
             </FormField>
 
             <FormField label="Rating" name="rating">
@@ -305,11 +309,12 @@ export default function CreateAccountForm() {
           <SectionTitle>Deal & Related Records</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
             <FormField label="Deal Size" name="deal_size">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm text-zoho-muted shrink-0">Rs.</span>
-                <input className="input flex-1" type="number" min="0" step="any"
-                  value={form.deal_size} onChange={set('deal_size')} />
-              </div>
+              <CurrencyAmountInput
+                amount={form.deal_size}
+                currency={form.currency}
+                onAmountChange={set('deal_size')}
+                onCurrencyChange={set('currency')}
+              />
             </FormField>
           </div>
 
@@ -349,11 +354,12 @@ export default function CreateAccountForm() {
                       value={project.name} onChange={(e) => updateProject(index, 'name', e.target.value)} />
                   </FormField>
                   <FormField label={index === 0 ? 'Deal Size' : undefined} name={`project_deal_size_${index}`}>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm text-zoho-muted shrink-0">Rs.</span>
-                      <input className="input flex-1" type="number" min="0" step="any" placeholder="0"
-                        value={project.deal_size} onChange={(e) => updateProject(index, 'deal_size', e.target.value)} />
-                    </div>
+                    <CurrencyAmountInput
+                      amount={project.deal_size}
+                      currency={form.currency}
+                      onAmountChange={(e) => updateProject(index, 'deal_size', e.target.value)}
+                      allowCurrencyChange={false}
+                    />
                   </FormField>
                   <button type="button" onClick={() => removeProjectRow(index)}
                     className="btn-secondary px-2.5 py-2 mb-0.5" title="Remove project">

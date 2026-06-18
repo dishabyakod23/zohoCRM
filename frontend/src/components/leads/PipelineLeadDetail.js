@@ -20,6 +20,7 @@ import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { getPipelineConfig, pipelineStageLabel, isProposalLead, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, proposalDealStatusLabel } from '../../lib/pipelineHelpers.js';
 import { LEAD_SOURCES } from '../../lib/constants.js';
+import { formatMoney, CURRENCIES } from '../../lib/currencies.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon, UserIcon,
 } from '@heroicons/react/24/outline';
@@ -204,7 +205,12 @@ export default function PipelineLeadDetail({ stage }) {
                 { name: 'proposal_date', label: 'Proposal Date', format: (v) => (v ? new Date(v).toLocaleDateString() : null), render: (d, set) => (
                   <input className="input" type="date" value={(d.proposal_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, proposal_date: e.target.value }))} />
                 ) },
-                { name: 'deal_size', label: 'Size of the Deal', format: (v) => (v != null && v !== '' ? `Rs. ${Number(v).toLocaleString('en-IN')}` : null) },
+                { name: 'deal_size', label: 'Size of the Deal', format: (v) => formatMoney(v, lead.currency) },
+                { name: 'currency', label: 'Currency', render: (d, set) => (
+                  <select className="input" value={d.currency ?? lead.currency ?? 'INR'} onChange={(e) => set((p) => ({ ...p, currency: e.target.value }))}>
+                    {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+                  </select>
+                ) },
                 { name: 'closure_date', label: 'Closure Date', format: (v) => (v ? new Date(v).toLocaleDateString() : null), render: (d, set) => (
                   <input className="input" type="date" value={(d.closure_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, closure_date: e.target.value }))} />
                 ) },

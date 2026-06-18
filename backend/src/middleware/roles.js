@@ -1,4 +1,4 @@
-const { canDownload, canEdit, isAdmin, normalizeRole } = require('../utils/helpers');
+const { canDownload, canEdit, isAdmin, isManagerOrAdmin, normalizeRole } = require('../utils/helpers');
 
 const requireRole = (...roles) => (req, res, next) => {
   const role = normalizeRole(req.user.role);
@@ -21,4 +21,9 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { requireRole, requireEdit, requireDownload, requireAdmin };
+const requireManagerOrAdmin = (req, res, next) => {
+  if (!isManagerOrAdmin(req.user.role)) return res.status(403).json({ error: 'Manager or admin access required' });
+  next();
+};
+
+module.exports = { requireRole, requireEdit, requireDownload, requireAdmin, requireManagerOrAdmin };

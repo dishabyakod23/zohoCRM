@@ -16,6 +16,8 @@ import { PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
 import {
   LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES,
 } from '../../lib/constants.js';
+import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 
 const COUNTRIES = ['India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Singapore', 'UAE', 'Other'];
 const INDIAN_STATES = [
@@ -63,6 +65,7 @@ export function emptyPipelineLeadForm(ownerId = '', defaults = {}) {
     latitude: '',
     longitude: '',
     description: '',
+    currency: DEFAULT_CURRENCY,
     ...defaults,
   };
 }
@@ -220,17 +223,21 @@ export default function CreatePipelineLeadForm({
               {noneSelect(form.industry, set('industry'), INDUSTRIES)}
             </FormField>
             <FormField label="Annual Revenue" name="annual_revenue">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zoho-muted">Rs.</span>
-                <input className="input pl-10" type="number" value={form.annual_revenue} onChange={set('annual_revenue')} />
-              </div>
+              <CurrencyAmountInput
+                amount={form.annual_revenue}
+                currency={form.currency}
+                onAmountChange={set('annual_revenue')}
+                onCurrencyChange={set('currency')}
+              />
             </FormField>
             {!showProposalFields && (
               <FormField label="Proposal Amount" name="proposal_amount">
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zoho-muted">Rs.</span>
-                  <input className="input pl-10" type="number" value={form.proposal_amount} onChange={set('proposal_amount')} />
-                </div>
+                <CurrencyAmountInput
+                  amount={form.proposal_amount}
+                  currency={form.currency}
+                  onAmountChange={set('proposal_amount')}
+                  onCurrencyChange={set('currency')}
+                />
               </FormField>
             )}
             <FormField label="Email Opt Out" name="email_opt_out">
@@ -284,10 +291,12 @@ export default function CreatePipelineLeadForm({
                   <input className="input" type="date" value={form.proposal_date?.slice?.(0, 10) || form.proposal_date || ''} onChange={set('proposal_date')} />
                 </FormField>
                 <FormField label="Size of the Deal" name="deal_size">
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zoho-muted">Rs.</span>
-                    <input className="input pl-10" type="number" min="0" step="any" value={form.deal_size} onChange={set('deal_size')} />
-                  </div>
+                  <CurrencyAmountInput
+                    amount={form.deal_size}
+                    currency={form.currency}
+                    onAmountChange={set('deal_size')}
+                    onCurrencyChange={set('currency')}
+                  />
                 </FormField>
                 <FormField label="Closure Date" name="closure_date">
                   <input className="input" type="date" value={form.closure_date?.slice?.(0, 10) || form.closure_date || ''} onChange={set('closure_date')} />

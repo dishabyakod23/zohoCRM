@@ -13,6 +13,8 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchAccountLookups, fetchUsers } from '../../lib/services/lookups.js';
+import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 
 export function emptyContactForm() {
   return {
@@ -28,6 +30,7 @@ export function emptyContactForm() {
     other_country: '', other_zip: '', other_lat: '', other_lng: '',
     description: '',
     proposal_amount: '',
+    currency: DEFAULT_CURRENCY,
   };
 }
 
@@ -313,11 +316,12 @@ export default function CreateContactForm() {
           {/* ── Description ── */}
           <SectionTitle>Description Information</SectionTitle>
           <FormField label="Proposal Amount" name="proposal_amount">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm text-zoho-muted shrink-0">Rs.</span>
-              <input className="input flex-1" type="number" min="0" step="any"
-                value={form.proposal_amount} onChange={set('proposal_amount')} />
-            </div>
+            <CurrencyAmountInput
+              amount={form.proposal_amount}
+              currency={form.currency}
+              onAmountChange={set('proposal_amount')}
+              onCurrencyChange={set('currency')}
+            />
           </FormField>
           <FormField label="Description" name="description">
             <textarea className="input min-h-[100px] resize-y" placeholder="Add a description…"

@@ -26,6 +26,11 @@ function isAdmin(role) {
   return normalizeRole(role) === ROLES.SUPER_ADMIN;
 }
 
+function isManagerOrAdmin(role) {
+  const r = normalizeRole(role);
+  return r === ROLES.SUPER_ADMIN || r === ROLES.SALES_MANAGER;
+}
+
 async function getOwnerFilter(user) {
   const role = normalizeRole(user.role);
   if (role === ROLES.SUPER_ADMIN) return { clause: '', params: [] };
@@ -83,7 +88,7 @@ function recordOk(res, row, status = 200) {
 }
 
 module.exports = {
-  ROLES, normalizeRole, canDownload, canEdit, isAdmin,
+  ROLES, normalizeRole, canDownload, canEdit, isAdmin, isManagerOrAdmin,
   getOwnerFilter, softDelete, restoreRecord, permanentDelete, parseCSV,
   listOk, recordOk,
 };

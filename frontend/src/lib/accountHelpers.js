@@ -1,4 +1,5 @@
 import { ownerName } from './recordHelpers.js';
+import { DEFAULT_CURRENCY } from './currencies.js';
 
 export function normalizeAccount(account) {
   if (!account) return account;
@@ -8,6 +9,7 @@ export function normalizeAccount(account) {
     account_name: account.account_name || account.name,
     owner_name: ownerName(account) || account.owner_name,
     deal_size: account.deal_size ?? account.proposal_amount ?? null,
+    currency: account.currency || DEFAULT_CURRENCY,
   };
 }
 
@@ -47,6 +49,7 @@ export function toAccountPayload(form, { partial = false } = {}) {
     description: form.description || null,
     deal_size: form.deal_size || null,
     proposal_amount: form.deal_size || form.proposal_amount || null,
+    currency: form.currency || DEFAULT_CURRENCY,
     owner_id: form.owner_id || null,
   };
   if (partial) {

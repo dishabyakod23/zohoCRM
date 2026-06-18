@@ -17,6 +17,7 @@ import * as leadsApi from '../../lib/services/leads.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
 import CsvImportModal from '../records/CsvImportModal.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
+import { formatMoney } from '../../lib/currencies.js';
 import { TextFilter, SelectFilter, OwnerFilter, DateFilter } from '../layout/ListFilterFields.js';
 import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
 
@@ -34,11 +35,9 @@ function formatDate(value) {
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString();
 }
 
-function formatDealSize(value) {
+function formatDealSize(value, currency) {
   if (value == null || value === '') return '—';
-  const num = Number(value);
-  if (Number.isNaN(num)) return value;
-  return `Rs. ${num.toLocaleString('en-IN')}`;
+  return formatMoney(value, currency);
 }
 
 export default function PipelineLeadList({ stage, description }) {
@@ -140,7 +139,7 @@ export default function PipelineLeadList({ stage, description }) {
         { id: 'name', header: 'Name', cell: (lead) => <Link href={config.detailPath(lead.id)} className={tableLinkClass}>{lead.first_name} {lead.last_name}</Link> },
         { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
         { id: 'proposal_date', header: 'Proposal Date', cell: (lead) => formatDate(lead.proposal_date) },
-        { id: 'deal_size', header: 'Deal Size', cell: (lead) => formatDealSize(lead.deal_size ?? lead.proposal_amount) },
+        { id: 'deal_size', header: 'Deal Size', cell: (lead) => formatDealSize(lead.deal_size ?? lead.proposal_amount, lead.currency) },
         { id: 'closure_date', header: 'Closure Date', cell: (lead) => formatDate(lead.closure_date) },
         { id: 'deal_status', header: 'Deal Status', cell: (lead) => <Badge label={lead.deal_status_label || proposalDealStatusLabel(lead.deal_status)} /> },
         { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || 'Unassigned' },

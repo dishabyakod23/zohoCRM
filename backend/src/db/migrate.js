@@ -36,6 +36,11 @@ const migrate = async () => {
       ALTER TABLE accounts ADD COLUMN IF NOT EXISTS deal_size NUMERIC(14,2);
       ALTER TABLE deals ADD COLUMN IF NOT EXISTS proposal_amount NUMERIC(14,2);
 
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'INR';
+      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'INR';
+      ALTER TABLE deals ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'INR';
+      ALTER TABLE contacts ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'INR';
+
       -- Leads extended fields
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS title VARCHAR(100);
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS mobile VARCHAR(30);
@@ -348,6 +353,18 @@ const migrate = async () => {
         status VARCHAR(20) DEFAULT 'Sent',
         sent_at TIMESTAMPTZ DEFAULT NOW(),
         error_message TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS performance_report_logs (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        recipient_email VARCHAR(150),
+        sent_by_id INTEGER REFERENCES users(id),
+        report_period_start DATE,
+        report_period_end DATE,
+        status VARCHAR(20) DEFAULT 'sent',
+        error_message TEXT,
+        sent_at TIMESTAMPTZ DEFAULT NOW()
       );
 
       -- Full-text search indexes

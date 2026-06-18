@@ -17,6 +17,8 @@ import { PIPELINE_RAW } from '../../lib/pipelineHelpers.js';
 import {
   LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES,
 } from '../../lib/constants.js';
+import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 
 const COUNTRIES = ['India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Singapore', 'UAE', 'Other'];
 const INDIAN_STATES = [
@@ -59,6 +61,7 @@ export function emptyRawLeadForm(ownerId = '') {
     latitude: '',
     longitude: '',
     description: '',
+    currency: DEFAULT_CURRENCY,
   };
 }
 
@@ -202,10 +205,12 @@ export default function CreateRawLeadForm() {
               {noneSelect(form.industry, set('industry'), INDUSTRIES)}
             </FormField>
             <FormField label="Annual Revenue" name="annual_revenue">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zoho-muted">Rs.</span>
-                <input className="input pl-10" type="number" value={form.annual_revenue} onChange={set('annual_revenue')} />
-              </div>
+              <CurrencyAmountInput
+                amount={form.annual_revenue}
+                currency={form.currency}
+                onAmountChange={set('annual_revenue')}
+                onCurrencyChange={set('currency')}
+              />
             </FormField>
             <FormField label="Email Opt Out" name="email_opt_out">
               <label className="flex items-center gap-2 text-sm h-10">

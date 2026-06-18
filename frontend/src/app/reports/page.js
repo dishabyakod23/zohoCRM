@@ -8,6 +8,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
 import { leadStatusLabel } from '../../lib/leadHelpers.js';
 import * as reportsApi from '../../lib/services/reports.js';
+import PerformanceReportsPanel from '../../components/reports/PerformanceReportsPanel.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const COLORS = ['#378ADD', '#639922', '#EF9F27', '#D85A30', '#1D9E75', '#E24B4A', '#7F77DD', '#888'];
@@ -20,8 +21,9 @@ const EXPORT_PATHS = {
 
 export default function ReportsPage() {
   const { showToast } = useToast();
-  const { user, canDownload, canManageWeeklyReports, canAccessReports } = usePermissions();
+  const { user, canDownload, canManageWeeklyReports, canManagePerformanceReports, canAccessReports } = usePermissions();
   const admin = canManageWeeklyReports;
+  const canPerformance = canManagePerformanceReports;
   const [tab, setTab] = useState('leads');
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(false);
@@ -42,7 +44,7 @@ export default function ReportsPage() {
   };
 
   const loadReportData = useCallback(async () => {
-    if (tab === 'weekly') return;
+    if (tab === 'weekly' || tab === 'performance') return;
     setLoading(true);
     try {
       if (tab === 'leads') {
@@ -179,6 +181,7 @@ export default function ReportsPage() {
     { id: 'leads', label: 'Lead Reports' },
     { id: 'accounts', label: 'Account Reports' },
     { id: 'campaigns', label: 'Campaign Reports' },
+    ...(canPerformance ? [{ id: 'performance', label: 'Individual Performance' }] : []),
     ...(admin ? [{ id: 'weekly', label: 'Weekly Reports' }] : []),
   ];
 
@@ -208,7 +211,7 @@ export default function ReportsPage() {
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-bold">Reports</h1>
-          {tab !== 'weekly' && (
+          {tab !== 'weekly' && tab !== 'performance' && (
             <div className="flex gap-2 items-center">
               <input className="input w-36 text-xs" type="date" value={dateRange.start} onChange={e => setDateRange(d => ({ ...d, start: e.target.value }))} />
               <span className="text-gray-400">to</span>
@@ -229,7 +232,7 @@ export default function ReportsPage() {
           ))}
         </div>
 
-        {loading && tab !== 'weekly' && (
+        {loading && tab !== 'weekly' && tab !== 'performance' && (
           <p className="text-sm text-gray-400 py-8 text-center">Loading report data...</p>
         )}
 
@@ -288,6 +291,10 @@ export default function ReportsPage() {
               ))}</tbody>
             </table>
           </div>
+        )}
+
+        {tab === 'performance' && canPerformance && (
+          <PerformanceReportsPanel />
         )}
 
         {tab === 'weekly' && admin && (

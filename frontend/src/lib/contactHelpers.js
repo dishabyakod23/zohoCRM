@@ -1,4 +1,5 @@
 import { ownerName } from './recordHelpers.js';
+import { DEFAULT_CURRENCY } from './currencies.js';
 
 export function normalizeContact(contact, accountMap = {}) {
   if (!contact) return contact;
@@ -7,6 +8,7 @@ export function normalizeContact(contact, accountMap = {}) {
     ...contact,
     account_name: account?.label || account?.name || contact.account_name,
     owner_name: ownerName(contact) || contact.owner_name,
+    currency: contact.currency || DEFAULT_CURRENCY,
   };
 }
 
@@ -52,6 +54,7 @@ export function toContactPayload(form, { partial = false } = {}) {
     other_lng: form.other_lng || null,
     description: form.description || null,
     proposal_amount: form.proposal_amount || null,
+    currency: form.currency || DEFAULT_CURRENCY,
     owner_id: form.owner_id || null,
   };
   if (partial) {
