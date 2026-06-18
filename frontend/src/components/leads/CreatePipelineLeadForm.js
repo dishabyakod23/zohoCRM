@@ -6,6 +6,7 @@ import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import { validateRequired, validateEmail } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
@@ -98,6 +99,7 @@ export default function CreatePipelineLeadForm({
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
+  const { canAssignLeads } = usePermissions();
   const [form, setForm] = useState(() => emptyPipelineLeadForm(user?.id || '', emptyFormDefaults));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -172,16 +174,18 @@ export default function CreatePipelineLeadForm({
         <div className="card p-6">
           <SectionTitle>Lead Information</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            <FormField label="Lead Owner" name="owner_id">
-              <select className="input" value={form.owner_id} onChange={set('owner_id')}>
-                {users.length === 0 && user && (
-                  <option value={user.id}>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email}</option>
-                )}
-                {users.map((u) => (
-                  <option key={u.id || u.value} value={u.id || u.value}>{u.name}</option>
-                ))}
-              </select>
-            </FormField>
+            {canAssignLeads && (
+              <FormField label="Lead Owner" name="owner_id">
+                <select className="input" value={form.owner_id} onChange={set('owner_id')}>
+                  {users.length === 0 && user && (
+                    <option value={user.id}>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email}</option>
+                  )}
+                  {users.map((u) => (
+                    <option key={u.id || u.value} value={u.id || u.value}>{u.name}</option>
+                  ))}
+                </select>
+              </FormField>
+            )}
             <div className="sm:col-span-2 grid grid-cols-[120px_1fr] gap-3">
               <FormField label="First Name">
                 {noneSelect(form.salutation, set('salutation'), SALUTATIONS)}

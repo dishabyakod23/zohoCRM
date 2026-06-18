@@ -81,7 +81,7 @@ export function applyAccountRecordFilters(accounts, filters = {}) {
   return (accounts || []).filter((account) => {
     if (!includesText(account.industry, filters.industry)) return false;
     if (!includesText(account.website, filters.website)) return false;
-    if (!includesText(account.phone, filters.phone)) return false;
+    if (!includesText(account.email, filters.email)) return false;
     if (!includesText(account.city, filters.city)) return false;
     if (filters.status && String(account.account_type || '').toLowerCase() !== String(filters.status).toLowerCase()) return false;
     if (!matchesOwner(account, filters.owner_id)) return false;
@@ -104,7 +104,7 @@ export function hasContactClientFilters(filters = {}) {
 }
 
 export function hasAccountClientFilters(filters = {}) {
-  return Boolean(filters.industry || filters.website || filters.phone || filters.status || filters.city);
+  return Boolean(filters.industry || filters.website || filters.email || filters.status || filters.city);
 }
 
 export function countActiveFilters(filters = {}) {
@@ -133,7 +133,7 @@ export const EMPTY_CONTACT_FILTERS = {
 export const EMPTY_ACCOUNT_FILTERS = {
   industry: '',
   website: '',
-  phone: '',
+  email: '',
   status: '',
   city: '',
   owner_id: '',

@@ -7,6 +7,34 @@ import {
   hasAccountClientFilters,
 } from '../listRecordFilters.js';
 
+async function fetchAccountContactEmailMap() {
+  const pageSize = 100;
+  let page = 1;
+  const map = new Map();
+
+  while (page <= 50) {
+    const res = await api.get('/contacts', { params: { page, page_size: pageSize } });
+    const batch = res.data.data || [];
+    for (const contact of batch) {
+      const accountId = contact.account_id;
+      const email = String(contact.email || '').trim();
+      if (accountId && email && !map.has(accountId)) map.set(accountId, email);
+    }
+    const total = res.data.meta?.total ?? batch.length;
+    if (batch.length === 0 || page * pageSize >= total) break;
+    page += 1;
+  }
+
+  return map;
+}
+
+function attachContactEmails(accounts, emailMap) {
+  return (accounts || []).map((account) => ({
+    ...account,
+    email: account.email || emailMap.get(account.id) || null,
+  }));
+}
+
 async function fetchAllAccountPages(params) {
   const pageSize = 100;
   let page = 1;
@@ -41,13 +69,15 @@ export async function listAccounts({
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
 
+  const emailMap = await fetchAccountContactEmailMap();
+
   if (hasAccountClientFilters(filters)) {
-    const allAccounts = await fetchAllAccountPages({
+    const allAccounts = attachContactEmails(await fetchAllAccountPages({
       search,
       owner_id: mergedOwnerId,
       sort_by,
       sort_order,
-    });
+    }), emailMap);
     const filtered = applyAccountRecordFilters(allAccounts, filters);
     const start = (page - 1) * page_size;
     return {
@@ -59,7 +89,7 @@ export async function listAccounts({
 
   const res = await api.get('/accounts', { params });
   return {
-    data: (res.data.data || []).map(normalizeAccount),
+    data: attachContactEmails((res.data.data || []).map(normalizeAccount), emailMap),
     total: res.data.meta?.total ?? 0,
     meta: res.data.meta,
   };

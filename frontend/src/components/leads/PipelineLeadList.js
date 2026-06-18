@@ -202,7 +202,9 @@ export default function PipelineLeadList({ stage, description }) {
         options={PROPOSAL_DEAL_STATUSES}
         emptyLabel="All deal statuses"
       />
-      <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
+      {canAssignLeads && (
+        <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
+      )}
     </>
   );
 
@@ -223,7 +225,9 @@ export default function PipelineLeadList({ stage, description }) {
         options={statusOptions}
         emptyLabel="All statuses"
       />
-      <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
+      {canAssignLeads && (
+        <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
+      )}
     </>
   );
 
@@ -285,7 +289,7 @@ export default function PipelineLeadList({ stage, description }) {
         onDone={fetchLeads}
       />
 
-      {assignModal && (
+      {assignModal && canAssignLeads && (
         <Modal title={`Assign ${assignModal.first_name} ${assignModal.last_name}`} onClose={() => setAssignModal(null)}>
           <FormField label="Assign to" name="owner_id">
             <select className={inputClass()} value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)}>

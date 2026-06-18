@@ -68,7 +68,7 @@ export default function AccountsPage() {
     ) },
     { id: 'industry', header: 'Industry', cell: (a) => a.industry || '—' },
     { id: 'website', header: 'Website', cell: (a) => a.website ? <a href={a.website} target="_blank" rel="noreferrer" className={`${tableEmailClass} text-xs hover:text-zoho-text hover:underline`}>{a.website.replace('https://', '')}</a> : '—' },
-    { id: 'phone', header: 'Phone', cell: (a) => a.phone || '—' },
+    { id: 'email', header: 'Email', cell: (a) => <span className={tableEmailClass}>{a.email || '—'}</span> },
     { id: 'status', header: 'Status', cell: (a) => <Badge label={a.account_type || '—'} /> },
     { id: 'city', header: 'City', cell: (a) => a.city || '—' },
     { id: 'owner', header: 'Owner', cell: (a) => a.owner_name || '—' },
@@ -105,7 +105,7 @@ export default function AccountsPage() {
             <>
               <SelectFilter label="Industry" value={filters.industry} onChange={(v) => updateFilter('industry', v)} options={industryOptions} emptyLabel="All industries" />
               <TextFilter label="Website" value={filters.website} onChange={(v) => updateFilter('website', v)} />
-              <TextFilter label="Phone" value={filters.phone} onChange={(v) => updateFilter('phone', v)} />
+              <TextFilter label="Email" value={filters.email} onChange={(v) => updateFilter('email', v)} />
               <SelectFilter label="Status" value={filters.status} onChange={(v) => updateFilter('status', v)} options={statusOptions} emptyLabel="All statuses" />
               <TextFilter label="City" value={filters.city} onChange={(v) => updateFilter('city', v)} />
               <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />

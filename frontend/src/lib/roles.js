@@ -21,15 +21,32 @@ export function roleLabel(role) {
 }
 
 export function isSuperAdmin(role) {
-  return role === 'super_admin';
+  return normalizeRole(role) === 'super_admin';
+}
+
+/** Map legacy / display role names to API UserRole values */
+export function normalizeRole(role) {
+  if (!role) return role;
+  const key = String(role).toLowerCase().trim().replace(/\s+/g, '_');
+  if (key === 'admin' || key === 'superadmin' || key === 'super_admin') return 'super_admin';
+  if (key === 'manager' || key === 'sales_manager') return 'sales_manager';
+  if (key === 'rep' || key === 'sales_rep') return 'sales_rep';
+  return role;
+}
+
+/** Super Admin and Sales Manager can reassign records to other users */
+export function canAssignRecords(role) {
+  const normalized = normalizeRole(role);
+  return normalized === 'super_admin' || normalized === 'sales_manager';
 }
 
 /** Permission flags used across the UI (backend still enforces API auth) */
 export function getRolePermissions(role) {
-  const superAdmin = role === 'super_admin';
-  const salesManager = role === 'sales_manager';
-  const salesRep = role === 'sales_rep';
-  const viewer = role === 'viewer';
+  const normalized = normalizeRole(role);
+  const superAdmin = normalized === 'super_admin';
+  const salesManager = normalized === 'sales_manager';
+  const salesRep = normalized === 'sales_rep';
+  const viewer = normalized === 'viewer';
 
   return {
     canEdit: !viewer,
@@ -40,7 +57,7 @@ export function getRolePermissions(role) {
     canManageWeeklyReports: superAdmin,
     canAccessReports: !viewer,
     canBulkDelete: superAdmin || salesManager,
-    canAssignLeads: superAdmin || salesManager,
+    canAssignLeads: canAssignRecords(normalized),
     canQuickCreate: !viewer,
     isSuperAdmin: superAdmin,
     isViewer: viewer,

@@ -360,6 +360,7 @@ export default function CalendarPage() {
         users={users}
         currentUserId={user?.id}
         currentUserName={currentUserName}
+        canAssignToOthers={canAssignLeads}
       />
     </CRMLayout>
   );

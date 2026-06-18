@@ -13,6 +13,7 @@ export default function CalendarEventModal({
   users = [],
   currentUserId,
   currentUserName = 'Me',
+  canAssignToOthers = false,
 }) {
   const [form, setForm] = useState(emptyEventForm({ assign_to: ASSIGN_TO_ME }));
 
@@ -85,23 +86,25 @@ export default function CalendarEventModal({
             </select>
           </FormField>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid gap-3 ${canAssignToOthers ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <FormField label="Date" required>
               <input className="input" type="date" value={form.event_date} onChange={set('event_date')} />
             </FormField>
-            <FormField label="Assign to">
-              <select className="input" value={form.assign_to} onChange={set('assign_to')}>
-                <option value={ASSIGN_TO_ME}>Me{currentUserName && currentUserName !== 'Me' ? ` (${currentUserName})` : ''}</option>
-                {!isEditing && <option value={ASSIGN_TO_ALL}>All team members</option>}
-                {otherMembers.length > 0 && (
-                  <optgroup label="Team members">
-                    {otherMembers.map((u) => (
-                      <option key={u.id || u.value} value={u.id || u.value}>{u.name}</option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-            </FormField>
+            {canAssignToOthers && (
+              <FormField label="Assign to">
+                <select className="input" value={form.assign_to} onChange={set('assign_to')}>
+                  <option value={ASSIGN_TO_ME}>Me{currentUserName && currentUserName !== 'Me' ? ` (${currentUserName})` : ''}</option>
+                  {!isEditing && <option value={ASSIGN_TO_ALL}>All team members</option>}
+                  {otherMembers.length > 0 && (
+                    <optgroup label="Team members">
+                      {otherMembers.map((u) => (
+                        <option key={u.id || u.value} value={u.id || u.value}>{u.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </FormField>
+            )}
           </div>
 
           <label className="flex items-center gap-2 text-sm">
