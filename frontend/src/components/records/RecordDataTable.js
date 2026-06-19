@@ -5,6 +5,8 @@ import FormField, { inputClass } from '../forms/FormField.js';
 import ConfirmDialog from '../ui/ConfirmDialog.js';
 import { useToast } from '../ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { canDeleteCreatedRecord } from '../../lib/roles.js';
 import { getApiError } from '../../lib/api.js';
 import {
   getBulkConfig, bulkDeleteRecords, exportRecordsCsv, printMailingLabels, sendBulkEmail,
@@ -14,12 +16,10 @@ import RecordNoteRowIcon from './RecordNoteRowIcon.js';
 import RecordNotesSidePanel from './RecordNotesSidePanel.js';
 import * as tasksApi from '../../lib/services/tasks.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
-import { fetchUsers, fetchMassUpdateFieldOptions, fetchPipelineConvertTargets, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
+import { fetchUsers, fetchMassUpdateFieldOptions, fetchPipelineConvertTargets, fetchLostReasons, isConvertMassUpdateField } from '../../lib/services/lookups.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
 
 const defaultGetRowId = (r) => r.id;
-
-const LEAD_MODULE_KEYS = new Set(['leads', 'raw-leads', 'qualified-leads', 'proposals']);
 
 const CAMPAIGN_MEMBER_TYPES = {
   leads: 'lead',
@@ -128,7 +128,9 @@ export default function RecordDataTable({
   massUpdateHandler,
 }) {
   const { showToast } = useToast();
-  const { canEdit, canDelete, canAssignLeads } = usePermissions();
+  const { user } = useAuth();
+  const { canEdit, canDelete } = usePermissions();
+  const userRole = user?.role;
   const config = useMemo(() => getBulkConfig(moduleKey), [moduleKey]);
   const noteMeta = useMemo(() => getNoteMeta(moduleKey), [moduleKey]);
   const showNotes = notesApiSupported(moduleKey);
@@ -162,6 +164,18 @@ export default function RecordDataTable({
     () => records.filter((r) => selected.includes(getRowId(r))),
     [records, selected, getRowId],
   );
+
+  const deletableSelectedRecords = useMemo(
+    () => selectedRecords.filter((record) => canDeleteCreatedRecord(record, user, userRole)),
+    [selectedRecords, user, userRole],
+  );
+
+  const deletableSelectedIds = useMemo(
+    () => deletableSelectedRecords.map((record) => getRowId(record)),
+    [deletableSelectedRecords, getRowId],
+  );
+
+  const canDeleteSelection = deletableSelectedIds.length > 0;
 
   useEffect(() => {
     setSelected((prev) => {
@@ -197,15 +211,10 @@ export default function RecordDataTable({
     setLoadingMassFields(true);
     setDynamicMassFields([]);
     massUpdateFieldsLoader()
-      .then((fields) => {
-        const filtered = LEAD_MODULE_KEYS.has(moduleKey)
-          ? filterLeadMassUpdateFields(fields, { canChangeOwner: canAssignLeads })
-          : fields;
-        setDynamicMassFields(filtered);
-      })
+      .then(setDynamicMassFields)
       .catch(() => setDynamicMassFields([]))
       .finally(() => setLoadingMassFields(false));
-  }, [massUpdateOpen, massUpdateFieldsLoader, moduleKey, canAssignLeads]);
+  }, [massUpdateOpen, massUpdateFieldsLoader]);
 
   useEffect(() => {
     if (!massField) {
@@ -249,10 +258,8 @@ export default function RecordDataTable({
   }, [massField, dynamicMassFields, massUpdateFieldsLoader]);
 
   const selectedMassFieldDef = dynamicMassFields.find((f) => f.value === massField);
-  const massFieldKey = String(massField || '').toLowerCase();
   const isConvertMassField = isConvertMassUpdateField(selectedMassFieldDef)
-    || massFieldKey === 'convert'
-    || massFieldKey === 'pipeline_convert';
+    || String(massField).toLowerCase() === 'convert';
   const showLostReasonField = massUpdateFieldsLoader
     && isLeadStatusMassField(massField, selectedMassFieldDef)
     && isLostLeadStatus(massValue);
@@ -303,11 +310,6 @@ export default function RecordDataTable({
         const result = await massUpdateHandler(selected, massField, massValue, {
           lost_reason: showLostReasonField ? massLostReason : undefined,
         });
-        const failed = result?.failed_count ?? 0;
-        if (failed > 0) {
-          showToast((result?.errors || []).join('; ') || `${failed} record(s) failed to update`);
-          return;
-        }
         const count = result?.success_count ?? result?.updated ?? selected.length;
         showToast(`Updated ${count} record(s)`, 'success');
       } else {
@@ -337,9 +339,20 @@ export default function RecordDataTable({
   };
 
   const handleDelete = async () => {
+    if (!deletableSelectedIds.length) {
+      showToast('You can only delete records that you created.');
+      setDeleteConfirm(false);
+      return;
+    }
     try {
-      const result = await bulkDeleteRecords(selected, config);
-      showToast(`Deleted ${result.success_count ?? selected.length} record(s)`, 'success');
+      const result = await bulkDeleteRecords(deletableSelectedIds, config);
+      const deletedCount = result.success_count ?? deletableSelectedIds.length;
+      const skippedCount = selected.length - deletableSelectedIds.length;
+      if (skippedCount > 0) {
+        showToast(`Deleted ${deletedCount} record(s). ${skippedCount} skipped (not created by you).`, 'success');
+      } else {
+        showToast(`Deleted ${deletedCount} record(s)`, 'success');
+      }
       setDeleteConfirm(false);
       clearSelection();
       onRefresh?.();
@@ -468,7 +481,9 @@ export default function RecordDataTable({
                   {canEdit && <button type="button" onClick={openTaskModal} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Create Task</button>}
                   {canEdit && <button type="button" onClick={openCampaignModal} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Add to Campaigns</button>}
                   <button type="button" onClick={() => { handlePrintLabels(); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Print Mailing Labels</button>
-                  {canDelete && <button type="button" onClick={() => { setDeleteConfirm(true); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600">Delete</button>}
+                  {canDelete && canDeleteSelection && (
+                    <button type="button" onClick={() => { setDeleteConfirm(true); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600">Delete</button>
+                  )}
                   <button type="button" onClick={() => { handleExport(); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Export Selected Records</button>
                 </div>
               )}
@@ -478,7 +493,7 @@ export default function RecordDataTable({
       )}
 
       <div className={`overflow-x-auto ${selected.length > 0 ? '' : ''}`}>
-        <table className="record-data-table w-full">
+        <table className="w-full">
           <thead>
             <tr>
               <th className={`table-th ${showNotes ? 'w-[4.5rem]' : 'w-10'}`}>
@@ -501,7 +516,7 @@ export default function RecordDataTable({
               const id = getRowId(record);
               const recordLabel = noteMeta.getLabel(record);
               return (
-                <tr key={id} className="hover:bg-neutral-50 transition-colors">
+                <tr key={id} className="hover:bg-brand-50/30 transition-colors">
                   <td className="table-td">
                     <div className="flex items-center gap-2">
                       {showNotes && (
@@ -537,7 +552,7 @@ export default function RecordDataTable({
         </div>
       )}
 
-      <ConfirmDialog open={deleteConfirm} message={`Delete ${selected.length} selected record(s)?`} confirmLabel="Delete" danger onConfirm={handleDelete} onCancel={() => setDeleteConfirm(false)} />
+      <ConfirmDialog open={deleteConfirm} message={`Delete ${deletableSelectedIds.length} record(s) you created?${selected.length > deletableSelectedIds.length ? ` (${selected.length - deletableSelectedIds.length} not created by you will be skipped)` : ''}`} confirmLabel="Delete" danger onConfirm={handleDelete} onCancel={() => setDeleteConfirm(false)} />
 
       {taskModal && (
         <Modal title="Create Task" onClose={() => setTaskModal(false)}>

@@ -6,24 +6,22 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { getApiError } from '../../lib/api.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
-import { leadStatusLabel } from '../../lib/leadHelpers.js';
 import * as reportsApi from '../../lib/services/reports.js';
-import PerformanceReportsPanel from '../../components/reports/PerformanceReportsPanel.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const COLORS = ['#378ADD', '#639922', '#EF9F27', '#D85A30', '#1D9E75', '#E24B4A', '#7F77DD', '#888'];
 
 const EXPORT_PATHS = {
   leads: { path: '/reports/leads/export', group_by: 'source' },
+  deals: { path: '/reports/deals/export', group_by: 'stage' },
   accounts: { path: '/reports/accounts/export', group_by: 'industry' },
   campaigns: { path: '/reports/campaigns/export' },
 };
 
 export default function ReportsPage() {
   const { showToast } = useToast();
-  const { user, canDownload, canManageWeeklyReports, canManagePerformanceReports, canAccessReports } = usePermissions();
+  const { user, canDownload, canManageWeeklyReports, canAccessReports } = usePermissions();
   const admin = canManageWeeklyReports;
-  const canPerformance = canManagePerformanceReports;
   const [tab, setTab] = useState('leads');
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(false);
@@ -37,6 +35,7 @@ export default function ReportsPage() {
   const [logsPage, setLogsPage] = useState(1);
   const [savingSettings, setSavingSettings] = useState(false);
   const [triggering, setTriggering] = useState(false);
+  const [resendApiKeyInput, setResendApiKeyInput] = useState('');
 
   const dateParams = {
     date_from: dateRange.start || undefined,
@@ -44,7 +43,7 @@ export default function ReportsPage() {
   };
 
   const loadReportData = useCallback(async () => {
-    if (tab === 'weekly' || tab === 'performance') return;
+    if (tab === 'weekly') return;
     setLoading(true);
     try {
       if (tab === 'leads') {
@@ -102,6 +101,7 @@ export default function ReportsPage() {
         reportsApi.listAdminUsers(),
       ]);
       setWeeklySettings(settings.weekly_report);
+      setResendApiKeyInput('');
       setAdminUsers(users);
       setWeeklyPreview(preview);
       setWeeklyLogs(logs.data);
@@ -145,8 +145,11 @@ export default function ReportsPage() {
         minute: weeklySettings.minute,
         timezone: weeklySettings.timezone,
         excluded_user_ids: weeklySettings.excluded_user_ids || [],
+        sender_email: weeklySettings.sender_email || '',
+        ...(resendApiKeyInput.trim() ? { resend_api_key: resendApiKeyInput.trim() } : {}),
       });
       setWeeklySettings(updated.weekly_report);
+      setResendApiKeyInput('');
       showToast('Weekly report settings saved', 'success');
     } catch (err) {
       showToast(getApiError(err));
@@ -159,6 +162,15 @@ export default function ReportsPage() {
     const recipients = reportsApi.getWeeklyReportRecipients(adminUsers, weeklySettings);
     if (!recipients.length) {
       showToast('No recipients selected. Enable a role and include at least one user with an email.');
+      return;
+    }
+    const resendReady = weeklySettings?.resend_api_key_configured || resendApiKeyInput.trim();
+    if (!resendReady) {
+      showToast('Add Resend API key once below, Save Settings, then send. No .env or mailbox password needed.');
+      return;
+    }
+    if (!weeklySettings?.sender_email?.trim()) {
+      showToast('Set sender email to satesh@origami.dev below, then Save Settings.');
       return;
     }
     setTriggering(true);
@@ -179,9 +191,10 @@ export default function ReportsPage() {
 
   const tabs = [
     { id: 'leads', label: 'Lead Reports' },
+    { id: 'deals', label: 'Deal Reports' },
     { id: 'accounts', label: 'Account Reports' },
+    { id: 'activity', label: 'Activity Reports' },
     { id: 'campaigns', label: 'Campaign Reports' },
-    ...(canPerformance ? [{ id: 'performance', label: 'Individual Performance' }] : []),
     ...(admin ? [{ id: 'weekly', label: 'Weekly Reports' }] : []),
   ];
 
@@ -211,7 +224,7 @@ export default function ReportsPage() {
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-bold">Reports</h1>
-          {tab !== 'weekly' && tab !== 'performance' && (
+          {tab !== 'weekly' && (
             <div className="flex gap-2 items-center">
               <input className="input w-36 text-xs" type="date" value={dateRange.start} onChange={e => setDateRange(d => ({ ...d, start: e.target.value }))} />
               <span className="text-gray-400">to</span>
@@ -232,7 +245,7 @@ export default function ReportsPage() {
           ))}
         </div>
 
-        {loading && tab !== 'weekly' && tab !== 'performance' && (
+        {loading && tab !== 'weekly' && (
           <p className="text-sm text-gray-400 py-8 text-center">Loading report data...</p>
         )}
 
@@ -293,10 +306,6 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {tab === 'performance' && canPerformance && (
-          <PerformanceReportsPanel />
-        )}
-
         {tab === 'weekly' && admin && (
           <div className="space-y-6">
             {loading && !weeklySettings ? (
@@ -306,6 +315,46 @@ export default function ReportsPage() {
                 <div className="card p-5">
                   <h3 className="font-semibold mb-4">Weekly Report Settings</h3>
                   {weeklySettings && (
+                    <>
+                    <div className="mb-5 pb-5 border-b border-gray-100">
+                      <h4 className="text-sm font-medium mb-2">Email delivery (Resend API)</h4>
+                      <p className="text-xs text-gray-500 mb-3">
+                        Reports always send <strong>from</strong> your Outlook address below (not Gmail).
+                        Recipients like <code className="text-brand-600">sateshkumar2708@gmail.com</code> only receive mail.
+                        Add Resend API key once — nothing in server <code className="text-brand-600">.env</code>.
+                        Verify <code className="text-brand-600">origami.dev</code> at{' '}
+                        <a href="https://resend.com" target="_blank" rel="noreferrer" className="text-brand-600 underline">resend.com</a>.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <label className="text-xs text-gray-500 block mb-1">Sender email (Outlook)</label>
+                          <input
+                            className="input w-full"
+                            type="email"
+                            placeholder="satesh@origami.dev"
+                            value={weeklySettings.sender_email || ''}
+                            onChange={e => setWeeklySettings(s => ({ ...s, sender_email: e.target.value }))}
+                          />
+                          <p className="text-xs text-gray-400 mt-1">All weekly reports use this From address.</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 block mb-1">
+                            Resend API key (one-time)
+                            {weeklySettings.resend_api_key_configured && (
+                              <span className="ml-2 text-green-600">(saved)</span>
+                            )}
+                          </label>
+                          <input
+                            className="input w-full"
+                            type="password"
+                            autoComplete="off"
+                            placeholder={weeklySettings.resend_api_key_configured ? '••••••••••••••••' : 're_xxxxxxxx'}
+                            value={resendApiKeyInput}
+                            onChange={e => setResendApiKeyInput(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                       <label className="flex items-center gap-2">
                         <input type="checkbox" checked={weeklySettings.enabled} onChange={e => setWeeklySettings(s => ({ ...s, enabled: e.target.checked }))} />
@@ -338,6 +387,7 @@ export default function ReportsPage() {
                         <input className="input w-full" value={weeklySettings.timezone || ''} onChange={e => setWeeklySettings(s => ({ ...s, timezone: e.target.value }))} />
                       </div>
                     </div>
+                    </>
                   )}
                   <div className="flex gap-2 mt-4">
                     <button onClick={saveWeeklySettings} disabled={savingSettings} className="btn-primary text-xs">{savingSettings ? 'Saving...' : 'Save Settings'}</button>
@@ -400,71 +450,17 @@ export default function ReportsPage() {
                 </div>
 
                 {summary && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {[['Total Leads', summary.total_leads], ['New This Week', summary.new_leads_total], ['Converted', summary.converted_leads], ['Deals Won', summary.deals_won_count]].map(([l, v]) => (
-                        <div key={l} className="card p-4 text-center"><p className="text-xs text-gray-500">{l}</p><p className="text-2xl font-bold mt-1">{v ?? 0}</p></div>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div className="card p-5">
-                        <h3 className="font-semibold mb-1 text-brand-700">All leads by status</h3>
-                        <p className="text-xs text-gray-500 mb-4">Current pipeline breakdown — primary email content</p>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="table-th">Status</th>
-                                <th className="table-th text-right">Count</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                              {(summary.leads_by_status || []).length === 0 ? (
-                                <tr><td colSpan={2} className="table-td text-center py-6 text-gray-400">No lead data</td></tr>
-                              ) : (summary.leads_by_status || []).map((row) => (
-                                <tr key={row.label}>
-                                  <td className="table-td">{leadStatusLabel(row.label)}</td>
-                                  <td className="table-td text-right font-medium">{row.count}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      <div className="card p-5">
-                        <h3 className="font-semibold mb-1 text-brand-700">New leads this week by status</h3>
-                        <p className="text-xs text-gray-500 mb-4">Leads created during {weeklyPreview?.period_start} – {weeklyPreview?.period_end}</p>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="table-th">Status</th>
-                                <th className="table-th text-right">Count</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                              {(summary.new_leads_by_status || []).length === 0 ? (
-                                <tr><td colSpan={2} className="table-td text-center py-6 text-gray-400">No new leads this week</td></tr>
-                              ) : (summary.new_leads_by_status || []).map((row) => (
-                                <tr key={row.label}>
-                                  <td className="table-td">{leadStatusLabel(row.label)}</td>
-                                  <td className="table-td text-right font-medium">{row.count}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[['New Leads', summary.new_leads_total], ['Converted', summary.converted_leads], ['Deals Won', summary.deals_won_count], ['Tasks Done', summary.tasks_completed]].map(([l, v]) => (
+                      <div key={l} className="card p-4 text-center"><p className="text-xs text-gray-500">{l}</p><p className="text-2xl font-bold mt-1">{v ?? 0}</p></div>
+                    ))}
                   </div>
                 )}
 
                 {weeklyPreview && (
                   <div className="card p-5">
-                    <h3 className="font-semibold mb-2">Email preview — {weeklyPreview.company_name}</h3>
-                    <p className="text-xs text-gray-500 mb-4">Leads by status is the main section sent to recipients · {weeklyPreview.period_start} to {weeklyPreview.period_end}</p>
+                    <h3 className="font-semibold mb-2">Preview — {weeklyPreview.company_name}</h3>
+                    <p className="text-xs text-gray-500 mb-4">{weeklyPreview.period_start} to {weeklyPreview.period_end}</p>
                     <div className="border rounded-lg overflow-hidden bg-white max-h-[480px] overflow-y-auto">
                       <iframe title="Weekly report preview" srcDoc={weeklyPreview.html_body} className="w-full min-h-[400px] border-0" sandbox="" />
                     </div>

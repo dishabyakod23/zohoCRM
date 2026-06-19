@@ -10,9 +10,9 @@ export const ROLE_LABELS = {
 
 /** Human-readable access summary per role */
 export const ROLE_ACCESS = {
-  super_admin: 'Full access — manage users, company settings, all CRM data, and reports',
-  sales_manager: 'Create/edit/delete records, export reports, manage team pipeline',
-  sales_rep: 'Create and edit own records (leads, contacts, accounts, deals)',
+  super_admin: 'Full access — manage users, settings, and reports; delete/restore only your own records',
+  sales_manager: 'Create/edit team records — delete and restore only your own',
+  sales_rep: 'View all CRM data — edit and convert only records you created',
   viewer: 'Read-only access to CRM modules — no create, edit, or delete',
 };
 
@@ -21,32 +21,15 @@ export function roleLabel(role) {
 }
 
 export function isSuperAdmin(role) {
-  return normalizeRole(role) === 'super_admin';
-}
-
-/** Map legacy / display role names to API UserRole values */
-export function normalizeRole(role) {
-  if (!role) return role;
-  const key = String(role).toLowerCase().trim().replace(/\s+/g, '_');
-  if (key === 'admin' || key === 'superadmin' || key === 'super_admin') return 'super_admin';
-  if (key === 'manager' || key === 'sales_manager') return 'sales_manager';
-  if (key === 'rep' || key === 'sales_rep') return 'sales_rep';
-  return role;
-}
-
-/** Super Admin and Sales Manager can reassign records to other users */
-export function canAssignRecords(role) {
-  const normalized = normalizeRole(role);
-  return normalized === 'super_admin' || normalized === 'sales_manager';
+  return role === 'super_admin';
 }
 
 /** Permission flags used across the UI (backend still enforces API auth) */
 export function getRolePermissions(role) {
-  const normalized = normalizeRole(role);
-  const superAdmin = normalized === 'super_admin';
-  const salesManager = normalized === 'sales_manager';
-  const salesRep = normalized === 'sales_rep';
-  const viewer = normalized === 'viewer';
+  const superAdmin = role === 'super_admin';
+  const salesManager = role === 'sales_manager';
+  const salesRep = role === 'sales_rep';
+  const viewer = role === 'viewer';
 
   return {
     canEdit: !viewer,
@@ -55,14 +38,41 @@ export function getRolePermissions(role) {
     canManageUsers: superAdmin,
     canManageSettings: superAdmin,
     canManageWeeklyReports: superAdmin,
-    canManagePerformanceReports: superAdmin || salesManager,
     canAccessReports: !viewer,
     canBulkDelete: superAdmin || salesManager,
-    canAssignLeads: canAssignRecords(normalized),
+    canAssignLeads: superAdmin || salesManager,
     canQuickCreate: !viewer,
     isSuperAdmin: superAdmin,
     isViewer: viewer,
     isSalesManager: salesManager,
     isSalesRep: salesRep,
   };
+}
+
+/** Sales reps may view all records but only modify ones they created. */
+export function canModifyCreatedRecord(record, user, role) {
+  const permissions = getRolePermissions(role);
+  if (!permissions.canEdit) return false;
+  if (permissions.isSuperAdmin || permissions.isSalesManager) return true;
+  if (permissions.isSalesRep) {
+    if (!record?.created_by || !user?.id) return false;
+    return String(record.created_by) === String(user.id);
+  }
+  return permissions.canEdit;
+}
+
+/** Only the creator may delete a record. */
+export function canDeleteCreatedRecord(record, user, role) {
+  const permissions = getRolePermissions(role);
+  if (!permissions.canDelete) return false;
+  if (!record?.created_by || !user?.id) return false;
+  return String(record.created_by) === String(user.id);
+}
+
+/** Only the user who deleted a record may restore or permanently remove it. */
+export function canManageRecycleItem(item, user, role) {
+  const permissions = getRolePermissions(role);
+  if (!permissions.canDelete) return false;
+  if (!item?.deleted_by || !user?.id) return false;
+  return String(item.deleted_by) === String(user.id);
 }

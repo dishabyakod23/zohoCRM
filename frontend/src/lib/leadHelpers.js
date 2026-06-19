@@ -1,6 +1,5 @@
-import { pipelineStageLabel, PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, toApiLeadStatus, proposalDealStatusLabel } from './pipelineHelpers.js';
-import { toDateOnly } from './activityHelpers.js';
-import { DEFAULT_CURRENCY } from './currencies.js';
+import { pipelineStageLabel, PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, toApiLeadStatus } from './pipelineHelpers.js';
+import { isPlaceholderEmail, normalizeEmail, resolveLeadEmail } from './emailHelpers.js';
 
 /** Map API snake_case lead_status to display label (fallback when lookups unavailable) */
 const STATUS_LABELS = {
@@ -54,8 +53,11 @@ export function normalizeLead(lead, statusOptions = []) {
     ? `${lead.owner.first_name || ''} ${lead.owner.last_name || ''}`.trim()
     : null;
   const rawStatus = lead.lead_status ?? lead.status;
+  const displayEmail = isPlaceholderEmail(lead.email) ? '' : (lead.email || '');
   return {
     ...lead,
+    email: displayEmail,
+    email_raw: lead.email,
     status: leadStatusLabel(rawStatus, statusOptions),
     lead_status: rawStatus,
     source: lead.lead_source || lead.source,
@@ -64,17 +66,21 @@ export function normalizeLead(lead, statusOptions = []) {
     converted: lead.is_converted ?? lead.converted,
     employees: lead.no_of_employees || lead.employees,
     zip: lead.zip_code || lead.zip,
-    proposal_date: lead.proposal_date || null,
-    closure_date: lead.closure_date || null,
-    deal_size: lead.deal_size ?? lead.proposal_amount ?? null,
-    deal_status: lead.deal_status || null,
-    deal_status_label: proposalDealStatusLabel(lead.deal_status),
-    currency: lead.currency || DEFAULT_CURRENCY,
   };
 }
 
 /** Build LeadCreate / LeadUpdate payload — lead_status must be snake_case */
 export function toLeadPayload(form, { partial = false } = {}) {
+  let resolvedEmail;
+  if (!partial || form.email !== undefined || form.phone !== undefined) {
+    resolvedEmail = resolveLeadEmail({
+      email: form.email,
+      phone: form.phone,
+      company: form.company,
+      lastName: form.last_name,
+    });
+  }
+
   const payload = {
     salutation: form.salutation || null,
     latitude: form.latitude != null && form.latitude !== '' ? Number(form.latitude) : null,
@@ -82,7 +88,7 @@ export function toLeadPayload(form, { partial = false } = {}) {
     first_name: form.first_name || null,
     last_name: form.last_name,
     company: form.company,
-    email: form.email,
+    email: (resolvedEmail ?? normalizeEmail(form.email)) || null,
     phone: form.phone,
     mobile: form.mobile || null,
     title: form.title || null,
@@ -94,7 +100,7 @@ export function toLeadPayload(form, { partial = false } = {}) {
     annual_revenue: form.annual_revenue || null,
     fax: form.fax || null,
     skype_id: form.skype_id || null,
-    secondary_email: form.secondary_email || null,
+    secondary_email: normalizeEmail(form.secondary_email) || null,
     twitter: form.twitter || null,
     email_opt_out: form.email_opt_out ?? false,
     street: [form.building, form.street].filter(Boolean).join(', ') || form.street || null,
@@ -104,12 +110,7 @@ export function toLeadPayload(form, { partial = false } = {}) {
     zip_code: form.zip || form.zip_code || null,
     no_of_employees: form.employees || form.no_of_employees || null,
     rating: form.rating || null,
-    proposal_amount: form.deal_size || form.proposal_amount || null,
-    deal_size: form.deal_size || form.proposal_amount || null,
-    proposal_date: form.proposal_date ? toDateOnly(form.proposal_date) : null,
-    closure_date: form.closure_date ? toDateOnly(form.closure_date) : null,
-    deal_status: form.deal_status || null,
-    currency: form.currency || DEFAULT_CURRENCY,
+    proposal_amount: form.proposal_amount || null,
     owner_id: form.owner_id || null,
   };
 

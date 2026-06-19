@@ -6,13 +6,13 @@ import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout, { InfoRow } from '../../../components/records/RecordDetailLayout.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
-import EditableEmailField from '../../../components/forms/EditableEmailField.js';
 import LeadConvertMenu from '../../../components/leads/LeadConvertMenu.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
+import { useAuth } from '../../../hooks/useAuth.js';
+import { canModifyCreatedRecord, canDeleteCreatedRecord } from '../../../lib/roles.js';
 import { useMarkRecordViewed } from '../../../hooks/useMarkRecordViewed.js';
 import { getApiError } from '../../../lib/api.js';
-import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import * as leadsApi from '../../../lib/services/leads.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../../lib/services/lookups.js';
@@ -29,6 +29,7 @@ export default function LeadDetailPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete, isSuperAdmin } = usePermissions();
+  const { user } = useAuth();
   const [lead, setLead] = useState(null);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -55,13 +56,6 @@ export default function LeadDetailPage() {
   }, [id, loadLead]);
 
   const saveSection = async (payload) => {
-    if (payload.email) {
-      const uniqueErr = await validateEmailUnique(payload.email, { excludeLeadId: id });
-      if (uniqueErr) {
-        showToast(uniqueErr);
-        throw new Error(uniqueErr);
-      }
-    }
     setSaving(true);
     try {
       await leadsApi.updateLead(id, payload);
@@ -77,7 +71,7 @@ export default function LeadDetailPage() {
 
   if (!lead) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
 
-  const editable = canEdit && !lead.is_converted;
+  const editable = canModifyCreatedRecord(lead, user, user?.role) && !lead.is_converted;
   const select = (opts, key = 'value', labelKey = 'label') => (draft, setDraft, field) => (
     <select className="input" value={draft[field] ?? ''} onChange={(e) => setDraft((d) => ({ ...d, [field]: e.target.value }))}>
       <option value="">--None--</option>
@@ -95,7 +89,7 @@ export default function LeadDetailPage() {
         subtitle={lead.company}
         badges={<Badge label={lead.status} />}
         lastUpdated={new Date(lead.updated_at).toLocaleString()}
-        recordNotes={{ relatedType: 'lead', recordId: id, canEdit }}
+        recordNotes={{ relatedType: 'lead', recordId: id, canEdit: editable }}
         actions={
           <>
             <LeadConvertMenu
@@ -106,7 +100,7 @@ export default function LeadDetailPage() {
               isAdmin={isSuperAdmin}
               isConverted={lead.is_converted}
             />
-            {canDelete && (
+            {canDelete && canDeleteCreatedRecord(lead, user, user?.role) && (
               <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
                 <TrashIcon className="w-4 h-4" /> Delete
               </button>
@@ -158,13 +152,7 @@ export default function LeadDetailPage() {
                 values={lead}
                 onSave={saveSection}
                 fields={[
-                  { name: 'email', label: 'Email', render: (d, set) => (
-                    <EditableEmailField
-                      value={d.email}
-                      onChange={(e) => set((p) => ({ ...p, email: e.target.value }))}
-                      excludeLeadId={id}
-                    />
-                  ) },
+                  { name: 'email', label: 'Email' },
                   { name: 'phone', label: 'Phone' },
                   { name: 'mobile', label: 'Mobile' },
                 ]}

@@ -2,14 +2,11 @@ import api from '../api.js';
 import { normalizeLead, toLeadPayload, resolveLeadStatusForApi } from '../leadHelpers.js';
 import { toConvertPayload } from '../dealHelpers.js';
 import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
+import { resolveLeadEmail } from '../emailHelpers.js';
 import {
   PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PIPELINE_LEAD, PROPOSAL_SOURCE,
   filterLeadsByPipelineStage, toApiLeadStatus,
 } from '../pipelineHelpers.js';
-import {
-  applyLeadRecordFilters,
-  hasLeadClientFilters,
-} from '../listRecordFilters.js';
 
 const CONVERT_MASS_TARGETS = new Set(['account', 'contact', 'deal']);
 
@@ -31,44 +28,22 @@ async function fetchAllLeadPages(params, statusOptions) {
   return all;
 }
 
-export async function listLeads({
-  page = 1,
-  page_size = 15,
-  search,
-  lead_status,
-  owner_id,
-  sort_by,
-  sort_order,
-  pipeline_stage,
-  statusOptions,
-  filters = {},
-} = {}) {
+export async function listLeads({ page = 1, page_size = 15, search, lead_status, owner_id, sort_by, sort_order, pipeline_stage, statusOptions } = {}) {
   const params = {};
   if (search) params.search = search;
-
-  const mergedOwnerId = filters.owner_id || owner_id;
-  const mergedStatus = filters.status || lead_status;
-
   const apiStatus = pipeline_stage === PIPELINE_PROPOSAL || pipeline_stage === PIPELINE_QUALIFIED
     ? 'qualified_lead'
     : pipeline_stage === PIPELINE_RAW
       ? null
-      : toApiLeadStatus(mergedStatus) || (mergedStatus ? resolveLeadStatusForApi(mergedStatus) : null);
+      : toApiLeadStatus(lead_status) || (lead_status ? resolveLeadStatusForApi(lead_status) : null);
   if (apiStatus) params.lead_status = apiStatus;
-  if (mergedOwnerId) params.owner_id = mergedOwnerId;
+  if (owner_id) params.owner_id = owner_id;
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
 
-  const needsClientPipeline = Boolean(pipeline_stage);
-  const needsClientFilter = hasLeadClientFilters(filters);
-  const fetchAll = needsClientPipeline || needsClientFilter;
-
-  if (fetchAll) {
+  if (pipeline_stage) {
     const allLeads = await fetchAllLeadPages(params, statusOptions);
-    let filtered = pipeline_stage
-      ? filterLeadsByPipelineStage(allLeads, pipeline_stage)
-      : allLeads;
-    filtered = applyLeadRecordFilters(filtered, filters);
+    const filtered = filterLeadsByPipelineStage(allLeads, pipeline_stage);
     const start = (page - 1) * page_size;
     return {
       data: filtered.slice(start, start + page_size),
@@ -79,7 +54,7 @@ export async function listLeads({
 
   const res = await api.get('/leads', { params: { ...params, page, page_size } });
   let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
-  if (mergedStatus && toApiLeadStatus(mergedStatus) === 'qualified_lead' && mergedStatus !== PIPELINE_PROPOSAL) {
+  if (lead_status && toApiLeadStatus(lead_status) === 'qualified_lead' && lead_status !== PIPELINE_PROPOSAL) {
     data = filterLeadsByPipelineStage(data, 'qualified_lead');
   }
   return {
@@ -120,49 +95,28 @@ export async function massUpdateLeads(ids, field, value, { lost_reason } = {}) {
   return res.data.data;
 }
 
-function isConvertMassUpdateFieldKey(field) {
-  const key = String(field || '').toLowerCase();
-  return key === 'convert' || key === 'pipeline_convert';
-}
-
 /** Route mass-update Convert to per-lead conversion; other fields use bulk API. */
 export async function applyLeadMassUpdate(ids, field, value, extras = {}) {
-  if (isConvertMassUpdateFieldKey(field)) {
+  const fieldKey = String(field || '').toLowerCase();
+  if (fieldKey === 'convert') {
     const target = String(value || '').toLowerCase();
     let success = 0;
-    const errors = [];
     for (const id of ids) {
-      try {
-        if (CONVERT_MASS_TARGETS.has(target)) {
-          await convertLead(id, { create_deal: target === 'deal' });
-        } else {
-          await advanceLeadStage(id, value, {
-            proposal: target === 'proposal' || value === PIPELINE_PROPOSAL,
-            clearProposal: target === 'lead' || target === PIPELINE_LEAD || value === PIPELINE_LEAD,
-          });
-        }
-        success += 1;
-      } catch (err) {
-        errors.push(`${id}: ${err.response?.data?.message || err.response?.data?.error || err.message || 'Update failed'}`);
+      if (CONVERT_MASS_TARGETS.has(target)) {
+        await convertLead(id, { create_deal: target === 'deal' });
+      } else {
+        await advanceLeadStage(id, value, {
+          proposal: target === 'proposal' || value === PIPELINE_PROPOSAL,
+          clearProposal: target === 'lead' || target === PIPELINE_LEAD || value === PIPELINE_LEAD,
+        });
       }
+      success += 1;
     }
-    if (errors.length) {
-      const err = new Error(errors.join('; '));
-      err.massUpdateResult = { success_count: success, failed_count: errors.length, errors };
-      throw err;
-    }
-    return { success_count: success, updated: success, failed_count: 0, errors: [] };
+    return { success_count: success, updated: success };
   }
 
-  const fieldKey = String(field || '').toLowerCase();
   const apiField = fieldKey === 'status' ? 'lead_status' : field;
-  const result = await massUpdateLeads(ids, apiField, value, extras);
-  if (result?.failed_count > 0) {
-    const err = new Error((result.errors || []).join('; ') || 'Mass update failed');
-    err.massUpdateResult = result;
-    throw err;
-  }
-  return result;
+  return massUpdateLeads(ids, apiField, value, extras);
 }
 
 export async function convertLead(id, form) {
@@ -240,7 +194,6 @@ export async function createProposal(form) {
     ...form,
     lead_status: PIPELINE_QUALIFIED,
     source: PROPOSAL_SOURCE,
-    deal_status: form.deal_status || 'active_proposal',
   });
 }
 
@@ -280,11 +233,23 @@ export async function importRawLeads(rows) {
       continue;
     }
     try {
+      const resolvedEmail = resolveLeadEmail({
+        email: row.email,
+        phone: row.phone,
+        company: row.company,
+        lastName: row.last_name,
+        suffix: String(row._row),
+      });
+      if (!resolvedEmail) {
+        results.failed += 1;
+        results.errors.push({ row: row._row, error: 'Email or phone is required' });
+        continue;
+      }
       await createRawLead({
         first_name: row.first_name || '',
         last_name: row.last_name,
         company: row.company,
-        email: row.email || `raw-${Date.now()}-${row._row}@import.local`,
+        email: resolvedEmail,
         phone: row.phone || null,
         mobile: row.mobile || null,
         title: row.title || null,

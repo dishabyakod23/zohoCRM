@@ -7,18 +7,6 @@ export const PIPELINE_QUALIFIED = 'qualified_lead';
 export const PIPELINE_PROPOSAL = 'proposal';
 export const PROPOSAL_SOURCE = 'Proposal';
 
-/** Deal status values shown on proposal records */
-export const PROPOSAL_DEAL_STATUSES = [
-  { value: 'active_proposal', label: 'Active Proposal' },
-  { value: 'deal_lost', label: 'Deal Lost' },
-];
-
-export function proposalDealStatusLabel(status) {
-  if (!status) return '—';
-  const match = PROPOSAL_DEAL_STATUSES.find((s) => s.value === status);
-  return match?.label || pipelineStageLabel(status);
-}
-
 export const PIPELINE_STAGE_ORDER = [
   PIPELINE_RAW,
   PIPELINE_LEAD,
@@ -51,34 +39,26 @@ export function toApiLeadStatus(status) {
 }
 
 export function isProposalLead(lead) {
-  const source = String(lead?.lead_source || lead?.source || '').trim();
-  if (source && source.toLowerCase() === PROPOSAL_SOURCE.toLowerCase()) return true;
-  if (lead?.pipeline_stage === PIPELINE_PROPOSAL) return true;
-  return false;
-}
-
-function isConvertedLead(lead) {
-  return !!(lead?.is_converted || lead?.converted);
+  const source = lead?.lead_source || lead?.source || '';
+  return source === PROPOSAL_SOURCE || lead?.pipeline_stage === PIPELINE_PROPOSAL;
 }
 
 export function filterLeadsByPipelineStage(leads, stage) {
-  const active = (leads || []).filter((l) => !isConvertedLead(l));
-
   if (stage === PIPELINE_PROPOSAL) {
-    return active.filter(isProposalLead);
+    return leads.filter(isProposalLead);
   }
   if (stage === PIPELINE_QUALIFIED) {
-    return active.filter((l) => l.lead_status === 'qualified_lead' && !isProposalLead(l));
+    return leads.filter((l) => l.lead_status === 'qualified_lead' && !isProposalLead(l));
   }
   if (stage === PIPELINE_RAW) {
-    return active.filter((l) => {
+    return leads.filter((l) => {
       if (isProposalLead(l)) return false;
       if (l.lead_status === 'qualified_lead') return false;
       if (l.lead_status === 'contacted') return false;
       return true;
     });
   }
-  return active;
+  return leads;
 }
 
 export const PIPELINE_STAGE_CONFIG = {

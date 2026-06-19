@@ -1,12 +1,19 @@
-export function validateEmail(email) {
-  if (!email) return null;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? null : 'Please enter a valid email address.';
+import {
+  hasValidPhone,
+  normalizeEmail,
+  validateEmail as validateEmailAddress,
+  validateEmailOrPhone,
+} from './emailHelpers.js';
+
+export function validateEmail(email, options = {}) {
+  return validateEmailAddress(email, options);
 }
+
+export { validateEmailOrPhone, normalizeEmail, hasValidPhone };
 
 export function validatePhone(phone) {
   if (!phone) return null;
-  const digits = phone.replace(/\D/g, '');
-  return digits.length >= 7 ? null : 'Please enter a valid phone number.';
+  return hasValidPhone(phone) ? null : 'Please enter a valid phone number.';
 }
 
 export function validateRequired(fields, values) {

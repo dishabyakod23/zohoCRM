@@ -2,8 +2,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
-import ListPageHeader from '../../components/layout/ListPageHeader.js';
-import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
@@ -20,11 +18,8 @@ import * as dealsApi from '../../lib/services/deals.js';
 import { fetchDealStages, fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { LEAD_SOURCES, DEAL_TYPES } from '../../lib/constants.js';
-import { tableLinkClass } from '../../lib/tableStyles.js';
-import CurrencyAmountInput from '../../components/forms/CurrencyAmountInput.js';
-import { formatMoney, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 
-const EMPTY = { deal_name: '', amount: '', currency: DEFAULT_CURRENCY, stage_value: 'qualification', closing_date: '', probability: 10, account_id: '', contact_id: '', deal_type: '', lead_source: '', description: '', proposal_amount: '' };
+const EMPTY = { deal_name: '', amount: '', stage_value: 'qualification', closing_date: '', probability: 10, account_id: '', contact_id: '', deal_type: '', lead_source: '', description: '', proposal_amount: '' };
 
 export default function DealsPage() {
   const { showToast } = useToast();
@@ -109,13 +104,13 @@ export default function DealsPage() {
   };
 
   const stageLabel = (value) => stageOptions.find(s => s.value === value)?.label || value;
-  const fmt = (n, currency) => (n != null && n !== '' ? formatMoney(n, currency) : '—');
+  const fmt = (n) => n ? `₹${(n / 100000).toFixed(1)}L` : '—';
   const byStage = (stageValue) => deals.filter(d => d.stage_value === stageValue);
 
   const columns = useMemo(() => [
-    { id: 'name', header: 'Deal Name', cell: (d) => <Link href={`/deals/${d.id}`} className={tableLinkClass}>{d.name}</Link> },
+    { id: 'name', header: 'Deal Name', cell: (d) => <Link href={`/deals/${d.id}`} className="font-medium text-brand-600 hover:text-brand-700">{d.name}</Link> },
     { id: 'account', header: 'Account', cell: (d) => d.account_name || '—' },
-    { id: 'amount', header: 'Amount', cell: (d) => fmt(d.amount, d.currency) },
+    { id: 'amount', header: 'Amount', cell: (d) => fmt(d.amount) },
     { id: 'stage', header: 'Stage', cell: (d) => <Badge label={d.stage} /> },
     { id: 'close_date', header: 'Closing Date', cell: (d) => d.close_date ? new Date(d.close_date).toLocaleDateString() : '—' },
     { id: 'probability', header: 'Probability', cell: (d) => `${d.probability}%` },
@@ -124,32 +119,27 @@ export default function DealsPage() {
   return (
     <CRMLayout>
       <div className="p-6">
-        <ListPageHeader
-          title="Deals"
-          subtitle="Track opportunities through your sales pipeline."
-          secondaryActions={(
-            <div className="flex border border-zoho-border rounded-lg overflow-hidden">
-              <button type="button" onClick={() => setView('table')} className={`px-3 py-1.5 text-xs ${view === 'table' ? 'bg-brand-500 text-white' : 'bg-white text-zoho-muted hover:text-zoho-text'}`}>List</button>
-              <button type="button" onClick={() => setView('kanban')} className={`px-3 py-1.5 text-xs border-l border-zoho-border ${view === 'kanban' ? 'bg-brand-500 text-white' : 'bg-white text-zoho-muted hover:text-zoho-text'}`}>Kanban</button>
+        <div className="flex items-center justify-between mb-5">
+          <div><h1 className="text-xl font-bold">Deals</h1><p className="text-xs text-gray-500">{total} deals</p></div>
+          <div className="flex gap-2">
+            <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+              <button onClick={() => setView('table')} className={`px-3 py-1.5 text-xs ${view === 'table' ? 'bg-brand-500 text-white' : 'bg-white text-gray-600'}`}>List</button>
+              <button onClick={() => setView('kanban')} className={`px-3 py-1.5 text-xs ${view === 'kanban' ? 'bg-brand-500 text-white' : 'bg-white text-gray-600'}`}>Kanban</button>
             </div>
-          )}
-          primaryAction={canEdit ? (
-            <button type="button" onClick={openCreate} className="btn-primary-sm">Create Deal</button>
-          ) : null}
-        />
+            {canEdit && (
+            <button onClick={openCreate} className="btn-primary">+ Create Deal</button>
+            )}
+          </div>
+        </div>
 
         {view === 'table' ? (
-          <>
-            <ListSearchBar
-              search={search}
-              onSearchChange={(v) => { setSearch(v); setPage(1); }}
-              placeholder="Search deals…"
-              limit={limit}
-              onLimitChange={(n) => { setLimit(n); setPage(1); }}
-              total={total}
-              totalLabel="deals"
-            />
-            <div className="card">
+          <div className="card">
+            <div className="px-4 py-3 border-b border-zoho-border">
+              <div className="relative max-w-xs">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zoho-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <input className="input pl-8 py-1.5 text-xs" placeholder="Search deals…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+              </div>
+            </div>
             <RecordDataTable
               moduleKey="deals"
               records={deals}
@@ -165,8 +155,7 @@ export default function DealsPage() {
                 label: total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total}` : '0 records',
               }}
             />
-            </div>
-          </>
+          </div>
         ) : (
           <div className="overflow-x-auto pb-4">
             {loading ? <p className="text-center text-gray-400 py-10">Loading...</p> : (
@@ -193,7 +182,7 @@ export default function DealsPage() {
                           </div>
                           <Link href={`/deals/${d.id}`} className="flex-1 block min-w-0">
                             <p className="font-medium">{d.name}</p><p className="text-gray-500">{d.account_name}</p>
-                            <p className="font-semibold mt-1">{fmt(d.amount, d.currency)}</p>
+                            <p className="font-semibold mt-1">{fmt(d.amount)}</p>
                           </Link>
                         </div>
                       ))}
@@ -224,14 +213,7 @@ export default function DealsPage() {
                 {contacts.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
               </select>
             </FormField>
-            <FormField label="Amount" required error={errors.amount} name="amount">
-              <CurrencyAmountInput
-                amount={form.amount}
-                currency={form.currency}
-                onAmountChange={(e) => { setForm((p) => ({ ...p, amount: e.target.value })); setErrors((er) => ({ ...er, amount: null })); }}
-                onCurrencyChange={(e) => setForm((p) => ({ ...p, currency: e.target.value }))}
-              />
-            </FormField>
+            <FormField label="Amount (₹)" required error={errors.amount} name="amount"><input className={inputClass(errors.amount)} type="number" value={form.amount} onChange={e => { setForm(p => ({ ...p, amount: e.target.value })); setErrors(er => ({ ...er, amount: null })); }} /></FormField>
             <FormField label="Closing Date" required error={errors.closing_date} name="closing_date"><input className={inputClass(errors.closing_date)} type="date" value={form.closing_date?.slice(0, 10)} onChange={e => { setForm(p => ({ ...p, closing_date: e.target.value })); setErrors(er => ({ ...er, closing_date: null })); }} /></FormField>
             <FormField label="Stage" required error={errors.stage_value} name="stage_value">
               <select className={inputClass(errors.stage_value)} value={form.stage_value} onChange={e => { setForm(p => ({ ...p, stage_value: e.target.value })); setErrors(er => ({ ...er, stage_value: null })); }}>
@@ -254,13 +236,11 @@ export default function DealsPage() {
           {/* Description */}
           <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Proposal Amount</p>
           <div className="mb-5">
-            <CurrencyAmountInput
-              amount={form.proposal_amount}
-              currency={form.currency}
-              onAmountChange={(e) => setForm((p) => ({ ...p, proposal_amount: e.target.value }))}
-              onCurrencyChange={(e) => setForm((p) => ({ ...p, currency: e.target.value }))}
-              placeholder="0.00"
-            />
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm text-zoho-muted shrink-0">Rs.</span>
+              <input className="input flex-1" type="number" min="0" step="any" placeholder="0.00"
+                value={form.proposal_amount} onChange={e => setForm(p => ({ ...p, proposal_amount: e.target.value }))} />
+            </div>
           </div>
           <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3">Description</p>
           <div className="mb-5">

@@ -1,5 +1,4 @@
 import { ownerName } from './recordHelpers.js';
-import { DEFAULT_CURRENCY } from './currencies.js';
 
 const STAGE_LABELS = {
   qualification: 'Qualification',
@@ -46,7 +45,6 @@ export function normalizeDeal(deal, accountMap = {}, stageOptions = []) {
     close_date: resolvedCloseDate,
     closing_date: resolvedCloseDate,
     amount: deal.amount != null ? Number(deal.amount) : deal.amount,
-    currency: deal.currency || DEFAULT_CURRENCY,
     account_name: account?.label || account?.name || deal.account_name,
     owner_name: ownerName(deal) || deal.owner_name,
   };
@@ -65,7 +63,6 @@ export function toDealPayload(form, { partial = false } = {}) {
     lead_source: form.lead_source || null,
     description: form.description || null,
     proposal_amount: form.proposal_amount || null,
-    currency: form.currency || DEFAULT_CURRENCY,
     owner_id: form.owner_id || null,
   };
   if (partial) {

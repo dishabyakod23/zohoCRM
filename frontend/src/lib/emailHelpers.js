@@ -1,53 +1,84 @@
-import * as leadsApi from './services/leads.js';
-import * as contactsApi from './services/contacts.js';
+/** Keep in sync with sales-crm app/core/email_address.py */
+export const PLACEHOLDER_EMAIL_DOMAIN = 'leads.noreply.invalid';
 
-function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase();
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function normalizeEmail(email) {
+  if (email === undefined || email === null) return '';
+  return String(email).trim().toLowerCase();
 }
 
-function sameEmail(a, b) {
-  return normalizeEmail(a) === normalizeEmail(b);
+export function isValidEmailFormat(email) {
+  const normalized = normalizeEmail(email);
+  return normalized ? EMAIL_RE.test(normalized) : false;
 }
 
-/** Find an existing lead or contact using this email (case-insensitive). */
-export async function findEmailConflict(email, { excludeLeadId, excludeContactId } = {}) {
-  const needle = normalizeEmail(email);
-  if (!needle) return null;
+export function isPlaceholderEmail(email) {
+  const normalized = normalizeEmail(email);
+  return normalized.endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`);
+}
 
-  const [leadsRes, contactsRes] = await Promise.all([
-    leadsApi.listLeads({ search: email.trim(), page_size: 50 }),
-    contactsApi.listContacts({ search: email.trim(), page_size: 50 }),
-  ]);
+export function isMailableEmail(email) {
+  const normalized = normalizeEmail(email);
+  return normalized && isValidEmailFormat(normalized) && !isPlaceholderEmail(normalized);
+}
 
-  const lead = leadsRes.data.find(
-    (r) => sameEmail(r.email, needle) && String(r.id) !== String(excludeLeadId),
-  );
-  if (lead) {
-    return {
-      module: 'lead',
-      id: lead.id,
-      name: `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || lead.company,
-    };
+export function phoneDigits(phone) {
+  return String(phone || '').replace(/\D/g, '');
+}
+
+export function hasValidPhone(phone) {
+  return phoneDigits(phone).length >= 7;
+}
+
+export function generatePlaceholderEmail({ company = '', lastName = '', suffix = '' } = {}) {
+  const slug = `${company}-${lastName}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 24) || 'lead';
+  const token = suffix || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `noemail+${slug}-${token}@${PLACEHOLDER_EMAIL_DOMAIN}`;
+}
+
+export function resolveLeadEmail({ email, phone, company = '', lastName = '', suffix = '' } = {}) {
+  const normalized = normalizeEmail(email);
+  if (normalized) {
+    if (!isValidEmailFormat(normalized)) {
+      throw new Error('Please enter a valid email address.');
+    }
+    return normalized;
   }
-
-  const contact = contactsRes.data.find(
-    (r) => sameEmail(r.email, needle) && String(r.id) !== String(excludeContactId),
-  );
-  if (contact) {
-    return {
-      module: 'contact',
-      id: contact.id,
-      name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
-    };
+  if (hasValidPhone(phone)) {
+    return generatePlaceholderEmail({ company, lastName, suffix });
   }
-
   return null;
 }
 
-/** Returns an error message when email is already in use, or null if available. */
-export async function validateEmailUnique(email, { excludeLeadId, excludeContactId } = {}) {
-  const conflict = await findEmailConflict(email, { excludeLeadId, excludeContactId });
-  if (!conflict) return null;
-  const moduleLabel = conflict.module === 'lead' ? 'lead' : 'contact';
-  return `A ${moduleLabel} with this email already exists.`;
+export function validateEmail(email, { required = false, label = 'Email' } = {}) {
+  const normalized = normalizeEmail(email);
+  if (!normalized) {
+    return required ? `${label} is required.` : null;
+  }
+  return isValidEmailFormat(normalized) ? null : 'Please enter a valid email address.';
+}
+
+export function validateEmailOrPhone({ email, phone, emailLabel = 'Email', phoneLabel = 'Phone' } = {}) {
+  const hasEmail = Boolean(normalizeEmail(email));
+  const hasPhone = hasValidPhone(phone);
+  if (!hasEmail && !hasPhone) {
+    return {
+      email: `Enter ${emailLabel.toLowerCase()} or ${phoneLabel.toLowerCase()}.`,
+      phone: `Enter ${phoneLabel.toLowerCase()} or ${emailLabel.toLowerCase()}.`,
+    };
+  }
+  if (hasEmail) {
+    const emailErr = validateEmail(email);
+    if (emailErr) return { email: emailErr };
+  }
+  if (hasPhone) {
+    const digits = phoneDigits(phone);
+    if (digits.length < 7) return { phone: 'Please enter a valid phone number.' };
+  }
+  return {};
 }

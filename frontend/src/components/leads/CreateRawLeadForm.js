@@ -6,19 +6,14 @@ import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
-import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
-import { validateRequired, validateEmail } from '../../lib/validators.js';
-import { validateEmailUnique } from '../../lib/emailHelpers.js';
-import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
+import { validateRequired, validateEmail, validateEmailOrPhone } from '../../lib/validators.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { PIPELINE_RAW } from '../../lib/pipelineHelpers.js';
 import {
   LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES,
 } from '../../lib/constants.js';
-import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
-import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 
 const COUNTRIES = ['India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Singapore', 'UAE', 'Other'];
 const INDIAN_STATES = [
@@ -61,11 +56,10 @@ export function emptyRawLeadForm(ownerId = '') {
     latitude: '',
     longitude: '',
     description: '',
-    currency: DEFAULT_CURRENCY,
   };
 }
 
-const REQUIRED = { first_name: 'First Name', last_name: 'Last Name', company: 'Company', email: 'Email' };
+const REQUIRED = { first_name: 'First Name', last_name: 'Last Name', company: 'Company' };
 
 function SectionTitle({ children }) {
   return <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3 mt-6 first:mt-0">{children}</p>;
@@ -86,13 +80,11 @@ export default function CreateRawLeadForm() {
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canAssignLeads } = usePermissions();
   const [form, setForm] = useState(() => emptyRawLeadForm(user?.id || ''));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
-  const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
 
   useEffect(() => {
     if (user?.id) setForm((f) => ({ ...f, owner_id: f.owner_id || user.id }));
@@ -114,28 +106,22 @@ export default function CreateRawLeadForm() {
     }));
   };
 
-  const validate = async () => {
+  const validate = () => {
     const errs = validateRequired(REQUIRED, form);
-    const emailErr = validateEmail(form.email);
-    if (emailErr) errs.email = emailErr;
+    Object.assign(errs, validateEmailOrPhone({ email: form.email, phone: form.phone }));
     if (form.secondary_email) {
       const secErr = validateEmail(form.secondary_email);
       if (secErr) errs.secondary_email = secErr;
     }
-    if (!errs.email && form.email) {
-      const uniqueErr = emailError || await validateEmailUnique(form.email);
-      if (uniqueErr) errs.email = uniqueErr;
-    }
     setErrors(errs);
-    if (Object.keys(errs).length) {
-      showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in required fields.');
-      return false;
-    }
-    return true;
+    return Object.keys(errs).length === 0;
   };
 
   const handleSave = async () => {
-    if (!(await validate())) return;
+    if (!validate()) {
+      showToast('Please fill in required fields.');
+      return;
+    }
     setSaving(true);
     try {
       const created = await leadsApi.createRawLead(form);
@@ -161,7 +147,6 @@ export default function CreateRawLeadForm() {
         <div className="card p-6">
           <SectionTitle>Lead Information</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            {canAssignLeads && (
             <FormField label="Lead Owner" name="owner_id">
               <select className="input" value={form.owner_id} onChange={set('owner_id')}>
                 {users.length === 0 && user && (
@@ -172,7 +157,6 @@ export default function CreateRawLeadForm() {
                 ))}
               </select>
             </FormField>
-            )}
             <div className="sm:col-span-2 grid grid-cols-[120px_1fr] gap-3">
               <FormField label="First Name">
                 {noneSelect(form.salutation, set('salutation'), SALUTATIONS)}
@@ -183,14 +167,6 @@ export default function CreateRawLeadForm() {
             </div>
             <FormField label="Title" name="title">
               <input className="input" value={form.title} onChange={set('title')} />
-            </FormField>
-            <FormField label="Email" required error={errors.email || emailError} name="email">
-              <div>
-                <input className={inputClass(errors.email || emailError)} type="email" value={form.email} onChange={set('email')} />
-                {checkingEmail && !(errors.email || emailError) && (
-                  <p className="text-xs text-zoho-muted mt-1">Checking availability…</p>
-                )}
-              </div>
             </FormField>
             <FormField label="Phone" name="phone">
               <input className="input" value={form.phone} onChange={set('phone')} />
@@ -205,12 +181,10 @@ export default function CreateRawLeadForm() {
               {noneSelect(form.industry, set('industry'), INDUSTRIES)}
             </FormField>
             <FormField label="Annual Revenue" name="annual_revenue">
-              <CurrencyAmountInput
-                amount={form.annual_revenue}
-                currency={form.currency}
-                onAmountChange={set('annual_revenue')}
-                onCurrencyChange={set('currency')}
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zoho-muted">Rs.</span>
+                <input className="input pl-10" type="number" value={form.annual_revenue} onChange={set('annual_revenue')} />
+              </div>
             </FormField>
             <FormField label="Email Opt Out" name="email_opt_out">
               <label className="flex items-center gap-2 text-sm h-10">
@@ -223,6 +197,9 @@ export default function CreateRawLeadForm() {
             </FormField>
             <FormField label="Last Name" required error={errors.last_name} name="last_name">
               <input className={inputClass(errors.last_name)} value={form.last_name} onChange={set('last_name')} />
+            </FormField>
+            <FormField label="Email" error={errors.email} name="email">
+              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
             </FormField>
             <FormField label="Fax" name="fax">
               <input className="input" value={form.fax} onChange={set('fax')} />
@@ -296,7 +273,7 @@ export default function CreateRawLeadForm() {
 
           <div className="flex gap-2 justify-end pt-6 mt-4 border-t border-zoho-border">
             <Link href="/raw-leads" className="btn-secondary">Cancel</Link>
-            <button type="button" onClick={handleSave} disabled={saving || checkingEmail || !!emailError} className="btn-primary">
+            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
               {saving ? 'Saving...' : 'Save Raw Lead'}
             </button>
           </div>
