@@ -5,21 +5,20 @@ import CRMLayout from '../../components/layout/CRMLayout.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import * as dashboardApi from '../../lib/services/dashboard.js';
-import * as reportsApi from '../../lib/services/reports.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { QUICK_CREATE } from '../../lib/constants.js';
 import { userBriefName } from '../../lib/activityHelpers.js';
 import {
-  CurrencyRupeeIcon, CheckCircleIcon, CalendarDaysIcon, UserGroupIcon,
+  UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 const COLORS = ['#6f5cf5', '#14c8b0', '#ff9f5a', '#ff5fa2', '#3aa0ff', '#ffc94d'];
 
 const DASHBOARD_VIEWS = {
-  'Classic View': { showPipeline: true, showLeadsChart: true, showRecent: true, showTopAccounts: true, showQuickCreate: true },
-  'Manager View': { showPipeline: true, showLeadsChart: false, showRecent: true, showTopAccounts: true, showQuickCreate: false },
-  'My View': { showPipeline: false, showLeadsChart: true, showRecent: true, showTopAccounts: false, showQuickCreate: true },
+  'Classic View': { showLeadsChart: true, showRecent: true, showTopAccounts: true, showQuickCreate: true },
+  'Manager View': { showLeadsChart: true, showRecent: true, showTopAccounts: true, showQuickCreate: false },
+  'My View': { showLeadsChart: true, showRecent: true, showTopAccounts: false, showQuickCreate: true },
 };
 
 function Widget({ title, children, className = '' }) {
@@ -59,33 +58,16 @@ export default function DashboardPage() {
   const [homeView, setHomeView] = useState('Classic View');
 
   useEffect(() => {
-    const closedStages = new Set(['closed_won', 'closed_lost']);
     Promise.all([
       dashboardApi.getDashboardHome(),
-      reportsApi.getDealReport({ group_by: 'stage' }),
       leadsApi.countLeadsThisMonth().catch(() => 0),
-    ]).then(([home, dealStageReport, leadsThisMonth]) => {
-      const openRows = (dealStageReport.rows || []).filter(r => !closedStages.has(r.key));
-      const pipelineValue = openRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    ]).then(([home, leadsThisMonth]) => {
       const leadsTotal = (home.leads_by_status || []).reduce((s, r) => s + r.count, 0);
+      const qualifiedCount = (home.leads_by_status || []).find(r => /qualified/i.test(r.label || r.key || ''))?.count ?? 0;
       setStats({
-        leads: { total: leadsTotal, this_month: leadsThisMonth },
-        deals: {
-          open_deals: home.open_deals?.count ?? 0,
-          open_value: Number(home.open_deals?.total_amount) || 0,
-          pipeline_value: pipelineValue,
-        },
-        tasksDueToday: home.tasks?.due_today_count ?? 0,
-        tasksOverdue: home.tasks?.overdue_count ?? 0,
-        dealsClosingMonth: {
-          count: home.deals_closing_this_month?.total_count ?? 0,
-          value: Number(home.deals_closing_this_month?.total_amount) || 0,
-        },
-        pipeline: (dealStageReport.rows || []).map(r => ({
-          stage: r.label,
-          total: Number(r.amount) || 0,
-          count: r.count,
-        })),
+        leads: { total: leadsTotal, this_month: leadsThisMonth, qualified: qualifiedCount },
+        accounts: { total: (home.top_accounts || []).length },
+        topAccountRevenue: (home.top_accounts || []).reduce((s, a) => s + (Number(a.annual_revenue) || 0), 0),
         leadsByStatus: (home.leads_by_status || []).map(r => ({
           status: r.label,
           count: r.count,
@@ -134,53 +116,38 @@ export default function DashboardPage() {
           <div className="grid grid-cols-12 gap-4">
             {/* Row 1 - KPI cards with vibrant gradients */}
             <KpiCard
-              title="My Open Deals"
-              value={stats.deals.open_deals}
-              sub={fmt(stats.deals.open_value || stats.deals.pipeline_value)}
-              icon={CurrencyRupeeIcon}
-              gradient="bg-gradient-to-br from-brand-500 to-brand-700"
-            />
-            <KpiCard
-              title="Tasks Due Today"
-              value={stats.tasksDueToday}
-              sub={stats.tasksOverdue > 0 ? `${stats.tasksOverdue} overdue` : 'All caught up'}
-              subClass={stats.tasksOverdue > 0 ? 'text-yellow-100' : 'text-white/80'}
-              icon={CheckCircleIcon}
-              gradient="bg-gradient-to-br from-accent-pink to-brand-600"
-            />
-            <KpiCard
-              title="Deals Closing This Month"
-              value={stats.dealsClosingMonth?.count || 0}
-              sub={fmt(stats.dealsClosingMonth?.value)}
-              icon={CalendarDaysIcon}
-              gradient="bg-gradient-to-br from-accent-orange to-accent-pink"
-            />
-            <KpiCard
               title="Total Leads"
               value={stats.leads.total}
               sub={`+${stats.leads.this_month} this month`}
               icon={UserGroupIcon}
               gradient="bg-gradient-to-br from-accent-teal to-brand-600"
             />
+            <KpiCard
+              title="Qualified Leads"
+              value={stats.leads.qualified}
+              sub="In qualified stage"
+              icon={ChartBarIcon}
+              gradient="bg-gradient-to-br from-brand-500 to-brand-700"
+            />
+            <KpiCard
+              title="Top Accounts"
+              value={stats.accounts.total}
+              sub={fmt(stats.topAccountRevenue)}
+              icon={BuildingOffice2Icon}
+              gradient="bg-gradient-to-br from-accent-orange to-accent-pink"
+            />
+            <Link href="/proposals" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
+              <KpiCard
+                title="Proposals"
+                value="Open"
+                sub="Manage proposal pipeline"
+                icon={DocumentTextIcon}
+                gradient="bg-gradient-to-br from-accent-pink to-brand-600"
+              />
+            </Link>
 
-            {/* Pipeline by Stage */}
-            {viewLayout.showPipeline && (
-            <Widget title="Pipeline by Stage" className="col-span-12 lg:col-span-7">
-              {stats.pipeline?.length > 0 ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={stats.pipeline} margin={{ left: -20 }}>
-                    <XAxis dataKey="stage" tick={{ fontSize: 9 }} /><YAxis tick={{ fontSize: 10 }} tickFormatter={v => `₹${(v/100000).toFixed(0)}L`} />
-                    <Tooltip formatter={(v) => [`₹${(v/100000).toFixed(1)}L`, 'Value']} contentStyle={{ borderRadius: 12, border: '1px solid #e7e5fb' }} cursor={{ fill: 'rgba(111,92,245,0.06)' }} />
-                    <Bar dataKey="total" radius={[6,6,0,0]}>{stats.pipeline.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <p className="text-sm text-zoho-muted text-center py-8">No pipeline data</p>}
-            </Widget>
-            )}
-
-            {/* My Leads by Status */}
             {viewLayout.showLeadsChart && (
-            <Widget title="My Leads by Status" className="col-span-12 lg:col-span-5">
+            <Widget title="My Leads by Status" className="col-span-12 lg:col-span-6">
               {stats.leadsByStatus?.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart><Pie data={stats.leadsByStatus} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} label={({ status, count }) => `${status}: ${count}`}>
@@ -193,7 +160,7 @@ export default function DashboardPage() {
 
             {/* Recent Activities */}
             {viewLayout.showRecent && (
-            <Widget title="Recent Activities" className="col-span-12 lg:col-span-6">
+            <Widget title="Recent Updates" className="col-span-12 lg:col-span-6">
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {stats.recentActivities?.map(act => (
                   <div key={act.id} className="flex gap-3 text-sm py-2 px-2 -mx-2 rounded-lg hover:bg-brand-50/60 transition-colors">

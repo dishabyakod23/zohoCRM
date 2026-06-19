@@ -8,9 +8,13 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { LEAD_SOURCES, SALUTATIONS } from '../../lib/constants.js';
-import { validateRequired, validateEmail } from '../../lib/validators.js';
+import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
+import { validateEmailUnique } from '../../lib/emailHelpers.js';
+import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchAccountLookups, fetchUsers } from '../../lib/services/lookups.js';
+import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 
 export function emptyContactForm() {
   return {
@@ -26,6 +30,7 @@ export function emptyContactForm() {
     other_country: '', other_zip: '', other_lat: '', other_lng: '',
     description: '',
     proposal_amount: '',
+    currency: DEFAULT_CURRENCY,
   };
 }
 
@@ -98,6 +103,7 @@ export default function CreateContactForm() {
   const [saving, setSaving] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [users, setUsers] = useState([]);
+  const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
   const [contacts, setContacts] = useState([]);
 
   useEffect(() => {
@@ -131,16 +137,20 @@ export default function CreateContactForm() {
   };
 
   const handleSave = async () => {
-    const errs = validateRequired({ last_name: 'Last Name', account_id: 'Account Name', email: 'Email', phone: 'Phone' }, form);
-    const emailErr = validateEmail(form.email, { required: true });
+    const errs = validateRequired({ last_name: 'Last Name', account_id: 'Account Name', email: 'Email' }, form);
+    const emailErr = validateEmail(form.email);
     if (emailErr) errs.email = emailErr;
-    if (form.secondary_email) {
-      const secErr = validateEmail(form.secondary_email);
-      if (secErr) errs.secondary_email = secErr;
+    if (form.phone) {
+      const phoneErr = validatePhone(form.phone);
+      if (phoneErr) errs.phone = phoneErr;
+    }
+    if (!errs.email && form.email) {
+      const uniqueErr = emailError || await validateEmailUnique(form.email);
+      if (uniqueErr) errs.email = uniqueErr;
     }
     setErrors(errs);
     if (Object.keys(errs).length) {
-      showToast('Please fill in all required fields before saving.');
+      showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in all required fields before saving.');
       return;
     }
     setSaving(true);
@@ -167,7 +177,7 @@ export default function CreateContactForm() {
           <h1 className="text-lg font-semibold text-zoho-text">Create Contact</h1>
           <div className="flex gap-2">
             <Link href="/contacts" className="btn-secondary">Cancel</Link>
-            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
+            <button type="button" onClick={handleSave} disabled={saving || checkingEmail || !!emailError} className="btn-primary">
               {saving ? 'Saving…' : 'Save Contact'}
             </button>
           </div>
@@ -203,6 +213,15 @@ export default function CreateContactForm() {
               <input className={inputClass(errors.last_name)} value={form.last_name} onChange={set('last_name')} />
             </FormField>
 
+            <FormField label="Email" required error={errors.email || emailError} name="email">
+              <div>
+                <input className={inputClass(errors.email || emailError)} type="email" value={form.email} onChange={set('email')} />
+                {checkingEmail && !(errors.email || emailError) && (
+                  <p className="text-xs text-zoho-muted mt-1">Checking availability…</p>
+                )}
+              </div>
+            </FormField>
+
             <FormField label="Account Name" required error={errors.account_id} name="account_id">
               <select className={inputClass(errors.account_id)} value={form.account_id} onChange={set('account_id')}>
                 <option value="">—None—</option>
@@ -210,11 +229,7 @@ export default function CreateContactForm() {
               </select>
             </FormField>
 
-            <FormField label="Email" required error={errors.email} name="email">
-              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
-            </FormField>
-
-            <FormField label="Phone" required error={errors.phone} name="phone">
+            <FormField label="Phone" error={errors.phone} name="phone">
               <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} />
             </FormField>
 
@@ -301,11 +316,12 @@ export default function CreateContactForm() {
           {/* ── Description ── */}
           <SectionTitle>Description Information</SectionTitle>
           <FormField label="Proposal Amount" name="proposal_amount">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm text-zoho-muted shrink-0">Rs.</span>
-              <input className="input flex-1" type="number" min="0" step="any"
-                value={form.proposal_amount} onChange={set('proposal_amount')} />
-            </div>
+            <CurrencyAmountInput
+              amount={form.proposal_amount}
+              currency={form.currency}
+              onAmountChange={set('proposal_amount')}
+              onCurrencyChange={set('currency')}
+            />
           </FormField>
           <FormField label="Description" name="description">
             <textarea className="input min-h-[100px] resize-y" placeholder="Add a description…"

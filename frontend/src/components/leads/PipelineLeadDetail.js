@@ -9,10 +9,10 @@ import ConfirmDialog from '../ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import RecordDetailLayout, { InfoRow } from '../records/RecordDetailLayout.js';
 import EditableFieldSection from '../records/EditableFieldSection.js';
+import EditableEmailField from '../forms/EditableEmailField.js';
 import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
-import { canModifyCreatedRecord, canDeleteCreatedRecord } from '../../lib/roles.js';
 import { getApiError } from '../../lib/api.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { trackRecentItem } from '../layout/BottomUtilityBar.js';
@@ -20,6 +20,7 @@ import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { getPipelineConfig, pipelineStageLabel, isProposalLead, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, proposalDealStatusLabel } from '../../lib/pipelineHelpers.js';
 import { LEAD_SOURCES } from '../../lib/constants.js';
+import { formatMoney, CURRENCIES } from '../../lib/currencies.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon, UserIcon,
 } from '@heroicons/react/24/outline';
@@ -118,7 +119,7 @@ export default function PipelineLeadDetail({ stage }) {
 
   if (!lead) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
 
-  const editable = canModifyCreatedRecord(lead, user, user?.role);
+  const editable = canEdit;
   const select = (opts, key = 'value', labelKey = 'label') => (draft, setDraft, field) => (
     <select className="input" value={draft[field] ?? ''} onChange={(e) => setDraft((d) => ({ ...d, [field]: e.target.value }))}>
       <option value="">--None--</option>
@@ -152,7 +153,7 @@ export default function PipelineLeadDetail({ stage }) {
                 <UserIcon className="w-4 h-4" /> Assign
               </button>
             )}
-            {canDelete && canDeleteCreatedRecord(lead, user, user?.role) && (
+            {canDelete && (
               <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
                 <TrashIcon className="w-4 h-4" /> Delete
               </button>
@@ -204,7 +205,12 @@ export default function PipelineLeadDetail({ stage }) {
                 { name: 'proposal_date', label: 'Proposal Date', format: (v) => (v ? new Date(v).toLocaleDateString() : null), render: (d, set) => (
                   <input className="input" type="date" value={(d.proposal_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, proposal_date: e.target.value }))} />
                 ) },
-                { name: 'deal_size', label: 'Size of the Deal', format: (v) => (v != null && v !== '' ? `Rs. ${Number(v).toLocaleString('en-IN')}` : null) },
+                { name: 'deal_size', label: 'Size of the Deal', format: (v) => formatMoney(v, lead.currency) },
+                { name: 'currency', label: 'Currency', render: (d, set) => (
+                  <select className="input" value={d.currency ?? lead.currency ?? 'INR'} onChange={(e) => set((p) => ({ ...p, currency: e.target.value }))}>
+                    {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+                  </select>
+                ) },
                 { name: 'closure_date', label: 'Closure Date', format: (v) => (v ? new Date(v).toLocaleDateString() : null), render: (d, set) => (
                   <input className="input" type="date" value={(d.closure_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, closure_date: e.target.value }))} />
                 ) },
@@ -219,7 +225,13 @@ export default function PipelineLeadDetail({ stage }) {
             values={lead}
             onSave={saveSection}
             fields={[
-              { name: 'email', label: 'Email' },
+              { name: 'email', label: 'Email', render: (d, set) => (
+                <EditableEmailField
+                  value={d.email}
+                  onChange={(e) => set((p) => ({ ...p, email: e.target.value }))}
+                  excludeLeadId={id}
+                />
+              ) },
               { name: 'phone', label: 'Phone' },
               { name: 'mobile', label: 'Mobile' },
             ]}

@@ -8,9 +8,13 @@ import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES } from '../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
-import { validateRequired, validateEmail, validateEmailOrPhone, validatePhone } from '../../lib/validators.js';
+import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
+import { validateEmailUnique } from '../../lib/emailHelpers.js';
+import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 
 export function emptyLeadForm() {
   return {
@@ -20,10 +24,11 @@ export function emptyLeadForm() {
     proposal_amount: '',
     street: '', city: '', state: '', zip_code: '', country: 'India',
     description: '',
+    currency: DEFAULT_CURRENCY,
   };
 }
 
-const REQUIRED = { first_name: 'First Name', last_name: 'Last Name', company: 'Company', lead_status: 'Lead Status' };
+const REQUIRED = { first_name: 'First Name', last_name: 'Last Name', company: 'Company', email: 'Email', lead_status: 'Lead Status' };
 
 function SectionTitle({ children }) {
   return <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3 mt-6 first:mt-0">{children}</p>;
@@ -36,6 +41,7 @@ export default function CreateLeadForm() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
 
   useEffect(() => {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
@@ -46,16 +52,21 @@ export default function CreateLeadForm() {
     setErrors((er) => ({ ...er, [field]: null }));
   };
 
-  const validate = () => {
+  const validate = async () => {
     const errs = validateRequired(REQUIRED, form);
-    Object.assign(errs, validateEmailOrPhone({ email: form.email, phone: form.phone }));
+    const emailErr = validateEmail(form.email);
+    if (emailErr) errs.email = emailErr;
     if (form.phone) {
       const phoneErr = validatePhone(form.phone);
       if (phoneErr) errs.phone = phoneErr;
     }
+    if (!errs.email && form.email) {
+      const uniqueErr = emailError || await validateEmailUnique(form.email);
+      if (uniqueErr) errs.email = uniqueErr;
+    }
     setErrors(errs);
     if (Object.keys(errs).length) {
-      showToast('Please fill in all required fields before saving.');
+      showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in all required fields before saving.');
       document.querySelector(`[data-field="${Object.keys(errs)[0]}"]`)?.scrollIntoView({ behavior: 'smooth' });
       return false;
     }
@@ -63,7 +74,7 @@ export default function CreateLeadForm() {
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    if (!(await validate())) return;
     setSaving(true);
     try {
       const created = await leadsApi.createLead(form);
@@ -132,11 +143,21 @@ export default function CreateLeadForm() {
                 {RATINGS.map((r) => <option key={r}>{r}</option>)}
               </select>
             </FormField>
-            <FormField label="Annual Revenue">
-              <input className="input" type="number" placeholder="₹" value={form.annual_revenue} onChange={set('annual_revenue')} />
+            <FormField label="Annual Revenue" name="annual_revenue">
+              <CurrencyAmountInput
+                amount={form.annual_revenue}
+                currency={form.currency}
+                onAmountChange={set('annual_revenue')}
+                onCurrencyChange={set('currency')}
+              />
             </FormField>
-            <FormField label="Proposal Amount">
-              <input className="input" type="number" placeholder="₹" value={form.proposal_amount} onChange={set('proposal_amount')} />
+            <FormField label="Proposal Amount" name="proposal_amount">
+              <CurrencyAmountInput
+                amount={form.proposal_amount}
+                currency={form.currency}
+                onAmountChange={set('proposal_amount')}
+                onCurrencyChange={set('currency')}
+              />
             </FormField>
             <FormField label="No. of Employees">
               <input className="input" type="number" value={form.no_of_employees} onChange={set('no_of_employees')} />
@@ -148,8 +169,13 @@ export default function CreateLeadForm() {
 
           <SectionTitle>Contact Information</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            <FormField label="Email" error={errors.email} name="email">
-              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
+            <FormField label="Email" required error={errors.email || emailError} name="email">
+              <div>
+                <input className={inputClass(errors.email || emailError)} type="email" value={form.email} onChange={set('email')} />
+                {checkingEmail && !(errors.email || emailError) && (
+                  <p className="text-xs text-zoho-muted mt-1">Checking availability…</p>
+                )}
+              </div>
             </FormField>
             <FormField label="Phone" error={errors.phone} name="phone">
               <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} />
@@ -187,7 +213,7 @@ export default function CreateLeadForm() {
 
           <div className="flex gap-2 justify-end pt-6 mt-4 border-t border-zoho-border">
             <Link href="/leads" className="btn-secondary">Cancel</Link>
-            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
+            <button type="button" onClick={handleSave} disabled={saving || checkingEmail || !!emailError} className="btn-primary">
               {saving ? 'Saving...' : 'Save Lead'}
             </button>
           </div>

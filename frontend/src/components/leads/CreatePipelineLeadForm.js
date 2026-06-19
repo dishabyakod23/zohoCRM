@@ -6,12 +6,18 @@ import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
-import { validateRequired, validateEmail, validateEmailOrPhone } from '../../lib/validators.js';
+import { validateRequired, validateEmail } from '../../lib/validators.js';
+import { validateEmailUnique } from '../../lib/emailHelpers.js';
+import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import { PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
 import {
   LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES,
 } from '../../lib/constants.js';
+import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 
 const COUNTRIES = ['India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Singapore', 'UAE', 'Other'];
 const INDIAN_STATES = [
@@ -34,6 +40,10 @@ export function emptyPipelineLeadForm(ownerId = '', defaults = {}) {
     industry: '',
     annual_revenue: '',
     proposal_amount: '',
+    proposal_date: '',
+    deal_size: '',
+    closure_date: '',
+    deal_status: 'active_proposal',
     email_opt_out: false,
     company: '',
     last_name: '',
@@ -55,11 +65,12 @@ export function emptyPipelineLeadForm(ownerId = '', defaults = {}) {
     latitude: '',
     longitude: '',
     description: '',
+    currency: DEFAULT_CURRENCY,
     ...defaults,
   };
 }
 
-const REQUIRED = { first_name: 'First Name', last_name: 'Last Name', company: 'Company' };
+const REQUIRED = { first_name: 'First Name', last_name: 'Last Name', company: 'Company', email: 'Email' };
 
 function SectionTitle({ children }) {
   return <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3 mt-6 first:mt-0">{children}</p>;
@@ -86,15 +97,18 @@ export default function CreatePipelineLeadForm({
   createFn,
   showLeadStatus = false,
   showLeadSource = true,
+  showProposalFields = false,
 }) {
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
+  const { canAssignLeads } = usePermissions();
   const [form, setForm] = useState(() => emptyPipelineLeadForm(user?.id || '', emptyFormDefaults));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
 
   useEffect(() => {
     if (user?.id) setForm((f) => ({ ...f, owner_id: f.owner_id || user.id }));
@@ -116,22 +130,28 @@ export default function CreatePipelineLeadForm({
     }));
   };
 
-  const validate = () => {
+  const validate = async () => {
     const errs = validateRequired(REQUIRED, form);
-    Object.assign(errs, validateEmailOrPhone({ email: form.email, phone: form.phone }));
+    const emailErr = validateEmail(form.email);
+    if (emailErr) errs.email = emailErr;
     if (form.secondary_email) {
       const secErr = validateEmail(form.secondary_email);
       if (secErr) errs.secondary_email = secErr;
     }
+    if (!errs.email && form.email) {
+      const uniqueErr = emailError || await validateEmailUnique(form.email);
+      if (uniqueErr) errs.email = uniqueErr;
+    }
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+    if (Object.keys(errs).length) {
+      showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in required fields.');
+      return false;
+    }
+    return true;
   };
 
   const handleSave = async () => {
-    if (!validate()) {
-      showToast('Please fill in required fields.');
-      return;
-    }
+    if (!(await validate())) return;
     setSaving(true);
     try {
       const created = await createFn(form);
@@ -157,16 +177,18 @@ export default function CreatePipelineLeadForm({
         <div className="card p-6">
           <SectionTitle>Lead Information</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            <FormField label="Lead Owner" name="owner_id">
-              <select className="input" value={form.owner_id} onChange={set('owner_id')}>
-                {users.length === 0 && user && (
-                  <option value={user.id}>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email}</option>
-                )}
-                {users.map((u) => (
-                  <option key={u.id || u.value} value={u.id || u.value}>{u.name}</option>
-                ))}
-              </select>
-            </FormField>
+            {canAssignLeads && (
+              <FormField label="Lead Owner" name="owner_id">
+                <select className="input" value={form.owner_id} onChange={set('owner_id')}>
+                  {users.length === 0 && user && (
+                    <option value={user.id}>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email}</option>
+                  )}
+                  {users.map((u) => (
+                    <option key={u.id || u.value} value={u.id || u.value}>{u.name}</option>
+                  ))}
+                </select>
+              </FormField>
+            )}
             <div className="sm:col-span-2 grid grid-cols-[120px_1fr] gap-3">
               <FormField label="First Name">
                 {noneSelect(form.salutation, set('salutation'), SALUTATIONS)}
@@ -177,6 +199,14 @@ export default function CreatePipelineLeadForm({
             </div>
             <FormField label="Title" name="title">
               <input className="input" value={form.title} onChange={set('title')} />
+            </FormField>
+            <FormField label="Email" required error={errors.email || emailError} name="email">
+              <div>
+                <input className={inputClass(errors.email || emailError)} type="email" value={form.email} onChange={set('email')} />
+                {checkingEmail && !(errors.email || emailError) && (
+                  <p className="text-xs text-zoho-muted mt-1">Checking availability…</p>
+                )}
+              </div>
             </FormField>
             <FormField label="Phone" name="phone">
               <input className="input" value={form.phone} onChange={set('phone')} />
@@ -193,17 +223,23 @@ export default function CreatePipelineLeadForm({
               {noneSelect(form.industry, set('industry'), INDUSTRIES)}
             </FormField>
             <FormField label="Annual Revenue" name="annual_revenue">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zoho-muted">Rs.</span>
-                <input className="input pl-10" type="number" value={form.annual_revenue} onChange={set('annual_revenue')} />
-              </div>
+              <CurrencyAmountInput
+                amount={form.annual_revenue}
+                currency={form.currency}
+                onAmountChange={set('annual_revenue')}
+                onCurrencyChange={set('currency')}
+              />
             </FormField>
-            <FormField label="Proposal Amount" name="proposal_amount">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zoho-muted">Rs.</span>
-                <input className="input pl-10" type="number" value={form.proposal_amount} onChange={set('proposal_amount')} />
-              </div>
-            </FormField>
+            {!showProposalFields && (
+              <FormField label="Proposal Amount" name="proposal_amount">
+                <CurrencyAmountInput
+                  amount={form.proposal_amount}
+                  currency={form.currency}
+                  onAmountChange={set('proposal_amount')}
+                  onCurrencyChange={set('currency')}
+                />
+              </FormField>
+            )}
             <FormField label="Email Opt Out" name="email_opt_out">
               <label className="flex items-center gap-2 text-sm h-10">
                 <input type="checkbox" checked={form.email_opt_out} onChange={set('email_opt_out')} />
@@ -215,9 +251,6 @@ export default function CreatePipelineLeadForm({
             </FormField>
             <FormField label="Last Name" required error={errors.last_name} name="last_name">
               <input className={inputClass(errors.last_name)} value={form.last_name} onChange={set('last_name')} />
-            </FormField>
-            <FormField label="Email" error={errors.email} name="email">
-              <input className={inputClass(errors.email)} type="email" value={form.email} onChange={set('email')} />
             </FormField>
             <FormField label="Fax" name="fax">
               <input className="input" value={form.fax} onChange={set('fax')} />
@@ -249,6 +282,31 @@ export default function CreatePipelineLeadForm({
               </div>
             </FormField>
           </div>
+
+          {showProposalFields && (
+            <>
+              <SectionTitle>Proposal Information</SectionTitle>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <FormField label="Proposal Date" name="proposal_date">
+                  <input className="input" type="date" value={form.proposal_date?.slice?.(0, 10) || form.proposal_date || ''} onChange={set('proposal_date')} />
+                </FormField>
+                <FormField label="Size of the Deal" name="deal_size">
+                  <CurrencyAmountInput
+                    amount={form.deal_size}
+                    currency={form.currency}
+                    onAmountChange={set('deal_size')}
+                    onCurrencyChange={set('currency')}
+                  />
+                </FormField>
+                <FormField label="Closure Date" name="closure_date">
+                  <input className="input" type="date" value={form.closure_date?.slice?.(0, 10) || form.closure_date || ''} onChange={set('closure_date')} />
+                </FormField>
+                <FormField label="Deal Status" name="deal_status">
+                  {noneSelect(form.deal_status, set('deal_status'), PROPOSAL_DEAL_STATUSES)}
+                </FormField>
+              </div>
+            </>
+          )}
 
           <SectionTitle>Address Information</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
@@ -293,7 +351,7 @@ export default function CreatePipelineLeadForm({
 
           <div className="flex gap-2 justify-end pt-6 mt-4 border-t border-zoho-border">
             <Link href={listPath} className="btn-secondary">Cancel</Link>
-            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
+            <button type="button" onClick={handleSave} disabled={saving || checkingEmail || !!emailError} className="btn-primary">
               {saving ? 'Saving...' : saveLabel}
             </button>
           </div>

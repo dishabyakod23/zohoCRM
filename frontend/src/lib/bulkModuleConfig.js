@@ -12,7 +12,6 @@ import * as projectsApi from './services/projects.js';
 import {
   PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL,
 } from './pipelineHelpers.js';
-import { isMailableEmail, normalizeEmail } from './emailHelpers.js';
 
 const CONVERT_OPTIONS = [
   { value: PIPELINE_LEAD, label: 'Lead' },
@@ -212,9 +211,7 @@ export function printMailingLabels(records, config) {
 }
 
 export function sendBulkEmail(records, emailField) {
-  const emails = records
-    .map((r) => normalizeEmail(r[emailField]))
-    .filter((email) => isMailableEmail(email));
+  const emails = records.map((r) => r[emailField]).filter(Boolean);
   if (!emails.length) return null;
   return `mailto:?bcc=${encodeURIComponent(emails.join(','))}`;
 }

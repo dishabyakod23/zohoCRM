@@ -50,13 +50,6 @@ export async function fetchUsers() {
   }));
 }
 
-/** Server-side email validation (uses Abstract API when configured on backend). */
-export async function verifyEmailAddress(email) {
-  if (!email?.trim()) return { is_valid: false, message: 'Email is required.' };
-  const res = await api.get('/lookups/validate-email', { params: { email: email.trim() } });
-  return res.data.data || {};
-}
-
 export async function fetchDealStages() {
   const res = await api.get('/lookups/deal-stages');
   const options = parseLookupOptions(res.data.data, dealStageLabel);
@@ -66,6 +59,15 @@ export async function fetchDealStages() {
 export async function fetchAccountLookups() {
   const res = await api.get('/lookups/accounts');
   return parseLookupOptions(res.data.data).map(a => ({ ...a, name: a.label }));
+}
+
+export async function fetchContactLookups() {
+  const res = await api.get('/lookups/contacts');
+  return (res.data.data || []).map((c) => ({
+    value: c.value ?? c.id,
+    label: (c.label ?? `${c.first_name || ''} ${c.last_name || ''}`.trim()) || c.email || c.value,
+    email: c.email,
+  })).filter((c) => c.value);
 }
 
 async function fetchLookup(path, labelFn) {
@@ -92,7 +94,29 @@ const MASS_UPDATE_FIELD_LOOKUPS = {
   source: '/lookups/lead-sources',
   lead_source: '/lookups/lead-sources',
   convert: '/lookups/pipeline-convert-targets',
+  owner_id: '/lookups/users',
+  owner: '/lookups/users',
+  lead_owner: '/lookups/users',
 };
+
+export function isLeadOwnerMassUpdateField(fieldDef) {
+  if (!fieldDef) return false;
+  const field = normalizeMassUpdateField(fieldDef);
+  const value = String(field.value || '').toLowerCase();
+  const label = String(field.label || '').toLowerCase();
+  return value === 'owner_id'
+    || value === 'owner'
+    || value === 'lead_owner'
+    || label === 'owner'
+    || label === 'lead owner'
+    || label.includes('lead owner');
+}
+
+/** Remove owner field from mass-update list when user cannot reassign leads. */
+export function filterLeadMassUpdateFields(fields, { canChangeOwner = false } = {}) {
+  if (canChangeOwner) return fields || [];
+  return (fields || []).filter((f) => !isLeadOwnerMassUpdateField(f));
+}
 
 export function isConvertMassUpdateField(fieldDef) {
   if (!fieldDef) return false;
@@ -102,6 +126,7 @@ export function isConvertMassUpdateField(fieldDef) {
   const lookup = String(field.lookup || '').toLowerCase();
   return field.type === 'convert'
     || value === 'convert'
+    || value === 'pipeline_convert'
     || label === 'convert'
     || lookup.includes('pipeline-convert-targets')
     || lookup.includes('convert-target');
@@ -124,9 +149,10 @@ export async function fetchLeadSources() {
   return parseLookupOptions(res.data.data);
 }
 
-export async function fetchLeadMassUpdateFields() {
+export async function fetchLeadMassUpdateFields({ canChangeOwner = false } = {}) {
   const res = await api.get('/lookups/lead-mass-update-fields');
-  return (res.data.data || []).map(normalizeMassUpdateField);
+  const fields = (res.data.data || []).map(normalizeMassUpdateField);
+  return filterLeadMassUpdateFields(fields, { canChangeOwner });
 }
 
 export async function fetchPipelineConvertTargets() {
