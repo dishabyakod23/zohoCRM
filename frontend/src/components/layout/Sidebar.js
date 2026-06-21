@@ -2,9 +2,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { NAV_MODULES, MODULE_ICONS } from '../../lib/constants.js';
+import { NAV_MODULES } from '../../lib/constants.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import Logo from '../ui/Logo.js';
+import ModuleIcon from '../ui/ModuleIcon.js';
 
 function SidebarToggleIcon({ className = 'w-4 h-4' }) {
   return (
@@ -53,7 +54,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
   const navLink = (href, label, icon) => (
     <Link key={href} href={href} title={label} onClick={onNavigate}
       className={`zoho-nav-item ${isActive(href) ? 'zoho-nav-active' : 'zoho-nav-inactive'}`}>
-      <span className="text-base w-5 text-center shrink-0">{MODULE_ICONS[icon] || '•'}</span>
+      <ModuleIcon name={icon} />
       {!collapsed && <span className="truncate">{label}</span>}
     </Link>
   );

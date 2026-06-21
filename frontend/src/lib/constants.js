@@ -22,13 +22,9 @@ export const CAMPAIGN_TYPES = ['Email', 'Social', 'Webinar', 'Conference', 'Adve
 export const CAMPAIGN_STATUSES = ['Planning', 'Active', 'Inactive', 'Completed'];
 export const INDUSTRIES = ['IT Services', 'E-Commerce', 'EdTech', 'Automotive', 'Finance', 'Healthcare', 'Manufacturing', 'Other'];
 
-export const MODULE_ICONS = {
-  Home: '🏠', Contacts: '👤', Leads: '🎯', 'Raw Leads': '📥', Qualified: '✅', Proposals: '📝',
-  Accounts: '🏢', Calendar: '📅', Campaigns: '📣', Reports: '📊', Projects: '📁', 'Recycle Bin': '🗑️',
-};
-
 export const NAV_MODULES = [
   { href: '/dashboard', label: 'Home', section: 'main', icon: 'Home' },
+  { href: '/work-items', label: 'Work Items', section: 'main', icon: 'Work Items' },
   { href: '/reports', label: 'Reports', section: 'main', icon: 'Reports' },
   { href: '/recycle-bin', label: 'Recycle Bin', section: 'main', icon: 'Recycle Bin' },
   { href: '/contacts', label: 'Contacts', section: 'modules', icon: 'Contacts' },
@@ -50,6 +46,8 @@ export const QUICK_CREATE = [
   { label: 'Calendar Event', href: '/calendar', group: 'Sales' },
   { label: 'Campaign', href: '/campaigns?create=1', group: 'Marketing' },
 ];
+
+export const WORK_ITEM_VIEWS = ['All Work Items', 'Raw Leads', 'Leads', 'Qualified Leads', 'Proposals'];
 
 export const LIST_VIEWS = {
   leads: ['All Leads', 'My Leads', 'Unread Leads', 'Recently Created', 'Recently Modified'],

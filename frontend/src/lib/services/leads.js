@@ -89,6 +89,38 @@ export async function listLeads({
   };
 }
 
+export async function listWorkItems({
+  userId,
+  page = 1,
+  page_size = 15,
+  search,
+  pipeline_stage,
+  sort_by = 'updated_at',
+  sort_order = 'desc',
+  filters = {},
+  statusOptions,
+} = {}) {
+  if (!userId) return { data: [], total: 0 };
+
+  const params = { owner_id: userId };
+  if (search) params.search = search;
+  if (sort_by) params.sort_by = sort_by;
+  if (sort_order) params.sort_order = sort_order;
+
+  const allLeads = await fetchAllLeadPages(params, statusOptions);
+  let items = allLeads.filter((l) => !(l?.is_converted || l?.converted));
+  if (pipeline_stage) {
+    items = filterLeadsByPipelineStage(items, pipeline_stage);
+  }
+  items = applyLeadRecordFilters(items, { ...filters, owner_id: userId });
+
+  const start = (page - 1) * page_size;
+  return {
+    data: items.slice(start, start + page_size),
+    total: items.length,
+  };
+}
+
 export async function getLead(id) {
   const res = await api.get(`/leads/${id}`);
   return normalizeLead(res.data.data);
