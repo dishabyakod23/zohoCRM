@@ -14,7 +14,7 @@ import RecordNoteRowIcon from './RecordNoteRowIcon.js';
 import RecordNotesSidePanel from './RecordNotesSidePanel.js';
 import * as tasksApi from '../../lib/services/tasks.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
-import { fetchUsers, fetchMassUpdateFieldOptions, fetchPipelineConvertTargets, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
+import { fetchUsers, fetchMassUpdateFieldOptions, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
 
 const defaultGetRowId = (r) => r.id;
@@ -125,6 +125,7 @@ export default function RecordDataTable({
   emptyMessage = 'No records found',
   getRowId = defaultGetRowId,
   massUpdateFieldsLoader,
+  convertTargetsLoader,
   massUpdateHandler,
 }) {
   const { showToast } = useToast();
@@ -140,6 +141,7 @@ export default function RecordDataTable({
   const [massValue, setMassValue] = useState('');
   const [massUpdating, setMassUpdating] = useState(false);
   const [dynamicMassFields, setDynamicMassFields] = useState([]);
+  const [dynamicConvertTargets, setDynamicConvertTargets] = useState([]);
   const [massValueOptions, setMassValueOptions] = useState([]);
   const [loadingMassFields, setLoadingMassFields] = useState(false);
   const [loadingMassValueOptions, setLoadingMassValueOptions] = useState(false);
@@ -208,9 +210,32 @@ export default function RecordDataTable({
   }, [massUpdateOpen, massUpdateFieldsLoader, moduleKey, canAssignLeads]);
 
   useEffect(() => {
+    const fieldDef = dynamicMassFields.find((f) => f.value === massField);
+    const isConvert = isConvertMassUpdateField(fieldDef)
+      || String(massField).toLowerCase() === 'convert'
+      || String(massField).toLowerCase() === 'pipeline_convert';
+
+    if (!massField || !isConvert || !convertTargetsLoader) {
+      setDynamicConvertTargets([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setLoadingMassValueOptions(true);
+    setDynamicConvertTargets([]);
+
+    convertTargetsLoader()
+      .then((options) => { if (!cancelled) setDynamicConvertTargets(options); })
+      .catch(() => { if (!cancelled) setDynamicConvertTargets([]); })
+      .finally(() => { if (!cancelled) setLoadingMassValueOptions(false); });
+
+    return () => { cancelled = true; };
+  }, [massField, dynamicMassFields, convertTargetsLoader]);
+
+  useEffect(() => {
     if (!massField) {
       setMassValueOptions([]);
-      setLoadingMassValueOptions(false);
+      if (!convertTargetsLoader) setLoadingMassValueOptions(false);
       return undefined;
     }
 
@@ -220,14 +245,7 @@ export default function RecordDataTable({
     const isConvert = isConvertMassUpdateField(fieldDef) || String(massField).toLowerCase() === 'convert';
 
     if (isConvert) {
-      let cancelled = false;
-      setLoadingMassValueOptions(true);
-      setMassValueOptions([]);
-      fetchPipelineConvertTargets()
-        .then((options) => { if (!cancelled) setMassValueOptions(options); })
-        .catch(() => { if (!cancelled) setMassValueOptions([]); })
-        .finally(() => { if (!cancelled) setLoadingMassValueOptions(false); });
-      return () => { cancelled = true; };
+      return undefined;
     }
 
     if (!massUpdateFieldsLoader || !fieldDef) {
@@ -246,7 +264,7 @@ export default function RecordDataTable({
       .finally(() => { if (!cancelled) setLoadingMassValueOptions(false); });
 
     return () => { cancelled = true; };
-  }, [massField, dynamicMassFields, massUpdateFieldsLoader]);
+  }, [massField, dynamicMassFields, massUpdateFieldsLoader, convertTargetsLoader]);
 
   const selectedMassFieldDef = dynamicMassFields.find((f) => f.value === massField);
   const massFieldKey = String(massField || '').toLowerCase();
@@ -434,7 +452,7 @@ export default function RecordDataTable({
         massUpdateFields={config.massUpdateFields}
         dynamicFields={dynamicMassFields}
         loadingFields={loadingMassFields}
-        valueOptions={massValueOptions}
+        valueOptions={isConvertMassField ? dynamicConvertTargets : massValueOptions}
         loadingValueOptions={loadingMassValueOptions}
         useDynamicFields={!!massUpdateFieldsLoader}
         isConvertField={isConvertMassField}

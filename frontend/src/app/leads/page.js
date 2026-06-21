@@ -16,7 +16,7 @@ import { LIST_VIEWS } from '../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { filterUnreadRecords } from '../../lib/recordViewTracker.js';
-import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
+import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchPipelineConvertTargets, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
@@ -173,6 +173,7 @@ export default function LeadsPage() {
             onRefresh={fetchLeads}
             emptyMessage="No leads found"
             massUpdateFieldsLoader={loadMassUpdateFields}
+            convertTargetsLoader={fetchPipelineConvertTargets}
             massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
             pagination={{
               page,

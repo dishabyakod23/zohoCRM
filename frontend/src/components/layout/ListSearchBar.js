@@ -16,7 +16,7 @@ export default function ListSearchBar({
   hasActiveFilters = false,
   onClearFilters = null,
 }) {
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
 
   return (
     <div className="mb-4">

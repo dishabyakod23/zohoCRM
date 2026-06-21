@@ -21,7 +21,7 @@ export function normalizeRecycleItem(item) {
   const entityType = item.entity_type || item.record_type;
   return {
     ...item,
-    id: item.id,
+    id: item._composite_id || item.id,
     entity_type: entityType,
     entity_type_label: formatEnumLabel(entityType),
     entity_name: item.entity_name || '—',

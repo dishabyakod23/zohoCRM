@@ -62,6 +62,7 @@ export function normalizeLead(lead, statusOptions = []) {
     lead_source: lead.lead_source || lead.source,
     owner_name: ownerName || lead.owner_name,
     converted: lead.is_converted ?? lead.converted,
+    is_converted: lead.is_converted ?? lead.converted,
     employees: lead.no_of_employees || lead.employees,
     zip: lead.zip_code || lead.zip,
     proposal_date: lead.proposal_date || null,

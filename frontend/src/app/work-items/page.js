@@ -22,7 +22,7 @@ import {
   resolveLeadPipelineStage,
 } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { fetchLeadMassUpdateFields, FALLBACK_LEAD_STATUSES, fetchLeadSources } from '../../lib/services/lookups.js';
+import { fetchLeadMassUpdateFields, fetchPipelineConvertTargets, FALLBACK_LEAD_STATUSES, fetchLeadSources } from '../../lib/services/lookups.js';
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
@@ -177,6 +177,7 @@ export default function WorkItemsPage() {
             onRefresh={fetchWorkItems}
             emptyMessage="No leads assigned to you"
             massUpdateFieldsLoader={loadMassUpdateFields}
+            convertTargetsLoader={fetchPipelineConvertTargets}
             massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
             pagination={{
               page,

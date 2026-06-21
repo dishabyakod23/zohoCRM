@@ -16,7 +16,7 @@ export default function ListToolbar({
   children,
   extraActions,
 }) {
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
 
   return (
     <div className="mb-0">

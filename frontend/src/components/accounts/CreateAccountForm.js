@@ -33,7 +33,7 @@ export function emptyAccountForm() {
     shipping_flat: '', shipping_street: '', shipping_city: '', shipping_state: '',
     shipping_country: '', shipping_zip: '', shipping_lat: '', shipping_lng: '',
     description: '',
-    deal_size: '',
+    proposal_amount: '',
     currency: DEFAULT_CURRENCY,
     contact_ids: [],
     projects: [emptyProjectRow()],
@@ -308,11 +308,11 @@ export default function CreateAccountForm() {
           {/* ── Deal & Related Records ── */}
           <SectionTitle>Deal & Related Records</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-            <FormField label="Deal Size" name="deal_size">
+            <FormField label="Proposal Amount" name="proposal_amount">
               <CurrencyAmountInput
-                amount={form.deal_size}
+                amount={form.proposal_amount}
                 currency={form.currency}
-                onAmountChange={set('deal_size')}
+                onAmountChange={set('proposal_amount')}
                 onCurrencyChange={set('currency')}
               />
             </FormField>

@@ -14,7 +14,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
+import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchPipelineConvertTargets, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
 import CsvImportModal from '../records/CsvImportModal.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
 import { formatMoney } from '../../lib/currencies.js';
@@ -267,6 +267,7 @@ export default function PipelineLeadList({ stage, description }) {
             statusOptions={statusOptions}
             onRefresh={fetchLeads}
             massUpdateFieldsLoader={loadMassUpdateFields}
+            convertTargetsLoader={fetchPipelineConvertTargets}
             massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
             pagination={{
               page,
