@@ -1,5 +1,13 @@
 const pool = require('../db/pool');
 const { isAdmin, normalizeRole, ROLES } = require('../utils/helpers');
+const { getMonthlyPlan } = require('./salesPlanTargets');
+const {
+  buildWeeklySalesStatusHtml,
+  combineReportsHtml,
+  fetchUserWeeklyKpis,
+  getManagementRecipients,
+  listReportableTeamMembers,
+} = require('./weeklySalesStatusReport');
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -246,21 +254,27 @@ async function fetchUserPerformance(userId, periodStart, periodEnd) {
   return { user, summary };
 }
 
-async function buildPerformanceReportPreview(userId, periodStart, periodEnd) {
+async function buildPerformanceReportPreview(userId, periodStart, periodEnd, { preparedBy } = {}) {
   const start = periodStart || getDefaultPeriod().period_start;
   const end = periodEnd || getDefaultPeriod().period_end;
   const companyName = await getCompanyName();
   const data = await fetchUserPerformance(userId, start, end);
   if (!data) return null;
 
-  const html_body = buildPerformanceReportHtml({
+  const kpis = await fetchUserWeeklyKpis(userId, start, end);
+  const summary = { ...data.summary, ...kpis };
+
+  const html_body = buildWeeklySalesStatusHtml({
     companyName,
     userName: data.user.name,
     userEmail: data.user.email,
     userRole: data.user.role,
     periodStart: start,
     periodEnd: end,
-    summary: data.summary,
+    preparedBy: preparedBy || companyName,
+    reportDate: new Date().toISOString().slice(0, 10),
+    kpis: summary,
+    monthlyPlan: getMonthlyPlan(end),
   });
 
   return {
@@ -268,8 +282,9 @@ async function buildPerformanceReportPreview(userId, periodStart, periodEnd) {
     period_start: start,
     period_end: end,
     company_name: companyName,
-    summary: data.summary,
+    summary,
     html_body,
+    recipients: await getManagementRecipients(),
   };
 }
 
@@ -291,40 +306,57 @@ async function logPerformanceReport({
 }
 
 async function sendPerformanceReport({ userId, periodStart, periodEnd, sentBy }) {
-  const preview = await buildPerformanceReportPreview(userId, periodStart, periodEnd);
-  if (!preview?.user?.email) {
-    return { sent_count: 0, failed_count: 1, message: 'User not found or has no email.' };
+  const preview = await buildPerformanceReportPreview(userId, periodStart, periodEnd, {
+    preparedBy: sentBy?.name || sentBy?.email,
+  });
+  if (!preview?.user) {
+    return { sent_count: 0, failed_count: 1, message: 'User not found.' };
   }
 
-  try {
-    await logPerformanceReport({
-      userId: preview.user.id,
-      recipientEmail: preview.user.email,
-      sentById: sentBy?.id || null,
-      periodStart: preview.period_start,
-      periodEnd: preview.period_end,
-      status: 'sent',
-    });
-    return {
-      sent_count: 1,
-      failed_count: 0,
-      message: `Performance report sent to ${preview.user.email}`,
-      html_body: preview.html_body,
-      summary: preview.summary,
-      user: preview.user,
-    };
-  } catch (err) {
-    await logPerformanceReport({
-      userId: preview.user.id,
-      recipientEmail: preview.user.email,
-      sentById: sentBy?.id || null,
-      periodStart: preview.period_start,
-      periodEnd: preview.period_end,
-      status: 'failed',
-      errorMessage: err.message,
-    });
-    return { sent_count: 0, failed_count: 1, message: err.message };
+  const recipients = await getManagementRecipients();
+  if (!recipients.length) {
+    return { sent_count: 0, failed_count: 1, message: 'No admin or sales manager recipients found.' };
   }
+
+  let sentCount = 0;
+  let failedCount = 0;
+  const recipientEmails = [];
+
+  for (const recipient of recipients) {
+    try {
+      await logPerformanceReport({
+        userId: preview.user.id,
+        recipientEmail: recipient.email,
+        sentById: sentBy?.id || null,
+        periodStart: preview.period_start,
+        periodEnd: preview.period_end,
+        status: 'sent',
+      });
+      sentCount += 1;
+      recipientEmails.push(recipient.email);
+    } catch (err) {
+      failedCount += 1;
+      await logPerformanceReport({
+        userId: preview.user.id,
+        recipientEmail: recipient.email,
+        sentById: sentBy?.id || null,
+        periodStart: preview.period_start,
+        periodEnd: preview.period_end,
+        status: 'failed',
+        errorMessage: err.message,
+      });
+    }
+  }
+
+  return {
+    sent_count: sentCount,
+    failed_count: failedCount,
+    message: `Performance report for ${preview.user.name} sent to ${recipientEmails.join(', ')}`,
+    html_body: preview.html_body,
+    summary: preview.summary,
+    user: preview.user,
+    recipients,
+  };
 }
 
 module.exports = {
@@ -335,4 +367,6 @@ module.exports = {
   canAccessUser,
   getDefaultPeriod,
   fetchUserPerformance,
+  getManagementRecipients,
+  listReportableTeamMembers,
 };

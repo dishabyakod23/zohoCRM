@@ -10,6 +10,7 @@ import * as performanceApi from '../../lib/services/performanceReports.js';
 export default function PerformanceReportsPanel() {
   const { showToast } = useToast();
   const [users, setUsers] = useState([]);
+  const [managementRecipients, setManagementRecipients] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [period, setPeriod] = useState(() => performanceApi.getDefaultPerformancePeriod());
   const [preview, setPreview] = useState(null);
@@ -23,7 +24,12 @@ export default function PerformanceReportsPanel() {
     try {
       const list = await performanceApi.listPerformanceUsers();
       setUsers(list);
-      if (!selectedUserId && list.length) setSelectedUserId(String(list[0].id));
+      const managers = list.filter((u) => u.role === 'super_admin' || u.role === 'sales_manager');
+      setManagementRecipients(managers);
+      if (!selectedUserId && list.length) {
+        const firstRep = list.find((u) => u.role !== 'super_admin') || list[0];
+        setSelectedUserId(String(firstRep.id));
+      }
     } catch (err) {
       showToast(getApiError(err));
     }
@@ -73,11 +79,11 @@ export default function PerformanceReportsPanel() {
 
   const handleSend = async () => {
     if (!selectedUserId) {
-      showToast('Select a user first');
+      showToast('Select a team member first');
       return;
     }
-    if (!selectedUser?.email) {
-      showToast('Selected user has no email address');
+    if (!managementRecipients.length) {
+      showToast('No admin or sales manager recipients found');
       return;
     }
     setSending(true);
@@ -87,7 +93,7 @@ export default function PerformanceReportsPanel() {
         date_from: period.period_start,
         date_to: period.period_end,
       });
-      showToast(result.message || 'Performance report sent', 'success');
+      showToast(result.message || 'Performance report sent to management', 'success');
       loadLogs();
     } catch (err) {
       showToast(getApiError(err));
@@ -95,6 +101,8 @@ export default function PerformanceReportsPanel() {
       setSending(false);
     }
   };
+
+  const recipientLabel = managementRecipients.map((u) => u.email).filter(Boolean).join(', ') || 'admin & managers';
 
   const summaryCards = summary ? [
     ['Leads owned', summary.total_leads_owned],
@@ -112,7 +120,7 @@ export default function PerformanceReportsPanel() {
       <div className="card p-5">
         <h3 className="font-semibold mb-1">Individual Performance Report</h3>
         <p className="text-xs text-gray-500 mb-4">
-          Preview and email a performance summary for each team member. Managers see their team; admins see all users.
+          Preview a weekly sales status report for a team member. Sending delivers the report to all admins and sales managers, not to the selected person.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div className="md:col-span-2">
@@ -139,8 +147,8 @@ export default function PerformanceReportsPanel() {
           <button type="button" onClick={loadPreview} disabled={loading || !selectedUserId} className="btn-secondary text-xs">
             {loading ? 'Loading…' : 'Refresh preview'}
           </button>
-          <button type="button" onClick={handleSend} disabled={sending || !selectedUserId || !selectedUser?.email} className="btn-primary text-xs">
-            {sending ? 'Sending…' : `Send to ${selectedUser?.email || 'user'}`}
+          <button type="button" onClick={handleSend} disabled={sending || !selectedUserId || !managementRecipients.length} className="btn-primary text-xs">
+            {sending ? 'Sending…' : `Send to ${recipientLabel}`}
           </button>
         </div>
       </div>

@@ -1,5 +1,7 @@
 const pool = require('../db/pool');
 const { SYSTEM_LEAD_STATUSES } = require('../utils/leadStatusStore');
+const { buildPerformanceReportPreview, listReportableTeamMembers } = require('./performanceReportBuilder');
+const { combineReportsHtml } = require('./weeklySalesStatusReport');
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -207,26 +209,44 @@ async function fetchWeeklyReportData(periodStart, periodEnd) {
 
 async function buildWeeklyReportPreview() {
   const settings = await getWeeklyReportSettings();
-  const companyName = settings.company_name || 'Sales CRM';
+  const companyName = settings.company_name || 'Origami Consulting LLC';
   const { period_start, period_end } = getReportPeriod();
-  const reportData = await fetchWeeklyReportData(period_start, period_end);
+  const teamMembers = await listReportableTeamMembers();
+
+  const reports = [];
+  for (const member of teamMembers) {
+    const preview = await buildPerformanceReportPreview(member.id, period_start, period_end, {
+      preparedBy: companyName,
+    });
+    if (preview) reports.push(preview);
+  }
+
+  const html_body = reports.length
+    ? combineReportsHtml(reports, {
+      title: 'Weekly Individual Performance Reports',
+      companyName,
+    })
+    : buildWeeklyReportHtml({
+      companyName,
+      periodStart: period_start,
+      periodEnd: period_end,
+      leadsByStatusAll: [],
+      newLeadsByStatus: [],
+      summary: {},
+    });
+
   const summary = {
-    leads_by_status: reportData.leads_by_status,
-    new_leads_by_status: reportData.new_leads_by_status,
-    new_leads_total: reportData.new_leads_total,
-    total_leads: reportData.total_leads,
-    converted_leads: reportData.converted_leads,
-    deals_won_count: reportData.deals_won_count,
-    tasks_completed: reportData.tasks_completed,
+    team_member_count: reports.length,
+    period_start,
+    period_end,
+    reports: reports.map((r) => ({
+      user_id: r.user.id,
+      user_name: r.user.name,
+      new_leads: r.summary?.new_leads ?? 0,
+      deals_won: r.summary?.deals_won ?? 0,
+      conversion_rate: r.summary?.conversion_rate ?? 0,
+    })),
   };
-  const html_body = buildWeeklyReportHtml({
-    companyName,
-    periodStart: period_start,
-    periodEnd: period_end,
-    leadsByStatusAll: reportData.leads_by_status,
-    newLeadsByStatus: reportData.new_leads_by_status,
-    summary,
-  });
 
   return {
     period_start,
@@ -234,6 +254,7 @@ async function buildWeeklyReportPreview() {
     company_name: companyName,
     html_body,
     summary,
+    reports,
   };
 }
 
@@ -331,7 +352,7 @@ async function sendWeeklyReport({ triggerType = 'manual' } = {}) {
   return {
     sent_count: sentCount,
     failed_count: failedCount,
-    message: `Weekly lead status report queued for ${sentCount} recipient(s): ${emails}`,
+    message: `Weekly individual performance reports (${preview.summary?.team_member_count ?? 0} team members) queued for ${sentCount} recipient(s): ${emails}`,
     html_body: preview.html_body,
     summary: preview.summary,
   };

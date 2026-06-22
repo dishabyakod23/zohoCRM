@@ -341,7 +341,7 @@ export default function ReportsPage() {
                   )}
                   <div className="flex gap-2 mt-4">
                     <button onClick={saveWeeklySettings} disabled={savingSettings} className="btn-primary text-xs">{savingSettings ? 'Saving...' : 'Save Settings'}</button>
-                    <button onClick={handleTriggerWeekly} disabled={triggering || !reportRecipients.length} className="btn-secondary text-xs">{triggering ? 'Sending...' : `Send to ${reportRecipients.length} recipient(s)`}</button>
+                    <button onClick={handleTriggerWeekly} disabled={triggering || !reportRecipients.length} className="btn-secondary text-xs">{triggering ? 'Sending...' : `Send individual reports to ${reportRecipients.length} recipient(s)`}</button>
                     <button onClick={loadWeeklyData} className="btn-secondary text-xs">Refresh Preview</button>
                   </div>
                 </div>
@@ -401,70 +401,47 @@ export default function ReportsPage() {
 
                 {summary && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {[['Total Leads', summary.total_leads], ['New This Week', summary.new_leads_total], ['Converted', summary.converted_leads], ['Deals Won', summary.deals_won_count]].map(([l, v]) => (
-                        <div key={l} className="card p-4 text-center"><p className="text-xs text-gray-500">{l}</p><p className="text-2xl font-bold mt-1">{v ?? 0}</p></div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {[['Team members', summary.team_member_count], ['Period start', summary.period_start], ['Period end', summary.period_end]].map(([l, v]) => (
+                        <div key={l} className="card p-4 text-center"><p className="text-xs text-gray-500">{l}</p><p className="text-lg font-bold mt-1">{v ?? '—'}</p></div>
                       ))}
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {(summary.reports || []).length > 0 && (
                       <div className="card p-5">
-                        <h3 className="font-semibold mb-1 text-brand-700">All leads by status</h3>
-                        <p className="text-xs text-gray-500 mb-4">Current pipeline breakdown — primary email content</p>
+                        <h3 className="font-semibold mb-1 text-brand-700">Individual reports included</h3>
+                        <p className="text-xs text-gray-500 mb-4">Weekly sales status report per team member · {weeklyPreview?.period_start} – {weeklyPreview?.period_end}</p>
                         <div className="overflow-x-auto">
                           <table className="w-full text-sm">
                             <thead className="bg-gray-50">
                               <tr>
-                                <th className="table-th">Status</th>
-                                <th className="table-th text-right">Count</th>
+                                <th className="table-th">Team member</th>
+                                <th className="table-th text-right">New leads</th>
+                                <th className="table-th text-right">Deals won</th>
+                                <th className="table-th text-right">Conversion</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y">
-                              {(summary.leads_by_status || []).length === 0 ? (
-                                <tr><td colSpan={2} className="table-td text-center py-6 text-gray-400">No lead data</td></tr>
-                              ) : (summary.leads_by_status || []).map((row) => (
-                                <tr key={row.label}>
-                                  <td className="table-td">{leadStatusLabel(row.label)}</td>
-                                  <td className="table-td text-right font-medium">{row.count}</td>
+                              {summary.reports.map((row) => (
+                                <tr key={row.user_id}>
+                                  <td className="table-td">{row.user_name}</td>
+                                  <td className="table-td text-right font-medium">{row.new_leads ?? 0}</td>
+                                  <td className="table-td text-right font-medium">{row.deals_won ?? 0}</td>
+                                  <td className="table-td text-right font-medium">{row.conversion_rate ?? 0}%</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
                       </div>
-
-                      <div className="card p-5">
-                        <h3 className="font-semibold mb-1 text-brand-700">New leads this week by status</h3>
-                        <p className="text-xs text-gray-500 mb-4">Leads created during {weeklyPreview?.period_start} – {weeklyPreview?.period_end}</p>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="table-th">Status</th>
-                                <th className="table-th text-right">Count</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                              {(summary.new_leads_by_status || []).length === 0 ? (
-                                <tr><td colSpan={2} className="table-td text-center py-6 text-gray-400">No new leads this week</td></tr>
-                              ) : (summary.new_leads_by_status || []).map((row) => (
-                                <tr key={row.label}>
-                                  <td className="table-td">{leadStatusLabel(row.label)}</td>
-                                  <td className="table-td text-right font-medium">{row.count}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
                 {weeklyPreview && (
                   <div className="card p-5">
                     <h3 className="font-semibold mb-2">Email preview — {weeklyPreview.company_name}</h3>
-                    <p className="text-xs text-gray-500 mb-4">Leads by status is the main section sent to recipients · {weeklyPreview.period_start} to {weeklyPreview.period_end}</p>
+                    <p className="text-xs text-gray-500 mb-4">Individual weekly performance reports sent to admins and sales managers · {weeklyPreview.period_start} to {weeklyPreview.period_end}</p>
                     <div className="border rounded-lg overflow-hidden bg-white max-h-[480px] overflow-y-auto">
                       <iframe title="Weekly report preview" srcDoc={weeklyPreview.html_body} className="w-full min-h-[400px] border-0" sandbox="" />
                     </div>

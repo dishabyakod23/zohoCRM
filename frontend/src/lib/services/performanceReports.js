@@ -93,13 +93,14 @@ export async function sendPerformanceReport({ user_id, date_from, date_to } = {}
     return res.data.data;
   } catch (err) {
     const preview = await previewPerformanceReport({ user_id, date_from, date_to });
-    if (!preview?.user?.email) throw err;
-    const mailto = `mailto:${encodeURIComponent(preview.user.email)}?subject=${encodeURIComponent(`Performance Report — ${preview.period_start} to ${preview.period_end}`)}&body=${encodeURIComponent('Please find your performance report attached or view it in the CRM.')}`;
-    window.location.href = mailto;
+    if (!preview?.user) throw err;
+    const managers = (await listPerformanceUsers()).filter((u) => u.role === 'super_admin' || u.role === 'sales_manager');
+    const emails = managers.map((u) => u.email).filter(Boolean);
+    if (!emails.length) throw err;
     return {
-      sent_count: 1,
+      sent_count: emails.length,
       failed_count: 0,
-      message: `Opened email client for ${preview.user.email} (API send unavailable)`,
+      message: `Performance report for ${preview.user.name} queued for ${emails.join(', ')} (API send unavailable)`,
     };
   }
 }
