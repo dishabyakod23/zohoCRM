@@ -102,8 +102,6 @@ export default function PerformanceReportsPanel() {
     }
   };
 
-  const recipientLabel = managementRecipients.map((u) => u.email).filter(Boolean).join(', ') || 'admin & managers';
-
   const summaryCards = summary ? [
     ['Leads owned', summary.total_leads_owned],
     ['New leads', summary.new_leads],
@@ -148,7 +146,7 @@ export default function PerformanceReportsPanel() {
             {loading ? 'Loading…' : 'Refresh preview'}
           </button>
           <button type="button" onClick={handleSend} disabled={sending || !selectedUserId || !managementRecipients.length} className="btn-primary text-xs">
-            {sending ? 'Sending…' : `Send to ${recipientLabel}`}
+            {sending ? 'Sending…' : 'Send to admins and managers'}
           </button>
         </div>
       </div>

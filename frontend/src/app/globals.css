@@ -60,7 +60,13 @@
   .page-actions { @apply flex flex-wrap items-center gap-2 ml-auto; }
 }
 
-/* Accessibility modes (bottom bar) */
+/* Accessibility modes (bottom bar) — text scale levels 0–5 on html */
+html[data-text-scale="0"] { font-size: 100%; }
+html[data-text-scale="1"] { font-size: 106.25%; }
+html[data-text-scale="2"] { font-size: 112.5%; }
+html[data-text-scale="3"] { font-size: 118.75%; }
+html[data-text-scale="4"] { font-size: 125%; }
+html[data-text-scale="5"] { font-size: 131.25%; }
 html.crm-large-text body { font-size: 15px; }
 html.crm-large-text .text-sm { font-size: 0.9375rem; }
 html.crm-large-text .text-xs { font-size: 0.8125rem; }

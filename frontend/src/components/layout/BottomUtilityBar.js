@@ -49,6 +49,24 @@ const ANNOUNCEMENTS = [
   { id: 3, title: 'Weekly Report', body: 'Auto-reports are sent every Monday at 8:00 AM IST.', date: '2 days ago' },
 ];
 
+const TEXT_SCALE_MIN = 0;
+const TEXT_SCALE_MAX = 5;
+const TEXT_SCALE_LABELS = ['Default', 'Comfort', 'Large', 'Larger', 'Extra large', 'Maximum'];
+
+function StepButton({ onClick, disabled, label, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="w-8 h-8 rounded-lg border border-zoho-border flex items-center justify-center text-zoho-text hover:bg-brand-50 hover:border-brand-300 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+    >
+      {children}
+    </button>
+  );
+}
+
 function Panel({ title, onClose, children, wide }) {
   return (
     <div className={`fixed bottom-14 right-4 z-50 bg-white border border-zoho-border rounded-2xl shadow-card-hover animate-scaleIn origin-bottom-right ${wide ? 'w-96' : 'w-80'} max-h-[420px] flex flex-col`}>
@@ -69,18 +87,29 @@ export default function BottomUtilityBar() {
   const [announcements, setAnnouncements] = useState(ANNOUNCEMENTS);
   const [recent, setRecent] = useState([]);
   const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
-  const [a11y, setA11y] = useState({ largeText: false, highContrast: false });
+  const [a11y, setA11y] = useState({ textScale: 0, highContrast: false });
 
   useEffect(() => {
     const stored = localStorage.getItem('crm_recent');
     if (stored) setRecent(JSON.parse(stored));
     const a11yStored = localStorage.getItem('crm_a11y');
-    if (a11yStored) setA11y(JSON.parse(a11yStored));
+    if (a11yStored) {
+      const parsed = JSON.parse(a11yStored);
+      if (parsed.largeText && parsed.textScale == null) {
+        parsed.textScale = 1;
+        delete parsed.largeText;
+      }
+      setA11y({
+        textScale: Math.min(TEXT_SCALE_MAX, Math.max(TEXT_SCALE_MIN, Number(parsed.textScale) || 0)),
+        highContrast: !!parsed.highContrast,
+      });
+    }
     if (isStickyNotePinned()) setStickyNoteOpen(true);
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('crm-large-text', a11y.largeText);
+    document.documentElement.dataset.textScale = String(a11y.textScale ?? 0);
+    document.documentElement.classList.remove('crm-large-text');
     document.documentElement.classList.toggle('crm-high-contrast', a11y.highContrast);
     localStorage.setItem('crm_a11y', JSON.stringify(a11y));
   }, [a11y]);
@@ -243,11 +272,42 @@ export default function BottomUtilityBar() {
       {active === 'accessibility' && (
         <Panel title="Accessibility" onClose={() => setActive(null)}>
           <div className="space-y-4 text-sm">
-            <label className="flex items-center justify-between">
-              <span>Larger text</span>
-              <input type="checkbox" checked={a11y.largeText} onChange={e => setA11y(a => ({ ...a, largeText: e.target.checked }))} />
-            </label>
-            <label className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <span className="block font-medium">Text size</span>
+                <span className="text-xs text-zoho-muted">{TEXT_SCALE_LABELS[a11y.textScale] ?? 'Default'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <StepButton
+                  label="Decrease text size"
+                  disabled={a11y.textScale <= TEXT_SCALE_MIN}
+                  onClick={() => setA11y((a) => ({ ...a, textScale: Math.max(TEXT_SCALE_MIN, a.textScale - 1) }))}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                  </svg>
+                </StepButton>
+                <span className="w-5 text-center text-xs font-semibold tabular-nums text-zoho-muted">{a11y.textScale}</span>
+                <StepButton
+                  label="Increase text size"
+                  disabled={a11y.textScale >= TEXT_SCALE_MAX}
+                  onClick={() => setA11y((a) => ({ ...a, textScale: Math.min(TEXT_SCALE_MAX, a.textScale + 1) }))}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </StepButton>
+              </div>
+            </div>
+            <div className="flex gap-1" aria-hidden="true">
+              {Array.from({ length: TEXT_SCALE_MAX + 1 }, (_, i) => (
+                <span
+                  key={i}
+                  className={`h-1.5 flex-1 rounded-full transition-colors ${i <= a11y.textScale ? 'bg-brand-500' : 'bg-neutral-200'}`}
+                />
+              ))}
+            </div>
+            <label className="flex items-center justify-between pt-1">
               <span>High contrast</span>
               <input type="checkbox" checked={a11y.highContrast} onChange={e => setA11y(a => ({ ...a, highContrast: e.target.checked }))} />
             </label>
