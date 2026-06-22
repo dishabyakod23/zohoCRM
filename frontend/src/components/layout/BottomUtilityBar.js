@@ -319,9 +319,9 @@ export default function BottomUtilityBar() {
       {active === 'help' && (
         <Panel title="Help" onClose={() => setActive(null)} wide>
           <div className="space-y-3 text-sm">
-            <a href="https://www.zoho.com/crm/help/" target="_blank" rel="noreferrer" className="block p-3 rounded-xl border border-zoho-border hover:bg-brand-50 hover:border-brand-200 text-brand-600 transition-colors font-medium">
+            <Link href="/help" onClick={() => setActive(null)} className="block p-3 rounded-xl border border-zoho-border hover:bg-brand-50 hover:border-brand-200 text-brand-600 transition-colors font-medium">
               CRM Help Documentation →
-            </a>
+            </Link>
             <div className="p-3 rounded-xl bg-brand-50/40 border border-zoho-border">
               <p className="font-medium mb-2">Quick Tips</p>
               <ul className="text-xs text-zoho-muted space-y-1.5 list-disc pl-4">

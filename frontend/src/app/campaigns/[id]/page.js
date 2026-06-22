@@ -29,7 +29,7 @@ export default function CampaignDetailPage() {
   }, []);
 
   const load = useCallback(() => {
-    campaignsApi.getCampaign(id).then((c) => setCampaign({ ...c, name: c.campaign_name, type: c.campaign_type }))
+    campaignsApi.getCampaign(id).then(setCampaign)
       .catch(() => { showToast('Campaign not found'); router.push('/campaigns'); });
   }, [id, router, showToast]);
 

@@ -4,47 +4,32 @@ import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
-import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
-import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
-import { useOpenCreateParam } from '../../hooks/useOpenCreateParam.js';
 import { getApiError } from '../../lib/api.js';
-import { validateRequired } from '../../lib/validators.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
-import { fetchCampaignTypes, fetchCampaignStatuses } from '../../lib/services/lookups.js';
+import { fetchCampaignStatuses } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 
-const EMPTY = { name: '', type: 'email', status: 'planning', start_date: '', end_date: '', expected_revenue: '', description: '' };
 const LIMIT = 15;
 
 export default function CampaignsPage() {
   const { showToast } = useToast();
   const { canEdit } = usePermissions();
   const [items, setItems] = useState([]);
-  const [typeOptions, setTypeOptions] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState(EMPTY);
-  const [errors, setErrors] = useState({});
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    Promise.all([fetchCampaignTypes(), fetchCampaignStatuses()])
-      .then(([t, s]) => { setTypeOptions(t); setStatusOptions(s); })
-      .catch(() => {});
+    fetchCampaignStatuses().then(setStatusOptions).catch(() => {});
   }, []);
-
-  const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
-  useOpenCreateParam(canEdit, openCreate);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -60,23 +45,6 @@ export default function CampaignsPage() {
   }, [page, debouncedSearch, showToast]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
-
-  const save = async () => {
-    const errs = validateRequired({ name: 'Campaign Name', type: 'Campaign Type', status: 'Status', start_date: 'Start Date', end_date: 'End Date' }, form);
-    setErrors(errs);
-    if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
-    setSaving(true);
-    try {
-      await campaignsApi.createCampaign(form);
-      setModal(false);
-      fetchItems();
-      showToast('Campaign saved', 'success');
-    } catch (err) {
-      showToast(getApiError(err));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
@@ -95,7 +63,7 @@ export default function CampaignsPage() {
           title="Campaigns"
           subtitle="Manage marketing campaigns and outreach."
           primaryAction={canEdit ? (
-            <button type="button" onClick={openCreate} className="btn-primary-sm">Create Campaign</button>
+            <Link href="/campaigns/create" className="btn-primary-sm">Create Campaign</Link>
           ) : null}
         />
 
@@ -120,16 +88,6 @@ export default function CampaignsPage() {
           />
         </div>
       </div>
-      {modal && <Modal title="Create Campaign" onClose={() => setModal(false)}>
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Campaign Name" required error={errors.name} name="name"><input className={inputClass(errors.name)} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></FormField>
-          <FormField label="Type" required><select className="input" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>{typeOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></FormField>
-          <FormField label="Status" required><select className="input" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>{statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select></FormField>
-          <FormField label="Start Date" required error={errors.start_date} name="start_date"><input className={inputClass(errors.start_date)} type="date" value={form.start_date?.slice(0, 10)} onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} /></FormField>
-          <FormField label="End Date" required error={errors.end_date} name="end_date"><input className={inputClass(errors.end_date)} type="date" value={form.end_date?.slice(0, 10)} onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} /></FormField>
-        </div>
-        <div className="flex gap-2 justify-end mt-4"><button onClick={() => setModal(false)} className="btn-secondary">Cancel</button><button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save'}</button></div>
-      </Modal>}
     </CRMLayout>
   );
 }

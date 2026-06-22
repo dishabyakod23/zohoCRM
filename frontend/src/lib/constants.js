@@ -44,7 +44,7 @@ export const QUICK_CREATE = [
   { label: 'Account', href: '/accounts/create', group: 'Sales' },
   { label: 'Proposal', href: '/proposals/create', group: 'Sales' },
   { label: 'Calendar Event', href: '/calendar', group: 'Sales' },
-  { label: 'Campaign', href: '/campaigns?create=1', group: 'Marketing' },
+  { label: 'Campaign', href: '/campaigns/create', group: 'Marketing' },
 ];
 
 export const WORK_ITEM_VIEWS = ['All Work Items', 'Raw Leads', 'Leads', 'Qualified Leads', 'Proposals'];

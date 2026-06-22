@@ -9,6 +9,7 @@ import * as leadsApi from '../../lib/services/leads.js';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { QUICK_CREATE } from '../../lib/constants.js';
 import { userBriefName } from '../../lib/activityHelpers.js';
+import { leadStatusLabel } from '../../lib/leadHelpers.js';
 import {
   UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
@@ -69,7 +70,7 @@ export default function DashboardPage() {
         accounts: { total: (home.top_accounts || []).length },
         topAccountRevenue: (home.top_accounts || []).reduce((s, a) => s + (Number(a.annual_revenue) || 0), 0),
         leadsByStatus: (home.leads_by_status || []).map(r => ({
-          status: r.label,
+          status: leadStatusLabel(r.label),
           count: r.count,
         })),
         recentActivities: (home.recent_activities || []).map(a => ({

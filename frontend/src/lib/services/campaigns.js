@@ -3,29 +3,40 @@ import { assigneeName, formatEnumLabel, listResult, omitEmpty, toDateOnly } from
 import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
 
 export function normalizeCampaign(campaign) {
+  const type = campaign.type ?? campaign.campaign_type;
+  const status = campaign.status;
   return {
     ...campaign,
-    name: campaign.campaign_name,
-    type: campaign.campaign_type,
-    type_label: formatEnumLabel(campaign.campaign_type),
-    status_label: formatEnumLabel(campaign.status),
+    name: campaign.name ?? campaign.campaign_name,
+    type,
+    type_label: formatEnumLabel(type),
+    status_label: formatEnumLabel(status),
     owner_name: assigneeName(campaign),
   };
 }
 
+function numOrNull(value) {
+  if (value === '' || value == null) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function toCampaignPayload(form, { partial = false } = {}) {
-  return omitEmpty({
-    campaign_name: form.name ?? form.campaign_name,
-    campaign_type: form.type ?? form.campaign_type,
+  const payload = {
+    name: form.name ?? form.campaign_name,
+    type: form.type ?? form.campaign_type,
     status: form.status,
     start_date: form.start_date ? toDateOnly(form.start_date) : undefined,
     end_date: form.end_date ? toDateOnly(form.end_date) : undefined,
-    expected_revenue: form.expected_revenue || null,
-    budgeted_cost: form.budgeted_cost || null,
-    actual_cost: form.actual_cost || null,
-    description: form.description,
+    expected_revenue: numOrNull(form.expected_revenue),
+    budgeted_cost: numOrNull(form.budgeted_cost),
+    actual_cost: numOrNull(form.actual_cost),
+    expected_response: numOrNull(form.expected_response),
+    numbers_sent: numOrNull(form.numbers_sent),
+    description: form.description || null,
     owner_id: form.owner_id || null,
-  });
+  };
+  return partial ? omitEmpty(payload) : payload;
 }
 
 export async function listCampaigns(params = {}) {
