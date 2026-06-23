@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import StickyNote, { isStickyNotePinned } from './StickyNote.js';
 import { getRecentItemHref } from '../../lib/recentItemHelpers.js';
-import * as dashboardApi from '../../lib/services/dashboard.js';
 import * as calendarApi from '../../lib/services/calendar.js';
+import * as announcementsApi from '../../lib/services/announcements.js';
+import { formatAnnouncementDate } from '../../lib/services/announcements.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { eventTypeMeta, formatShortDate, formatTime, todayKey } from '../../lib/calendarHelpers.js';
@@ -43,12 +44,6 @@ const ICONS = {
   ),
 };
 
-const ANNOUNCEMENTS = [
-  { id: 1, title: 'Q3 Sales Kickoff', body: 'Join the all-hands meeting on Friday at 10 AM.', date: 'Today' },
-  { id: 2, title: 'New Lead Status Values', body: 'Lead statuses have been updated per SOW v2.', date: 'Yesterday' },
-  { id: 3, title: 'Weekly Report', body: 'Auto-reports are sent every Monday at 8:00 AM IST.', date: '2 days ago' },
-];
-
 const TEXT_SCALE_MIN = 0;
 const TEXT_SCALE_MAX = 5;
 const TEXT_SCALE_LABELS = ['Default', 'Comfort', 'Large', 'Larger', 'Extra large', 'Maximum'];
@@ -84,7 +79,8 @@ export default function BottomUtilityBar() {
   const { canAssignLeads } = usePermissions();
   const [active, setActive] = useState(null);
   const [reminders, setReminders] = useState([]);
-  const [announcements, setAnnouncements] = useState(ANNOUNCEMENTS);
+  const [announcements, setAnnouncements] = useState([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [recent, setRecent] = useState([]);
   const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
   const [a11y, setA11y] = useState({ textScale: 0, highContrast: false });
@@ -119,7 +115,18 @@ export default function BottomUtilityBar() {
     calendarApi.getLoginReminders()
       .then(setReminders)
       .catch(() => setReminders([]));
+    announcementsApi.listAnnouncements({ limit: 20 })
+      .then(setAnnouncements)
+      .catch(() => setAnnouncements([]));
   }, [user?.id, canAssignLeads]);
+
+  const loadAnnouncements = () => {
+    setAnnouncementsLoading(true);
+    return announcementsApi.listAnnouncements({ limit: 20 })
+      .then(setAnnouncements)
+      .catch(() => setAnnouncements([]))
+      .finally(() => setAnnouncementsLoading(false));
+  };
 
   const toggle = (key) => {
     if (key === 'recent') {
@@ -132,17 +139,7 @@ export default function BottomUtilityBar() {
         .catch(() => setReminders([]));
     }
     if (key === 'announcements') {
-      dashboardApi.getDashboardHome()
-        .then((home) => {
-          const fromActivities = (home.recent_activities || []).slice(0, 5).map((a, i) => ({
-            id: a.id || i,
-            title: `${a.action?.replace(/_/g, ' ') || 'Update'} — ${a.entity_type || 'record'}`,
-            body: a.user?.name || a.user?.email || 'System activity',
-            date: a.created_at ? new Date(a.created_at).toLocaleString() : '',
-          }));
-          setAnnouncements(fromActivities.length ? fromActivities : ANNOUNCEMENTS);
-        })
-        .catch(() => setAnnouncements(ANNOUNCEMENTS));
+      loadAnnouncements();
     }
     setActive(prev => prev === key ? null : key);
   };
@@ -150,7 +147,7 @@ export default function BottomUtilityBar() {
   const toggleStickyNote = () => setStickyNoteOpen(v => !v);
 
   const items = [
-    { key: 'announcements', icon: ICONS.announcements, title: 'Announcements', label: 'Announcements' },
+    { key: 'announcements', icon: ICONS.announcements, title: 'Announcements', label: 'Announcements', badge: announcements.length },
     { key: 'expand', icon: ICONS.expand, title: 'Open in new tab', label: 'Expand' },
     { key: 'reminders', icon: ICONS.reminders, title: 'Reminders', label: 'Reminders', badge: reminders.length },
     { key: 'recent', icon: ICONS.recent, title: 'Recent Items', label: 'Recent' },
@@ -210,15 +207,24 @@ export default function BottomUtilityBar() {
 
       {active === 'announcements' && (
         <Panel title="Announcements" onClose={() => setActive(null)}>
-          <div className="space-y-3">
-            {announcements.map(a => (
-              <div key={a.id} className="p-3 rounded-xl border border-zoho-border hover:bg-brand-50/50 hover:border-brand-200 transition-colors">
-                <p className="text-sm font-medium text-zoho-text">{a.title}</p>
-                <p className="text-xs text-zoho-muted mt-1">{a.body}</p>
-                <p className="text-[10px] text-zoho-muted mt-2">{a.date}</p>
-              </div>
-            ))}
-          </div>
+          {announcementsLoading ? (
+            <p className="text-sm text-zoho-muted text-center py-6">Loading announcements…</p>
+          ) : announcements.length === 0 ? (
+            <p className="text-sm text-zoho-muted text-center py-6">No announcements right now</p>
+          ) : (
+            <div className="space-y-3">
+              {announcements.map((a) => (
+                <div key={a.id} className="p-3 rounded-xl border border-zoho-border hover:bg-brand-50/50 hover:border-brand-200 transition-colors">
+                  <p className="text-sm font-medium text-zoho-text">{a.title}</p>
+                  <p className="text-xs text-zoho-muted mt-1 whitespace-pre-wrap">{a.body}</p>
+                  <p className="text-[10px] text-zoho-muted mt-2">
+                    {formatAnnouncementDate(a.created_at)}
+                    {a.created_by_name ? ` · ${a.created_by_name}` : ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </Panel>
       )}
 

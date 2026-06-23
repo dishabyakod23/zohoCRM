@@ -14,6 +14,7 @@ import { USER_ROLES, ROLE_LABELS, ROLE_ACCESS, roleLabel } from '../../lib/roles
 import * as adminApi from '../../lib/services/admin.js';
 import { triggerWeeklyReport } from '../../lib/services/reports.js';
 import * as authApi from '../../lib/services/auth.js';
+import AnnouncementsPanel from '../../components/admin/AnnouncementsPanel.js';
 import { slugifyStatusValue } from '../../lib/statusHelpers.js';
 
 const EMPTY_USER = {
@@ -29,6 +30,7 @@ const TABS = [
   { id: 'users', label: 'Users & Roles', adminOnly: true },
   { id: 'statuses', label: 'Lead Statuses', adminOnly: true },
   { id: 'company', label: 'Company Settings', adminOnly: true },
+  { id: 'announcements', label: 'Announcements', adminOnly: true },
 ];
 
 export default function SettingsPage() {
@@ -568,6 +570,10 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+        )}
+
+        {tab === 'announcements' && canManageSettings && (
+          <AnnouncementsPanel />
         )}
       </div>
 
