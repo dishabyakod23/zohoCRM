@@ -16,12 +16,6 @@ import {
 
 const COLORS = ['#6f5cf5', '#14c8b0', '#ff9f5a', '#ff5fa2', '#3aa0ff', '#ffc94d'];
 
-const DASHBOARD_VIEWS = {
-  'Classic View': { showLeadsChart: true, showRecent: true, showTopAccounts: true, showQuickCreate: true },
-  'Manager View': { showLeadsChart: true, showRecent: true, showTopAccounts: true, showQuickCreate: false },
-  'My View': { showLeadsChart: true, showRecent: true, showTopAccounts: false, showQuickCreate: true },
-};
-
 function Widget({ title, children, className = '' }) {
   return (
     <div className={`zoho-widget ${className}`}>
@@ -56,7 +50,6 @@ export default function DashboardPage() {
   const { showToast } = useToast();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [homeView, setHomeView] = useState('Classic View');
 
   useEffect(() => {
     Promise.all([
@@ -92,23 +85,15 @@ export default function DashboardPage() {
   }, [showToast]);
 
   const fmt = (n) => n ? `₹${(n / 100000).toFixed(1)}L` : '₹0';
-  const viewLayout = DASHBOARD_VIEWS[homeView] || DASHBOARD_VIEWS['Classic View'];
 
   return (
     <CRMLayout>
       <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-lg font-semibold text-zoho-text">
-              Welcome back<span className="text-brand-500">.</span>
-            </h1>
-            <p className="text-xs text-zoho-muted mt-0.5">Your sales command center</p>
-          </div>
-          <select className="input w-36 py-1.5 text-xs" value={homeView} onChange={e => setHomeView(e.target.value)}>
-            <option>Classic View</option>
-            <option>Manager View</option>
-            <option>My View</option>
-          </select>
+        <div className="mb-6">
+          <h1 className="text-lg font-semibold text-zoho-text">
+            Welcome back<span className="text-brand-500">.</span>
+          </h1>
+          <p className="text-xs text-zoho-muted mt-0.5">Your sales command center</p>
         </div>
 
         {loading ? (
@@ -147,7 +132,6 @@ export default function DashboardPage() {
               />
             </Link>
 
-            {viewLayout.showLeadsChart && (
             <Widget title="My Leads by Status" className="col-span-12 lg:col-span-6">
               {stats.leadsByStatus?.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -157,10 +141,7 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
               ) : <p className="text-sm text-zoho-muted text-center py-8">No leads</p>}
             </Widget>
-            )}
 
-            {/* Recent Activities */}
-            {viewLayout.showRecent && (
             <Widget title="Recent Updates" className="col-span-12 lg:col-span-6">
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {stats.recentActivities?.map(act => (
@@ -171,9 +152,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             </Widget>
-            )}
 
-            {viewLayout.showTopAccounts && (
             <Widget title="Top Accounts by Revenue" className="col-span-12 lg:col-span-6">
               <div className="space-y-1">
                 {stats.topAccounts?.map((a) => (
@@ -187,10 +166,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             </Widget>
-            )}
 
-            {/* Quick Create */}
-            {viewLayout.showQuickCreate && (
             <Widget title="Quick Create" className="col-span-12">
               <div className="flex flex-wrap gap-2">
                 {QUICK_CREATE.map(q => (
@@ -200,7 +176,6 @@ export default function DashboardPage() {
                 ))}
               </div>
             </Widget>
-            )}
           </div>
         ) : <p className="text-zoho-muted">Failed to load dashboard</p>}
       </div>

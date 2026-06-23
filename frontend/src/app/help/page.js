@@ -30,7 +30,7 @@ const SECTIONS = [
     title: 'Calendar & tasks',
     items: [
       { q: 'Calendar events', a: 'Open Calendar from the sidebar to view tasks, meetings, and calls. Double-click a day to create an event on that date.' },
-      { q: 'Login reminders', a: 'When you sign in, overdue or today’s calendar items may appear in a reminder popup.' },
+      { q: 'Reminders', a: 'Overdue and today’s calendar items appear in the Reminders panel on the bottom utility bar. Mark items done there or from the Calendar page.' },
     ],
   },
   {

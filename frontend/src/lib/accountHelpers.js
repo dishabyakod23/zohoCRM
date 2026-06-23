@@ -16,7 +16,6 @@ export function normalizeAccount(account) {
 export function toAccountPayload(form, { partial = false } = {}) {
   const payload = {
     account_name: form.account_name || form.name,
-    account_site: form.account_site || null,
     account_number: form.account_number || null,
     account_type: form.account_type || null,
     industry: form.industry || null,

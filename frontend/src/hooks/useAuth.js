@@ -41,7 +41,6 @@ export function AuthProvider({ children }) {
     localStorage.setItem('crm_user', JSON.stringify(res.data.user));
     setAuthSessionCookie();
     setUser(res.data.user);
-    sessionStorage.setItem('crm_show_login_reminders', '1');
     router.push('/dashboard');
   };
 

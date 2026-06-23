@@ -35,11 +35,46 @@ function EventPill({ event, onClick }) {
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(event); }}
-      className={`block w-full max-w-full text-left text-xs leading-snug px-2 py-1 rounded truncate shrink-0 ${meta.bg} ${meta.text} hover:opacity-90`}
+      className={`block w-full max-w-full text-left text-xs leading-snug px-2 py-1 rounded truncate shrink-0 ${meta.bg} ${meta.text} hover:opacity-90 ${event.completed ? 'opacity-50 line-through' : ''}`}
       title={event.title}
     >
       {!event.all_day && event.start_time ? `${formatTime(event.start_time)} ` : ''}{event.title}
     </button>
+  );
+}
+
+function SidebarEventRow({ event, onEdit, onToggleComplete, toggling, canEdit }) {
+  const meta = eventTypeMeta(event.event_type);
+  const completed = !!event.completed;
+
+  return (
+    <div className={`flex items-start gap-2 p-2 rounded-lg border border-zoho-border hover:bg-brand-50 text-sm ${completed ? 'bg-gray-50/80' : ''}`}>
+      {canEdit ? (
+        <input
+          type="checkbox"
+          checked={completed}
+          disabled={toggling}
+          onChange={(e) => {
+            e.stopPropagation();
+            onToggleComplete(event, e.target.checked);
+          }}
+          className="mt-0.5 shrink-0 rounded border-zoho-border text-brand-600 focus:ring-brand-500"
+          aria-label={completed ? `Mark ${event.title} as not done` : `Mark ${event.title} as done`}
+        />
+      ) : (
+        <span className={`mt-1 w-4 h-4 shrink-0 rounded border flex items-center justify-center ${completed ? 'bg-emerald-500 border-emerald-500' : 'border-zoho-border'}`}>
+          {completed && (
+            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </span>
+      )}
+      <button type="button" onClick={() => onEdit(event)} className="flex-1 min-w-0 text-left">
+        <p className={`font-medium truncate ${completed ? 'line-through text-zoho-muted' : ''}`}>{event.title}</p>
+        <p className="text-[10px] text-zoho-muted">{meta.label}</p>
+      </button>
+    </div>
   );
 }
 
@@ -101,6 +136,7 @@ export default function CalendarPage() {
   const [editEvent, setEditEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()));
   const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState(null);
   const [users, setUsers] = useState([]);
   const [ownerFilter, setOwnerFilter] = useState('');
 
@@ -209,6 +245,22 @@ export default function CalendarPage() {
     }
   };
 
+  const toggleEventComplete = async (event, completed) => {
+    setTogglingId(event.id);
+    try {
+      await calendarApi.updateEvent(event.id, { completed });
+      setEvents((prev) => prev.map((e) => (e.id === event.id ? { ...e, completed } : e)));
+      if (editEvent?.id === event.id) {
+        setEditEvent((prev) => (prev ? { ...prev, completed } : prev));
+      }
+      showToast(completed ? 'Marked as done' : 'Marked as active', 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const currentUserName = user?.name
     || `${user?.first_name || ''} ${user?.last_name || ''}`.trim()
     || user?.email
@@ -273,11 +325,14 @@ export default function CalendarPage() {
               ) : (
                 <div className="space-y-2">
                   {selectedEvents.map((e) => (
-                    <button key={e.id} type="button" onClick={() => openEdit(e)}
-                      className="w-full text-left p-2 rounded-lg border border-zoho-border hover:bg-brand-50 text-sm">
-                      <p className="font-medium truncate">{e.title}</p>
-                      <p className="text-[10px] text-zoho-muted">{eventTypeMeta(e.event_type).label}</p>
-                    </button>
+                    <SidebarEventRow
+                      key={e.id}
+                      event={e}
+                      onEdit={openEdit}
+                      onToggleComplete={toggleEventComplete}
+                      toggling={togglingId === e.id}
+                      canEdit={canEdit}
+                    />
                   ))}
                 </div>
               )}

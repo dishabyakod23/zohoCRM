@@ -24,7 +24,7 @@ export function emptyProjectRow() {
 export function emptyAccountForm() {
   return {
     owner_id: '',
-    account_name: '', account_site: '', parent_account_id: '', account_number: '',
+    account_name: '', parent_account_id: '', account_number: '',
     account_type: '', industry: '', annual_revenue: '', rating: '',
     phone: '', fax: '', website: '', ticker_symbol: '', ownership: '',
     employees: '', sic_code: '',
@@ -218,10 +218,6 @@ export default function CreateAccountForm() {
 
             <FormField label="Account Name" required error={errors.account_name} name="account_name">
               <input className={inputClass(errors.account_name)} value={form.account_name} onChange={set('account_name')} />
-            </FormField>
-
-            <FormField label="Account Site" name="account_site">
-              <input className="input" value={form.account_site} onChange={set('account_site')} />
             </FormField>
 
             <FormField label="Parent Account" name="parent_account_id">
