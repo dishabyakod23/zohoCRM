@@ -6,6 +6,7 @@ import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
+import RecordDetailSkeleton from '../../../components/records/RecordDetailSkeleton.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
@@ -13,6 +14,9 @@ import { getApiError } from '../../../lib/api.js';
 import * as accountsApi from '../../../lib/services/accounts.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import * as projectsApi from '../../../lib/services/projects.js';
+import * as dealsApi from '../../../lib/services/deals.js';
+import { fetchDealStages, accountMapFromLookups } from '../../../lib/services/lookups.js';
+import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { ACCOUNT_TYPES } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
@@ -28,23 +32,29 @@ export default function AccountDetailPage() {
   const [account, setAccount] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [deals, setDeals] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const loadAccount = useCallback(() => {
-    Promise.all([
-      accountsApi.getAccount(id),
-      contactsApi.listContacts({ account_id: id, page_size: 100 }),
-      projectsApi.listProjects({ account_id: id, page_size: 100 }),
-    ]).then(([r, contactResult, projectResult]) => {
+  const loadAccount = useCallback(async () => {
+    try {
+      const [r, contactResult, projectResult, stages] = await Promise.all([
+        accountsApi.getAccount(id),
+        contactsApi.listContacts({ account_id: id, page_size: 100 }),
+        projectsApi.listProjects({ account_id: id, page_size: 100 }),
+        fetchDealStages().catch(() => FALLBACK_DEAL_STAGES),
+      ]);
       setAccount({ ...r, account_name: r.name || r.account_name });
       setContacts(contactResult.data || []);
       setProjects(projectResult.data || []);
       trackRecentItem({ type: 'account', id, name: r.name });
-    }).catch(() => {
+      const map = accountMapFromLookups([{ value: r.id, label: r.name }]);
+      const dealResult = await dealsApi.listDeals({ page: 1, page_size: 500 }, map, stages);
+      setDeals((dealResult.data || []).filter((d) => String(d.account_id) === String(id)));
+    } catch {
       showToast('Account not found');
       router.push('/accounts');
-    });
+    }
   }, [id, router, showToast]);
 
   useEffect(() => { loadAccount(); }, [loadAccount]);
@@ -63,7 +73,7 @@ export default function AccountDetailPage() {
     }
   };
 
-  if (!account) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
+  if (!account) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   return (
     <CRMLayout>
@@ -75,6 +85,8 @@ export default function AccountDetailPage() {
         badges={account.account_type ? <Badge label={account.account_type} /> : null}
         lastUpdated={account.updated_at ? new Date(account.updated_at).toLocaleString() : undefined}
         recordNotes={{ relatedType: 'account', recordId: id, canEdit }}
+        recordActivities={{ entityType: 'account', recordId: id }}
+        recordHistory={{ entityType: 'account', recordId: id }}
         actions={canDelete && (
           <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
             <TrashIcon className="w-4 h-4" /> Delete
@@ -121,10 +133,16 @@ export default function AccountDetailPage() {
             values={account}
             onSave={saveSection}
             fields={[
-              { name: 'city', label: 'City' },
-              { name: 'state', label: 'State' },
-              { name: 'zip_code', label: 'Zip Code' },
-              { name: 'country', label: 'Country' },
+              { name: 'billing_street', label: 'Billing Street' },
+              { name: 'billing_city', label: 'Billing City' },
+              { name: 'billing_state', label: 'Billing State' },
+              { name: 'billing_zip', label: 'Billing Zip' },
+              { name: 'billing_country', label: 'Billing Country' },
+              { name: 'shipping_street', label: 'Shipping Street' },
+              { name: 'shipping_city', label: 'Shipping City' },
+              { name: 'shipping_state', label: 'Shipping State' },
+              { name: 'shipping_zip', label: 'Shipping Zip' },
+              { name: 'shipping_country', label: 'Shipping Country' },
             ]}
           />
 
@@ -143,6 +161,38 @@ export default function AccountDetailPage() {
                   </li>
                 ))}
               </ul>
+            )}
+          </div>
+
+          <div className="card p-4">
+            <h3 className="text-sm font-semibold text-zoho-text mb-3">Deals</h3>
+            {deals.length === 0 ? (
+              <p className="text-sm text-zoho-muted">No deals linked to this account.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-zoho-muted border-b border-zoho-border">
+                      <th className="pb-2 font-medium">Deal</th>
+                      <th className="pb-2 font-medium">Amount</th>
+                      <th className="pb-2 font-medium">Stage</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zoho-border">
+                    {deals.map((deal) => (
+                      <tr key={deal.id}>
+                        <td className="py-2">
+                          <Link href={`/deals/${deal.id}`} className="font-medium text-brand-600 hover:underline">
+                            {deal.name || deal.deal_name}
+                          </Link>
+                        </td>
+                        <td className="py-2">{formatMoney(deal.amount, deal.currency || account.currency)}</td>
+                        <td className="py-2">{deal.stage || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 

@@ -61,9 +61,10 @@ export default function DealsPage() {
   const fetchDeals = useCallback(async () => {
     setLoading(true);
     try {
+      const isKanban = view === 'kanban';
       const result = await dealsApi.listDeals({
-        page,
-        page_size: limit,
+        page: isKanban ? 1 : page,
+        page_size: isKanban ? 500 : limit,
         search: debouncedSearch || undefined,
       }, accountMap, stageOptions);
       setDeals(result.data);
@@ -73,7 +74,7 @@ export default function DealsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, accountMap, stageOptions, showToast]);
+  }, [page, limit, debouncedSearch, accountMap, stageOptions, showToast, view]);
 
   useEffect(() => { fetchDeals(); }, [fetchDeals]);
 
@@ -169,7 +170,7 @@ export default function DealsPage() {
           </>
         ) : (
           <div className="overflow-x-auto pb-4">
-            {loading ? <p className="text-center text-gray-400 py-10">Loading...</p> : (
+            {loading ? <p className="text-center text-zoho-muted py-10">Loading deals…</p> : (
               <div className="flex gap-3 min-w-max">
                 {stageOptions.map(({ value, label }) => (
                   <div key={value} className="w-56 flex flex-col"

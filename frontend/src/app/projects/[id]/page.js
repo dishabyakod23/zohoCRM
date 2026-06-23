@@ -5,6 +5,7 @@ import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
+import RecordDetailSkeleton from '../../../components/records/RecordDetailSkeleton.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
@@ -46,13 +47,14 @@ export default function ProjectDetailPage() {
     finally { setSaving(false); }
   };
 
-  if (!project) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
+  if (!project) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   return (
     <CRMLayout>
       <RecordDetailLayout backHref="/projects" backLabel="Projects" title={project.name} subtitle={project.account_name}
         badges={<Badge label={project.status_label} />}
         recordNotes={{ relatedType: 'project', recordId: id, canEdit }}
+        recordHistory={{ entityType: 'project', recordId: id }}
         actions={canDelete && <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5"><TrashIcon className="w-4 h-4" /> Delete</button>}>
         <EditableFieldSection canEdit={canEdit} saving={saving} title="Project Details" values={project} onSave={saveSection}
           fields={[

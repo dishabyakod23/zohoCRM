@@ -1,32 +1,41 @@
 import api from '../api.js';
-import { assigneeName, listResult, omitEmpty } from '../activityHelpers.js';
+import { assigneeName } from '../activityHelpers.js';
 
 export function normalizeDocument(doc) {
   return {
     ...doc,
-    name: doc.document_name,
-    file_type: doc.mime_type,
-    owner_name: assigneeName(doc),
+    name: doc.name ?? doc.document_name,
+    document_name: doc.document_name ?? doc.name,
+    file_type: doc.file_type ?? doc.mime_type,
+    owner_name: assigneeName(doc) || doc.owner_name,
   };
 }
 
 export async function listDocuments(params = {}) {
-  const res = await api.get('/documents', { params });
-  const result = listResult(res);
-  return { ...result, data: result.data.map(normalizeDocument) };
+  const { page_size, limit, ...rest } = params;
+  const res = await api.get('/documents', { params: { ...rest, limit: limit ?? page_size ?? rest.limit } });
+  const data = res.data.data || [];
+  const total = res.data.meta?.total ?? res.data.total ?? data.length;
+  return {
+    data: data.map(normalizeDocument),
+    total,
+    meta: res.data.meta || { total, page: res.data.page, limit: res.data.limit },
+  };
 }
 
 export async function getDocument(id) {
-  const res = await api.get(`/documents/${id}`);
-  return normalizeDocument(res.data.data);
+  const result = await listDocuments({ page: 1, limit: 500 });
+  const doc = result.data.find((item) => String(item.id) === String(id));
+  if (!doc) throw new Error('Document not found');
+  return doc;
 }
 
-export async function uploadDocument({ file, document_name, related_entity_type, related_entity_id, description, folder, owner_id }) {
+export async function uploadDocument({ file, document_name, name, related_entity_type, related_entity_id, related_type, related_id, description, folder, owner_id }) {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('document_name', document_name);
-  formData.append('related_entity_type', related_entity_type);
-  formData.append('related_entity_id', related_entity_id);
+  formData.append('name', name ?? document_name ?? file.name);
+  formData.append('related_type', related_type ?? related_entity_type ?? '');
+  formData.append('related_id', related_id ?? related_entity_id ?? '');
   if (description) formData.append('description', description);
   if (folder) formData.append('folder', folder);
   if (owner_id) formData.append('owner_id', owner_id);
@@ -34,16 +43,11 @@ export async function uploadDocument({ file, document_name, related_entity_type,
   const res = await api.post('/documents', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
-  return normalizeDocument(res.data.data);
+  return normalizeDocument(res.data.data ?? res.data);
 }
 
 export async function updateDocument(id, form) {
-  const res = await api.patch(`/documents/${id}`, omitEmpty({
-    document_name: form.name ?? form.document_name,
-    description: form.description,
-    folder: form.folder,
-  }));
-  return normalizeDocument(res.data.data);
+  throw new Error('Document metadata updates are not supported by the API');
 }
 
 export async function deleteDocument(id) {

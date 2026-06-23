@@ -40,7 +40,8 @@ function toCampaignPayload(form, { partial = false } = {}) {
 }
 
 export async function listCampaigns(params = {}) {
-  const res = await api.get('/campaigns', { params });
+  const { page_size, limit, page, ...rest } = params;
+  const res = await api.get('/campaigns', { params: { ...rest, page, limit: limit ?? page_size ?? 20 } });
   const result = listResult(res);
   return { ...result, data: result.data.map(normalizeCampaign) };
 }
@@ -64,14 +65,15 @@ export async function deleteCampaign(id) {
   await api.delete(`/campaigns/${id}`);
 }
 
-export async function listCampaignMembers(campaignId, params = {}) {
-  const res = await api.get(`/campaigns/${campaignId}/members`, { params });
-  return listResult(res);
+export async function listCampaignMembers(campaignId) {
+  const campaign = await getCampaign(campaignId);
+  const members = campaign.members || [];
+  return { data: members, total: members.length };
 }
 
 export async function addCampaignMember(campaignId, payload) {
   const res = await api.post(`/campaigns/${campaignId}/members`, payload);
-  return res.data.data;
+  return res.data.data ?? res.data;
 }
 
 export async function updateCampaignMember(campaignId, memberId, payload) {
@@ -83,17 +85,27 @@ export async function deleteCampaignMember(campaignId, memberId) {
   await api.delete(`/campaigns/${campaignId}/members/${memberId}`);
 }
 
-export async function downloadCampaignMemberImportTemplate(campaignId) {
-  const res = await api.get(`/campaigns/${campaignId}/members/import/template`, { responseType: 'blob' });
-  downloadBlob(res.data, 'campaign-members-template.csv');
+export async function downloadCampaignMemberImportTemplate() {
+  const csv = 'email,type\n';
+  downloadBlob(new Blob([csv], { type: 'text/csv' }), 'campaign-members-template.csv');
 }
 
 export async function importCampaignMembers(campaignId, file, { dry_run = true } = {}) {
-  const formData = new FormData();
-  formData.append('file', file);
-  const res = await api.post(`/campaigns/${campaignId}/members/import`, formData, {
-    params: { dry_run },
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-  return normalizeImportResult(res.data.data);
+  const csv = await file.text();
+  if (dry_run) {
+    const res = await api.post(`/campaigns/${campaignId}/bulk-upload`, { csv });
+    const payload = res.data.data ?? res.data;
+    return normalizeImportResult({
+      ready_count: payload.ready,
+      error_count: payload.errors,
+      errorRecords: (payload.errorRecords || []).map((e) => ({ row: e.row, message: e.error })),
+      readyRecords: payload.readyRecords,
+    });
+  }
+  const upload = await api.post(`/campaigns/${campaignId}/bulk-upload`, { csv });
+  const payload = upload.data.data ?? upload.data;
+  const members = payload.readyRecords || [];
+  const res = await api.post(`/campaigns/${campaignId}/bulk-import`, { members });
+  const result = res.data.data ?? res.data;
+  return normalizeImportResult({ imported_count: result.imported ?? members.length, skipped_count: result.skipped ?? 0 });
 }

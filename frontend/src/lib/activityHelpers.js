@@ -6,7 +6,8 @@ export function userBriefName(user) {
 }
 
 export function assigneeName(record) {
-  return userBriefName(record?.assigned_to) || userBriefName(record?.owner) || ownerName(record) || '—';
+  return userBriefName(record?.assigned_to) || userBriefName(record?.owner) || ownerName(record)
+    || record?.assigned_name || record?.owner_name || '—';
 }
 
 export function formatEnumLabel(value) {

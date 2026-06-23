@@ -221,18 +221,28 @@ export async function deleteLeadAttachment(leadId, attachmentId) {
 }
 
 export async function downloadLeadImportTemplate() {
-  const res = await api.get('/leads/import/template', { responseType: 'blob' });
-  downloadBlob(res.data, 'leads-import-template.csv');
+  const headers = ['first_name', 'last_name', 'company', 'email', 'phone'];
+  const csv = `${headers.join(',')}\n`;
+  downloadBlob(new Blob([csv], { type: 'text/csv' }), 'leads-import-template.csv');
 }
 
 export async function importLeadsFile(file, { dry_run = true } = {}) {
-  const formData = new FormData();
-  formData.append('file', file);
-  const res = await api.post('/leads/import', formData, {
-    params: { dry_run },
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-  return normalizeImportResult(res.data.data);
+  const csv = await file.text();
+  if (dry_run) {
+    const res = await api.post('/leads/bulk-upload', { csv });
+    const payload = res.data.data || {};
+    return normalizeImportResult({
+      ready_count: payload.ready,
+      error_count: payload.errors,
+      errorRecords: (payload.errorRecords || []).map((e) => ({ row: e.row, message: e.error })),
+      readyRecords: payload.readyRecords,
+    });
+  }
+  const upload = await api.post('/leads/bulk-upload', { csv });
+  const payload = upload.data.data || {};
+  const records = payload.readyRecords || [];
+  const res = await api.post('/leads/bulk-import', { records });
+  return normalizeImportResult({ imported_count: res.data.data?.imported ?? records.length });
 }
 
 export async function advanceLeadStage(id, lead_status, { proposal = false, clearProposal = false } = {}) {

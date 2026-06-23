@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import RecordNotesTab from './RecordNotesTab.js';
+import RecordActivitiesTab from './RecordActivitiesTab.js';
+import RecordHistoryTab from './RecordHistoryTab.js';
 import { notesSupportedRelatedType } from '../../lib/noteHelpers.js';
 
 /**
@@ -21,13 +23,22 @@ export default function RecordDetailLayout({
   tabs,
   defaultTab = 'Overview',
   recordNotes,
+  recordActivities,
+  recordHistory,
   children,
   tabContent,
 }) {
   const showNotes = recordNotes?.relatedType
     && recordNotes?.recordId
     && notesSupportedRelatedType(recordNotes.relatedType);
-  const resolvedTabs = tabs ?? (showNotes ? ['Overview', 'Notes'] : ['Overview']);
+  const showActivities = recordActivities?.entityType && recordActivities?.recordId;
+  const showHistory = recordHistory?.entityType && recordHistory?.recordId;
+  const resolvedTabs = tabs ?? [
+    'Overview',
+    ...(showNotes ? ['Notes'] : []),
+    ...(showActivities ? ['Activities'] : []),
+    ...(showHistory ? ['History'] : []),
+  ];
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   const initials = avatarLabel || title?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
@@ -37,8 +48,14 @@ export default function RecordDetailLayout({
     if (tab === 'Notes' && showNotes && recordNotes) {
       return <RecordNotesTab relatedType={recordNotes.relatedType} recordId={recordNotes.recordId} canEdit={recordNotes.canEdit} />;
     }
+    if (tab === 'Activities' && showActivities) {
+      return <RecordActivitiesTab entityType={recordActivities.entityType} recordId={recordActivities.recordId} />;
+    }
+    if (tab === 'History' && showHistory) {
+      return <RecordHistoryTab entityType={recordHistory.entityType} recordId={recordHistory.recordId} />;
+    }
     if (tab === defaultTab || tab === resolvedTabs[0]) return children;
-    return <div className="card p-8 text-center text-zoho-muted text-sm">{tab} — coming soon</div>;
+    return null;
   };
 
   return (

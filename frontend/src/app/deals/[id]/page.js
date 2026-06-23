@@ -5,6 +5,7 @@ import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
+import RecordDetailSkeleton from '../../../components/records/RecordDetailSkeleton.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
@@ -83,7 +84,7 @@ export default function DealDetailPage() {
 
   const fmt = (n, currency) => formatMoney(n, currency || deal?.currency);
 
-  if (!deal) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
+  if (!deal) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   const isClosedLost = String(deal.stage_value || deal.stage || '').toLowerCase().includes('closed_lost')
     || String(deal.stage || '').toLowerCase().includes('closed lost');
@@ -97,6 +98,8 @@ export default function DealDetailPage() {
         badges={<Badge label={deal.stage} />}
         lastUpdated={deal.updated_at ? new Date(deal.updated_at).toLocaleString() : undefined}
         recordNotes={{ relatedType: 'deal', recordId: id, canEdit }}
+        recordActivities={{ entityType: 'deal', recordId: id }}
+        recordHistory={{ entityType: 'deal', recordId: id }}
         actions={<>
           {canEdit && isClosedLost && (
             <button type="button" onClick={reopenAsLead} disabled={saving} className="btn-secondary text-xs">

@@ -5,6 +5,7 @@ import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout, { InfoRow } from '../../../components/records/RecordDetailLayout.js';
+import RecordDetailSkeleton from '../../../components/records/RecordDetailSkeleton.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
 import EditableEmailField from '../../../components/forms/EditableEmailField.js';
 import LeadConvertMenu from '../../../components/leads/LeadConvertMenu.js';
@@ -75,7 +76,7 @@ export default function LeadDetailPage() {
     }
   };
 
-  if (!lead) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
+  if (!lead) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   const editable = canEdit && !lead.is_converted;
   const select = (opts, key = 'value', labelKey = 'label') => (draft, setDraft, field) => (
@@ -95,7 +96,9 @@ export default function LeadDetailPage() {
         subtitle={lead.company}
         badges={<Badge label={lead.status} />}
         lastUpdated={new Date(lead.updated_at).toLocaleString()}
-        recordNotes={{ relatedType: 'lead', recordId: id, canEdit }}
+        recordNotes={{ relatedType: 'lead', recordId: id, canEdit: editable }}
+        recordActivities={{ entityType: 'lead', recordId: id }}
+        recordHistory={{ entityType: 'lead', recordId: id }}
         actions={
           <>
             <LeadConvertMenu

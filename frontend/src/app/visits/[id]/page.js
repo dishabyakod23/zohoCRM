@@ -4,6 +4,8 @@ import { useParams, useRouter } from 'next/navigation';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
+import RecordDetailSkeleton from '../../../components/records/RecordDetailSkeleton.js';
+import RelatedRecordCard from '../../../components/records/RelatedRecordCard.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
@@ -45,14 +47,23 @@ export default function VisitDetailPage() {
     finally { setSaving(false); }
   };
 
-  if (!visit) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
+  if (!visit) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
+
+  const related = visit.related_type && visit.related_id
+    ? { type: visit.related_type, id: visit.related_id, label: visit.account_name || visit.contact_name || `${visit.related_type} #${visit.related_id}` }
+    : (visit.account_id ? { type: 'account', id: visit.account_id, label: visit.account_name } : null);
 
   return (
     <CRMLayout>
       <RecordDetailLayout backHref="/visits" backLabel="Visits" title={visit.title} subtitle={visit.location}
         recordNotes={{ relatedType: 'visit', recordId: id, canEdit }}
+        recordHistory={{ entityType: 'visit', recordId: id }}
         actions={canDelete && <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5"><TrashIcon className="w-4 h-4" /> Delete</button>}>
-        <EditableFieldSection canEdit={canEdit} saving={saving} title="Visit Details" values={visit} onSave={saveSection}
+        <div className="space-y-4">
+          {related && (
+            <RelatedRecordCard relatedType={related.type} relatedId={related.id} label={related.label} />
+          )}
+        <EditableFieldSection canEdit={canEdit} saving={saving} title="Visit Details" values={{ ...visit, title: visit.title || visit.visit_name }} onSave={saveSection}
           fields={[
             { name: 'title', label: 'Visit Name', required: true },
             { name: 'visit_date', label: 'Visit Date', format: (v) => (v ? new Date(v).toLocaleString() : null), render: (d, set) => (
@@ -73,6 +84,7 @@ export default function VisitDetailPage() {
               <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: e.target.value }))} />
             ) },
           ]} />
+        </div>
       </RecordDetailLayout>
       <ConfirmDialog open={deleteConfirm} message={`Delete visit "${visit.title}"?`} confirmLabel="Confirm Delete" danger
         onConfirm={async () => { try { await visitsApi.deleteVisit(id); router.push('/visits'); } catch (err) { showToast(getApiError(err)); } }}

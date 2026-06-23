@@ -174,7 +174,7 @@ export default function CreateRawLeadForm() {
             </FormField>
             )}
             <div className="sm:col-span-2 grid grid-cols-[120px_1fr] gap-3">
-              <FormField label="First Name">
+              <FormField label="Salutation">
                 {noneSelect(form.salutation, set('salutation'), SALUTATIONS)}
               </FormField>
               <FormField label="First Name" required error={errors.first_name} name="first_name">

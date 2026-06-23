@@ -24,9 +24,9 @@ export default function ActivitiesPage() {
     setLoading(true);
     try {
       const [t, m, c] = await Promise.all([
-        tasksApi.listTasks({ page: 1, page_size: 10 }),
-        meetingsApi.listMeetings({ page: 1, page_size: 10 }),
-        callsApi.listCalls({ page: 1, page_size: 10 }),
+        tasksApi.listTasks({ page: 1, page_size: 50 }),
+        meetingsApi.listMeetings({ page: 1, page_size: 50 }),
+        callsApi.listCalls({ page: 1, page_size: 50 }),
       ]);
       setTasks(t.data);
       setMeetings(m.data);

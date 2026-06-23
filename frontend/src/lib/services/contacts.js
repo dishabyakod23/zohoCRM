@@ -84,16 +84,37 @@ export async function deleteContact(id) {
 }
 
 export async function downloadContactImportTemplate() {
-  const res = await api.get('/contacts/import/template', { responseType: 'blob' });
-  downloadBlob(res.data, 'contacts-import-template.csv');
+  const headers = ['first_name', 'last_name', 'email', 'phone', 'account_name'];
+  const csv = `${headers.join(',')}\n`;
+  downloadBlob(new Blob([csv], { type: 'text/csv' }), 'contacts-import-template.csv');
 }
 
 export async function importContactsFile(file, { dry_run = true } = {}) {
-  const formData = new FormData();
-  formData.append('file', file);
-  const res = await api.post('/contacts/import', formData, {
-    params: { dry_run },
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-  return normalizeImportResult(res.data.data);
+  const csv = await file.text();
+  const upload = await api.post('/contacts/bulk-upload', { csv });
+  const payload = upload.data.data || {};
+  const readyRecords = payload.readyRecords || [];
+  if (dry_run) {
+    return normalizeImportResult({
+      ready_count: payload.ready,
+      error_count: payload.errors,
+      errorRecords: (payload.errorRecords || []).map((e) => ({ row: e.row, message: e.error })),
+      readyRecords,
+    });
+  }
+  let imported = 0;
+  for (const record of readyRecords) {
+    await api.post('/contacts', {
+      first_name: record.first_name || null,
+      last_name: record.last_name,
+      email: record.email,
+      phone: record.phone || null,
+      account_id: record.account_id,
+      title: record.title || null,
+      department: record.department || null,
+      lead_source: record.lead_source || null,
+    });
+    imported += 1;
+  }
+  return normalizeImportResult({ imported_count: imported });
 }

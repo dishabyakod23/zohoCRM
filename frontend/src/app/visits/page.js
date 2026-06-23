@@ -3,6 +3,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
+import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
@@ -27,8 +29,20 @@ export default function VisitsPage() {
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
+
+  const filteredItems = useMemo(() => {
+    if (!debouncedSearch) return items;
+    const q = debouncedSearch.toLowerCase();
+    return items.filter((v) =>
+      (v.title || v.visit_name || '').toLowerCase().includes(q)
+      || (v.account_name || '').toLowerCase().includes(q)
+      || (v.location || '').toLowerCase().includes(q),
+    );
+  }, [items, debouncedSearch]);
 
   useEffect(() => {
     Promise.all([fetchAccountLookups(), fetchVisitStatuses()])
@@ -88,10 +102,12 @@ export default function VisitsPage() {
           ) : null}
         />
 
+        <ListSearchBar search={search} onSearchChange={setSearch} placeholder="Search visits…" />
+
         <div className="card">
           <RecordDataTable
             moduleKey="visits"
-            records={items}
+            records={filteredItems}
             loading={loading}
             columns={columns}
             statusOptions={statusOptions}

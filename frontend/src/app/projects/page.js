@@ -3,6 +3,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
+import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
@@ -28,8 +30,20 @@ export default function ProjectsPage() {
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
+
+  const filteredItems = useMemo(() => {
+    if (!debouncedSearch) return items;
+    const q = debouncedSearch.toLowerCase();
+    return items.filter((p) =>
+      (p.name || '').toLowerCase().includes(q)
+      || (p.account_name || '').toLowerCase().includes(q)
+      || (p.status_label || '').toLowerCase().includes(q),
+    );
+  }, [items, debouncedSearch]);
 
   useEffect(() => {
     Promise.all([fetchAccountLookups(), fetchProjectStatuses()])
@@ -88,10 +102,12 @@ export default function ProjectsPage() {
           ) : null}
         />
 
+        <ListSearchBar search={search} onSearchChange={setSearch} placeholder="Search projects…" />
+
         <div className="card">
           <RecordDataTable
             moduleKey="projects"
-            records={items}
+            records={filteredItems}
             loading={loading}
             columns={columns}
             statusOptions={statusOptions}

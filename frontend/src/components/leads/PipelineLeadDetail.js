@@ -8,6 +8,7 @@ import LeadConvertMenu from './LeadConvertMenu.js';
 import ConfirmDialog from '../ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import RecordDetailLayout, { InfoRow } from '../records/RecordDetailLayout.js';
+import RecordDetailSkeleton from '../records/RecordDetailSkeleton.js';
 import EditableFieldSection from '../records/EditableFieldSection.js';
 import EditableEmailField from '../forms/EditableEmailField.js';
 import { useToast } from '../ui/Toast.js';
@@ -117,7 +118,7 @@ export default function PipelineLeadDetail({ stage }) {
     }
   };
 
-  if (!lead) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
+  if (!lead) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   const editable = canEdit;
   const select = (opts, key = 'value', labelKey = 'label') => (draft, setDraft, field) => (
@@ -139,6 +140,8 @@ export default function PipelineLeadDetail({ stage }) {
         badges={<><Badge label={pipelineStageLabel(stage)} /><Badge label={lead.status} /></>}
         lastUpdated={new Date(lead.updated_at).toLocaleString()}
         recordNotes={{ relatedType: 'lead', recordId: id, canEdit: editable }}
+        recordActivities={{ entityType: 'lead', recordId: id }}
+        recordHistory={{ entityType: 'lead', recordId: id }}
         actions={
           <>
             <LeadConvertMenu
@@ -234,6 +237,20 @@ export default function PipelineLeadDetail({ stage }) {
               ) },
               { name: 'phone', label: 'Phone' },
               { name: 'mobile', label: 'Mobile' },
+            ]}
+          />
+          <EditableFieldSection
+            title="Address Information"
+            canEdit={editable}
+            saving={saving}
+            values={lead}
+            onSave={saveSection}
+            fields={[
+              { name: 'street', label: 'Street' },
+              { name: 'city', label: 'City' },
+              { name: 'state', label: 'State' },
+              { name: 'country', label: 'Country' },
+              { name: 'zip', label: 'Zip Code' },
             ]}
           />
         </div>

@@ -330,16 +330,29 @@ export default function RecordDataTable({
         showToast(`Updated ${count} record(s)`, 'success');
       } else {
         let success = 0;
-        for (const id of selected) {
-          if (massField === 'status' && config.statusField && config.update) {
-            await config.update(id, { [config.statusField]: massValue });
-            success += 1;
-          } else if (massField === 'convert' && config.convert) {
-            await config.convert(id, massValue);
-            success += 1;
+        let failed = 0;
+        for (const recordId of selected) {
+          try {
+            if (massField === 'status' && config.statusField && config.update) {
+              await config.update(recordId, { [config.statusField]: massValue });
+              success += 1;
+            } else if (massField === 'convert' && config.convert) {
+              await config.convert(recordId, massValue);
+              success += 1;
+            }
+          } catch {
+            failed += 1;
           }
         }
-        showToast(`Updated ${success} record(s)`, 'success');
+        if (!success) {
+          showToast(failed > 1 ? `${failed} record(s) failed to update` : 'Update failed');
+          return;
+        }
+        if (failed > 0) {
+          showToast(`Updated ${success} record(s); ${failed} failed`);
+        } else {
+          showToast(`Updated ${success} record(s)`, 'success');
+        }
       }
       setMassUpdateOpen(false);
       setMassField('');

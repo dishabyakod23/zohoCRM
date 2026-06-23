@@ -297,6 +297,10 @@ export default function CreateContactForm() {
               </div>
             </FormField>
 
+            <FormField label="Website" name="website">
+              <input className="input" type="url" placeholder="https://" value={form.website} onChange={set('website')} />
+            </FormField>
+
             <FormField label="Reporting To" name="reports_to_id">
               <select className="input" value={form.reports_to_id} onChange={set('reports_to_id')}>
                 <option value="">—None—</option>

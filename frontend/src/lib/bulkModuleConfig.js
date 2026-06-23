@@ -87,7 +87,7 @@ export const BULK_MODULE_CONFIG = {
     emailField: 'email',
     statusField: null,
     massUpdateFields: [],
-    update: () => Promise.resolve(),
+    update: (id, payload) => contactsApi.updateContact(id, payload),
     deleteOne: (id) => contactsApi.deleteContact(id),
     exportRow: (r) => ({
       first_name: r.first_name, last_name: r.last_name, email: r.email, phone: r.phone, account: r.account_name,
@@ -101,8 +101,8 @@ export const BULK_MODULE_CONFIG = {
     massUpdateFields: ['status'],
     update: (id, payload) => accountsApi.updateAccount(id, payload),
     deleteOne: (id) => accountsApi.deleteAccount(id),
-    exportRow: (r) => ({ name: r.name, industry: r.industry, phone: r.phone, city: r.city, status: r.account_type }),
-    mailingLabel: (r) => `${r.name || ''}\n${[r.city, r.state].filter(Boolean).join(', ')}`,
+    exportRow: (r) => ({ name: r.name, industry: r.industry, phone: r.phone, city: r.billing_city || r.city, status: r.account_type }),
+    mailingLabel: (r) => `${r.name || ''}\n${[r.billing_city || r.city, r.billing_state || r.state].filter(Boolean).join(', ')}`,
   },
   deals: {
     label: 'Records',
@@ -137,7 +137,7 @@ export const BULK_MODULE_CONFIG = {
     label: 'Records',
     statusField: null,
     massUpdateFields: [],
-    update: () => Promise.resolve(),
+    update: (id, payload) => meetingsApi.updateMeeting(id, payload),
     deleteOne: (id) => meetingsApi.deleteMeeting(id),
     exportRow: (r) => ({ title: r.title, from: r.from_datetime || r.from_time, to: r.to_datetime || r.to_time }),
     mailingLabel: (r) => r.title || '',
@@ -157,8 +157,8 @@ export const BULK_MODULE_CONFIG = {
     massUpdateFields: [],
     update: () => Promise.resolve(),
     deleteOne: (id) => documentsApi.deleteDocument(id),
-    exportRow: (r) => ({ name: r.document_name, type: r.related_entity_type }),
-    mailingLabel: (r) => r.document_name || '',
+    exportRow: (r) => ({ name: r.name || r.document_name, type: r.related_type || r.related_entity_type }),
+    mailingLabel: (r) => r.name || r.document_name || '',
   },
   visits: {
     label: 'Records',
@@ -167,7 +167,7 @@ export const BULK_MODULE_CONFIG = {
     update: (id, payload) => visitsApi.updateVisit(id, payload),
     deleteOne: (id) => visitsApi.deleteVisit(id),
     exportRow: (r) => ({ name: r.title || r.visit_name, date: r.visit_date, status: r.status }),
-    mailingLabel: (r) => r.visit_name || '',
+    mailingLabel: (r) => r.title || r.visit_name || '',
   },
   projects: {
     label: 'Records',

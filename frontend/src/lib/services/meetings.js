@@ -2,11 +2,16 @@ import api from '../api.js';
 import { userBriefName, listResult, omitEmpty, toIsoDatetime } from '../activityHelpers.js';
 
 export function normalizeMeeting(meeting) {
+  const from = meeting.from_datetime ?? meeting.start_at;
+  const to = meeting.to_datetime ?? meeting.end_at;
   return {
     ...meeting,
-    from_datetime: meeting.start_at,
-    to_datetime: meeting.end_at,
-    host_name: userBriefName(meeting.host),
+    from_datetime: from,
+    to_datetime: to,
+    start_at: from,
+    end_at: to,
+    host_name: userBriefName(meeting.host) || meeting.host_name,
+    participant_ids: meeting.participants || meeting.participant_ids || [],
   };
 }
 
@@ -14,17 +19,20 @@ function toMeetingPayload(form, { partial = false } = {}) {
   return omitEmpty({
     title: form.title,
     host_id: form.host_id || null,
-    start_at: form.from_datetime || form.start_at ? toIsoDatetime(form.from_datetime || form.start_at) : undefined,
-    end_at: form.to_datetime || form.end_at ? toIsoDatetime(form.to_datetime || form.end_at) : undefined,
+    from_datetime: form.from_datetime || form.start_at ? toIsoDatetime(form.from_datetime || form.start_at) : undefined,
+    to_datetime: form.to_datetime || form.end_at ? toIsoDatetime(form.to_datetime || form.end_at) : undefined,
     location: form.location,
     description: form.description,
-    contact_id: form.contact_id || null,
-    participant_ids: form.participant_ids,
+    participants: form.participants || form.participant_ids,
+    related_type: form.related_type || (form.contact_id ? 'contact' : undefined),
+    related_id: form.related_id || form.contact_id || null,
+    reminder: form.reminder,
   });
 }
 
 export async function listMeetings(params = {}) {
-  const res = await api.get('/meetings', { params });
+  const { page_size, limit, ...rest } = params;
+  const res = await api.get('/meetings', { params: { ...rest, limit: limit ?? page_size ?? rest.limit } });
   const result = listResult(res);
   return { ...result, data: result.data.map(normalizeMeeting) };
 }

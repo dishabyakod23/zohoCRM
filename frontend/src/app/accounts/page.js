@@ -70,7 +70,7 @@ export default function AccountsPage() {
     { id: 'website', header: 'Website', cell: (a) => a.website ? <a href={a.website} target="_blank" rel="noreferrer" className={`${tableEmailClass} text-xs hover:text-zoho-text hover:underline`}>{a.website.replace('https://', '')}</a> : '—' },
     { id: 'email', header: 'Email', cell: (a) => <span className={tableEmailClass}>{a.email || '—'}</span> },
     { id: 'status', header: 'Status', cell: (a) => <Badge label={a.account_type || '—'} /> },
-    { id: 'city', header: 'City', cell: (a) => a.city || '—' },
+    { id: 'city', header: 'City', cell: (a) => a.billing_city || a.city || '—' },
     { id: 'owner', header: 'Owner', cell: (a) => a.owner_name || '—' },
   ], []);
 

@@ -14,9 +14,8 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveCo
 const COLORS = ['#378ADD', '#639922', '#EF9F27', '#D85A30', '#1D9E75', '#E24B4A', '#7F77DD', '#888'];
 
 const EXPORT_PATHS = {
-  leads: { path: '/reports/leads/export', group_by: 'source' },
-  accounts: { path: '/reports/accounts/export', group_by: 'industry' },
-  campaigns: { path: '/reports/campaigns/export' },
+  leads: { exportType: 'leads', group_by: 'source' },
+  accounts: { exportType: 'accounts', group_by: 'industry' },
 };
 
 export default function ReportsPage() {
@@ -125,7 +124,7 @@ export default function ReportsPage() {
       return;
     }
     try {
-      await reportsApi.exportReportCsv(cfg.path, { ...dateParams, group_by: cfg.group_by });
+      await reportsApi.exportReportCsv(cfg.exportType, { ...dateParams, group_by: cfg.group_by });
       showToast('Report downloaded', 'success');
     } catch (err) {
       showToast(getApiError(err));

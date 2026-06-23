@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
+import RecordDetailSkeleton from '../../../components/records/RecordDetailSkeleton.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
 import EditableEmailField from '../../../components/forms/EditableEmailField.js';
 import { useToast } from '../../../components/ui/Toast.js';
@@ -12,10 +13,15 @@ import { useMarkRecordViewed } from '../../../hooks/useMarkRecordViewed.js';
 import { getApiError } from '../../../lib/api.js';
 import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
-import { fetchAccountLookups, accountMapFromLookups } from '../../../lib/services/lookups.js';
+import * as dealsApi from '../../../lib/services/deals.js';
+import { fetchAccountLookups, accountMapFromLookups, fetchDealStages } from '../../../lib/services/lookups.js';
 import { LEAD_SOURCES } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
+import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
+import Link from 'next/link';
+import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
+import { tableLinkClass } from '../../../lib/tableStyles.js';
 
 export default function ContactDetailPage() {
   const { id } = useParams();
@@ -24,6 +30,8 @@ export default function ContactDetailPage() {
   const { canEdit, canDelete } = usePermissions();
   const [contact, setContact] = useState(null);
   const [accounts, setAccounts] = useState([]);
+  const [deals, setDeals] = useState([]);
+  const [stageOptions, setStageOptions] = useState(FALLBACK_DEAL_STAGES);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -40,8 +48,19 @@ export default function ContactDetailPage() {
     });
   }, [id, accounts, router, showToast]);
 
-  useEffect(() => { fetchAccountLookups().then(setAccounts).catch(() => {}); }, []);
+  useEffect(() => {
+    fetchAccountLookups().then(setAccounts).catch(() => {});
+    fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
+  }, []);
+
   useEffect(() => { if (accounts.length >= 0) loadContact(); }, [loadContact, accounts]);
+
+  useEffect(() => {
+    const map = accountMapFromLookups(accounts);
+    dealsApi.listDeals({ page: 1, page_size: 500 }, map, stageOptions)
+      .then((result) => setDeals((result.data || []).filter((d) => String(d.contact_id) === String(id))))
+      .catch(() => setDeals([]));
+  }, [id, accounts, stageOptions]);
 
   const saveSection = async (payload) => {
     if (payload.email) {
@@ -64,7 +83,7 @@ export default function ContactDetailPage() {
     }
   };
 
-  if (!contact) return <CRMLayout><div className="p-6">Loading...</div></CRMLayout>;
+  if (!contact) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   return (
     <CRMLayout>
@@ -75,6 +94,8 @@ export default function ContactDetailPage() {
         avatarLabel={`${contact.first_name?.[0] || ''}${contact.last_name?.[0] || ''}`}
         lastUpdated={contact.updated_at ? new Date(contact.updated_at).toLocaleString() : undefined}
         recordNotes={{ relatedType: 'contact', recordId: id, canEdit }}
+        recordActivities={{ entityType: 'contact', recordId: id }}
+        recordHistory={{ entityType: 'contact', recordId: id }}
         actions={canDelete && (
           <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
             <TrashIcon className="w-4 h-4" /> Delete
@@ -89,6 +110,7 @@ export default function ContactDetailPage() {
             values={contact}
             onSave={saveSection}
             fields={[
+              { name: 'salutation', label: 'Salutation' },
               { name: 'first_name', label: 'First Name' },
               { name: 'last_name', label: 'Last Name', required: true },
               { name: 'account_id', label: 'Account', format: () => contact.account_name, render: (d, set) => (
@@ -122,8 +144,66 @@ export default function ContactDetailPage() {
                   excludeContactId={id}
                 />
               ) },
+              { name: 'secondary_email', label: 'Secondary Email' },
               { name: 'phone', label: 'Phone' },
+              { name: 'other_phone', label: 'Other Phone' },
               { name: 'mobile', label: 'Mobile' },
+              { name: 'home_phone', label: 'Home Phone' },
+              { name: 'fax', label: 'Fax' },
+              { name: 'assistant', label: 'Assistant' },
+              { name: 'asst_phone', label: 'Asst Phone' },
+              { name: 'website', label: 'Website' },
+              { name: 'skype_id', label: 'Skype ID' },
+              { name: 'twitter', label: 'Twitter' },
+              { name: 'date_of_birth', label: 'Date of Birth', render: (d, set) => (
+                <input className="input" type="date" value={(d.date_of_birth ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, date_of_birth: e.target.value }))} />
+              ) },
+              { name: 'email_opt_out', label: 'Email Opt Out', format: (v) => (v ? 'Yes' : 'No'), render: (d, set) => (
+                <input type="checkbox" className="w-4 h-4" checked={!!d.email_opt_out} onChange={(e) => set((p) => ({ ...p, email_opt_out: e.target.checked }))} />
+              ) },
+            ]}
+          />
+          <EditableFieldSection
+            title="Mailing Address"
+            canEdit={canEdit}
+            saving={saving}
+            values={contact}
+            onSave={saveSection}
+            fields={[
+              { name: 'mailing_street', label: 'Street' },
+              { name: 'mailing_city', label: 'City' },
+              { name: 'mailing_state', label: 'State' },
+              { name: 'mailing_zip', label: 'Zip' },
+              { name: 'mailing_country', label: 'Country' },
+            ]}
+          />
+          <EditableFieldSection
+            title="Other Address"
+            canEdit={canEdit}
+            saving={saving}
+            values={contact}
+            onSave={saveSection}
+            fields={[
+              { name: 'other_street', label: 'Street' },
+              { name: 'other_city', label: 'City' },
+              { name: 'other_state', label: 'State' },
+              { name: 'other_zip', label: 'Zip' },
+              { name: 'other_country', label: 'Country' },
+            ]}
+          />
+          <EditableFieldSection
+            title="Proposal"
+            canEdit={canEdit}
+            saving={saving}
+            values={contact}
+            onSave={saveSection}
+            fields={[
+              { name: 'proposal_amount', label: 'Proposal Amount', format: (v) => formatMoney(v, contact.currency) },
+              { name: 'currency', label: 'Currency', render: (d, set) => (
+                <select className="input" value={d.currency ?? contact.currency ?? 'INR'} onChange={(e) => set((p) => ({ ...p, currency: e.target.value }))}>
+                  {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+                </select>
+              ) },
             ]}
           />
           <EditableFieldSection
@@ -138,6 +218,24 @@ export default function ContactDetailPage() {
               ) },
             ]}
           />
+
+          <div className="card p-4">
+            <h3 className="text-sm font-semibold text-zoho-text mb-3">Related Deals</h3>
+            {deals.length === 0 ? (
+              <p className="text-sm text-zoho-muted">No deals linked to this contact.</p>
+            ) : (
+              <ul className="divide-y divide-zoho-border">
+                {deals.map((deal) => (
+                  <li key={deal.id} className="py-2 flex items-center justify-between gap-3">
+                    <Link href={`/deals/${deal.id}`} className={`text-sm font-medium ${tableLinkClass}`}>
+                      {deal.name || deal.deal_name}
+                    </Link>
+                    <span className="text-xs text-zoho-muted">{formatMoney(deal.amount, deal.currency)} · {deal.stage}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </RecordDetailLayout>
 
