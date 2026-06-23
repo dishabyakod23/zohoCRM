@@ -106,7 +106,6 @@ export default function WorkItemsPage() {
     },
     { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
     { id: 'email', header: 'Email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
-    { id: 'phone', header: 'Phone', cell: (lead) => lead.phone || '—' },
     { id: 'source', header: 'Source', cell: (lead) => lead.source || '—' },
     { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
     {
