@@ -290,7 +290,7 @@ export default function SettingsPage() {
 
   return (
     <CRMLayout>
-      <div className="p-6 max-w-3xl mx-auto w-full">
+      <div className="max-w-5xl mx-auto w-full">
         <h1 className="text-lg font-semibold text-zoho-text mb-1">Settings</h1>
         <p className="text-sm text-zoho-muted mb-6">Manage your profile, users, and organization settings</p>
 
