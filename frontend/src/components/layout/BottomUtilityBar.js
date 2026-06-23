@@ -8,7 +8,9 @@ import * as announcementsApi from '../../lib/services/announcements.js';
 import { formatAnnouncementDate } from '../../lib/services/announcements.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
-import { eventTypeMeta, formatShortDate, formatTime, todayKey } from '../../lib/calendarHelpers.js';
+import { useToast } from '../ui/Toast.js';
+import { getApiError } from '../../lib/api.js';
+import ReminderItem from '../calendar/ReminderItem.js';
 
 const ICONS = {
   announcements: (
@@ -77,8 +79,10 @@ function Panel({ title, onClose, children, wide }) {
 export default function BottomUtilityBar() {
   const { user } = useAuth();
   const { canAssignLeads } = usePermissions();
+  const { showToast } = useToast();
   const [active, setActive] = useState(null);
   const [reminders, setReminders] = useState([]);
+  const [completingReminderId, setCompletingReminderId] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [recent, setRecent] = useState([]);
@@ -126,6 +130,19 @@ export default function BottomUtilityBar() {
       .then(setAnnouncements)
       .catch(() => setAnnouncements([]))
       .finally(() => setAnnouncementsLoading(false));
+  };
+
+  const markReminderComplete = async (event) => {
+    setCompletingReminderId(event.id);
+    try {
+      await calendarApi.updateEvent(event.id, { completed: true });
+      setReminders((prev) => prev.filter((r) => r.id !== event.id));
+      showToast('Marked as done', 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setCompletingReminderId(null);
+    }
   };
 
   const toggle = (key) => {
@@ -234,24 +251,15 @@ export default function BottomUtilityBar() {
             <p className="text-sm text-zoho-muted text-center py-6">No pending reminders</p>
           ) : (
             <div className="space-y-2">
-              {reminders.map((t) => {
-                const meta = eventTypeMeta(t.event_type);
-                const today = todayKey();
-                const overdue = t.event_date < today;
-                return (
-                  <Link key={t.id} href="/calendar" onClick={() => setActive(null)}
-                    className="block p-3 rounded-xl border border-zoho-border hover:bg-brand-50 hover:border-brand-200 text-sm transition-colors">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium">{t.title}</p>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${meta.bg} ${meta.text}`}>{meta.label}</span>
-                    </div>
-                    <p className={`text-xs mt-1 ${overdue ? 'text-red-600' : 'text-zoho-muted'}`}>
-                      {t.event_date === today ? 'Due today' : overdue ? `Overdue · ${formatShortDate(t.event_date)}` : formatShortDate(t.event_date)}
-                      {t.start_time && !t.all_day ? ` · ${formatTime(t.start_time)}` : ''}
-                    </p>
-                  </Link>
-                );
-              })}
+              {reminders.map((t) => (
+                <ReminderItem
+                  key={t.id}
+                  event={t}
+                  onComplete={markReminderComplete}
+                  completing={completingReminderId === t.id}
+                  onNavigate={() => setActive(null)}
+                />
+              ))}
             </div>
           )}
         </Panel>

@@ -83,6 +83,7 @@ export default function CRMLayout({ children }) {
         events={loginReminders}
         onClose={dismissLoginReminders}
         onDismissToday={dismissLoginReminders}
+        onEventCompleted={(id) => setLoginReminders((prev) => prev.filter((e) => e.id !== id))}
       />
     </div>
   );
