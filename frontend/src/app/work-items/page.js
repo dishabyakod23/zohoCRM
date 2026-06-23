@@ -18,8 +18,6 @@ import {
   PIPELINE_QUALIFIED,
   PIPELINE_PROPOSAL,
   getLeadDetailPath,
-  pipelineStageLabel,
-  resolveLeadPipelineStage,
 } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchLeadMassUpdateFields, fetchPipelineConvertTargets, FALLBACK_LEAD_STATUSES, fetchLeadSources } from '../../lib/services/lookups.js';
@@ -105,11 +103,6 @@ export default function WorkItemsPage() {
           {lead.first_name} {lead.last_name}
         </Link>
       ),
-    },
-    {
-      id: 'stage',
-      header: 'Stage',
-      cell: (lead) => <Badge label={pipelineStageLabel(resolveLeadPipelineStage(lead))} />,
     },
     { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
     { id: 'email', header: 'Email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
