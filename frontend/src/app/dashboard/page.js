@@ -10,6 +10,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { QUICK_CREATE } from '../../lib/constants.js';
 import { userBriefName } from '../../lib/activityHelpers.js';
 import { leadStatusLabel } from '../../lib/leadHelpers.js';
+import { formatIndianCompact } from '../../lib/currencies.js';
 import {
   UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
@@ -84,7 +85,7 @@ export default function DashboardPage() {
     });
   }, [showToast]);
 
-  const fmt = (n) => n ? `₹${(n / 100000).toFixed(1)}L` : '₹0';
+  const fmt = (n) => formatIndianCompact(n);
 
   return (
     <CRMLayout>

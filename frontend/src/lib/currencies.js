@@ -35,6 +35,32 @@ export function getCurrency(code) {
   return currencyByCode[code] || currencyByCode[DEFAULT_CURRENCY];
 }
 
+function trimCompactDecimal(value, decimals = 1) {
+  return Number(value).toFixed(decimals).replace(/\.0$/, '');
+}
+
+/** INR amounts as ₹1cr, ₹60L, etc. Falls back to formatMoney for other currencies. */
+export function formatIndianCompact(amount, currencyCode = DEFAULT_CURRENCY) {
+  if (amount == null || amount === '') return '—';
+  const num = Number(amount);
+  if (Number.isNaN(num)) return amount;
+
+  const currency = getCurrency(currencyCode);
+  if (currency.code !== 'INR') return formatMoney(amount, currencyCode);
+
+  const symbol = currency.symbol;
+  const abs = Math.abs(num);
+  const sign = num < 0 ? '-' : '';
+
+  if (abs >= 1_00_00_000) {
+    return `${sign}${symbol}${trimCompactDecimal(abs / 1_00_00_000)}cr`;
+  }
+  if (abs >= 1_00_000) {
+    return `${sign}${symbol}${trimCompactDecimal(abs / 1_00_000)}L`;
+  }
+  return formatMoney(num, 'INR');
+}
+
 export function formatMoney(amount, currencyCode = DEFAULT_CURRENCY) {
   if (amount == null || amount === '') return '—';
   const num = Number(amount);
