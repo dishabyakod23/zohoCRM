@@ -39,7 +39,7 @@ function trimCompactDecimal(value, decimals = 1) {
   return Number(value).toFixed(decimals).replace(/\.0$/, '');
 }
 
-/** INR amounts as ₹1cr, ₹60L, etc. Falls back to formatMoney for other currencies. */
+/** INR amounts as ₹1Cr, ₹60L, etc. Falls back to formatMoney for other currencies. */
 export function formatIndianCompact(amount, currencyCode = DEFAULT_CURRENCY) {
   if (amount == null || amount === '') return '—';
   const num = Number(amount);
@@ -53,7 +53,7 @@ export function formatIndianCompact(amount, currencyCode = DEFAULT_CURRENCY) {
   const sign = num < 0 ? '-' : '';
 
   if (abs >= 1_00_00_000) {
-    return `${sign}${symbol}${trimCompactDecimal(abs / 1_00_00_000)}cr`;
+    return `${sign}${symbol}${trimCompactDecimal(abs / 1_00_00_000)}Cr`;
   }
   if (abs >= 1_00_000) {
     return `${sign}${symbol}${trimCompactDecimal(abs / 1_00_000)}L`;
