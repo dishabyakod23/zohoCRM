@@ -26,7 +26,6 @@ export const NAV_MODULES = [
   { href: '/dashboard', label: 'Home', section: 'main', icon: 'Home' },
   { href: '/work-items', label: 'Work Items', section: 'main', icon: 'Work Items' },
   { href: '/reports', label: 'Reports', section: 'main', icon: 'Reports' },
-  { href: '/audit-logs', label: 'Audit Logs', section: 'main', icon: 'Reports' },
   { href: '/recycle-bin', label: 'Recycle Bin', section: 'main', icon: 'Recycle Bin' },
   { href: '/contacts', label: 'Contacts', section: 'modules', icon: 'Contacts' },
   { href: '/raw-leads', label: 'Raw Leads', section: 'modules', icon: 'Raw Leads' },

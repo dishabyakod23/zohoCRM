@@ -1,5 +1,5 @@
 import api from '../api.js';
-import { formatEnumLabel, listResult, userBriefName } from '../activityHelpers.js';
+import { formatEnumLabel, userBriefName } from '../activityHelpers.js';
 
 export function normalizeAuditLog(log) {
   const resolvedUserName = log.user_name || userBriefName(log.user);
@@ -12,12 +12,6 @@ export function normalizeAuditLog(log) {
     entity_type_label: formatEnumLabel(entityType),
     summary: `${formatEnumLabel(log.action)} ${formatEnumLabel(entityType)}`,
   };
-}
-
-export async function listAuditLogs(params = {}) {
-  const res = await api.get('/audit-logs', { params });
-  const result = listResult(res);
-  return { ...result, data: result.data.map(normalizeAuditLog) };
 }
 
 export async function getEntityTimeline(entityType, entityId, params = {}) {
