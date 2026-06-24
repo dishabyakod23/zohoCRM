@@ -62,11 +62,13 @@ export default function DealsPage() {
     setLoading(true);
     try {
       const isKanban = view === 'kanban';
-      const result = await dealsApi.listDeals({
-        page: isKanban ? 1 : page,
-        page_size: isKanban ? 500 : limit,
-        search: debouncedSearch || undefined,
-      }, accountMap, stageOptions);
+      const result = isKanban
+        ? await dealsApi.listAllDeals({ search: debouncedSearch || undefined }, accountMap, stageOptions)
+        : await dealsApi.listDeals({
+          page,
+          page_size: limit,
+          search: debouncedSearch || undefined,
+        }, accountMap, stageOptions);
       setDeals(result.data);
       setTotal(result.total);
     } catch (err) {

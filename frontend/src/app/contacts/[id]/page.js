@@ -57,7 +57,7 @@ export default function ContactDetailPage() {
 
   useEffect(() => {
     const map = accountMapFromLookups(accounts);
-    dealsApi.listDeals({ page: 1, page_size: 500 }, map, stageOptions)
+    dealsApi.listAllDeals({}, map, stageOptions)
       .then((result) => setDeals((result.data || []).filter((d) => String(d.contact_id) === String(id))))
       .catch(() => setDeals([]));
   }, [id, accounts, stageOptions]);

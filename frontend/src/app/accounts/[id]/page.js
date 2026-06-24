@@ -49,7 +49,7 @@ export default function AccountDetailPage() {
       setProjects(projectResult.data || []);
       trackRecentItem({ type: 'account', id, name: r.name });
       const map = accountMapFromLookups([{ value: r.id, label: r.name }]);
-      const dealResult = await dealsApi.listDeals({ page: 1, page_size: 500 }, map, stages);
+      const dealResult = await dealsApi.listAllDeals({}, map, stages);
       setDeals((dealResult.data || []).filter((d) => String(d.account_id) === String(id)));
     } catch {
       showToast('Account not found');

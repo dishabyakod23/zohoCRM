@@ -1,8 +1,11 @@
 import api from '../api.js';
 import { normalizeDeal, toDealPayload } from '../dealHelpers.js';
 
+const LIST_PAGE_SIZE_MAX = 100;
+
 export async function listDeals({ page = 1, page_size = 50, search, stage, account_id, owner_id, sort_by, sort_order } = {}, accountMap = {}, stageOptions = []) {
-  const params = { page, page_size };
+  const cappedSize = Math.min(page_size, LIST_PAGE_SIZE_MAX);
+  const params = { page, page_size: cappedSize };
   if (search) params.search = search;
   if (stage) params.stage = stage;
   if (account_id) params.account_id = account_id;
@@ -16,6 +19,24 @@ export async function listDeals({ page = 1, page_size = 50, search, stage, accou
     total: res.data.meta?.total ?? 0,
     meta: res.data.meta,
   };
+}
+
+/** Fetch all deals by paging with API-safe page_size (for kanban / related lists). */
+export async function listAllDeals(params = {}, accountMap = {}, stageOptions = []) {
+  const pageSize = LIST_PAGE_SIZE_MAX;
+  let page = 1;
+  const all = [];
+  let total = 0;
+
+  for (;;) {
+    const result = await listDeals({ ...params, page, page_size: pageSize }, accountMap, stageOptions);
+    all.push(...result.data);
+    total = result.total || all.length;
+    if (result.data.length < pageSize || all.length >= total) break;
+    page += 1;
+  }
+
+  return { data: all, total };
 }
 
 export async function getDeal(id, accountMap = {}, stageOptions = []) {
