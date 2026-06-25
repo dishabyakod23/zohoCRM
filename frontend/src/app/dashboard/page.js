@@ -116,7 +116,7 @@ export default function DashboardPage() {
               value={stats.leads.qualified}
               sub="In qualified stage"
               icon={ChartBarIcon}
-              gradient="bg-gradient-to-br from-indigo-500 to-violet-700"
+              gradient="bg-gradient-to-br from-accent-yellow to-brand-600"
             />
             <KpiCard
               title="Top Accounts"
