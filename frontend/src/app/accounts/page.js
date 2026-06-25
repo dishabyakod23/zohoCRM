@@ -12,7 +12,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../lib/api.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import { ACCOUNT_TYPES, INDUSTRIES } from '../../lib/constants.js';
-import { tableLinkClass, tableEmailClass, tableAvatarSmClass } from '../../lib/tableStyles.js';
+import { tableLinkClass, tableEmailClass, avatarInitialClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import { EMPTY_ACCOUNT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
@@ -62,7 +62,7 @@ export default function AccountsPage() {
   const columns = useMemo(() => [
     { id: 'name', header: 'Company', cell: (a) => (
       <div className="flex items-center gap-2.5">
-        <div className={tableAvatarSmClass}>{(a.name || '?')[0]}</div>
+        <div className={avatarInitialClass(a.name, 'md')}>{(a.name || '?')[0]}</div>
         <Link href={`/accounts/${a.id}`} className={tableLinkClass}>{a.name}</Link>
       </div>
     ) },

@@ -24,7 +24,7 @@ const dashboardHandler = async (req, res) => {
       pool.query(`SELECT COUNT(*) as count FROM tasks WHERE deleted_at IS NULL AND due_date::date = CURRENT_DATE AND status != 'Completed' ${ownerFilter.replace('owner_id', 'assigned_to')}`),
       pool.query(`SELECT COUNT(*) as count FROM tasks WHERE deleted_at IS NULL AND due_date < NOW() AND status != 'Completed' ${ownerFilter.replace('owner_id', 'assigned_to')}`),
       pool.query(`SELECT COALESCE(status,'None') as status, COUNT(*) as count FROM leads WHERE deleted_at IS NULL ${ownerFilter} GROUP BY status`),
-      pool.query(`SELECT a.name, COALESCE(a.annual_revenue,0) as revenue FROM accounts a WHERE a.deleted_at IS NULL ORDER BY a.annual_revenue DESC NULLS LAST LIMIT 5`),
+      pool.query(`SELECT a.id, a.name as account_name, COALESCE(a.annual_revenue,0) as annual_revenue, COALESCE(a.currency,'INR') as currency FROM accounts a WHERE a.deleted_at IS NULL ORDER BY a.annual_revenue DESC NULLS LAST LIMIT 5`),
       pool.query(`SELECT COUNT(*) as count, COALESCE(SUM(amount),0) as value FROM deals WHERE deleted_at IS NULL
         AND close_date >= DATE_TRUNC('month', CURRENT_DATE) AND close_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
         AND stage NOT IN ('Closed Won','Closed Lost') ${ownerFilter}`),

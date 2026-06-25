@@ -1,5 +1,5 @@
 import api from '../api.js';
-import { normalizeAccount, toAccountPayload } from '../accountHelpers.js';
+import { normalizeAccount, toAccountPayload, setAccountCurrency } from '../accountHelpers.js';
 import * as contactsApi from './contacts.js';
 import * as projectsApi from './projects.js';
 import {
@@ -100,9 +100,17 @@ export async function getAccount(id) {
   return normalizeAccount(res.data.data);
 }
 
+function withSavedCurrency(account, form, id) {
+  const currency = form.currency || account.currency;
+  if (currency) setAccountCurrency(id || account.id, currency);
+  if (!account.currency && currency) return { ...account, currency };
+  return account;
+}
+
 export async function createAccount(form) {
   const res = await api.post('/accounts', toAccountPayload(form));
-  return normalizeAccount(res.data.data);
+  const account = normalizeAccount(res.data.data);
+  return withSavedCurrency(account, form, account.id);
 }
 
 export async function createAccountWithRelations(form) {
@@ -131,7 +139,8 @@ export async function createAccountWithRelations(form) {
 
 export async function updateAccount(id, form) {
   const res = await api.patch(`/accounts/${id}`, toAccountPayload(form, { partial: true }));
-  return normalizeAccount(res.data.data);
+  const account = normalizeAccount(res.data.data);
+  return withSavedCurrency(account, form, id);
 }
 
 export async function deleteAccount(id) {

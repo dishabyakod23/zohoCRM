@@ -61,6 +61,24 @@ export function formatIndianCompact(amount, currencyCode = DEFAULT_CURRENCY) {
   return formatMoney(num, 'INR');
 }
 
+/** Compact display: INR uses Cr/L; other currencies use standard money formatting. */
+export function formatCompactMoney(amount, currencyCode = DEFAULT_CURRENCY) {
+  return formatIndianCompact(amount, currencyCode);
+}
+
+/** Sum amounts grouped by currency (e.g. dashboard KPI when accounts use mixed currencies). */
+export function formatMoneyTotalsByCurrency(rows, { amountKey = 'revenue', currencyKey = 'currency' } = {}) {
+  const byCurrency = {};
+  for (const row of rows || []) {
+    const amount = Number(row[amountKey]) || 0;
+    if (!amount) continue;
+    const currency = row[currencyKey] || DEFAULT_CURRENCY;
+    byCurrency[currency] = (byCurrency[currency] || 0) + amount;
+  }
+  const parts = Object.entries(byCurrency).map(([cur, sum]) => formatCompactMoney(sum, cur));
+  return parts.length ? parts.join(' · ') : '—';
+}
+
 export function formatMoney(amount, currencyCode = DEFAULT_CURRENCY) {
   if (amount == null || amount === '') return '—';
   const num = Number(amount);

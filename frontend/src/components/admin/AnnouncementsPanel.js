@@ -155,9 +155,8 @@ export default function AnnouncementsPanel() {
                 <tr><td colSpan={7} className="table-td text-center py-8 text-gray-400">No announcements yet</td></tr>
               ) : items.map((a) => (
                 <tr key={a.id} className={!a.is_active ? 'opacity-60' : ''}>
-                  <td className="table-td font-medium max-w-[200px]">
-                    <p className="truncate">{a.title}</p>
-                    <p className="text-xs text-zoho-muted truncate">{a.body}</p>
+                  <td className="table-td font-medium max-w-[240px] truncate" title={[a.title, a.body].filter(Boolean).join(' — ')}>
+                    {a.title}{a.body ? ` — ${a.body}` : ''}
                   </td>
                   <td className="table-td">
                     <span className={`badge ${a.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>

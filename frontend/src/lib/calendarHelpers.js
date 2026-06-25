@@ -2,6 +2,7 @@ export const EVENT_TYPES = [
   { value: 'task', label: 'Task', color: '#2563eb', bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-400' },
   { value: 'deadline', label: 'Deadline', color: '#ea4335', bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-400' },
   { value: 'todo', label: 'To-Do', color: '#34a853', bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-400' },
+  { value: 'meeting', label: 'Meeting', color: '#7c3aed', bg: 'bg-violet-100', text: 'text-violet-800', border: 'border-violet-400' },
 ];
 
 export function eventTypeMeta(type) {

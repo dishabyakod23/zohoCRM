@@ -1,15 +1,39 @@
 import { ownerName } from './recordHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
 
+const ACCOUNT_CURRENCY_KEY = 'crm_account_currency';
+
+function readAccountCurrencyMap() {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(localStorage.getItem(ACCOUNT_CURRENCY_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+export function setAccountCurrency(accountId, currency) {
+  if (typeof window === 'undefined' || !accountId || !currency) return;
+  const map = readAccountCurrencyMap();
+  map[String(accountId)] = currency;
+  localStorage.setItem(ACCOUNT_CURRENCY_KEY, JSON.stringify(map));
+}
+
+export function getAccountCurrency(accountId) {
+  if (!accountId) return null;
+  return readAccountCurrencyMap()[String(accountId)] || null;
+}
+
 export function normalizeAccount(account) {
   if (!account) return account;
+  const storedCurrency = getAccountCurrency(account.id);
   return {
     ...account,
     name: account.name || account.account_name,
     account_name: account.account_name || account.name,
     owner_name: ownerName(account) || account.owner_name,
     deal_size: account.deal_size ?? account.proposal_amount ?? null,
-    currency: account.currency || DEFAULT_CURRENCY,
+    currency: account.currency || storedCurrency || DEFAULT_CURRENCY,
   };
 }
 
@@ -52,7 +76,13 @@ export function toAccountPayload(form, { partial = false } = {}) {
     owner_id: form.owner_id || null,
   };
   if (partial) {
-    return Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+    return Object.fromEntries(
+      Object.entries(payload).filter(([k, v]) => {
+        if (!Object.prototype.hasOwnProperty.call(form, k)) return false;
+        if (k === 'currency') return v != null && v !== '';
+        return v !== undefined && v !== null && v !== '';
+      }),
+    );
   }
   return payload;
 }

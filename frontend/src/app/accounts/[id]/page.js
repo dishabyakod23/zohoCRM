@@ -118,7 +118,7 @@ export default function AccountDetailPage() {
                 </select>
               ) },
               { name: 'annual_revenue', label: 'Annual Revenue', format: (v) => formatMoney(v, account.currency) },
-              { name: 'currency', label: 'Currency', render: (d, set) => (
+              { name: 'currency', label: 'Currency', format: (v) => v || account.currency || 'INR', render: (d, set) => (
                 <select className="input" value={d.currency ?? account.currency ?? 'INR'} onChange={(e) => set((p) => ({ ...p, currency: e.target.value }))}>
                   {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
                 </select>

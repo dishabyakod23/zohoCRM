@@ -35,6 +35,25 @@ export function leadStatusLabel(status, options = []) {
   return STATUS_LABELS[status] || pipelineStageLabel(status) || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+const STATUS_PLURALS = {
+  'Contact in Future': 'Contacts in Future',
+  Lead: 'Leads',
+  'Qualified Lead': 'Qualified Leads',
+  'Raw Lead': 'Raw Leads',
+  'Junk Lead': 'Junk Leads',
+  'Lost Lead': 'Lost Leads',
+  Proposal: 'Proposals',
+  'Deal Lost': 'Deals Lost',
+};
+
+/** Pluralize a lead status label when count is not 1 (e.g. chart legends). */
+export function pluralizeLeadStatusLabel(label, count) {
+  if (!label || count === 1) return label;
+  if (STATUS_PLURALS[label]) return STATUS_PLURALS[label];
+  if (label.endsWith(' Lead')) return `${label.slice(0, -5)} Leads`;
+  return label;
+}
+
 /** Ensure API receives valid LeadStatus enum value */
 export function resolveLeadStatusForApi(status) {
   if (!status) return 'raw_prospect';

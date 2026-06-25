@@ -9,8 +9,9 @@ import * as leadsApi from '../../lib/services/leads.js';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { QUICK_CREATE } from '../../lib/constants.js';
 import { userBriefName } from '../../lib/activityHelpers.js';
-import { leadStatusLabel } from '../../lib/leadHelpers.js';
-import { formatIndianCompact } from '../../lib/currencies.js';
+import { leadStatusLabel, pluralizeLeadStatusLabel } from '../../lib/leadHelpers.js';
+import { formatCompactMoney, formatMoneyTotalsByCurrency, DEFAULT_CURRENCY } from '../../lib/currencies.js';
+import { avatarInitialClass } from '../../lib/tableStyles.js';
 import {
   UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
@@ -57,25 +58,26 @@ export default function DashboardPage() {
       dashboardApi.getDashboardHome(),
       leadsApi.countLeadsThisMonth().catch(() => 0),
     ]).then(([home, leadsThisMonth]) => {
-      const leadsTotal = (home.leads_by_status || []).reduce((s, r) => s + r.count, 0);
-      const qualifiedCount = (home.leads_by_status || []).find(r => /qualified/i.test(r.label || r.key || ''))?.count ?? 0;
+      const leadsTotal = (home.leads_by_status || home.leadsByStatus || []).reduce((s, r) => s + r.count, 0);
+      const qualifiedCount = (home.leads_by_status || home.leadsByStatus || []).find(r => /qualified/i.test(r.label || r.key || r.status || ''))?.count ?? 0;
+      const topAccountsRaw = home.top_accounts || [];
       setStats({
         leads: { total: leadsTotal, this_month: leadsThisMonth, qualified: qualifiedCount },
-        accounts: { total: (home.top_accounts || []).length },
-        topAccountRevenue: (home.top_accounts || []).reduce((s, a) => s + (Number(a.annual_revenue) || 0), 0),
-        leadsByStatus: (home.leads_by_status || []).map(r => ({
-          status: leadStatusLabel(r.label),
+        accounts: { total: topAccountsRaw.length },
+        topAccounts: topAccountsRaw.map((a) => ({
+          id: a.id,
+          name: a.account_name || a.name,
+          revenue: Number(a.annual_revenue ?? a.revenue) || 0,
+          currency: a.currency || DEFAULT_CURRENCY,
+        })),
+        leadsByStatus: (home.leads_by_status || home.leadsByStatus || []).map(r => ({
+          status: leadStatusLabel(r.label || r.status || r.key),
           count: r.count,
         })),
-        recentActivities: (home.recent_activities || []).map(a => ({
+        recentActivities: (home.recent_activities || home.recentActivities || []).map(a => ({
           id: a.id,
           subject: `${a.action?.replace(/_/g, ' ')} ${a.entity_type}`,
           type: `${userBriefName(a.user)} · ${new Date(a.created_at).toLocaleString()}`,
-        })),
-        topAccounts: (home.top_accounts || []).map(a => ({
-          id: a.id,
-          name: a.account_name,
-          revenue: Number(a.annual_revenue) || 0,
         })),
       });
       setLoading(false);
@@ -85,7 +87,7 @@ export default function DashboardPage() {
     });
   }, [showToast]);
 
-  const fmt = (n) => formatIndianCompact(n);
+  const fmt = (amount, currency) => formatCompactMoney(amount, currency);
 
   return (
     <CRMLayout>
@@ -114,12 +116,12 @@ export default function DashboardPage() {
               value={stats.leads.qualified}
               sub="In qualified stage"
               icon={ChartBarIcon}
-              gradient="bg-gradient-to-br from-brand-500 to-brand-700"
+              gradient="bg-gradient-to-br from-indigo-500 to-violet-700"
             />
             <KpiCard
               title="Top Accounts"
               value={stats.accounts.total}
-              sub={fmt(stats.topAccountRevenue)}
+              sub={formatMoneyTotalsByCurrency(stats.topAccounts)}
               icon={BuildingOffice2Icon}
               gradient="bg-gradient-to-br from-accent-orange to-accent-pink"
             />
@@ -136,9 +138,9 @@ export default function DashboardPage() {
             <Widget title="My Leads by Status" className="col-span-12 lg:col-span-6">
               {stats.leadsByStatus?.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
-                  <PieChart><Pie data={stats.leadsByStatus} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} label={({ status, count }) => `${status}: ${count}`}>
+                  <PieChart><Pie data={stats.leadsByStatus} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} label={({ status, count }) => `${pluralizeLeadStatusLabel(status, count)}: ${count}`}>
                     {stats.leadsByStatus.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="white" strokeWidth={2} />)}
-                  </Pie><Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e7e5fb' }} /></PieChart>
+                  </Pie><Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e7e5fb' }} formatter={(value, _name, item) => [value, `${pluralizeLeadStatusLabel(item.payload.status, item.payload.count)}: ${item.payload.count}`]} /></PieChart>
                 </ResponsiveContainer>
               ) : <p className="text-sm text-zoho-muted text-center py-8">No leads</p>}
             </Widget>
@@ -159,10 +161,10 @@ export default function DashboardPage() {
                 {stats.topAccounts?.map((a) => (
                   <div key={a.id || a.name} className="flex items-center justify-between text-sm py-2 px-2 -mx-2 rounded-lg hover:bg-brand-50/60 transition-colors">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="w-7 h-7 rounded-lg bg-brand-gradient text-white text-[11px] font-bold flex items-center justify-center shrink-0">{a.name?.[0]}</span>
+                      <span className={avatarInitialClass(a.name)}>{a.name?.[0]}</span>
                       <span className="truncate">{a.name}</span>
                     </div>
-                    <span className="text-brand-600 font-semibold shrink-0">{fmt(a.revenue)}</span>
+                    <span className="text-brand-600 font-semibold shrink-0">{fmt(a.revenue, a.currency)}</span>
                   </div>
                 ))}
               </div>

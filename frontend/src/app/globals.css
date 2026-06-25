@@ -25,8 +25,10 @@
   .label { @apply block text-xs font-medium text-zoho-muted mb-1.5; }
   .card  { @apply bg-white rounded-xl border border-zoho-border shadow-soft; }
 
-  .table-th { @apply px-4 py-3 text-left text-[11px] font-semibold text-zoho-muted uppercase tracking-wider bg-neutral-50 border-b border-zoho-border; }
-  .table-td { @apply px-4 py-3 text-sm text-zoho-text border-b border-neutral-100; }
+  .table-th { @apply px-4 py-3 text-left text-[11px] font-semibold text-zoho-muted uppercase tracking-wider bg-neutral-50 border-b border-zoho-border whitespace-nowrap; }
+  .table-td { @apply px-4 py-3 text-sm text-zoho-text border-b border-neutral-100 whitespace-nowrap; }
+  table th,
+  table td { @apply whitespace-nowrap; }
   .record-data-table .table-td a { @apply text-zoho-text hover:text-black; }
   .record-data-table .table-td .table-muted { @apply text-zoho-muted; }
   .badge    { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset; }
