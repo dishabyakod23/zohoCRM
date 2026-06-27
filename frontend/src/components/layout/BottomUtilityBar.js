@@ -66,8 +66,8 @@ function StepButton({ onClick, disabled, label, children }) {
 
 function Panel({ title, onClose, children, wide }) {
   return (
-    <div className={`fixed bottom-14 right-4 z-50 bg-white border border-zoho-border rounded-2xl shadow-card-hover animate-scaleIn origin-bottom-right ${wide ? 'w-96' : 'w-80'} max-h-[420px] flex flex-col`}>
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zoho-border bg-brand-50/60 rounded-t-2xl">
+    <div className={`fixed bottom-14 right-4 z-50 crm-a11y-panel bg-white border border-zoho-border rounded-2xl shadow-card-hover animate-scaleIn origin-bottom-right ${wide ? 'w-96' : 'w-80'} max-h-[420px] flex flex-col`}>
+      <div className="crm-a11y-panel-header flex items-center justify-between px-4 py-3 border-b border-zoho-border bg-brand-50/60 rounded-t-2xl">
         <h3 className="text-sm font-semibold text-zoho-text">{title}</h3>
         <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-zoho-muted hover:text-red-500 hover:bg-red-50 text-lg leading-none transition-colors">×</button>
       </div>
@@ -87,7 +87,7 @@ export default function BottomUtilityBar() {
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [recent, setRecent] = useState([]);
   const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
-  const [a11y, setA11y] = useState({ textScale: 0, highContrast: false });
+  const [a11y, setA11y] = useState({ textScale: 0, colorMode: 'light' });
 
   useEffect(() => {
     const stored = localStorage.getItem('crm_recent');
@@ -101,7 +101,7 @@ export default function BottomUtilityBar() {
       }
       setA11y({
         textScale: Math.min(TEXT_SCALE_MAX, Math.max(TEXT_SCALE_MIN, Number(parsed.textScale) || 0)),
-        highContrast: !!parsed.highContrast,
+        colorMode: parsed.colorMode === 'dark' ? 'dark' : 'light',
       });
     }
     if (isStickyNotePinned()) setStickyNoteOpen(true);
@@ -109,8 +109,8 @@ export default function BottomUtilityBar() {
 
   useEffect(() => {
     document.documentElement.dataset.textScale = String(a11y.textScale ?? 0);
-    document.documentElement.classList.remove('crm-large-text');
-    document.documentElement.classList.toggle('crm-high-contrast', a11y.highContrast);
+    document.documentElement.classList.remove('crm-large-text', 'crm-high-contrast');
+    document.documentElement.classList.toggle('crm-dark', a11y.colorMode === 'dark');
     localStorage.setItem('crm_a11y', JSON.stringify(a11y));
   }, [a11y]);
 
@@ -321,10 +321,29 @@ export default function BottomUtilityBar() {
                 />
               ))}
             </div>
-            <label className="flex items-center justify-between pt-1">
-              <span>High contrast</span>
-              <input type="checkbox" checked={a11y.highContrast} onChange={e => setA11y(a => ({ ...a, highContrast: e.target.checked }))} />
-            </label>
+            <div>
+              <span className="block font-medium mb-2">Theme</span>
+              <div className="flex rounded-lg border border-zoho-border p-1 bg-neutral-50">
+                <button
+                  type="button"
+                  onClick={() => setA11y((a) => ({ ...a, colorMode: 'light' }))}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    a11y.colorMode !== 'dark' ? 'bg-white shadow-sm text-zoho-text' : 'text-zoho-muted hover:text-zoho-text'
+                  }`}
+                >
+                  Light
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setA11y((a) => ({ ...a, colorMode: 'dark' }))}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    a11y.colorMode === 'dark' ? 'bg-neutral-800 text-white shadow-sm' : 'text-zoho-muted hover:text-zoho-text'
+                  }`}
+                >
+                  Dark
+                </button>
+              </div>
+            </div>
             <p className="text-xs text-zoho-muted">Settings are saved to your browser.</p>
           </div>
         </Panel>

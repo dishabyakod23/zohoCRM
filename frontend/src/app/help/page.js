@@ -44,7 +44,7 @@ const SECTIONS = [
     title: 'Accessibility',
     items: [
       { q: 'Text size', a: 'Open Accessibility in the bottom utility bar and use − / + to adjust text size across six levels.' },
-      { q: 'High contrast', a: 'Enable High contrast in the same panel for stronger text and borders.' },
+      { q: 'Theme', a: 'Switch between Light and Dark mode in the same Accessibility panel. Your choice is saved in the browser.' },
     ],
   },
 ];

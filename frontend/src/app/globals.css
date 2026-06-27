@@ -72,9 +72,33 @@ html[data-text-scale="5"] { font-size: 131.25%; }
 html.crm-large-text body { font-size: 15px; }
 html.crm-large-text .text-sm { font-size: 0.9375rem; }
 html.crm-large-text .text-xs { font-size: 0.8125rem; }
-html.crm-high-contrast body { @apply bg-white text-black; }
-html.crm-high-contrast .card { @apply border-gray-400; }
-html.crm-high-contrast .zoho-muted, html.crm-high-contrast .text-zoho-muted { color: #374151 !important; }
+
+/* Dark mode (accessibility panel) */
+html.crm-dark { color-scheme: dark; }
+html.crm-dark body { @apply bg-neutral-950 text-neutral-100; background-image: none; }
+html.crm-dark .card,
+html.crm-dark .zoho-widget { @apply bg-neutral-900 border-neutral-700; }
+html.crm-dark .input { @apply bg-neutral-950 border-neutral-600 text-neutral-100 placeholder:text-neutral-500; }
+html.crm-dark .btn-secondary,
+html.crm-dark .btn-secondary-sm { @apply bg-neutral-900 border-neutral-600 text-neutral-100 hover:bg-neutral-800 hover:text-neutral-100; }
+html.crm-dark .zoho-toolbar,
+html.crm-dark .zoho-record-header,
+html.crm-dark .zoho-record-tabs { @apply bg-neutral-900 border-neutral-700; }
+html.crm-dark .table-th { @apply bg-neutral-950 border-neutral-700 text-neutral-400; }
+html.crm-dark .table-td { @apply border-neutral-800 text-neutral-200; }
+html.crm-dark .text-zoho-text { @apply text-neutral-100; }
+html.crm-dark .text-zoho-muted { @apply text-neutral-400; }
+html.crm-dark .bg-white { @apply bg-neutral-900; }
+html.crm-dark .bg-white\/80 { background-color: rgb(23 23 23 / 0.9); }
+html.crm-dark .border-zoho-border { @apply border-neutral-700; }
+html.crm-dark .hover\:bg-brand-50:hover { @apply bg-neutral-800; }
+html.crm-dark .bg-brand-50 { @apply bg-neutral-800; }
+html.crm-dark .bg-brand-50\/60 { background-color: rgb(38 38 38 / 0.6); }
+html.crm-dark .bg-gray-50 { @apply bg-neutral-900; }
+html.crm-dark .bg-gray-50\/80 { background-color: rgb(23 23 23 / 0.8); }
+html.crm-dark .crm-a11y-panel { @apply bg-neutral-900 border-neutral-700; }
+html.crm-dark .crm-a11y-panel-header { background-color: rgb(38 38 38 / 0.8); @apply border-neutral-700; }
+html.crm-dark .record-data-table .table-td a { @apply text-neutral-100 hover:text-white; }
 
 .sticky-note-editor ul, .sticky-note-editor ol { padding-left: 1.25rem; margin: 0.25rem 0; }
 .sticky-note-editor ul { list-style-type: disc; }
