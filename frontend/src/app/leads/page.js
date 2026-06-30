@@ -136,6 +136,33 @@ export default function LeadsPage() {
           onViewChange={(v) => { setActiveView(v); setPage(1); }}
           searchValue={search}
           onSearch={(v) => { setSearch(v); setPage(1); }}
+          hasActiveFilters={countActiveFilters(filters) > 0}
+          onClearFilters={() => { setFilters(EMPTY_LEAD_FILTERS); setPage(1); }}
+          extraActions={(
+            <select className="input w-28 text-xs" value={limit} onChange={(e) => { setLimit(+e.target.value); setPage(1); }}>
+              {[10, 15, 25, 50].map((n) => <option key={n} value={n}>{n} per page</option>)}
+            </select>
+          )}
+          table={(
+            <RecordDataTable
+              moduleKey="leads"
+              records={leads}
+              loading={loading}
+              columns={columns}
+              statusOptions={statusOptions}
+              onRefresh={fetchLeads}
+              emptyMessage="No leads found"
+              massUpdateFieldsLoader={loadMassUpdateFields}
+              convertTargetsLoader={fetchPipelineConvertTargets}
+              massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
+              pagination={{
+                page,
+                totalPages,
+                onPageChange: setPage,
+                label: total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total} records` : '0 records',
+              }}
+            />
+          )}
         >
           <TextFilter label="Company" value={filters.company} onChange={(v) => { setFilters((f) => ({ ...f, company: v })); setPage(1); }} />
           <SelectFilter
@@ -153,36 +180,7 @@ export default function LeadsPage() {
             emptyLabel="Active leads"
           />
           <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => { setFilters((f) => ({ ...f, owner_id: v })); setPage(1); }} />
-          <select className="input w-28 text-xs" value={limit} onChange={e => { setLimit(+e.target.value); setPage(1); }}>
-            {[10, 15, 25, 50].map(n => <option key={n} value={n}>{n} per page</option>)}
-          </select>
-          {countActiveFilters(filters) > 0 && (
-            <button type="button" onClick={() => { setFilters(EMPTY_LEAD_FILTERS); setPage(1); }} className="btn-secondary text-xs py-1.5">
-              Clear filters
-            </button>
-          )}
         </ListToolbar>
-
-        <div className="card rounded-tl-none rounded-tr-none border-t-0 mb-4">
-          <RecordDataTable
-            moduleKey="leads"
-            records={leads}
-            loading={loading}
-            columns={columns}
-            statusOptions={statusOptions}
-            onRefresh={fetchLeads}
-            emptyMessage="No leads found"
-            massUpdateFieldsLoader={loadMassUpdateFields}
-            convertTargetsLoader={fetchPipelineConvertTargets}
-            massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
-            pagination={{
-              page,
-              totalPages,
-              onPageChange: setPage,
-              label: total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total} records` : '0 records',
-            }}
-          />
-        </div>
       </div>
     </CRMLayout>
   );

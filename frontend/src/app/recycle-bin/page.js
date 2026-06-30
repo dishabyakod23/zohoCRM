@@ -104,6 +104,7 @@ export default function RecycleBinPage() {
         <ListSearchBar
           total={total}
           totalLabel="deleted records"
+          filterTitle="Filter Recycle Bin by"
           filterFields={(
             <SelectFilter
               label="Record type"
@@ -111,73 +112,73 @@ export default function RecycleBinPage() {
               onChange={(v) => { setEntityType(v); setPage(1); }}
               options={RECYCLE_ENTITY_TYPES.filter((t) => t.value)}
               emptyLabel="All types"
-              className="w-44"
             />
           )}
           hasActiveFilters={!!entityType}
           onClearFilters={() => { setEntityType(''); setPage(1); }}
-        />
+          table={(
+            <div className="record-data-table-shell">
+              <div className="record-data-table-scroll">
+                <table className="record-data-table w-full">
+                  <thead>
+                    <tr>
+                      <th className="table-th">Name</th>
+                      <th className="table-th">Type</th>
+                      <th className="table-th">Deleted at</th>
+                      <th className="table-th">Expires at</th>
+                      <th className="table-th text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={5} className="table-td text-center py-10 text-zoho-muted">Loading deleted records…</td></tr>
+                    ) : items.length === 0 ? (
+                      <tr><td colSpan={5} className="table-td text-center py-10 text-zoho-muted">Recycle bin is empty</td></tr>
+                    ) : items.map((item) => (
+                      <tr key={item.id} className="list-table-row">
+                        <td className="table-td font-medium">{item.entity_name}</td>
+                        <td className="table-td">
+                          <Badge label={item.entity_type_label || item.entity_type} />
+                        </td>
+                        <td className="table-td text-xs text-zoho-muted">{formatDateTime(item.deleted_at)}</td>
+                        <td className="table-td text-xs text-zoho-muted">{formatDateTime(item.expires_at)}</td>
+                        <td className="table-td text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleRestore(item)}
+                            disabled={restoringId === item.id || deletingId === item.id}
+                            className={`${tableActionClass} mr-3`}
+                          >
+                            {restoringId === item.id ? 'Restoring…' : 'Restore'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDelete(item)}
+                            disabled={restoringId === item.id || deletingId === item.id}
+                            className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                          >
+                            Delete forever
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-        <div className="card overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="table-th">Name</th>
-                <th className="table-th">Type</th>
-                <th className="table-th">Deleted at</th>
-                <th className="table-th">Expires at</th>
-                <th className="table-th text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {loading ? (
-                <tr><td colSpan={5} className="table-td text-center py-10 text-gray-400">Loading deleted records…</td></tr>
-              ) : items.length === 0 ? (
-                <tr><td colSpan={5} className="table-td text-center py-10 text-gray-400">Recycle bin is empty</td></tr>
-              ) : items.map((item) => (
-                <tr key={item.id}>
-                  <td className="table-td font-medium">{item.entity_name}</td>
-                  <td className="table-td">
-                    <Badge label={item.entity_type_label || item.entity_type} />
-                  </td>
-                  <td className="table-td text-xs text-zoho-muted">{formatDateTime(item.deleted_at)}</td>
-                  <td className="table-td text-xs text-zoho-muted">{formatDateTime(item.expires_at)}</td>
-                  <td className="table-td text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={() => handleRestore(item)}
-                      disabled={restoringId === item.id || deletingId === item.id}
-                      className={`${tableActionClass} mr-3`}
-                    >
-                      {restoringId === item.id ? 'Restoring…' : 'Restore'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDelete(item)}
-                      disabled={restoringId === item.id || deletingId === item.id}
-                      className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                    >
-                      Delete forever
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {totalPages > 1 && (
-            <div className="flex justify-between items-center px-4 py-3 border-t border-gray-100">
-              <p className="text-xs text-zoho-muted">
-                {total} record{total === 1 ? '' : 's'}
-              </p>
-              <div className="flex gap-2">
-                <button onClick={() => setPage((p) => p - 1)} disabled={page === 1} className="btn-secondary text-xs py-1">← Prev</button>
-                <span className="text-xs self-center text-zoho-muted">Page {page} of {totalPages}</span>
-                <button onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages} className="btn-secondary text-xs py-1">Next →</button>
+              <div className="record-data-table-footer">
+                <p className="text-xs text-zoho-muted">
+                  {total} record{total === 1 ? '' : 's'}
+                </p>
+                <div className="flex gap-2">
+                  <button onClick={() => setPage((p) => p - 1)} disabled={page === 1} className="btn-secondary-sm disabled:opacity-40">← Prev</button>
+                  <span className="btn-secondary-sm pointer-events-none">{page} / {totalPages}</span>
+                  <button onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages} className="btn-secondary-sm disabled:opacity-40">Next →</button>
+                </div>
               </div>
             </div>
           )}
-        </div>
+        />
       </div>
 
       {confirmDelete && (

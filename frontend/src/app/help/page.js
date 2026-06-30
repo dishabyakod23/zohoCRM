@@ -36,7 +36,7 @@ const SECTIONS = [
   {
     title: 'Lists, filters & recycle bin',
     items: [
-      { q: 'Filters', a: 'List pages show filters by default. Use search, status, owner, and other filters, then clear them when needed.' },
+      { q: 'Filters', a: 'List pages show a filter panel on the left. Use the Filter button in the toolbar to show or hide it, then refine results by field. Clear all filters from the panel footer when needed.' },
       { q: 'Recycle bin', a: 'Deleted records go to Recycle Bin (admins and managers). Restore or permanently remove items from there.' },
     ],
   },

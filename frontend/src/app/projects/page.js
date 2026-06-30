@@ -102,19 +102,22 @@ export default function ProjectsPage() {
           ) : null}
         />
 
-        <ListSearchBar search={search} onSearchChange={setSearch} placeholder="Search projects…" />
-
-        <div className="card">
-          <RecordDataTable
-            moduleKey="projects"
-            records={filteredItems}
-            loading={loading}
-            columns={columns}
-            statusOptions={statusOptions}
-            onRefresh={fetchItems}
-            emptyMessage="No projects found"
-          />
-        </div>
+        <ListSearchBar
+          search={search}
+          onSearchChange={setSearch}
+          placeholder="Search projects…"
+          table={(
+            <RecordDataTable
+              moduleKey="projects"
+              records={filteredItems}
+              loading={loading}
+              columns={columns}
+              statusOptions={statusOptions}
+              onRefresh={fetchItems}
+              emptyMessage="No projects found"
+            />
+          )}
+        />
       </div>
       {modal && <Modal title="Create Project" onClose={() => setModal(false)}>
         <div className="space-y-3">

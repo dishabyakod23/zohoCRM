@@ -102,19 +102,18 @@ export default function CallsPage() {
           placeholder="Search calls…"
           total={total}
           totalLabel="calls"
+          table={(
+            <RecordDataTable
+              moduleKey="calls"
+              records={items}
+              loading={loading}
+              columns={columns}
+              onRefresh={fetchItems}
+              emptyMessage="No calls found"
+              pagination={{ page, totalPages, onPageChange: setPage, label: total ? `${((page - 1) * LIMIT) + 1}–${Math.min(page * LIMIT, total)} of ${total}` : '0 records' }}
+            />
+          )}
         />
-
-        <div className="card">
-          <RecordDataTable
-            moduleKey="calls"
-            records={items}
-            loading={loading}
-            columns={columns}
-            onRefresh={fetchItems}
-            emptyMessage="No calls found"
-            pagination={totalPages > 1 ? { page, totalPages, onPageChange: setPage, label: `${page} / ${totalPages}` } : undefined}
-          />
-        </div>
       </div>
       {modal && <Modal title="Create Call" onClose={() => setModal(false)}>
         <div className="space-y-3">

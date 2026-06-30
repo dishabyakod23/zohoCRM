@@ -151,24 +151,24 @@ export default function DealsPage() {
               onLimitChange={(n) => { setLimit(n); setPage(1); }}
               total={total}
               totalLabel="deals"
+              table={(
+                <RecordDataTable
+                  moduleKey="deals"
+                  records={deals}
+                  loading={loading}
+                  columns={columns}
+                  statusOptions={stageOptions}
+                  onRefresh={fetchDeals}
+                  emptyMessage="No deals found"
+                  pagination={{
+                    page,
+                    totalPages,
+                    onPageChange: setPage,
+                    label: total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total}` : '0 records',
+                  }}
+                />
+              )}
             />
-            <div className="card">
-            <RecordDataTable
-              moduleKey="deals"
-              records={deals}
-              loading={loading}
-              columns={columns}
-              statusOptions={stageOptions}
-              onRefresh={fetchDeals}
-              emptyMessage="No deals found"
-              pagination={{
-                page,
-                totalPages,
-                onPageChange: setPage,
-                label: total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total}` : '0 records',
-              }}
-            />
-            </div>
           </>
         ) : (
           <div className="overflow-x-auto pb-4">

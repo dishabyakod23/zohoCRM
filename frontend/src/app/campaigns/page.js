@@ -73,20 +73,19 @@ export default function CampaignsPage() {
           placeholder="Search campaigns…"
           total={total}
           totalLabel="campaigns"
+          table={(
+            <RecordDataTable
+              moduleKey="campaigns"
+              records={items}
+              loading={loading}
+              columns={columns}
+              statusOptions={statusOptions}
+              onRefresh={fetchItems}
+              emptyMessage="No campaigns found"
+              pagination={{ page, totalPages, onPageChange: setPage, label: total ? `${((page - 1) * LIMIT) + 1}–${Math.min(page * LIMIT, total)} of ${total}` : '0 records' }}
+            />
+          )}
         />
-
-        <div className="card">
-          <RecordDataTable
-            moduleKey="campaigns"
-            records={items}
-            loading={loading}
-            columns={columns}
-            statusOptions={statusOptions}
-            onRefresh={fetchItems}
-            emptyMessage="No campaigns found"
-            pagination={totalPages > 1 ? { page, totalPages, onPageChange: setPage, label: `${page} / ${totalPages}` } : undefined}
-          />
-        </div>
       </div>
     </CRMLayout>
   );

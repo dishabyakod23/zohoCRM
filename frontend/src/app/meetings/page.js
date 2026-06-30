@@ -100,19 +100,18 @@ export default function MeetingsPage() {
           placeholder="Search meetings…"
           total={total}
           totalLabel="meetings"
+          table={(
+            <RecordDataTable
+              moduleKey="meetings"
+              records={items}
+              loading={loading}
+              columns={columns}
+              onRefresh={fetchItems}
+              emptyMessage="No meetings found"
+              pagination={{ page, totalPages, onPageChange: setPage, label: total ? `${((page - 1) * LIMIT) + 1}–${Math.min(page * LIMIT, total)} of ${total}` : '0 records' }}
+            />
+          )}
         />
-
-        <div className="card">
-          <RecordDataTable
-            moduleKey="meetings"
-            records={items}
-            loading={loading}
-            columns={columns}
-            onRefresh={fetchItems}
-            emptyMessage="No meetings found"
-            pagination={totalPages > 1 ? { page, totalPages, onPageChange: setPage, label: `${page} / ${totalPages}` } : undefined}
-          />
-        </div>
       </div>
       {modal && <Modal title="Create Meeting" onClose={() => setModal(false)}>
         <div className="space-y-3">

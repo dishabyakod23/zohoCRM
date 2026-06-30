@@ -102,19 +102,22 @@ export default function VisitsPage() {
           ) : null}
         />
 
-        <ListSearchBar search={search} onSearchChange={setSearch} placeholder="Search visits…" />
-
-        <div className="card">
-          <RecordDataTable
-            moduleKey="visits"
-            records={filteredItems}
-            loading={loading}
-            columns={columns}
-            statusOptions={statusOptions}
-            onRefresh={fetchItems}
-            emptyMessage="No visits found"
-          />
-        </div>
+        <ListSearchBar
+          search={search}
+          onSearchChange={setSearch}
+          placeholder="Search visits…"
+          table={(
+            <RecordDataTable
+              moduleKey="visits"
+              records={filteredItems}
+              loading={loading}
+              columns={columns}
+              statusOptions={statusOptions}
+              onRefresh={fetchItems}
+              emptyMessage="No visits found"
+            />
+          )}
+        />
       </div>
       {modal && <Modal title="Create Visit" onClose={() => setModal(false)}>
         <div className="space-y-3">

@@ -127,27 +127,23 @@ export default function ContactsPage() {
           onViewChange={(v) => { setActiveView(v); setPage(1); }}
           searchValue={search}
           onSearch={(v) => { setSearch(v); setPage(1); }}
+          hasActiveFilters={countActiveFilters(filters) > 0}
+          onClearFilters={() => { setFilters(EMPTY_CONTACT_FILTERS); setPage(1); }}
+          table={(
+            <RecordDataTable
+              moduleKey="contacts"
+              records={contacts}
+              loading={loading}
+              columns={columns}
+              onRefresh={fetchContacts}
+              emptyMessage="No contacts found"
+              pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
+            />
+          )}
         >
           <TextFilter label="Company" value={filters.company} onChange={(v) => { setFilters((f) => ({ ...f, company: v })); setPage(1); }} />
           <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => { setFilters((f) => ({ ...f, owner_id: v })); setPage(1); }} />
-          {countActiveFilters(filters) > 0 && (
-            <button type="button" onClick={() => { setFilters(EMPTY_CONTACT_FILTERS); setPage(1); }} className="btn-secondary text-xs py-1.5">
-              Clear filters
-            </button>
-          )}
         </ListToolbar>
-
-        <div className="card rounded-tl-none rounded-tr-none border-t-0">
-          <RecordDataTable
-            moduleKey="contacts"
-            records={contacts}
-            loading={loading}
-            columns={columns}
-            onRefresh={fetchContacts}
-            emptyMessage="No contacts found"
-            pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
-          />
-        </div>
       </div>
     </CRMLayout>
   );

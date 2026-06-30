@@ -99,6 +99,7 @@ export default function AccountsPage() {
           placeholder="Search accounts…"
           total={total}
           totalLabel="accounts"
+          filterTitle="Filter Accounts by"
           hasActiveFilters={countActiveFilters(filters) > 0}
           onClearFilters={() => { setFilters(EMPTY_ACCOUNT_FILTERS); setPage(1); }}
           filterFields={(
@@ -111,20 +112,19 @@ export default function AccountsPage() {
               <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
             </>
           )}
+          table={(
+            <RecordDataTable
+              moduleKey="accounts"
+              records={accounts}
+              loading={loading}
+              columns={columns}
+              statusOptions={ACCOUNT_STATUS_OPTIONS}
+              onRefresh={fetchAccounts}
+              emptyMessage="No accounts found"
+              pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
+            />
+          )}
         />
-
-        <div className="card">
-          <RecordDataTable
-            moduleKey="accounts"
-            records={accounts}
-            loading={loading}
-            columns={columns}
-            statusOptions={ACCOUNT_STATUS_OPTIONS}
-            onRefresh={fetchAccounts}
-            emptyMessage="No accounts found"
-            pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
-          />
-        </div>
       </div>
     </CRMLayout>
   );

@@ -109,20 +109,19 @@ export default function TasksPage() {
           placeholder="Search tasks…"
           total={total}
           totalLabel="tasks"
+          table={(
+            <RecordDataTable
+              moduleKey="tasks"
+              records={tasks}
+              loading={loading}
+              columns={columns}
+              statusOptions={statusOptions}
+              onRefresh={fetchTasks}
+              emptyMessage="No tasks found"
+              pagination={{ page, totalPages, onPageChange: setPage, label: total ? `${((page - 1) * LIMIT) + 1}–${Math.min(page * LIMIT, total)} of ${total}` : '0 records' }}
+            />
+          )}
         />
-
-        <div className="card">
-          <RecordDataTable
-            moduleKey="tasks"
-            records={tasks}
-            loading={loading}
-            columns={columns}
-            statusOptions={statusOptions}
-            onRefresh={fetchTasks}
-            emptyMessage="No tasks found"
-            pagination={totalPages > 1 ? { page, totalPages, onPageChange: setPage, label: `${page} / ${totalPages}` } : undefined}
-          />
-        </div>
       </div>
 
       {modal && (

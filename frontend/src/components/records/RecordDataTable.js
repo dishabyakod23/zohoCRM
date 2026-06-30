@@ -476,97 +476,99 @@ export default function RecordDataTable({
         loadingLostReasons={loadingLostReasons}
       />
 
-      {selected.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 mb-0 bg-brand-50/80 border border-brand-200 border-b-0 rounded-t-lg text-sm">
-          <span className="font-medium text-brand-800">
-            {selected.length} {config.label} Selected.
-          </span>
-          <button type="button" onClick={clearSelection} className="text-brand-600 hover:underline text-xs font-medium">Clear</button>
-          <div className="flex items-center gap-2 ml-auto flex-wrap">
-            {config.emailField && (
-              <button type="button" onClick={handleSendEmail} className="btn-secondary text-xs">Send Email</button>
-            )}
-            {canEdit && hasMassUpdate && (
-              <button type="button" onClick={() => setMassUpdateOpen(true)} className="btn-secondary text-xs">Mass Update</button>
-            )}
-            <div className="relative" ref={menuRef}>
-              <button type="button" onClick={() => setMenuOpen(!menuOpen)} aria-label="More actions"
-                className="w-8 h-8 rounded-lg border border-zoho-border bg-white flex items-center justify-center text-zoho-muted hover:bg-brand-50 hover:text-brand-600">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
-              </button>
-              {menuOpen && (
-                <div className="absolute right-0 top-full mt-1 bg-white border border-zoho-border rounded-xl shadow-card-hover py-1 w-52 z-40">
-                  {canEdit && <button type="button" onClick={openTaskModal} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Create Task</button>}
-                  {canEdit && <button type="button" onClick={openCampaignModal} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Add to Campaigns</button>}
-                  <button type="button" onClick={() => { handlePrintLabels(); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Print Mailing Labels</button>
-                  {canDelete && <button type="button" onClick={() => { setDeleteConfirm(true); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600">Delete</button>}
-                  <button type="button" onClick={() => { handleExport(); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Export Selected Records</button>
-                </div>
+      <div className="record-data-table-shell">
+        {selected.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 shrink-0 bg-brand-50/80 border-b border-brand-200 text-sm">
+            <span className="font-medium text-brand-800">
+              {selected.length} {config.label} Selected.
+            </span>
+            <button type="button" onClick={clearSelection} className="text-brand-600 hover:underline text-xs font-medium">Clear</button>
+            <div className="flex items-center gap-2 ml-auto flex-wrap">
+              {config.emailField && (
+                <button type="button" onClick={handleSendEmail} className="btn-secondary text-xs">Send Email</button>
               )}
+              {canEdit && hasMassUpdate && (
+                <button type="button" onClick={() => setMassUpdateOpen(true)} className="btn-secondary text-xs">Mass Update</button>
+              )}
+              <div className="relative" ref={menuRef}>
+                <button type="button" onClick={() => setMenuOpen(!menuOpen)} aria-label="More actions"
+                  className="w-8 h-8 rounded-lg border border-zoho-border bg-white flex items-center justify-center text-zoho-muted hover:bg-brand-50 hover:text-brand-600">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-zoho-border rounded-xl shadow-card-hover py-1 w-52 z-40">
+                    {canEdit && <button type="button" onClick={openTaskModal} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Create Task</button>}
+                    {canEdit && <button type="button" onClick={openCampaignModal} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Add to Campaigns</button>}
+                    <button type="button" onClick={() => { handlePrintLabels(); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Print Mailing Labels</button>
+                    {canDelete && <button type="button" onClick={() => { setDeleteConfirm(true); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600">Delete</button>}
+                    <button type="button" onClick={() => { handleExport(); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Export Selected Records</button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+        )}
+
+        <div className="record-data-table-scroll">
+          <table className="record-data-table w-full">
+            <thead>
+              <tr>
+                <th className={`table-th ${showNotes ? 'w-[4.5rem]' : 'w-10'}`}>
+                  <div className="flex items-center gap-2">
+                    {showNotes && <span className="w-7 shrink-0" aria-hidden="true" />}
+                    <input type="checkbox" className="rounded border-zoho-border" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" />
+                  </div>
+                </th>
+                {columns.map((col) => (
+                  <th key={col.id} className={`table-th ${col.className || ''}`}>{col.header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={colSpan} className="table-td text-center py-12 text-zoho-muted">Loading…</td></tr>
+              ) : records.length === 0 ? (
+                <tr><td colSpan={colSpan} className="table-td text-center py-12 text-zoho-muted">{emptyMessage}</td></tr>
+              ) : records.map((record) => {
+                const id = getRowId(record);
+                const recordLabel = noteMeta.getLabel(record);
+                return (
+                  <tr key={id} className="list-table-row">
+                    <td className="table-td">
+                      <div className="flex items-center gap-2">
+                        {showNotes && (
+                          <RecordNoteRowIcon
+                            relatedType={noteMeta.relatedType}
+                            recordId={id}
+                            moduleLabel={noteMeta.moduleLabel}
+                            recordLabel={recordLabel}
+                            onOpen={() => setPanelRecord({ id, label: recordLabel })}
+                          />
+                        )}
+                        <input type="checkbox" className="rounded border-zoho-border" checked={selected.includes(id)} onChange={() => toggleSelect(id)} />
+                      </div>
+                    </td>
+                    {columns.map((col) => (
+                      <td key={col.id} className={`table-td ${col.className || ''}`}>{col.cell(record)}</td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      )}
 
-      <div className={`overflow-x-auto ${selected.length > 0 ? '' : ''}`}>
-        <table className="record-data-table w-full">
-          <thead>
-            <tr>
-              <th className={`table-th ${showNotes ? 'w-[4.5rem]' : 'w-10'}`}>
-                <div className="flex items-center gap-2">
-                  {showNotes && <span className="w-7 shrink-0" aria-hidden="true" />}
-                  <input type="checkbox" className="rounded border-zoho-border" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" />
-                </div>
-              </th>
-              {columns.map((col) => (
-                <th key={col.id} className={`table-th ${col.className || ''}`}>{col.header}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={colSpan} className="table-td text-center py-12 text-zoho-muted">Loading…</td></tr>
-            ) : records.length === 0 ? (
-              <tr><td colSpan={colSpan} className="table-td text-center py-12 text-zoho-muted">{emptyMessage}</td></tr>
-            ) : records.map((record) => {
-              const id = getRowId(record);
-              const recordLabel = noteMeta.getLabel(record);
-              return (
-                <tr key={id} className="hover:bg-neutral-50 transition-colors">
-                  <td className="table-td">
-                    <div className="flex items-center gap-2">
-                      {showNotes && (
-                        <RecordNoteRowIcon
-                          relatedType={noteMeta.relatedType}
-                          recordId={id}
-                          moduleLabel={noteMeta.moduleLabel}
-                          recordLabel={recordLabel}
-                          onOpen={() => setPanelRecord({ id, label: recordLabel })}
-                        />
-                      )}
-                      <input type="checkbox" className="rounded border-zoho-border" checked={selected.includes(id)} onChange={() => toggleSelect(id)} />
-                    </div>
-                  </td>
-                  {columns.map((col) => (
-                    <td key={col.id} className={`table-td ${col.className || ''}`}>{col.cell(record)}</td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {pagination && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-zoho-border/60">
-          <p className="text-xs text-zoho-muted">{pagination.label || ''}</p>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => pagination.onPageChange(pagination.page - 1)} disabled={pagination.page <= 1} className="btn-secondary-sm disabled:opacity-40">← Prev</button>
-            <span className="btn-secondary-sm pointer-events-none">{pagination.page} / {pagination.totalPages}</span>
-            <button type="button" onClick={() => pagination.onPageChange(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages} className="btn-secondary-sm disabled:opacity-40">Next →</button>
+        {pagination && (
+          <div className="record-data-table-footer">
+            <p className="text-xs text-zoho-muted">{pagination.label || ''}</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => pagination.onPageChange(pagination.page - 1)} disabled={pagination.page <= 1} className="btn-secondary-sm disabled:opacity-40">← Prev</button>
+              <span className="btn-secondary-sm pointer-events-none">{pagination.page} / {pagination.totalPages}</span>
+              <button type="button" onClick={() => pagination.onPageChange(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages} className="btn-secondary-sm disabled:opacity-40">Next →</button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <ConfirmDialog open={deleteConfirm} message={`Delete ${selected.length} selected record(s)?`} confirmLabel="Delete" danger onConfirm={handleDelete} onCancel={() => setDeleteConfirm(false)} />
 

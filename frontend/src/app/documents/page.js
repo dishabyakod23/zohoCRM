@@ -170,24 +170,23 @@ export default function DocumentsPage() {
           placeholder="Search documents…"
           total={total}
           totalLabel="documents"
+          table={(
+            <RecordDataTable
+              moduleKey="documents"
+              records={docs}
+              loading={loading}
+              columns={columns}
+              onRefresh={fetchDocs}
+              emptyMessage="No documents found"
+              pagination={{
+                page,
+                totalPages,
+                onPageChange: setPage,
+                label: total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total}` : '0 records',
+              }}
+            />
+          )}
         />
-
-        <div className="card">
-          <RecordDataTable
-            moduleKey="documents"
-            records={docs}
-            loading={loading}
-            columns={columns}
-            onRefresh={fetchDocs}
-            emptyMessage="No documents found"
-            pagination={{
-              page,
-              totalPages,
-              onPageChange: setPage,
-              label: total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total}` : '0 records',
-            }}
-          />
-        </div>
       </div>
 
       {uploadModal && (

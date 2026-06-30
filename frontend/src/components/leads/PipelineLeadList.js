@@ -253,30 +253,30 @@ export default function PipelineLeadList({ stage, description }) {
           limit={limit}
           onLimitChange={(n) => { setLimit(n); setPage(1); }}
           total={total}
+          filterTitle={`Filter ${config?.listTitle || 'records'} by`}
           hasActiveFilters={countActiveFilters(filters) > 0}
           onClearFilters={() => { setFilters(EMPTY_LEAD_FILTERS); setPage(1); }}
           filterFields={stage === PIPELINE_PROPOSAL ? proposalFilters : leadFilters}
+          table={(
+            <RecordDataTable
+              moduleKey={moduleKey}
+              records={leads}
+              loading={loading}
+              columns={columns}
+              statusOptions={statusOptions}
+              onRefresh={fetchLeads}
+              massUpdateFieldsLoader={loadMassUpdateFields}
+              convertTargetsLoader={fetchPipelineConvertTargets}
+              massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
+              pagination={{
+                page,
+                totalPages,
+                onPageChange: setPage,
+                label: total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total}` : '0 records',
+              }}
+            />
+          )}
         />
-
-        <div className="card">
-          <RecordDataTable
-            moduleKey={moduleKey}
-            records={leads}
-            loading={loading}
-            columns={columns}
-            statusOptions={statusOptions}
-            onRefresh={fetchLeads}
-            massUpdateFieldsLoader={loadMassUpdateFields}
-            convertTargetsLoader={fetchPipelineConvertTargets}
-            massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
-            pagination={{
-              page,
-              totalPages,
-              onPageChange: setPage,
-              label: total ? `${((page - 1) * limit) + 1}–${Math.min(page * limit, total)} of ${total}` : '0 records',
-            }}
-          />
-        </div>
       </div>
 
       <CsvImportModal
