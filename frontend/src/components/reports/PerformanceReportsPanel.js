@@ -222,14 +222,12 @@ export default function PerformanceReportsPanel() {
                   Download
                 </button>
               </div>
-              <div className="border border-zoho-border rounded-lg overflow-hidden bg-white">
-                <iframe
-                  title="Performance report preview"
-                  srcDoc={preview.html_body}
-                  className="w-full min-h-[480px] border-0"
-                  sandbox=""
-                />
-              </div>
+              <iframe
+                title="Performance report preview"
+                srcDoc={preview.html_body}
+                className="w-full min-h-[480px] border-0"
+                sandbox=""
+              />
             </div>
           )}
         </div>

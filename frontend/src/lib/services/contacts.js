@@ -85,7 +85,18 @@ export async function deleteContact(id) {
 }
 
 export async function downloadContactImportTemplate() {
-  const headers = CONTACT_IMPORT_FIELDS.map((field) => field.key);
+  const headers = [
+    'first_name',
+    'last_name',
+    'email',
+    'mobile',
+    'account',
+    'owner',
+    'Lead Source',
+    'Address',
+    'Proposal Amount',
+    'Description',
+  ];
   const csv = `${headers.join(',')}\n`;
   downloadBlob(new Blob([csv], { type: 'text/csv' }), 'contacts-import-template.csv');
 }

@@ -222,7 +222,18 @@ export async function deleteLeadAttachment(leadId, attachmentId) {
 }
 
 export async function downloadLeadImportTemplate() {
-  const headers = LEAD_IMPORT_FIELDS.map((field) => field.key);
+  const headers = [
+    'first_name',
+    'last_name',
+    'email',
+    'mobile',
+    'account',
+    'owner',
+    'Lead Source',
+    'Address',
+    'Proposal Amount',
+    'Description',
+  ];
   const csv = `${headers.join(',')}\n`;
   downloadBlob(new Blob([csv], { type: 'text/csv' }), 'leads-import-template.csv');
 }
