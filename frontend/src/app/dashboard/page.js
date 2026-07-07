@@ -6,9 +6,11 @@ import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import * as dashboardApi from '../../lib/services/dashboard.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import * as auditLogsApi from '../../lib/services/auditLogs.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { QUICK_CREATE } from '../../lib/constants.js';
-import { userBriefName } from '../../lib/activityHelpers.js';
 import { leadStatusLabel, pluralizeLeadStatusLabel } from '../../lib/leadHelpers.js';
 import { formatCompactMoney, formatMoneyTotalsByCurrency, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { avatarInitialClass } from '../../lib/tableStyles.js';
@@ -50,17 +52,25 @@ function KpiCard({ title, value, sub, subClass, icon: Icon, gradient }) {
 
 export default function DashboardPage() {
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const { role } = usePermissions();
   const [stats, setStats] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user?.id) return;
+
     Promise.all([
       dashboardApi.getDashboardHome(),
       leadsApi.countLeadsThisMonth().catch(() => 0),
-    ]).then(([home, leadsThisMonth]) => {
+      auditLogsApi.listAuditLogs({ page: 1, page_size: 20 }).catch(() => []),
+    ]).then(([home, leadsThisMonth, logs]) => {
       const leadsTotal = (home.leads_by_status || home.leadsByStatus || []).reduce((s, r) => s + r.count, 0);
       const qualifiedCount = (home.leads_by_status || home.leadsByStatus || []).find(r => /qualified/i.test(r.label || r.key || r.status || ''))?.count ?? 0;
       const topAccountsRaw = home.top_accounts || [];
+      const canSeeAllLogs = role === 'super_admin' || role === 'sales_manager';
+      setAuditLogs(canSeeAllLogs ? logs : logs.filter((log) => log.user_id === user.id));
       setStats({
         leads: { total: leadsTotal, this_month: leadsThisMonth, qualified: qualifiedCount },
         accounts: { total: topAccountsRaw.length },
@@ -74,18 +84,13 @@ export default function DashboardPage() {
           status: leadStatusLabel(r.label || r.status || r.key),
           count: r.count,
         })),
-        recentActivities: (home.recent_activities || home.recentActivities || []).map(a => ({
-          id: a.id,
-          subject: `${a.action?.replace(/_/g, ' ')} ${a.entity_type}`,
-          type: `${userBriefName(a.user)} · ${new Date(a.created_at).toLocaleString()}`,
-        })),
       });
       setLoading(false);
     }).catch((err) => {
       showToast(getApiError(err));
       setLoading(false);
     });
-  }, [showToast]);
+  }, [showToast, user?.id, role]);
 
   const fmt = (amount, currency) => formatCompactMoney(amount, currency);
 
@@ -147,12 +152,19 @@ export default function DashboardPage() {
 
             <Widget title="Audit Logs" className="col-span-12 lg:col-span-6">
               <div className="space-y-1 max-h-48 overflow-y-auto">
-                {stats.recentActivities?.map(act => (
-                  <div key={act.id} className="flex gap-3 text-sm py-2 px-2 -mx-2 rounded-lg hover:bg-brand-50/60 transition-colors">
+                {auditLogs.length > 0 ? auditLogs.map((log) => (
+                  <div key={log.id} className="flex gap-3 text-sm py-2 px-2 -mx-2 rounded-lg hover:bg-brand-50/60 transition-colors">
                     <span className="w-2 h-2 rounded-full bg-brand-gradient mt-1.5 shrink-0 ring-4 ring-brand-100" />
-                    <div><p className="text-zoho-text font-medium">{act.subject}</p><p className="text-[11px] text-zoho-muted">{act.type}</p></div>
+                    <div>
+                      <p className="text-zoho-text font-medium">{log.summary}</p>
+                      <p className="text-[11px] text-zoho-muted">
+                        {log.user_name || 'System'} · {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
+                      </p>
+                    </div>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-sm text-zoho-muted text-center py-8">No audit logs found</p>
+                )}
               </div>
             </Widget>
 
