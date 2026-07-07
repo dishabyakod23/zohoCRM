@@ -457,22 +457,20 @@ export default function SettingsPage() {
                     <th className="table-th">Name</th>
                     <th className="table-th">Email</th>
                     <th className="table-th">Role</th>
-                    <th className="table-th">Access</th>
                     <th className="table-th">Status</th>
                     <th className="table-th">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {usersLoading ? (
-                    <tr><td colSpan={6} className="table-td text-center py-8 text-gray-400">Loading users...</td></tr>
+                    <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">Loading users...</td></tr>
                   ) : users.length === 0 ? (
-                    <tr><td colSpan={6} className="table-td text-center py-8 text-gray-400">No users found</td></tr>
+                    <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No users found</td></tr>
                   ) : users.map(u => (
                     <tr key={u.id} className={!u.is_active ? 'opacity-60' : ''}>
                       <td className="table-td font-medium">{userDisplayName(u)}</td>
                       <td className="table-td text-blue-600">{u.email}</td>
                       <td className="table-td"><span className="badge bg-brand-50 text-brand-700">{roleLabel(u.role)}</span></td>
-                      <td className="table-td text-xs text-zoho-muted max-w-[200px]">{ROLE_ACCESS[u.role]}</td>
                       <td className="table-td">
                         <span className={`badge ${u.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
                           {u.is_active ? 'Active' : 'Inactive'}
