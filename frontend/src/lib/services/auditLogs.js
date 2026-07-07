@@ -1,5 +1,7 @@
-import api from '../api.js';
+import api, { API_BASE_URL } from '../api.js';
 import { formatEnumLabel, userBriefName } from '../activityHelpers.js';
+
+const AUDIT_LOGS_BASE = `${API_BASE_URL}/audit-logs`;
 
 export function normalizeAuditLog(log) {
   const resolvedUserName = log.user_name || userBriefName(log.user);
@@ -15,11 +17,11 @@ export function normalizeAuditLog(log) {
 }
 
 export async function getEntityTimeline(entityType, entityId, params = {}) {
-  const res = await api.get(`/audit-logs/timeline/${entityType}/${entityId}`, { params });
+  const res = await api.get(`${AUDIT_LOGS_BASE}/timeline/${entityType}/${entityId}`, { params });
   return (res.data.data || []).map(normalizeAuditLog);
 }
 
 export async function listAuditLogs(params = {}) {
-  const res = await api.get('/audit-logs', { params });
+  const res = await api.get(AUDIT_LOGS_BASE, { params });
   return (res.data.data || []).map(normalizeAuditLog);
 }
