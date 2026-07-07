@@ -145,7 +145,7 @@ export default function DashboardPage() {
               ) : <p className="text-sm text-zoho-muted text-center py-8">No leads</p>}
             </Widget>
 
-            <Widget title="Recent Updates" className="col-span-12 lg:col-span-6">
+            <Widget title="Audit Logs" className="col-span-12 lg:col-span-6">
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {stats.recentActivities?.map(act => (
                   <div key={act.id} className="flex gap-3 text-sm py-2 px-2 -mx-2 rounded-lg hover:bg-brand-50/60 transition-colors">
