@@ -10,9 +10,9 @@ export function normalizeAuditLog(log) {
     ...log,
     entity_type: entityType,
     user_name: resolvedUserName,
-    action_label: formatEnumLabel(log.action),
-    entity_type_label: formatEnumLabel(entityType),
-    summary: `${formatEnumLabel(log.action)} ${formatEnumLabel(entityType)}`,
+    action_label: log.action_label || formatEnumLabel(log.action),
+    entity_type_label: log.entity_type_label || formatEnumLabel(entityType),
+    summary: log.summary || `${formatEnumLabel(log.action)} ${formatEnumLabel(entityType)}`,
   };
 }
 

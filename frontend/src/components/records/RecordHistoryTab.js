@@ -35,7 +35,7 @@ export default function RecordHistoryTab({ entityType, recordId }) {
         <div key={entry.id} className="px-5 py-3">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-zoho-text">{entry.action_label || entry.action}</p>
+              <p className="text-sm font-medium text-zoho-text">{entry.summary || entry.action_label || entry.action}</p>
               {entry.field_name && (
                 <p className="text-xs text-zoho-muted mt-0.5">
                   {entry.field_name}: {entry.old_value || '—'} → {entry.new_value || '—'}

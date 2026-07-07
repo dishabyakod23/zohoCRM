@@ -363,7 +363,7 @@ export default function BottomUtilityBar() {
               {auditLogs.map((log) => (
                 <div key={log.id} className="p-3 rounded-xl border border-zoho-border hover:bg-brand-50/40 transition-colors">
                   <p className="text-sm font-medium text-zoho-text">
-                    {buildAuditMessage(log)}
+                    {log.summary || buildAuditMessage(log)}
                   </p>
                   <p className="text-xs text-zoho-muted mt-1">
                     {log.user_name || 'System'} · {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
