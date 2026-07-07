@@ -27,9 +27,9 @@ export default function PasswordInput({
         aria-label={visible ? 'Hide password' : 'Show password'}
       >
         {visible ? (
-          <EyeSlashIcon className="w-5 h-5" aria-hidden="true" />
-        ) : (
           <EyeIcon className="w-5 h-5" aria-hidden="true" />
+        ) : (
+          <EyeSlashIcon className="w-5 h-5" aria-hidden="true" />
         )}
       </button>
     </div>
