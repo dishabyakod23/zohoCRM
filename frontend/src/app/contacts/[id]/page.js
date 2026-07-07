@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
@@ -11,13 +11,14 @@ import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { useMarkRecordViewed } from '../../../hooks/useMarkRecordViewed.js';
 import { getApiError } from '../../../lib/api.js';
+import api from '../../../lib/api.js';
 import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import * as dealsApi from '../../../lib/services/deals.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchDealStages } from '../../../lib/services/lookups.js';
 import { LEAD_SOURCES } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
-import { TrashIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
 import Link from 'next/link';
 import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
@@ -34,6 +35,9 @@ export default function ContactDetailPage() {
   const [stageOptions, setStageOptions] = useState(FALLBACK_DEAL_STAGES);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const convertRef = useRef(null);
 
   useMarkRecordViewed('contact', id);
 
@@ -83,6 +87,37 @@ export default function ContactDetailPage() {
     }
   };
 
+  useEffect(() => {
+    if (!convertOpen) return;
+    const handler = (e) => { if (convertRef.current && !convertRef.current.contains(e.target)) setConvertOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [convertOpen]);
+
+  const CONVERT_OPTIONS = [
+    { label: 'Raw Lead',        endpoint: 'convert-to-raw-lead',       path: '/raw-leads' },
+    { label: 'Lead',            endpoint: 'convert-to-lead',           path: '/leads' },
+    { label: 'Qualified Lead',  endpoint: 'convert-to-qualified-lead', path: '/qualified-leads' },
+    { label: 'Proposal',        endpoint: 'convert-to-proposal',       path: '/proposals' },
+    { label: 'Account',         endpoint: 'convert-to-account',        path: '/accounts' },
+  ];
+
+  const handleConvertTo = async (option) => {
+    setConvertOpen(false);
+    setConverting(true);
+    try {
+      const res = await api.post(`/contacts/${id}/${option.endpoint}`);
+      const record = res.data?.data;
+      showToast(`Converted to ${option.label}`, 'success');
+      const newId = record?.id;
+      router.push(newId ? `${option.path}/${newId}` : option.path);
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setConverting(false);
+    }
+  };
+
   if (!contact) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   return (
@@ -96,11 +131,40 @@ export default function ContactDetailPage() {
         recordNotes={{ relatedType: 'contact', recordId: id, canEdit }}
         recordActivities={{ entityType: 'contact', recordId: id }}
         recordHistory={{ entityType: 'contact', recordId: id }}
-        actions={canDelete && (
-          <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
-            <TrashIcon className="w-4 h-4" /> Delete
-          </button>
-        )}
+        actions={
+          <div className="flex items-center gap-2">
+            {canEdit && (
+              <div className="relative" ref={convertRef}>
+                <button
+                  onClick={() => setConvertOpen((o) => !o)}
+                  disabled={converting}
+                  className="btn-secondary text-xs flex items-center gap-1.5"
+                >
+                  {converting ? 'Converting…' : 'Convert'}
+                  <ChevronDownIcon className="w-3.5 h-3.5" />
+                </button>
+                {convertOpen && (
+                  <div className="absolute right-0 mt-1 w-44 bg-white border border-zoho-border rounded-lg shadow-lg z-50 py-1">
+                    {CONVERT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.endpoint}
+                        onClick={() => handleConvertTo(opt)}
+                        className="w-full text-left px-3 py-2 text-xs text-zoho-text hover:bg-gray-50 transition-colors"
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {canDelete && (
+              <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
+                <TrashIcon className="w-4 h-4" /> Delete
+              </button>
+            )}
+          </div>
+        }
       >
         <div className="space-y-4">
           <EditableFieldSection
