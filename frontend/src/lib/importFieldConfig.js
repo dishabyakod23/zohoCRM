@@ -7,6 +7,8 @@ export const LEAD_IMPORT_FIELDS = [
   { key: 'email', label: 'Email', required: true, aliases: ['emailaddress', 'email_address', 'mail', 'e_mail'] },
   { key: 'phone', label: 'Phone', aliases: ['phonenumber', 'phone_number', 'telephone', 'tel', 'workphone', 'work_phone'] },
   { key: 'mobile', label: 'Mobile', aliases: ['mobilephone', 'mobile_phone', 'cell', 'cellphone'] },
+  { key: 'owner_id', label: 'Owner', aliases: ['owner', 'owner_id', 'owner_email', 'lead_owner'] },
+  { key: 'lead_status', label: 'Lead Status', aliases: ['status', 'lead_status', 'lead status'] },
   { key: 'title', label: 'Title / Designation', aliases: ['designation', 'jobtitle', 'job_title', 'role', 'position'] },
   { key: 'lead_source', label: 'Lead Source', aliases: ['source', 'leadsource'] },
   { key: 'industry', label: 'Industry', aliases: [] },

@@ -172,6 +172,9 @@ export function getConvertOptions(stage, { isAdmin = false } = {}) {
     add({ id: 'lead', label: 'Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD, clearProposal: true, adminOnly: true });
   } else if (stage === PIPELINE_RAW) {
     add({ id: 'lead', label: 'Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD });
+    add({ id: 'qualified_lead', label: 'Qualified Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_QUALIFIED });
+    add({ id: 'proposal', label: 'Proposal', type: CONVERT_TYPE.STAGE, target: PIPELINE_PROPOSAL, proposal: true });
+    add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT });
   }
 
   return opts;

@@ -4,7 +4,7 @@ export const USER_ROLES = ['super_admin', 'sales_manager', 'sales_rep', 'viewer'
 export const ROLE_LABELS = {
   super_admin: 'Super Admin',
   sales_manager: 'Sales Manager',
-  sales_rep: 'Sales Rep',
+  sales_rep: 'Business Rep',
   viewer: 'Viewer',
 };
 
