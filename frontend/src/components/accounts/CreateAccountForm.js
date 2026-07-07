@@ -304,7 +304,7 @@ export default function CreateAccountForm() {
           {/* ── Deal & Related Records ── */}
           <SectionTitle>Deal & Related Records</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-            <FormField label="Proposal Amount" name="proposal_amount">
+            <FormField label="Sale Amount" name="proposal_amount">
               <CurrencyAmountInput
                 amount={form.proposal_amount}
                 currency={form.currency}

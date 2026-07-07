@@ -10,6 +10,7 @@ import {
   applyLeadRecordFilters,
   hasLeadClientFilters,
 } from '../listRecordFilters.js';
+import { LEAD_IMPORT_FIELDS } from '../importFieldConfig.js';
 
 const CONVERT_MASS_TARGETS = new Set(['account', 'contact', 'deal']);
 
@@ -221,7 +222,7 @@ export async function deleteLeadAttachment(leadId, attachmentId) {
 }
 
 export async function downloadLeadImportTemplate() {
-  const headers = ['first_name', 'last_name', 'company', 'email', 'phone'];
+  const headers = LEAD_IMPORT_FIELDS.map((field) => field.key);
   const csv = `${headers.join(',')}\n`;
   downloadBlob(new Blob([csv], { type: 'text/csv' }), 'leads-import-template.csv');
 }

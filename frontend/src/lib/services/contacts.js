@@ -5,6 +5,7 @@ import {
   applyContactRecordFilters,
   hasContactClientFilters,
 } from '../listRecordFilters.js';
+import { CONTACT_IMPORT_FIELDS } from '../importFieldConfig.js';
 
 async function fetchAllContactPages(params, accountMap) {
   const pageSize = 100;
@@ -84,7 +85,7 @@ export async function deleteContact(id) {
 }
 
 export async function downloadContactImportTemplate() {
-  const headers = ['first_name', 'last_name', 'email', 'phone', 'account_name'];
+  const headers = CONTACT_IMPORT_FIELDS.map((field) => field.key);
   const csv = `${headers.join(',')}\n`;
   downloadBlob(new Blob([csv], { type: 'text/csv' }), 'contacts-import-template.csv');
 }

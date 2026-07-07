@@ -29,6 +29,23 @@ const CAMPAIGN_MEMBER_TYPES = {
   contacts: 'contact',
 };
 
+const MODULE_PIPELINE_STAGE = {
+  'raw-leads': 'raw_prospect',
+  leads: 'contacted',
+  'qualified-leads': 'qualified_lead',
+  proposals: 'proposal',
+};
+
+function normalizeConvertTargetValue(value) {
+  const target = String(value || '').trim().toLowerCase();
+  if (!target) return '';
+  if (target === 'raw_lead' || target === 'raw_prospect') return 'raw_prospect';
+  if (target === 'lead' || target === 'contacted') return 'contacted';
+  if (target === 'qualified' || target === 'qualified_lead') return 'qualified_lead';
+  if (target === 'proposal') return 'proposal';
+  return target;
+}
+
 function MassUpdatePanel({
   open, field, value, onFieldChange, onValueChange, onCancel, onUpdate, updating,
   statusOptions, massUpdateFields, dynamicFields, loadingFields,
@@ -271,9 +288,22 @@ export default function RecordDataTable({
   const isConvertMassField = isConvertMassUpdateField(selectedMassFieldDef)
     || massFieldKey === 'convert'
     || massFieldKey === 'pipeline_convert';
+  const currentStageTarget = MODULE_PIPELINE_STAGE[moduleKey] || null;
+  const filteredConvertTargets = useMemo(() => {
+    if (!isConvertMassField || !currentStageTarget) return dynamicConvertTargets;
+    return (dynamicConvertTargets || []).filter((option) => (
+      normalizeConvertTargetValue(option?.value) !== currentStageTarget
+    ));
+  }, [dynamicConvertTargets, isConvertMassField, currentStageTarget]);
   const showLostReasonField = massUpdateFieldsLoader
     && isLeadStatusMassField(massField, selectedMassFieldDef)
     && isLostLeadStatus(massValue);
+
+  useEffect(() => {
+    if (!isConvertMassField || !massValue) return;
+    const selectedTargetStillAvailable = filteredConvertTargets.some((option) => option.value === massValue);
+    if (!selectedTargetStillAvailable) setMassValue('');
+  }, [isConvertMassField, massValue, filteredConvertTargets]);
 
   useEffect(() => {
     if (!showLostReasonField) {
@@ -465,7 +495,7 @@ export default function RecordDataTable({
         massUpdateFields={config.massUpdateFields}
         dynamicFields={dynamicMassFields}
         loadingFields={loadingMassFields}
-        valueOptions={isConvertMassField ? dynamicConvertTargets : massValueOptions}
+        valueOptions={isConvertMassField ? filteredConvertTargets : massValueOptions}
         loadingValueOptions={loadingMassValueOptions}
         useDynamicFields={!!massUpdateFieldsLoader}
         isConvertField={isConvertMassField}

@@ -57,6 +57,9 @@ export default function SettingsPage() {
   const [statusValue, setStatusValue] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
   const [deletingStatus, setDeletingStatus] = useState('');
+  const [editingStatus, setEditingStatus] = useState(null);
+  const [editingStatusLabel, setEditingStatusLabel] = useState('');
+  const [editingStatusSaving, setEditingStatusSaving] = useState(false);
 
   const [passwordForm, setPasswordForm] = useState({ otp: '', new_password: '', confirm_password: '' });
   const [passwordErrors, setPasswordErrors] = useState({});
@@ -229,6 +232,32 @@ export default function SettingsPage() {
   };
 
   const previewValue = statusValue.trim() || slugifyStatusValue(statusLabel);
+
+  const openEditLeadStatus = (status) => {
+    setEditingStatus(status);
+    setEditingStatusLabel(status.label || '');
+  };
+
+  const saveLeadStatusEdit = async () => {
+    if (!editingStatus) return;
+    const nextLabel = editingStatusLabel.trim();
+    if (!nextLabel) {
+      showToast('Enter a status label');
+      return;
+    }
+    setEditingStatusSaving(true);
+    try {
+      await adminApi.updateAdminLeadStatus(editingStatus.id || editingStatus.value, { label: nextLabel });
+      showToast('Status updated', 'success');
+      setEditingStatus(null);
+      setEditingStatusLabel('');
+      loadLeadStatuses();
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setEditingStatusSaving(false);
+    }
+  };
 
   const handleTriggerReport = async () => {
     try {
@@ -528,14 +557,23 @@ export default function SettingsPage() {
                         </td>
                         <td className="table-td">
                           {!s.is_system && s.id && (
-                            <button
-                              type="button"
-                              onClick={() => removeLeadStatus(s.id)}
-                              disabled={deletingStatus === s.id}
-                              className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                            >
-                              {deletingStatus === s.id ? 'Removing...' : 'Delete'}
-                            </button>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => openEditLeadStatus(s)}
+                                className="text-xs text-blue-600 hover:underline"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeLeadStatus(s.id)}
+                                disabled={deletingStatus === s.id}
+                                className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                              >
+                                {deletingStatus === s.id ? 'Removing...' : 'Delete'}
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -621,6 +659,45 @@ export default function SettingsPage() {
           <div className="flex gap-2 justify-end pt-4 mt-2 border-t border-gray-100">
             <button type="button" onClick={() => setUserModal(false)} className="btn-secondary">Cancel</button>
             <button type="button" onClick={saveUser} disabled={savingUser} className="btn-primary">{savingUser ? 'Saving...' : 'Save User'}</button>
+          </div>
+        </Modal>
+      )}
+
+      {editingStatus && (
+        <Modal title="Edit Lead Status" onClose={() => { if (!editingStatusSaving) { setEditingStatus(null); setEditingStatusLabel(''); } }}>
+          <div className="space-y-3">
+            <FormField label="Status Label" required name="edit_status_label">
+              <input
+                className="input"
+                value={editingStatusLabel}
+                onChange={(e) => setEditingStatusLabel(e.target.value)}
+              />
+            </FormField>
+            <FormField label="Status Value" name="edit_status_value">
+              <input
+                className="input font-mono text-xs bg-gray-50"
+                value={editingStatus.value}
+                readOnly
+              />
+            </FormField>
+          </div>
+          <div className="flex gap-2 justify-end pt-4">
+            <button
+              type="button"
+              onClick={() => { if (!editingStatusSaving) { setEditingStatus(null); setEditingStatusLabel(''); } }}
+              className="btn-secondary text-xs"
+              disabled={editingStatusSaving}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={saveLeadStatusEdit}
+              disabled={editingStatusSaving}
+              className="btn-primary text-xs"
+            >
+              {editingStatusSaving ? 'Saving…' : 'Save Changes'}
+            </button>
           </div>
         </Modal>
       )}

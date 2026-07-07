@@ -102,16 +102,18 @@ export default function PerformanceReportsPanel() {
     }
   };
 
-  const summaryCards = summary ? [
-    ['Leads owned', summary.total_leads_owned],
-    ['New leads', summary.new_leads],
-    ['Contacts', summary.new_contacts],
-    ['Accounts', summary.new_accounts],
-    ['Deals won', summary.deals_won],
-    ['Tasks done', summary.tasks_completed],
-    ['Calls', summary.calls_logged],
-    ['Conversion', `${summary.conversion_rate}%`],
-  ] : [];
+  const handleDownloadPreview = () => {
+    if (!preview?.html_body) return;
+    const blob = new Blob([preview.html_body], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `performance-report-preview-${selectedUserId || 'user'}.html`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -153,15 +155,6 @@ export default function PerformanceReportsPanel() {
 
       {summary && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {summaryCards.map(([label, value]) => (
-              <div key={label} className="card p-4 text-center">
-                <p className="text-xs text-gray-500">{label}</p>
-                <p className="text-2xl font-bold mt-1">{value ?? 0}</p>
-              </div>
-            ))}
-          </div>
-
           {(summary.leads_by_status || []).length > 0 && (
             <div className="card p-5">
               <h3 className="font-semibold mb-3">New leads by status</h3>
@@ -186,7 +179,12 @@ export default function PerformanceReportsPanel() {
 
           {preview?.html_body && (
             <div className="card p-5">
-              <h3 className="font-semibold mb-3">Email preview</h3>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h3 className="font-semibold">Preview</h3>
+                <button type="button" onClick={handleDownloadPreview} className="btn-secondary text-xs">
+                  Download
+                </button>
+              </div>
               <div className="border border-zoho-border rounded-lg overflow-hidden bg-white">
                 <iframe
                   title="Performance report preview"

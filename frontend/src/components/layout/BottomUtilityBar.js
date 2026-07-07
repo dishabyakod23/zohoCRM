@@ -5,6 +5,7 @@ import StickyNote, { isStickyNotePinned } from './StickyNote.js';
 import { getRecentItemHref } from '../../lib/recentItemHelpers.js';
 import * as calendarApi from '../../lib/services/calendar.js';
 import * as announcementsApi from '../../lib/services/announcements.js';
+import * as auditLogsApi from '../../lib/services/auditLogs.js';
 import { formatAnnouncementDate } from '../../lib/services/announcements.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -78,20 +79,19 @@ function Panel({ title, onClose, children, wide }) {
 
 export default function BottomUtilityBar() {
   const { user } = useAuth();
-  const { canAssignLeads } = usePermissions();
+  const { canAssignLeads, role } = usePermissions();
   const { showToast } = useToast();
   const [active, setActive] = useState(null);
   const [reminders, setReminders] = useState([]);
   const [completingReminderId, setCompletingReminderId] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
-  const [recent, setRecent] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false);
   const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
   const [a11y, setA11y] = useState({ textScale: 0, colorMode: 'light' });
 
   useEffect(() => {
-    const stored = localStorage.getItem('crm_recent');
-    if (stored) setRecent(JSON.parse(stored));
     const a11yStored = localStorage.getItem('crm_a11y');
     if (a11yStored) {
       const parsed = JSON.parse(a11yStored);
@@ -124,6 +124,20 @@ export default function BottomUtilityBar() {
       .catch(() => setAnnouncements([]));
   }, [user?.id, canAssignLeads]);
 
+  const loadAuditLogs = async () => {
+    if (!user?.id) return;
+    setAuditLogsLoading(true);
+    try {
+      const logs = await auditLogsApi.listAuditLogs({ page: 1, page_size: 100 });
+      const canSeeAllLogs = role === 'super_admin' || role === 'sales_manager';
+      setAuditLogs(canSeeAllLogs ? logs : logs.filter((l) => l.user_id === user.id));
+    } catch {
+      setAuditLogs([]);
+    } finally {
+      setAuditLogsLoading(false);
+    }
+  };
+
   const loadAnnouncements = () => {
     setAnnouncementsLoading(true);
     return announcementsApi.listAnnouncements({ limit: 20 })
@@ -146,9 +160,8 @@ export default function BottomUtilityBar() {
   };
 
   const toggle = (key) => {
-    if (key === 'recent') {
-      const stored = localStorage.getItem('crm_recent');
-      if (stored) setRecent(JSON.parse(stored));
+    if (key === 'audit') {
+      loadAuditLogs();
     }
     if (key === 'reminders') {
       calendarApi.getLoginReminders()
@@ -167,7 +180,7 @@ export default function BottomUtilityBar() {
     { key: 'announcements', icon: ICONS.announcements, title: 'Announcements', label: 'Announcements', badge: announcements.length },
     { key: 'expand', icon: ICONS.expand, title: 'Open in new tab', label: 'Expand' },
     { key: 'reminders', icon: ICONS.reminders, title: 'Reminders', label: 'Reminders', badge: reminders.length },
-    { key: 'recent', icon: ICONS.recent, title: 'Recent Items', label: 'Recent' },
+    { key: 'audit', icon: ICONS.recent, title: 'Audit Logs', label: 'Audit Logs' },
     { key: 'accessibility', icon: ICONS.accessibility, title: 'Accessibility', label: 'Accessibility' },
   ];
 
@@ -265,18 +278,28 @@ export default function BottomUtilityBar() {
         </Panel>
       )}
 
-      {active === 'recent' && (
-        <Panel title="Recent Items" onClose={() => setActive(null)}>
-          {recent.length === 0 ? (
-            <p className="text-sm text-zoho-muted text-center py-6">No recent items yet. Browse records to see them here.</p>
+      {active === 'audit' && (
+        <Panel title="Audit Logs" onClose={() => setActive(null)}>
+          {auditLogsLoading ? (
+            <p className="text-sm text-zoho-muted text-center py-6">Loading audit logs…</p>
+          ) : auditLogs.length === 0 ? (
+            <p className="text-sm text-zoho-muted text-center py-6">No audit logs found.</p>
           ) : (
-            <div className="space-y-1">
-              {recent.map((r, i) => (
-                <Link key={i} href={r.href} onClick={() => setActive(null)}
-                  className="flex justify-between p-2 rounded-lg hover:bg-brand-50 text-sm transition-colors">
-                  <span className="text-brand-600">{r.name}</span>
-                  <span className="text-xs text-zoho-muted capitalize">{r.type}</span>
-                </Link>
+            <div className="space-y-2">
+              {auditLogs.map((log) => (
+                <div key={log.id} className="p-3 rounded-xl border border-zoho-border hover:bg-brand-50/40 transition-colors">
+                  <p className="text-sm font-medium text-zoho-text">
+                    {log.action_label || log.action} {log.entity_type_label || log.entity_type}
+                  </p>
+                  {log.field_name && (
+                    <p className="text-xs text-zoho-muted mt-1">
+                      {log.field_name}: {log.old_value || '—'} → {log.new_value || '—'}
+                    </p>
+                  )}
+                  <p className="text-xs text-zoho-muted mt-1">
+                    {log.user_name || 'System'} · {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
+                  </p>
+                </div>
               ))}
             </div>
           )}

@@ -18,3 +18,8 @@ export async function getEntityTimeline(entityType, entityId, params = {}) {
   const res = await api.get(`/audit-logs/timeline/${entityType}/${entityId}`, { params });
   return (res.data.data || []).map(normalizeAuditLog);
 }
+
+export async function listAuditLogs(params = {}) {
+  const res = await api.get('/audit-logs', { params });
+  return (res.data.data || []).map(normalizeAuditLog);
+}
