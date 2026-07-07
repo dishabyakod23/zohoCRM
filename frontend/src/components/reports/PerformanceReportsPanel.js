@@ -104,15 +104,52 @@ export default function PerformanceReportsPanel() {
 
   const handleDownloadPreview = () => {
     if (!preview?.html_body) return;
-    const blob = new Blob([preview.html_body], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `performance-report-preview-${selectedUserId || 'user'}.html`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
+    (async () => {
+      try {
+        const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+          import('html2canvas'),
+          import('jspdf'),
+        ]);
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.left = '-10000px';
+        container.style.top = '0';
+        container.style.width = '1024px';
+        container.style.background = '#fff';
+        container.innerHTML = preview.html_body;
+        document.body.appendChild(container);
+
+        const canvas = await html2canvas(container, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+        });
+        document.body.removeChild(container);
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = pageWidth;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const imgData = canvas.toDataURL('image/png');
+
+        let heightLeft = imgHeight;
+        let position = 0;
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+          heightLeft -= pageHeight;
+        }
+
+        pdf.save(`performance-report-preview-${selectedUserId || 'user'}.pdf`);
+      } catch (err) {
+        showToast(getApiError(err) || 'Failed to download PDF preview');
+      }
+    })();
   };
 
   return (

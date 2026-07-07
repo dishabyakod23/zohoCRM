@@ -7,6 +7,7 @@ import * as calendarApi from '../../lib/services/calendar.js';
 import * as announcementsApi from '../../lib/services/announcements.js';
 import * as auditLogsApi from '../../lib/services/auditLogs.js';
 import { formatAnnouncementDate } from '../../lib/services/announcements.js';
+import { formatEnumLabel } from '../../lib/activityHelpers.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useToast } from '../ui/Toast.js';
@@ -50,6 +51,79 @@ const ICONS = {
 const TEXT_SCALE_MIN = 0;
 const TEXT_SCALE_MAX = 5;
 const TEXT_SCALE_LABELS = ['Default', 'Comfort', 'Large', 'Larger', 'Extra large', 'Maximum'];
+
+function parseAuditValue(value) {
+  if (value == null) return null;
+  if (typeof value === 'object') return value;
+  const text = String(value).trim();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+function extractDisplayName(value) {
+  const parsed = parseAuditValue(value);
+  if (!parsed) return '';
+  if (typeof parsed === 'string') return parsed;
+  if (typeof parsed !== 'object') return String(parsed);
+  const first = parsed.first_name || parsed.firstName || '';
+  const last = parsed.last_name || parsed.lastName || '';
+  const full = `${first} ${last}`.trim();
+  return full
+    || parsed.name
+    || parsed.title
+    || parsed.subject
+    || parsed.deal_name
+    || parsed.account_name
+    || parsed.company
+    || parsed.email
+    || '';
+}
+
+function formatValue(value) {
+  const parsed = parseAuditValue(value);
+  if (!parsed) return '';
+  if (typeof parsed === 'string') return formatEnumLabel(parsed);
+  if (typeof parsed !== 'object') return String(parsed);
+  const label = extractDisplayName(parsed);
+  if (label) return label;
+  return Object.entries(parsed)
+    .filter(([, v]) => v != null && v !== '')
+    .slice(0, 2)
+    .map(([k, v]) => `${formatEnumLabel(k)}: ${String(v)}`)
+    .join(', ');
+}
+
+function buildAuditMessage(log) {
+  const action = String(log.action || '').toLowerCase();
+  const entity = formatEnumLabel(log.entity_type || log.record_type || 'record').toLowerCase();
+  const name = extractDisplayName(log.new_value) || extractDisplayName(log.old_value);
+  const oldVal = formatValue(log.old_value);
+  const newVal = formatValue(log.new_value);
+  const field = formatEnumLabel(log.field_name || '');
+
+  if (action.includes('create')) {
+    return `Created new ${entity}${name ? ` - ${name}` : ''}`;
+  }
+  if (action.includes('delete')) {
+    return `Deleted ${entity}${name ? ` - ${name}` : ''}`;
+  }
+  if (action.includes('update')) {
+    const isStatusChange = ['status', 'lead_status'].includes(String(log.field_name || '').toLowerCase());
+    if (isStatusChange && oldVal && newVal) {
+      if (name) return `Updated ${oldVal.toLowerCase()} ${name} to ${newVal.toLowerCase()} ${name}`;
+      return `Updated ${entity} from ${oldVal} to ${newVal}`;
+    }
+    if (field && oldVal && newVal) {
+      return `Updated ${entity}${name ? ` - ${name}` : ''} (${field}: ${oldVal} -> ${newVal})`;
+    }
+    return `Updated ${entity}${name ? ` - ${name}` : ''}`;
+  }
+  return `${formatEnumLabel(log.action) || 'Updated'} ${entity}${name ? ` - ${name}` : ''}`;
+}
 
 function StepButton({ onClick, disabled, label, children }) {
   return (
@@ -289,13 +363,8 @@ export default function BottomUtilityBar() {
               {auditLogs.map((log) => (
                 <div key={log.id} className="p-3 rounded-xl border border-zoho-border hover:bg-brand-50/40 transition-colors">
                   <p className="text-sm font-medium text-zoho-text">
-                    {log.action_label || log.action} {log.entity_type_label || log.entity_type}
+                    {buildAuditMessage(log)}
                   </p>
-                  {log.field_name && (
-                    <p className="text-xs text-zoho-muted mt-1">
-                      {log.field_name}: {log.old_value || '—'} → {log.new_value || '—'}
-                    </p>
-                  )}
                   <p className="text-xs text-zoho-muted mt-1">
                     {log.user_name || 'System'} · {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
                   </p>
