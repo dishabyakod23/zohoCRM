@@ -308,9 +308,9 @@ export default function RecordDataTable({
 
   useEffect(() => {
     if (!isConvertMassField || !massValue) return;
-    const selectedTargetStillAvailable = filteredConvertTargets.some((option) => option.value === massValue);
+    const selectedTargetStillAvailable = convertTargets.some((option) => option.value === massValue);
     if (!selectedTargetStillAvailable) setMassValue('');
-  }, [isConvertMassField, massValue, filteredConvertTargets]);
+  }, [isConvertMassField, massValue, convertTargets]);
 
   useEffect(() => {
     if (!showLostReasonField) {
