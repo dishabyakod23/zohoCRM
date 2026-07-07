@@ -18,6 +18,9 @@ const CONVERT_OPTIONS = [
   { value: PIPELINE_QUALIFIED, label: 'Qualified Lead' },
   { value: PIPELINE_PROPOSAL, label: 'Proposal' },
 ];
+const CONTACT_CONVERT_OPTIONS = [
+  { value: PIPELINE_RAW, label: 'Raw Lead' },
+];
 
 export const BULK_MODULE_CONFIG = {
   leads: {
@@ -86,8 +89,10 @@ export const BULK_MODULE_CONFIG = {
     label: 'Records',
     emailField: 'email',
     statusField: null,
-    massUpdateFields: [],
+    massUpdateFields: ['convert'],
+    convertOptions: CONTACT_CONVERT_OPTIONS,
     update: (id, payload) => contactsApi.updateContact(id, payload),
+    convert: (id) => contactsApi.convertToRawLead(id),
     deleteOne: (id) => contactsApi.deleteContact(id),
     exportRow: (r) => ({
       first_name: r.first_name, last_name: r.last_name, email: r.email, phone: r.phone, account: r.account_name,

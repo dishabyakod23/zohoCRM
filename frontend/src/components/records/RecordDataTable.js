@@ -298,6 +298,13 @@ export default function RecordDataTable({
   const showLostReasonField = massUpdateFieldsLoader
     && isLeadStatusMassField(massField, selectedMassFieldDef)
     && isLostLeadStatus(massValue);
+  const staticConvertTargets = useMemo(() => {
+    if (!isConvertMassField || massUpdateFieldsLoader) return [];
+    return config.convertOptions || [];
+  }, [isConvertMassField, massUpdateFieldsLoader, config]);
+  const convertTargets = isConvertMassField
+    ? (filteredConvertTargets.length ? filteredConvertTargets : staticConvertTargets)
+    : [];
 
   useEffect(() => {
     if (!isConvertMassField || !massValue) return;
@@ -495,7 +502,7 @@ export default function RecordDataTable({
         massUpdateFields={config.massUpdateFields}
         dynamicFields={dynamicMassFields}
         loadingFields={loadingMassFields}
-        valueOptions={isConvertMassField ? filteredConvertTargets : massValueOptions}
+        valueOptions={isConvertMassField ? convertTargets : massValueOptions}
         loadingValueOptions={loadingMassValueOptions}
         useDynamicFields={!!massUpdateFieldsLoader}
         isConvertField={isConvertMassField}

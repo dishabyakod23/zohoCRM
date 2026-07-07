@@ -35,7 +35,6 @@ export const NAV_MODULES = [
   { href: '/accounts', label: 'Accounts', section: 'modules', icon: 'Accounts' },
   { href: '/calendar', label: 'Calendar', section: 'modules', icon: 'Calendar' },
   { href: '/campaigns', label: 'Campaigns', section: 'modules', icon: 'Campaigns' },
-  { href: '/projects', label: 'Projects', section: 'modules', icon: 'Projects' },
 ];
 
 export const QUICK_CREATE = [

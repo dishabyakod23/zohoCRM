@@ -130,3 +130,8 @@ export async function importContactsFile(file, { dry_run = true } = {}) {
   }
   return normalizeImportResult({ imported_count: imported });
 }
+
+export async function convertToRawLead(contactId) {
+  const res = await api.post(`/contacts/${contactId}/convert-to-raw-lead`);
+  return res.data?.data || null;
+}
