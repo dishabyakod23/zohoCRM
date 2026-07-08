@@ -145,6 +145,10 @@ export default function CreateCampaignForm() {
   const [recipientPool, setRecipientPool] = useState([]);
   const [recipientsLoading, setRecipientsLoading] = useState(false);
   const [selectedRecipients, setSelectedRecipients] = useState(() => new Set());
+  const [manualRecipients, setManualRecipients] = useState([]);
+  const [manualFormOpen, setManualFormOpen] = useState(false);
+  const [manualForm, setManualForm] = useState({ email: '', name: '', company: '' });
+  const [recipientSearch, setRecipientSearch] = useState('');
 
   useEffect(() => {
     if (user?.id && !form.owner_id) {
@@ -155,7 +159,7 @@ export default function CreateCampaignForm() {
   useEffect(() => {
     if (!recipientModules.length) {
       setRecipientPool([]);
-      setSelectedRecipients(new Set());
+      setSelectedRecipients((prev) => new Set([...prev].filter((k) => k.startsWith('manual:'))));
       return;
     }
     let cancelled = false;
@@ -165,12 +169,19 @@ export default function CreateCampaignForm() {
         if (cancelled) return;
         setRecipientPool(pool);
         const poolKeys = new Set(pool.map((r) => r.key));
-        setSelectedRecipients((prev) => new Set([...prev].filter((k) => poolKeys.has(k))));
+        setSelectedRecipients((prev) => new Set([...prev].filter((k) => poolKeys.has(k) || k.startsWith('manual:'))));
       })
       .catch(() => { if (!cancelled) setRecipientPool([]); })
       .finally(() => { if (!cancelled) setRecipientsLoading(false); });
     return () => { cancelled = true; };
   }, [recipientModules]);
+
+  const allModuleKeys = RECIPIENT_MODULES.map((m) => m.key);
+  const allModulesSelected = allModuleKeys.every((k) => recipientModules.includes(k));
+
+  const toggleAllModules = () => {
+    setRecipientModules(allModulesSelected ? [] : allModuleKeys);
+  };
 
   const toggleRecipientModule = (key) => {
     setRecipientModules((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
@@ -184,10 +195,60 @@ export default function CreateCampaignForm() {
     });
   };
 
-  const allRecipientsSelected = recipientPool.length > 0 && selectedRecipients.size === recipientPool.length;
+  const combinedRecipientPool = [...manualRecipients, ...recipientPool];
+  const recipientSearchTerm = recipientSearch.trim().toLowerCase();
+  const filteredRecipientPool = recipientSearchTerm
+    ? combinedRecipientPool.filter((r) => (
+        r.name.toLowerCase().includes(recipientSearchTerm)
+        || r.email.toLowerCase().includes(recipientSearchTerm)
+        || (r.company || '').toLowerCase().includes(recipientSearchTerm)
+        || r.module.toLowerCase().includes(recipientSearchTerm)
+      ))
+    : combinedRecipientPool;
+
+  const allRecipientsSelected = filteredRecipientPool.length > 0
+    && filteredRecipientPool.every((r) => selectedRecipients.has(r.key));
 
   const toggleSelectAllRecipients = () => {
-    setSelectedRecipients(allRecipientsSelected ? new Set() : new Set(recipientPool.map((r) => r.key)));
+    setSelectedRecipients((prev) => {
+      const next = new Set(prev);
+      if (allRecipientsSelected) {
+        filteredRecipientPool.forEach((r) => next.delete(r.key));
+      } else {
+        filteredRecipientPool.forEach((r) => next.add(r.key));
+      }
+      return next;
+    });
+  };
+
+  const addManualRecipient = () => {
+    const email = manualForm.email.trim();
+    const name = manualForm.name.trim();
+    const company = manualForm.company.trim();
+    if (!email || !name || !company) {
+      showToast('Email, name, and company are required to add a recipient.');
+      return;
+    }
+    const [firstWord, ...restWords] = name.split(/\s+/);
+    const lastName = restWords.join(' ') || firstWord;
+    const firstName = restWords.length ? firstWord : '';
+    const key = `manual:${email.toLowerCase()}`;
+    setManualRecipients((prev) => (
+      prev.some((r) => r.key === key) ? prev : [...prev, {
+        key,
+        member_type: 'lead',
+        member_id: null,
+        first_name: firstName,
+        last_name: lastName,
+        name,
+        email,
+        company,
+        module: 'Manually Added',
+      }]
+    ));
+    setSelectedRecipients((prev) => new Set(prev).add(key));
+    setManualForm({ email: '', name: '', company: '' });
+    setManualFormOpen(false);
   };
 
   useEffect(() => {
@@ -224,14 +285,32 @@ export default function CreateCampaignForm() {
     setSaving(true);
     try {
       const created = await campaignsApi.createCampaign(form);
-      const recipients = recipientPool.filter((r) => selectedRecipients.has(r.key));
+      const recipients = combinedRecipientPool.filter((r) => selectedRecipients.has(r.key));
       if (recipients.length && created?.id) {
         try {
-          await campaignsApi.addCampaignMembers(created.id, recipients.map((r) => ({
-            member_type: r.member_type,
-            member_id: r.member_id,
-          })));
-          showToast(`Campaign saved with ${recipients.length} recipient${recipients.length === 1 ? '' : 's'}`, 'success');
+          const resolved = [];
+          for (const r of recipients) {
+            if (r.member_id) {
+              resolved.push({ member_type: r.member_type, member_id: r.member_id });
+              continue;
+            }
+            // Manually added email — create it as a raw lead so it can be tracked as a campaign member.
+            try {
+              const lead = await leadsApi.createLead({
+                first_name: r.first_name,
+                last_name: r.last_name,
+                company: r.company,
+                email: r.email,
+                lead_status: PIPELINE_RAW,
+              });
+              resolved.push({ member_type: 'lead', member_id: lead.id });
+            } catch (err) {
+              const existingId = err?.response?.data?.existingId;
+              if (existingId) resolved.push({ member_type: 'lead', member_id: existingId });
+            }
+          }
+          await campaignsApi.addCampaignMembers(created.id, resolved);
+          showToast(`Campaign saved with ${resolved.length} recipient${resolved.length === 1 ? '' : 's'}`, 'success');
         } catch (err) {
           showToast(`Campaign saved, but recipients could not be added: ${getApiError(err)}`);
         }
@@ -345,7 +424,16 @@ export default function CreateCampaignForm() {
           <p className="text-xs text-zoho-muted -mt-2 mb-3">
             Choose which modules to pull recipients from, then select the emails that should be added to this campaign.
           </p>
-          <div className="flex flex-wrap gap-x-5 gap-y-2 mb-4">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                checked={allModulesSelected}
+                onChange={toggleAllModules}
+              />
+              <span className="text-sm font-semibold text-zoho-text">All</span>
+            </label>
             {RECIPIENT_MODULES.map((m) => (
               <label key={m.key} className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -357,43 +445,93 @@ export default function CreateCampaignForm() {
                 <span className="text-sm text-zoho-text">{m.label}</span>
               </label>
             ))}
+
+            <div className="relative ml-auto">
+              <button
+                type="button"
+                onClick={() => setManualFormOpen((v) => !v)}
+                className="btn-secondary text-xs"
+              >
+                + Add Email
+              </button>
+              {manualFormOpen && (
+                <div className="absolute right-0 z-10 mt-2 w-72 card p-3 shadow-card-hover space-y-2">
+                  <FormField label="Email" name="manual_email">
+                    <input
+                      className="input"
+                      type="email"
+                      value={manualForm.email}
+                      onChange={(e) => setManualForm((f) => ({ ...f, email: e.target.value }))}
+                    />
+                  </FormField>
+                  <FormField label="Name" name="manual_name">
+                    <input
+                      className="input"
+                      value={manualForm.name}
+                      onChange={(e) => setManualForm((f) => ({ ...f, name: e.target.value }))}
+                    />
+                  </FormField>
+                  <FormField label="Company" name="manual_company">
+                    <input
+                      className="input"
+                      value={manualForm.company}
+                      onChange={(e) => setManualForm((f) => ({ ...f, company: e.target.value }))}
+                    />
+                  </FormField>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button type="button" className="btn-secondary text-xs" onClick={() => setManualFormOpen(false)}>Cancel</button>
+                    <button type="button" className="btn-primary text-xs" onClick={addManualRecipient}>Add</button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {recipientModules.length > 0 && (
-            recipientsLoading ? (
-              <p className="text-sm text-zoho-muted py-4">Loading recipients…</p>
-            ) : recipientPool.length === 0 ? (
-              <p className="text-sm text-zoho-muted py-4">No emails found for the selected module(s).</p>
-            ) : (
-              <div className="border border-zoho-border rounded-lg overflow-hidden">
-                <label className="flex items-center gap-3 px-3 py-2 bg-gray-50 border-b border-zoho-border cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                    checked={allRecipientsSelected}
-                    onChange={toggleSelectAllRecipients}
-                  />
-                  <span className="text-sm font-medium text-zoho-text">
-                    All recipients ({selectedRecipients.size}/{recipientPool.length} selected)
-                  </span>
-                </label>
-                <div className="max-h-64 overflow-y-auto divide-y divide-zoho-border">
-                  {recipientPool.map((r) => (
-                    <label key={r.key} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                        checked={selectedRecipients.has(r.key)}
-                        onChange={() => toggleRecipient(r.key)}
-                      />
-                      <span className="text-sm text-zoho-text">{r.name}</span>
-                      <span className="text-xs text-zoho-muted ml-auto shrink-0">{r.email}</span>
-                      <span className="text-[10px] uppercase tracking-wide text-brand-600 bg-brand-50 rounded px-1.5 py-0.5 shrink-0">{r.module}</span>
-                    </label>
-                  ))}
+          {(recipientModules.length > 0 || manualRecipients.length > 0) && (
+            <>
+              <input
+                className="input mb-3"
+                placeholder="Search recipients by name, email, or company…"
+                value={recipientSearch}
+                onChange={(e) => setRecipientSearch(e.target.value)}
+              />
+              {recipientsLoading ? (
+                <p className="text-sm text-zoho-muted py-4">Loading recipients…</p>
+              ) : filteredRecipientPool.length === 0 ? (
+                <p className="text-sm text-zoho-muted py-4">
+                  {recipientSearchTerm ? 'No recipients match your search.' : 'No emails found for the selected module(s).'}
+                </p>
+              ) : (
+                <div className="border border-zoho-border rounded-lg overflow-hidden">
+                  <label className="flex items-center gap-3 px-3 py-2 bg-gray-50 border-b border-zoho-border cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                      checked={allRecipientsSelected}
+                      onChange={toggleSelectAllRecipients}
+                    />
+                    <span className="text-sm font-medium text-zoho-text">
+                      All recipients ({selectedRecipients.size}/{combinedRecipientPool.length} selected)
+                    </span>
+                  </label>
+                  <div className="max-h-64 overflow-y-auto divide-y divide-zoho-border">
+                    {filteredRecipientPool.map((r) => (
+                      <label key={r.key} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                          checked={selectedRecipients.has(r.key)}
+                          onChange={() => toggleRecipient(r.key)}
+                        />
+                        <span className="text-sm text-zoho-text">{r.name}</span>
+                        <span className="text-xs text-zoho-muted ml-auto shrink-0">{r.email}</span>
+                        <span className="text-[10px] uppercase tracking-wide text-brand-600 bg-brand-50 rounded px-1.5 py-0.5 shrink-0">{r.module}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )
+              )}
+            </>
           )}
 
           <SectionTitle>Description Information</SectionTitle>
