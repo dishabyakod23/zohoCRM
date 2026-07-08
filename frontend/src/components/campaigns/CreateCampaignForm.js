@@ -9,7 +9,85 @@ import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
+import * as leadsApi from '../../lib/services/leads.js';
+import * as contactsApi from '../../lib/services/contacts.js';
+import * as accountsApi from '../../lib/services/accounts.js';
 import { fetchCampaignTypes, fetchCampaignStatuses, fetchUsers } from '../../lib/services/lookups.js';
+import { PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } from '../../lib/pipelineHelpers.js';
+
+const RECIPIENT_MODULES = [
+  { key: 'contacts', label: 'Contacts' },
+  { key: 'raw_leads', label: 'Raw Leads' },
+  { key: 'leads', label: 'Leads' },
+  { key: 'qualified_leads', label: 'Qualified Leads' },
+  { key: 'proposals', label: 'Proposals' },
+  { key: 'accounts', label: 'Accounts' },
+];
+
+const LEAD_STAGE_BY_MODULE = {
+  raw_leads: PIPELINE_RAW,
+  leads: PIPELINE_LEAD,
+  qualified_leads: PIPELINE_QUALIFIED,
+  proposals: PIPELINE_PROPOSAL,
+};
+
+/** Fetch selectable {key, member_type, member_id, name, email, module} recipients for the chosen modules. */
+async function fetchRecipientPool(modules) {
+  const tasks = [];
+
+  if (modules.includes('contacts')) {
+    tasks.push(
+      contactsApi.listContacts({ page_size: 500 }).then(({ data }) =>
+        (data || []).filter((c) => c.email).map((c) => ({
+          key: `contact:${c.id}`,
+          member_type: 'contact',
+          member_id: c.id,
+          name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email,
+          email: c.email,
+          module: 'Contacts',
+        }))
+      )
+    );
+  }
+
+  for (const [key, stage] of Object.entries(LEAD_STAGE_BY_MODULE)) {
+    if (!modules.includes(key)) continue;
+    const label = RECIPIENT_MODULES.find((m) => m.key === key)?.label || key;
+    tasks.push(
+      leadsApi.listLeads({ pipeline_stage: stage, page_size: 1000 }).then(({ data }) =>
+        (data || []).filter((l) => l.email).map((l) => ({
+          key: `lead:${l.id}`,
+          member_type: 'lead',
+          member_id: l.id,
+          name: `${l.first_name || ''} ${l.last_name || ''}`.trim() || l.company || l.email,
+          email: l.email,
+          module: label,
+        }))
+      )
+    );
+  }
+
+  if (modules.includes('accounts')) {
+    tasks.push(
+      accountsApi.listAccounts({ page_size: 500 }).then(({ data }) =>
+        (data || []).filter((a) => a.email).map((a) => ({
+          key: `account:${a.id}`,
+          member_type: 'account',
+          member_id: a.id,
+          name: a.name || a.account_name || a.email,
+          email: a.email,
+          module: 'Accounts',
+        }))
+      )
+    );
+  }
+
+  const results = await Promise.all(tasks);
+  const pool = results.flat();
+  const dedup = new Map();
+  for (const r of pool) dedup.set(r.key, r);
+  return Array.from(dedup.values());
+}
 
 export function emptyCampaignForm() {
   return {
@@ -63,12 +141,54 @@ export default function CreateCampaignForm() {
   const [users, setUsers] = useState([]);
   const [typeOptions, setTypeOptions] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
+  const [recipientModules, setRecipientModules] = useState([]);
+  const [recipientPool, setRecipientPool] = useState([]);
+  const [recipientsLoading, setRecipientsLoading] = useState(false);
+  const [selectedRecipients, setSelectedRecipients] = useState(() => new Set());
 
   useEffect(() => {
     if (user?.id && !form.owner_id) {
       setForm((f) => ({ ...f, owner_id: user.id }));
     }
   }, [user?.id, form.owner_id]);
+
+  useEffect(() => {
+    if (!recipientModules.length) {
+      setRecipientPool([]);
+      setSelectedRecipients(new Set());
+      return;
+    }
+    let cancelled = false;
+    setRecipientsLoading(true);
+    fetchRecipientPool(recipientModules)
+      .then((pool) => {
+        if (cancelled) return;
+        setRecipientPool(pool);
+        const poolKeys = new Set(pool.map((r) => r.key));
+        setSelectedRecipients((prev) => new Set([...prev].filter((k) => poolKeys.has(k))));
+      })
+      .catch(() => { if (!cancelled) setRecipientPool([]); })
+      .finally(() => { if (!cancelled) setRecipientsLoading(false); });
+    return () => { cancelled = true; };
+  }, [recipientModules]);
+
+  const toggleRecipientModule = (key) => {
+    setRecipientModules((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
+  };
+
+  const toggleRecipient = (key) => {
+    setSelectedRecipients((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const allRecipientsSelected = recipientPool.length > 0 && selectedRecipients.size === recipientPool.length;
+
+  const toggleSelectAllRecipients = () => {
+    setSelectedRecipients(allRecipientsSelected ? new Set() : new Set(recipientPool.map((r) => r.key)));
+  };
 
   useEffect(() => {
     Promise.all([fetchUsers(), fetchCampaignTypes(), fetchCampaignStatuses()])
@@ -104,7 +224,20 @@ export default function CreateCampaignForm() {
     setSaving(true);
     try {
       const created = await campaignsApi.createCampaign(form);
-      showToast('Campaign saved', 'success');
+      const recipients = recipientPool.filter((r) => selectedRecipients.has(r.key));
+      if (recipients.length && created?.id) {
+        try {
+          await campaignsApi.addCampaignMembers(created.id, recipients.map((r) => ({
+            member_type: r.member_type,
+            member_id: r.member_id,
+          })));
+          showToast(`Campaign saved with ${recipients.length} recipient${recipients.length === 1 ? '' : 's'}`, 'success');
+        } catch (err) {
+          showToast(`Campaign saved, but recipients could not be added: ${getApiError(err)}`);
+        }
+      } else {
+        showToast('Campaign saved', 'success');
+      }
       router.push(created?.id ? `/campaigns/${created.id}` : '/campaigns');
     } catch (err) {
       showToast(getApiError(err));
@@ -207,6 +340,61 @@ export default function CreateCampaignForm() {
               <input className="input" type="number" min={0} step={1} value={form.numbers_sent} onChange={set('numbers_sent')} />
             </FormField>
           </div>
+
+          <SectionTitle>Campaign Recipients</SectionTitle>
+          <p className="text-xs text-zoho-muted -mt-2 mb-3">
+            Choose which modules to pull recipients from, then select the emails that should be added to this campaign.
+          </p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 mb-4">
+            {RECIPIENT_MODULES.map((m) => (
+              <label key={m.key} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                  checked={recipientModules.includes(m.key)}
+                  onChange={() => toggleRecipientModule(m.key)}
+                />
+                <span className="text-sm text-zoho-text">{m.label}</span>
+              </label>
+            ))}
+          </div>
+
+          {recipientModules.length > 0 && (
+            recipientsLoading ? (
+              <p className="text-sm text-zoho-muted py-4">Loading recipients…</p>
+            ) : recipientPool.length === 0 ? (
+              <p className="text-sm text-zoho-muted py-4">No emails found for the selected module(s).</p>
+            ) : (
+              <div className="border border-zoho-border rounded-lg overflow-hidden">
+                <label className="flex items-center gap-3 px-3 py-2 bg-gray-50 border-b border-zoho-border cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    checked={allRecipientsSelected}
+                    onChange={toggleSelectAllRecipients}
+                  />
+                  <span className="text-sm font-medium text-zoho-text">
+                    All recipients ({selectedRecipients.size}/{recipientPool.length} selected)
+                  </span>
+                </label>
+                <div className="max-h-64 overflow-y-auto divide-y divide-zoho-border">
+                  {recipientPool.map((r) => (
+                    <label key={r.key} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                        checked={selectedRecipients.has(r.key)}
+                        onChange={() => toggleRecipient(r.key)}
+                      />
+                      <span className="text-sm text-zoho-text">{r.name}</span>
+                      <span className="text-xs text-zoho-muted ml-auto shrink-0">{r.email}</span>
+                      <span className="text-[10px] uppercase tracking-wide text-brand-600 bg-brand-50 rounded px-1.5 py-0.5 shrink-0">{r.module}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )
+          )}
 
           <SectionTitle>Description Information</SectionTitle>
           <FormField label="Description" name="description">

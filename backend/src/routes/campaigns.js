@@ -32,10 +32,16 @@ router.get('/:id', async (req, res) => {
   try {
     const [camp, members] = await Promise.all([
       pool.query(`SELECT c.*, u.name as owner_name FROM campaigns c LEFT JOIN users u ON c.owner_id=u.id WHERE c.id=$1 AND c.deleted_at IS NULL`, [req.params.id]),
-      pool.query(`SELECT cm.*, CASE WHEN cm.member_type='lead' THEN l.first_name || ' ' || l.last_name ELSE ct.first_name || ' ' || ct.last_name END as member_name
+      pool.query(`SELECT cm.*,
+        CASE
+          WHEN cm.member_type='lead' THEN l.first_name || ' ' || l.last_name
+          WHEN cm.member_type='account' THEN acc.name
+          ELSE ct.first_name || ' ' || ct.last_name
+        END as member_name
         FROM campaign_members cm
         LEFT JOIN leads l ON cm.member_type='lead' AND cm.member_id=l.id
         LEFT JOIN contacts ct ON cm.member_type='contact' AND cm.member_id=ct.id
+        LEFT JOIN accounts acc ON cm.member_type='account' AND cm.member_id=acc.id
         WHERE cm.campaign_id=$1`, [req.params.id])
     ]);
     if (!camp.rows[0]) return res.status(404).json({ error: 'Campaign not found' });

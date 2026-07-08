@@ -76,6 +76,13 @@ export async function addCampaignMember(campaignId, payload) {
   return res.data.data ?? res.data;
 }
 
+/** Add many recipients at once, e.g. [{ member_type: 'lead', member_id }, ...] */
+export async function addCampaignMembers(campaignId, members) {
+  if (!members?.length) return { imported: 0, skipped: 0 };
+  const res = await api.post(`/campaigns/${campaignId}/bulk-import`, { members });
+  return res.data.data ?? res.data;
+}
+
 export async function updateCampaignMember(campaignId, memberId, payload) {
   const res = await api.patch(`/campaigns/${campaignId}/members/${memberId}`, payload);
   return res.data.data;

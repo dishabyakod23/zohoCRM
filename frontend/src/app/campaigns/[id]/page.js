@@ -105,7 +105,11 @@ export default function CampaignDetailPage() {
             ) : (
               <ul className="divide-y divide-zoho-border">
                 {members.map((member) => {
-                  const href = member.member_type === 'lead' ? `/leads/${member.member_id}` : `/contacts/${member.member_id}`;
+                  const href = member.member_type === 'lead'
+                    ? `/leads/${member.member_id}`
+                    : member.member_type === 'account'
+                      ? `/accounts/${member.member_id}`
+                      : `/contacts/${member.member_id}`;
                   return (
                     <li key={member.id} className="py-2 flex items-center justify-between gap-3">
                       <Link href={href} className={`text-sm font-medium ${tableLinkClass}`}>
