@@ -37,7 +37,7 @@ async function fetchRecipientPool(modules) {
 
   if (modules.includes('contacts')) {
     tasks.push(
-      contactsApi.listContacts({ page_size: 500 }).then(({ data }) =>
+      contactsApi.listAllContacts().then(({ data }) =>
         (data || []).filter((c) => c.email).map((c) => ({
           key: `contact:${c.id}`,
           member_type: 'contact',
@@ -54,7 +54,7 @@ async function fetchRecipientPool(modules) {
     if (!modules.includes(key)) continue;
     const label = RECIPIENT_MODULES.find((m) => m.key === key)?.label || key;
     tasks.push(
-      leadsApi.listLeads({ pipeline_stage: stage, page_size: 1000 }).then(({ data }) =>
+      leadsApi.listAllLeads({ pipeline_stage: stage }).then(({ data }) =>
         (data || []).filter((l) => l.email).map((l) => ({
           key: `lead:${l.id}`,
           member_type: 'lead',
@@ -69,7 +69,7 @@ async function fetchRecipientPool(modules) {
 
   if (modules.includes('accounts')) {
     tasks.push(
-      accountsApi.listAccounts({ page_size: 500 }).then(({ data }) =>
+      accountsApi.listAllAccounts().then(({ data }) =>
         (data || []).filter((a) => a.email).map((a) => ({
           key: `account:${a.id}`,
           member_type: 'account',

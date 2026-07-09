@@ -12,8 +12,9 @@ import { getApiError } from '../../lib/api.js';
 import * as recycleBinApi from '../../lib/services/recycleBin.js';
 import { RECYCLE_ENTITY_TYPES } from '../../lib/services/recycleBin.js';
 import { tableActionClass } from '../../lib/tableStyles.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
-const LIMIT = 15;
+const LIMIT = DEFAULT_PAGE_SIZE;
 
 function formatDateTime(value) {
   if (!value) return '—';

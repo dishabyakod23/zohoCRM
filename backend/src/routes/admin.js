@@ -3,6 +3,7 @@ const pool = require('../db/pool');
 const bcrypt = require('bcryptjs');
 const auth = require('../middleware/auth');
 const { requireAdmin, requireManagerOrAdmin } = require('../middleware/roles');
+const { DEFAULT_PAGE_SIZE } = require('../utils/helpers');
 
 const router = express.Router();
 router.use(auth);
@@ -138,7 +139,7 @@ router.post('/reports/weekly/trigger', requireAdmin, async (_, res) => {
 router.get('/reports/weekly/logs', requireAdmin, async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.page_size || '20', 10)));
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.page_size || String(DEFAULT_PAGE_SIZE), 10)));
     const offset = (page - 1) * pageSize;
 
     const [rows, count] = await Promise.all([
@@ -208,7 +209,7 @@ router.post('/reports/performance/send', requireManagerOrAdmin, async (req, res)
 router.get('/reports/performance/logs', requireManagerOrAdmin, async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.page_size || '20', 10)));
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.page_size || String(DEFAULT_PAGE_SIZE), 10)));
     const offset = (page - 1) * pageSize;
 
     const [rows, count] = await Promise.all([

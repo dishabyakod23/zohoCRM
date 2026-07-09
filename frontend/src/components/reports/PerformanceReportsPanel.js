@@ -6,6 +6,7 @@ import { userDisplayName } from '../../lib/userHelpers.js';
 import { roleLabel } from '../../lib/roles.js';
 import { leadStatusLabel } from '../../lib/leadHelpers.js';
 import * as performanceApi from '../../lib/services/performanceReports.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 export default function PerformanceReportsPanel() {
   const { showToast } = useToast();
@@ -55,7 +56,7 @@ export default function PerformanceReportsPanel() {
 
   const loadLogs = useCallback(async () => {
     try {
-      const result = await performanceApi.listPerformanceReportLogs({ page: logsPage, page_size: 10 });
+      const result = await performanceApi.listPerformanceReportLogs({ page: logsPage, page_size: DEFAULT_PAGE_SIZE });
       setLogs(result.data);
       setLogsTotal(result.total);
     } catch {

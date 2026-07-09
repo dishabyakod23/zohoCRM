@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 const { requireEdit } = require('../middleware/roles');
-const { softDelete, parseCSV, listOk, recordOk } = require('../utils/helpers');
+const { softDelete, parseCSV, listOk, recordOk, DEFAULT_PAGE_SIZE } = require('../utils/helpers');
 const { logAudit, getAuditTrail } = require('../utils/audit');
 
 const router = express.Router();
@@ -17,7 +17,7 @@ const LEAD_FIELDS = `l.id, l.first_name, l.last_name, l.email, l.phone, l.compan
 
 router.get('/', async (req, res) => {
   try {
-    const { search, status, lead_status, page = 1, page_size = 20, limit, industry, source } = req.query;
+    const { search, status, lead_status, page = 1, page_size = DEFAULT_PAGE_SIZE, limit, industry, source } = req.query;
     const pageLimit = parseInt(limit || page_size);
     const offset = (page - 1) * pageLimit;
     let where = ['l.deleted_at IS NULL'];

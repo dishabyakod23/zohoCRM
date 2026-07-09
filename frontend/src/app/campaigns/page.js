@@ -13,8 +13,9 @@ import { getApiError } from '../../lib/api.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
 import { fetchCampaignStatuses } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
-const LIMIT = 15;
+const LIMIT = DEFAULT_PAGE_SIZE;
 
 export default function CampaignsPage() {
   const { showToast } = useToast();

@@ -12,7 +12,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
-import { LIST_VIEWS } from '../../lib/constants.js';
+import { LIST_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { filterUnreadRecords } from '../../lib/recordViewTracker.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchUsers } from '../../lib/services/lookups.js';
@@ -20,7 +20,7 @@ import { tableLinkClass, tableEmailClass, tableAvatarClass } from '../../lib/tab
 import { TextFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_CONTACT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 
-const LIMIT = 15;
+const LIMIT = DEFAULT_PAGE_SIZE;
 
 export default function ContactsPage() {
   const router = useRouter();
@@ -58,7 +58,7 @@ export default function ContactsPage() {
       const isUnreadView = activeView === 'Unread Contacts';
       const params = {
         page: isUnreadView ? 1 : page,
-        page_size: isUnreadView ? 200 : LIMIT,
+        page_size: isUnreadView ? DEFAULT_PAGE_SIZE : LIMIT,
         search: debouncedSearch || undefined,
       };
       if (activeView === 'My Contacts' && user?.id) params.owner_id = user.id;

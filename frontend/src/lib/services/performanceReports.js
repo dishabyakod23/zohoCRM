@@ -8,6 +8,7 @@ import * as accountsApi from './accounts.js';
 import * as dealsApi from './deals.js';
 import * as tasksApi from './tasks.js';
 import * as callsApi from './calls.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 export async function listPerformanceUsers() {
   try {
@@ -44,12 +45,12 @@ export async function previewPerformanceReport({ user_id, date_from, date_to } =
     if (!user) throw new Error('User not found');
 
     const [leadsRes, contactsRes, accountsRes, dealsRes, tasksRes, callsRes] = await Promise.all([
-      leadsApi.listLeads({ owner_id: user_id, page_size: 200 }).catch(() => ({ data: [] })),
-      contactsApi.listContacts({ owner_id: user_id, page_size: 200 }).catch(() => ({ data: [] })),
-      accountsApi.listAccounts({ owner_id: user_id, page_size: 200 }).catch(() => ({ data: [] })),
-      dealsApi.listDeals({ owner_id: user_id, page_size: 200 }).catch(() => ({ data: [] })),
-      tasksApi.listTasks({ page_size: 200 }).catch(() => ({ data: [] })),
-      callsApi.listCalls({ page_size: 200 }).catch(() => ({ data: [] })),
+      leadsApi.listLeads({ owner_id: user_id, page_size: DEFAULT_PAGE_SIZE }).catch(() => ({ data: [] })),
+      contactsApi.listContacts({ owner_id: user_id, page_size: DEFAULT_PAGE_SIZE }).catch(() => ({ data: [] })),
+      accountsApi.listAccounts({ owner_id: user_id, page_size: DEFAULT_PAGE_SIZE }).catch(() => ({ data: [] })),
+      dealsApi.listDeals({ owner_id: user_id, page_size: DEFAULT_PAGE_SIZE }).catch(() => ({ data: [] })),
+      tasksApi.listTasks({ page_size: DEFAULT_PAGE_SIZE }).catch(() => ({ data: [] })),
+      callsApi.listCalls({ page_size: DEFAULT_PAGE_SIZE }).catch(() => ({ data: [] })),
     ]);
 
     const summary = await buildPerformanceSummaryClientSide(user_id, periodStart, periodEnd, {
@@ -105,7 +106,7 @@ export async function sendPerformanceReport({ user_id, date_from, date_to } = {}
   }
 }
 
-export async function listPerformanceReportLogs({ page = 1, page_size = 20 } = {}) {
+export async function listPerformanceReportLogs({ page = 1, page_size = DEFAULT_PAGE_SIZE } = {}) {
   try {
     const res = await api.get('/admin/reports/performance/logs', { params: { page, page_size } });
     return {

@@ -16,9 +16,10 @@ import { validateRequired } from '../../lib/validators.js';
 import * as callsApi from '../../lib/services/calls.js';
 import { fetchCallTypes, fetchUsers } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 const EMPTY = { subject: '', call_type: 'outbound', start_time: '', assigned_to: '', duration_minutes: 15, description: '' };
-const LIMIT = 15;
+const LIMIT = DEFAULT_PAGE_SIZE;
 
 export default function CallsPage() {
   const { showToast } = useToast();

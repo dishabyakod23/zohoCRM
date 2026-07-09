@@ -1,5 +1,6 @@
 import api from '../api.js';
 import { assigneeName } from '../activityHelpers.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 export function normalizeDocument(doc) {
   return {
@@ -13,7 +14,7 @@ export function normalizeDocument(doc) {
 
 export async function listDocuments(params = {}) {
   const { page_size, limit, ...rest } = params;
-  const res = await api.get('/documents', { params: { ...rest, limit: limit ?? page_size ?? rest.limit } });
+  const res = await api.get('/documents', { params: { ...rest, limit: limit ?? page_size ?? DEFAULT_PAGE_SIZE } });
   const data = res.data.data || [];
   const total = res.data.meta?.total ?? res.data.total ?? data.length;
   return {
@@ -24,10 +25,15 @@ export async function listDocuments(params = {}) {
 }
 
 export async function getDocument(id) {
-  const result = await listDocuments({ page: 1, limit: 500 });
-  const doc = result.data.find((item) => String(item.id) === String(id));
-  if (!doc) throw new Error('Document not found');
-  return doc;
+  let page = 1;
+  while (page <= 50) {
+    const result = await listDocuments({ page, limit: DEFAULT_PAGE_SIZE });
+    const doc = result.data.find((item) => String(item.id) === String(id));
+    if (doc) return doc;
+    if (result.data.length < DEFAULT_PAGE_SIZE || page * DEFAULT_PAGE_SIZE >= result.total) break;
+    page += 1;
+  }
+  throw new Error('Document not found');
 }
 
 export async function uploadDocument({ file, document_name, name, related_entity_type, related_entity_id, related_type, related_id, description, folder, owner_id }) {

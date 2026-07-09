@@ -10,7 +10,7 @@ import * as auditLogsApi from '../../lib/services/auditLogs.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { QUICK_CREATE } from '../../lib/constants.js';
+import { QUICK_CREATE, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { leadStatusLabel, pluralizeLeadStatusLabel } from '../../lib/leadHelpers.js';
 import { formatCompactMoney, formatMoneyTotalsByCurrency, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { avatarInitialClass } from '../../lib/tableStyles.js';
@@ -64,7 +64,7 @@ export default function DashboardPage() {
     Promise.all([
       dashboardApi.getDashboardHome(),
       leadsApi.countLeadsThisMonth().catch(() => 0),
-      auditLogsApi.listAuditLogs({ page: 1, page_size: 20 }).catch(() => []),
+      auditLogsApi.listAuditLogs({ page: 1, page_size: DEFAULT_PAGE_SIZE }).catch(() => []),
     ]).then(([home, leadsThisMonth, logs]) => {
       const leadsTotal = (home.leads_by_status || home.leadsByStatus || []).reduce((s, r) => s + r.count, 0);
       const qualifiedCount = (home.leads_by_status || home.leadsByStatus || []).find(r => /qualified/i.test(r.label || r.key || r.status || ''))?.count ?? 0;

@@ -15,6 +15,7 @@ import { validateRequired } from '../../lib/validators.js';
 import * as visitsApi from '../../lib/services/visits.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchVisitStatuses } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 const EMPTY = { title: '', visit_date: '', location: '', status: 'planned', account_id: '' };
 
@@ -55,7 +56,7 @@ export default function VisitsPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await visitsApi.listVisits({ page: 1, page_size: 50 }, accountMap);
+      const result = await visitsApi.listVisits({ page: 1, page_size: DEFAULT_PAGE_SIZE }, accountMap);
       setItems(result.data);
     } catch (err) {
       showToast(getApiError(err));

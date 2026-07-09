@@ -5,7 +5,7 @@ const fs = require('fs');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 const { requireEdit } = require('../middleware/roles');
-const { softDelete } = require('../utils/helpers');
+const { softDelete, DEFAULT_PAGE_SIZE } = require('../utils/helpers');
 
 const router = express.Router();
 router.use(auth);
@@ -33,7 +33,7 @@ const upload = multer({
 
 router.get('/', async (req, res) => {
   try {
-    const { search, related_type, related_id, page = 1, limit = 20 } = req.query;
+    const { search, related_type, related_id, page = 1, limit = DEFAULT_PAGE_SIZE } = req.query;
     const offset = (page - 1) * limit;
     let where = ['d.deleted_at IS NULL'];
     const params = [];

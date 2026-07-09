@@ -17,10 +17,11 @@ import { validateRequired, validatePastDate } from '../../lib/validators.js';
 import * as tasksApi from '../../lib/services/tasks.js';
 import { fetchTaskStatuses, fetchTaskPriorities, fetchUsers } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 const EMPTY = { title: '', due_date: '', assigned_to: '', status: 'not_started', priority: 'normal', description: '' };
 const REQUIRED = { title: 'Task Title', due_date: 'Due Date', assigned_to: 'Assigned To', status: 'Status' };
-const LIMIT = 15;
+const LIMIT = DEFAULT_PAGE_SIZE;
 
 export default function TasksPage() {
   const { showToast } = useToast();

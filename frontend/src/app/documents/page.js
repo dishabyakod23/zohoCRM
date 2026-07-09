@@ -17,6 +17,7 @@ import * as contactsApi from '../../lib/services/contacts.js';
 import * as dealsApi from '../../lib/services/deals.js';
 import { fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 const ENTITY_TYPES = [
   { value: 'account', label: 'Account' },
@@ -37,7 +38,7 @@ export default function DocumentsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
-  const [limit] = useState(15);
+  const [limit] = useState(DEFAULT_PAGE_SIZE);
   const [uploadModal, setUploadModal] = useState(false);
   const [uploadForm, setUploadForm] = useState({ document_name: '', related_entity_type: 'account', related_entity_id: '', file: null });
   const [uploadErrors, setUploadErrors] = useState({});
@@ -81,19 +82,19 @@ export default function DocumentsPage() {
         if (uploadForm.related_entity_type === 'account') {
           options = accounts.map((a) => ({ value: a.value, label: a.label || a.name }));
         } else if (uploadForm.related_entity_type === 'lead') {
-          const result = await leadsApi.listLeads({ page: 1, page_size: 100 });
+          const result = await leadsApi.listLeads({ page: 1, page_size: DEFAULT_PAGE_SIZE });
           options = result.data.map((l) => ({
             value: l.id,
             label: `${l.first_name || ''} ${l.last_name || ''}`.trim() || l.company || l.id,
           }));
         } else if (uploadForm.related_entity_type === 'contact') {
-          const result = await contactsApi.listContacts({ page: 1, page_size: 100 }, accountMap);
+          const result = await contactsApi.listContacts({ page: 1, page_size: DEFAULT_PAGE_SIZE }, accountMap);
           options = result.data.map((c) => ({
             value: c.id,
             label: `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || c.id,
           }));
         } else if (uploadForm.related_entity_type === 'deal') {
-          const result = await dealsApi.listDeals({ page: 1, page_size: 100 }, accountMap);
+          const result = await dealsApi.listDeals({ page: 1, page_size: DEFAULT_PAGE_SIZE }, accountMap);
           options = result.data.map((d) => ({
             value: d.id,
             label: d.name || d.deal_name || d.id,

@@ -1,5 +1,6 @@
 import api from '../api.js';
 import { assigneeName, formatEnumLabel, listResult, omitEmpty, toIsoDatetime } from '../activityHelpers.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 export function normalizeVisit(visit) {
   return {
@@ -27,7 +28,7 @@ function toVisitPayload(form) {
 
 export async function listVisits(params = {}, accountMap = {}) {
   const { page_size, limit, ...rest } = params;
-  const res = await api.get('/visits', { params: { ...rest, limit: limit ?? page_size ?? rest.limit } });
+  const res = await api.get('/visits', { params: { ...rest, limit: limit ?? page_size ?? DEFAULT_PAGE_SIZE } });
   const result = listResult(res);
   return { ...result, data: result.data.map((v) => normalizeVisit(v, accountMap)) };
 }

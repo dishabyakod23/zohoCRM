@@ -1,5 +1,6 @@
 import * as leadsApi from './services/leads.js';
 import * as contactsApi from './services/contacts.js';
+import { DEFAULT_PAGE_SIZE } from './constants.js';
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -15,8 +16,8 @@ export async function findEmailConflict(email, { excludeLeadId, excludeContactId
   if (!needle) return null;
 
   const [leadsRes, contactsRes] = await Promise.all([
-    leadsApi.listLeads({ search: email.trim(), page_size: 50 }),
-    contactsApi.listContacts({ search: email.trim(), page_size: 50 }),
+    leadsApi.listLeads({ search: email.trim(), page_size: DEFAULT_PAGE_SIZE }),
+    contactsApi.listContacts({ search: email.trim(), page_size: DEFAULT_PAGE_SIZE }),
   ]);
 
   const lead = leadsRes.data.find(

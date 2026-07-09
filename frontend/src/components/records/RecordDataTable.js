@@ -16,6 +16,7 @@ import * as tasksApi from '../../lib/services/tasks.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
 import { fetchUsers, fetchMassUpdateFieldOptions, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 const defaultGetRowId = (r) => r.id;
 
@@ -456,7 +457,7 @@ export default function RecordDataTable({
   };
 
   const openCampaignModal = () => {
-    campaignsApi.listCampaigns({ page: 1, page_size: 50 }).then((r) => setCampaigns(r.data)).catch(() => {});
+    campaignsApi.listCampaigns({ page: 1, page_size: DEFAULT_PAGE_SIZE }).then((r) => setCampaigns(r.data)).catch(() => {});
     setCampaignModal(true);
     setMenuOpen(false);
   };

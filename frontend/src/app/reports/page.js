@@ -8,6 +8,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
 import { leadStatusLabel } from '../../lib/leadHelpers.js';
 import * as reportsApi from '../../lib/services/reports.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import PerformanceReportsPanel from '../../components/reports/PerformanceReportsPanel.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -97,7 +98,7 @@ export default function ReportsPage() {
       const [settings, preview, logs, users] = await Promise.all([
         reportsApi.getAdminSettings(),
         reportsApi.previewWeeklyReport(),
-        reportsApi.listWeeklyReportLogs({ page: logsPage, page_size: 10 }),
+        reportsApi.listWeeklyReportLogs({ page: logsPage, page_size: DEFAULT_PAGE_SIZE }),
         reportsApi.listAdminUsers(),
       ]);
       setWeeklySettings(settings.weekly_report);
@@ -165,7 +166,7 @@ export default function ReportsPage() {
       const result = await reportsApi.triggerWeeklyReport();
       const emails = recipients.map(u => u.email).join(', ');
       showToast(result.message || `Sent ${result.sent_count} report(s) to ${emails}`, 'success');
-      const logs = await reportsApi.listWeeklyReportLogs({ page: 1, page_size: 10 });
+      const logs = await reportsApi.listWeeklyReportLogs({ page: 1, page_size: DEFAULT_PAGE_SIZE });
       setWeeklyLogs(logs.data);
       setLogsTotal(logs.total);
       setLogsPage(1);

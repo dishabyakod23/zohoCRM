@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 const { requireEdit } = require('../middleware/roles');
-const { listOk } = require('../utils/helpers');
+const { listOk, DEFAULT_PAGE_SIZE } = require('../utils/helpers');
 
 const router = express.Router();
 router.use(auth);
@@ -22,7 +22,7 @@ const TABLES = [
 
 router.get('/', async (req, res) => {
   try {
-    const { entity_type, page = 1, page_size = 50 } = req.query;
+    const { entity_type, page = 1, page_size = DEFAULT_PAGE_SIZE } = req.query;
     const results = [];
     for (const { table, type, nameCol } of TABLES) {
       if (entity_type && entity_type !== type) continue;

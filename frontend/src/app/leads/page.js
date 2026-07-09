@@ -12,7 +12,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
-import { LIST_VIEWS } from '../../lib/constants.js';
+import { LIST_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { filterUnreadRecords } from '../../lib/recordViewTracker.js';
@@ -33,7 +33,7 @@ export default function LeadsPage() {
   const debouncedSearch = useDebouncedValue(search);
   const [filters, setFilters] = useState(EMPTY_LEAD_FILTERS);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(15);
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [activeView, setActiveView] = useState('All Leads');
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
@@ -60,7 +60,7 @@ export default function LeadsPage() {
       const isUnreadView = activeView === 'Unread Leads';
       const params = {
         page: isUnreadView ? 1 : page,
-        page_size: isUnreadView ? 200 : limit,
+        page_size: isUnreadView ? DEFAULT_PAGE_SIZE : limit,
         search: debouncedSearch || undefined,
         lead_status: isUnreadView ? undefined : (filters.status || PIPELINE_LEAD),
         filters: isUnreadView ? {} : filters,

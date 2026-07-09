@@ -1,5 +1,6 @@
 import api from '../api.js';
 import { formatEnumLabel } from '../activityHelpers.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 export const RECYCLE_ENTITY_TYPES = [
   { value: '', label: 'All types' },
@@ -30,7 +31,7 @@ export function normalizeRecycleItem(item) {
   };
 }
 
-export async function listRecycleBin({ page = 1, page_size = 20, entity_type } = {}) {
+export async function listRecycleBin({ page = 1, page_size = DEFAULT_PAGE_SIZE, entity_type } = {}) {
   const params = { page, page_size };
   if (entity_type) params.entity_type = entity_type;
   const res = await api.get('/recycle-bin', { params });

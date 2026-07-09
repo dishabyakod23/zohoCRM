@@ -11,6 +11,7 @@ import * as tasksApi from '../../lib/services/tasks.js';
 import * as meetingsApi from '../../lib/services/meetings.js';
 import * as callsApi from '../../lib/services/calls.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 export default function ActivitiesPage() {
   const { showToast } = useToast();
@@ -24,9 +25,9 @@ export default function ActivitiesPage() {
     setLoading(true);
     try {
       const [t, m, c] = await Promise.all([
-        tasksApi.listTasks({ page: 1, page_size: 50 }),
-        meetingsApi.listMeetings({ page: 1, page_size: 50 }),
-        callsApi.listCalls({ page: 1, page_size: 50 }),
+        tasksApi.listTasks({ page: 1, page_size: DEFAULT_PAGE_SIZE }),
+        meetingsApi.listMeetings({ page: 1, page_size: DEFAULT_PAGE_SIZE }),
+        callsApi.listCalls({ page: 1, page_size: DEFAULT_PAGE_SIZE }),
       ]);
       setTasks(t.data);
       setMeetings(m.data);

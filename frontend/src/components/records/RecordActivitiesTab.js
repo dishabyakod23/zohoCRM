@@ -8,6 +8,7 @@ import * as callsApi from '../../lib/services/calls.js';
 import * as meetingsApi from '../../lib/services/meetings.js';
 import { TabPanelSkeleton } from './RecordDetailSkeleton.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 function matchesEntity(item, entityType, entityId) {
   const id = String(entityId);
@@ -32,9 +33,9 @@ export default function RecordActivitiesTab({ entityType, recordId }) {
     if (!entityType || !recordId) return;
     setLoading(true);
     Promise.all([
-      tasksApi.listTasks({ page: 1, page_size: 100 }),
-      callsApi.listCalls({ page: 1, page_size: 100 }),
-      meetingsApi.listMeetings({ page: 1, page_size: 100 }),
+      tasksApi.listTasks({ page: 1, page_size: DEFAULT_PAGE_SIZE }),
+      callsApi.listCalls({ page: 1, page_size: DEFAULT_PAGE_SIZE }),
+      meetingsApi.listMeetings({ page: 1, page_size: DEFAULT_PAGE_SIZE }),
     ])
       .then(([t, c, m]) => {
         setTasks((t.data || []).filter((row) => matchesEntity(row, entityType, recordId)));

@@ -1,5 +1,6 @@
 import api from '../api.js';
 import { assigneeName, formatEnumLabel, listResult, omitEmpty, toIsoDatetime } from '../activityHelpers.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 export function normalizeCall(call) {
   const start = call.start_time ?? call.call_start_at;
@@ -32,7 +33,7 @@ function toCallPayload(form, { partial = false } = {}) {
 
 export async function listCalls(params = {}) {
   const { page_size, limit, ...rest } = params;
-  const res = await api.get('/calls', { params: { ...rest, limit: limit ?? page_size ?? rest.limit } });
+  const res = await api.get('/calls', { params: { ...rest, limit: limit ?? page_size ?? DEFAULT_PAGE_SIZE } });
   const result = listResult(res);
   return { ...result, data: result.data.map(normalizeCall) };
 }

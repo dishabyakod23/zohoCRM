@@ -1,5 +1,6 @@
 import api from '../api.js';
 import { listResult, toIsoDatetime } from '../activityHelpers.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 export function normalizeAnnouncement(item) {
   if (!item) return item;
@@ -37,13 +38,13 @@ function toAnnouncementPayload(form) {
 }
 
 /** Active announcements for the logged-in user (bottom utility bar) */
-export async function listAnnouncements({ limit = 20 } = {}) {
+export async function listAnnouncements({ limit = DEFAULT_PAGE_SIZE } = {}) {
   const res = await api.get('/announcements', { params: { limit } });
   return (res.data.data || []).map(normalizeAnnouncement);
 }
 
 /** Admin — paginated list */
-export async function listAdminAnnouncements({ page = 1, page_size = 20, include_inactive = true } = {}) {
+export async function listAdminAnnouncements({ page = 1, page_size = DEFAULT_PAGE_SIZE, include_inactive = true } = {}) {
   const res = await api.get('/admin/announcements', {
     params: { page, page_size, include_inactive },
   });

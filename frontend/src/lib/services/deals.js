@@ -1,9 +1,10 @@
 import api from '../api.js';
 import { normalizeDeal, toDealPayload } from '../dealHelpers.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
-const LIST_PAGE_SIZE_MAX = 100;
+const LIST_PAGE_SIZE_MAX = DEFAULT_PAGE_SIZE;
 
-export async function listDeals({ page = 1, page_size = 50, search, stage, account_id, owner_id, sort_by, sort_order } = {}, accountMap = {}, stageOptions = []) {
+export async function listDeals({ page = 1, page_size = DEFAULT_PAGE_SIZE, search, stage, account_id, owner_id, sort_by, sort_order } = {}, accountMap = {}, stageOptions = []) {
   const cappedSize = Math.min(page_size, LIST_PAGE_SIZE_MAX);
   const params = { page, page_size: cappedSize };
   if (search) params.search = search;

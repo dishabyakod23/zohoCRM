@@ -2,14 +2,14 @@ const express = require('express');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
 const { requireEdit } = require('../middleware/roles');
-const { softDelete, listOk, recordOk } = require('../utils/helpers');
+const { softDelete, listOk, recordOk, DEFAULT_PAGE_SIZE } = require('../utils/helpers');
 
 const router = express.Router();
 router.use(auth);
 
 router.get('/', async (req, res) => {
   try {
-    const { search, page = 1, limit = 20 } = req.query;
+    const { search, page = 1, limit = DEFAULT_PAGE_SIZE } = req.query;
     const offset = (page - 1) * limit;
     let where = ['c.deleted_at IS NULL'];
     const params = [];

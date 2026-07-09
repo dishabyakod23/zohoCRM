@@ -16,6 +16,7 @@ import { validateRequired } from '../../lib/validators.js';
 import * as projectsApi from '../../lib/services/projects.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchProjectStatuses } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 const EMPTY = { name: '', account_id: '', status: 'planning', start_date: '', end_date: '', description: '' };
 
@@ -56,7 +57,7 @@ export default function ProjectsPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await projectsApi.listProjects({ page: 1, page_size: 50 }, accountMap);
+      const result = await projectsApi.listProjects({ page: 1, page_size: DEFAULT_PAGE_SIZE }, accountMap);
       setItems(result.data);
     } catch (err) {
       showToast(getApiError(err));

@@ -22,6 +22,7 @@ import { TextFilter, SelectFilter, OwnerFilter, DateFilter } from '../layout/Lis
 import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
 
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 const STAGE_MODULE_KEY = {
   [PIPELINE_RAW]: 'raw-leads',
@@ -53,7 +54,7 @@ export default function PipelineLeadList({ stage, description }) {
   const debouncedSearch = useDebouncedValue(search);
   const [filters, setFilters] = useState(EMPTY_LEAD_FILTERS);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(15);
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [assignModal, setAssignModal] = useState(null);
   const [assignUserId, setAssignUserId] = useState('');

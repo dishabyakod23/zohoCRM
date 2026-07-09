@@ -1,14 +1,14 @@
 const express = require('express');
 const pool = require('../db/pool');
 const auth = require('../middleware/auth');
-const { listOk } = require('../utils/helpers');
+const { listOk, DEFAULT_PAGE_SIZE } = require('../utils/helpers');
 
 const router = express.Router();
 router.use(auth);
 
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 50, page_size, entity_type, action } = req.query;
+    const { page = 1, limit = DEFAULT_PAGE_SIZE, page_size, entity_type, action } = req.query;
     const pageLimit = parseInt(page_size || limit);
     const offset = (page - 1) * pageLimit;
     let where = [];

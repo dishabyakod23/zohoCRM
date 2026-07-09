@@ -11,7 +11,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
-import { WORK_ITEM_VIEWS } from '../../lib/constants.js';
+import { WORK_ITEM_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import {
   PIPELINE_RAW,
   PIPELINE_LEAD,
@@ -44,7 +44,7 @@ export default function WorkItemsPage() {
   const debouncedSearch = useDebouncedValue(search);
   const [filters, setFilters] = useState(EMPTY_LEAD_FILTERS);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(15);
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [activeView, setActiveView] = useState('All Work Items');
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);

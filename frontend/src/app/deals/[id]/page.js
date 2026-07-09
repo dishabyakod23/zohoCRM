@@ -14,7 +14,7 @@ import * as dealsApi from '../../../lib/services/deals.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import { fetchDealStages, fetchAccountLookups, accountMapFromLookups } from '../../../lib/services/lookups.js';
 import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
-import { LEAD_SOURCES, DEAL_TYPES } from '../../../lib/constants.js';
+import { LEAD_SOURCES, DEAL_TYPES, DEFAULT_PAGE_SIZE } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
@@ -34,7 +34,7 @@ export default function DealDetailPage() {
   useEffect(() => {
     fetchAccountLookups().then(setAccounts).catch(() => {});
     fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
-    contactsApi.listContacts({ page: 1, page_size: 200 }).then((r) => setContacts(r.data || [])).catch(() => {});
+    contactsApi.listContacts({ page: 1, page_size: DEFAULT_PAGE_SIZE }).then((r) => setContacts(r.data || [])).catch(() => {});
   }, []);
 
   const loadDeal = useCallback(() => {

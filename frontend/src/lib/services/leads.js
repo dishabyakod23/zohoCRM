@@ -11,11 +11,12 @@ import {
   hasLeadClientFilters,
 } from '../listRecordFilters.js';
 import { LEAD_IMPORT_FIELDS } from '../importFieldConfig.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 const CONVERT_MASS_TARGETS = new Set(['account', 'contact', 'deal']);
 
 async function fetchAllLeadPages(params, statusOptions) {
-  const pageSize = 100;
+  const pageSize = DEFAULT_PAGE_SIZE;
   let page = 1;
   let all = [];
   let serverTotal = 0;
@@ -32,9 +33,21 @@ async function fetchAllLeadPages(params, statusOptions) {
   return all;
 }
 
+export async function listAllLeads(params = {}, statusOptions) {
+  const { pipeline_stage, filters, ...apiParams } = params;
+  let data = await fetchAllLeadPages(apiParams, statusOptions);
+  if (pipeline_stage) {
+    data = filterLeadsByPipelineStage(data, pipeline_stage);
+  }
+  if (filters && hasLeadClientFilters(filters)) {
+    data = applyLeadRecordFilters(data, filters);
+  }
+  return { data, total: data.length };
+}
+
 export async function listLeads({
   page = 1,
-  page_size = 15,
+  page_size = DEFAULT_PAGE_SIZE,
   search,
   lead_status,
   owner_id,
@@ -93,7 +106,7 @@ export async function listLeads({
 export async function listWorkItems({
   userId,
   page = 1,
-  page_size = 15,
+  page_size = DEFAULT_PAGE_SIZE,
   search,
   pipeline_stage,
   sort_by = 'updated_at',
@@ -304,7 +317,7 @@ export async function countLeadsThisMonth() {
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
   const res = await api.get('/leads', {
-    params: { page: 1, page_size: 100, sort_by: 'created_at', sort_order: 'desc' },
+    params: { page: 1, page_size: DEFAULT_PAGE_SIZE, sort_by: 'created_at', sort_order: 'desc' },
   });
   return (res.data.data || []).filter((lead) => {
     if (!lead.created_at) return false;

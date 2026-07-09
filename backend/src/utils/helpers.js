@@ -87,8 +87,10 @@ function recordOk(res, row, status = 200) {
   res.status(status).json({ data: row });
 }
 
+const DEFAULT_PAGE_SIZE = 25;
+
 module.exports = {
   ROLES, normalizeRole, canDownload, canEdit, isAdmin, isManagerOrAdmin,
   getOwnerFilter, softDelete, restoreRecord, permanentDelete, parseCSV,
-  listOk, recordOk,
+  listOk, recordOk, DEFAULT_PAGE_SIZE,
 };

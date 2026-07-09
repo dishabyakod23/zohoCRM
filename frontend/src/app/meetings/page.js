@@ -16,10 +16,11 @@ import { validateRequired } from '../../lib/validators.js';
 import * as meetingsApi from '../../lib/services/meetings.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 const EMPTY = { title: '', from_datetime: '', to_datetime: '', host_id: '', location: '', description: '' };
 const REQUIRED = { title: 'Meeting Title', from_datetime: 'From Date & Time', to_datetime: 'To Date & Time', host_id: 'Host' };
-const LIMIT = 15;
+const LIMIT = DEFAULT_PAGE_SIZE;
 
 export default function MeetingsPage() {
   const { showToast } = useToast();

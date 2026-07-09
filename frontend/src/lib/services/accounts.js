@@ -6,9 +6,10 @@ import {
   applyAccountRecordFilters,
   hasAccountClientFilters,
 } from '../listRecordFilters.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 async function fetchAccountContactEmailMap() {
-  const pageSize = 100;
+  const pageSize = DEFAULT_PAGE_SIZE;
   let page = 1;
   const map = new Map();
 
@@ -36,7 +37,7 @@ function attachContactEmails(accounts, emailMap) {
 }
 
 async function fetchAllAccountPages(params) {
-  const pageSize = 100;
+  const pageSize = DEFAULT_PAGE_SIZE;
   let page = 1;
   let all = [];
   let serverTotal = 0;
@@ -53,9 +54,14 @@ async function fetchAllAccountPages(params) {
   return all;
 }
 
+export async function listAllAccounts(params = {}) {
+  const data = await fetchAllAccountPages(params);
+  return { data, total: data.length };
+}
+
 export async function listAccounts({
   page = 1,
-  page_size = 15,
+  page_size = DEFAULT_PAGE_SIZE,
   search,
   owner_id,
   sort_by,

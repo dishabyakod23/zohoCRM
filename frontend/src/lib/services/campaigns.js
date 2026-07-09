@@ -1,6 +1,7 @@
 import api from '../api.js';
 import { assigneeName, formatEnumLabel, listResult, omitEmpty, toDateOnly } from '../activityHelpers.js';
 import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 export function normalizeCampaign(campaign) {
   const type = campaign.type ?? campaign.campaign_type;
@@ -41,7 +42,7 @@ function toCampaignPayload(form, { partial = false } = {}) {
 
 export async function listCampaigns(params = {}) {
   const { page_size, limit, page, ...rest } = params;
-  const res = await api.get('/campaigns', { params: { ...rest, page, limit: limit ?? page_size ?? 20 } });
+  const res = await api.get('/campaigns', { params: { ...rest, page, limit: limit ?? page_size ?? DEFAULT_PAGE_SIZE } });
   const result = listResult(res);
   return { ...result, data: result.data.map(normalizeCampaign) };
 }

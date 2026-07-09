@@ -6,9 +6,10 @@ import {
   hasContactClientFilters,
 } from '../listRecordFilters.js';
 import { CONTACT_IMPORT_FIELDS } from '../importFieldConfig.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 async function fetchAllContactPages(params, accountMap) {
-  const pageSize = 100;
+  const pageSize = DEFAULT_PAGE_SIZE;
   let page = 1;
   let all = [];
   let serverTotal = 0;
@@ -25,9 +26,14 @@ async function fetchAllContactPages(params, accountMap) {
   return all;
 }
 
+export async function listAllContacts(params = {}, accountMap = {}) {
+  const data = await fetchAllContactPages(params, accountMap);
+  return { data, total: data.length };
+}
+
 export async function listContacts({
   page = 1,
-  page_size = 15,
+  page_size = DEFAULT_PAGE_SIZE,
   search,
   account_id,
   owner_id,

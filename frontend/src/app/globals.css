@@ -114,14 +114,25 @@ html.crm-dark .bg-white { @apply bg-neutral-900; }
 html.crm-dark .bg-white\/80 { background-color: rgb(23 23 23 / 0.9); }
 html.crm-dark .border-zoho-border { @apply border-neutral-700; }
 html.crm-dark .hover\:bg-brand-50:hover { @apply bg-neutral-800; }
+html.crm-dark .hover\:bg-brand-50\/40:hover { background-color: rgb(38 38 38 / 0.6); }
+html.crm-dark .hover\:bg-brand-50\/50:hover { background-color: rgb(38 38 38 / 0.5); }
+html.crm-dark .hover\:bg-brand-50\/60:hover { background-color: rgb(38 38 38 / 0.6); }
+html.crm-dark .hover\:bg-gray-50:hover { @apply bg-neutral-800; }
+html.crm-dark .hover\:bg-gray-100:hover { @apply bg-neutral-800; }
+html.crm-dark .hover\:bg-neutral-50:hover { @apply bg-neutral-800; }
 html.crm-dark .bg-brand-50 { @apply bg-neutral-800; }
 html.crm-dark .bg-brand-50\/60 { background-color: rgb(38 38 38 / 0.6); }
 html.crm-dark .bg-gray-50 { @apply bg-neutral-900; }
 html.crm-dark .bg-gray-50\/80 { background-color: rgb(23 23 23 / 0.8); }
+html.crm-dark .border-gray-50 { @apply border-neutral-800; }
+html.crm-dark .border-gray-100 { @apply border-neutral-800; }
+html.crm-dark .divide-zoho-border > :not([hidden]) ~ :not([hidden]) { @apply border-neutral-800; }
+html.crm-dark header { @apply bg-neutral-900 border-neutral-700; }
 html.crm-dark .crm-a11y-panel { @apply bg-neutral-900 border-neutral-700; }
 html.crm-dark .crm-a11y-panel-header { background-color: rgb(38 38 38 / 0.8); @apply border-neutral-700; }
 html.crm-dark .record-data-table thead tr { @apply bg-neutral-950; }
 html.crm-dark .record-data-table tbody tr:hover { @apply bg-neutral-800/60; }
+html.crm-dark .hover\:text-black:hover { @apply text-neutral-100; }
 html.crm-dark .record-data-table-footer { @apply bg-neutral-900 border-neutral-700; }
 html.crm-dark .list-view-panels { background-color: rgb(23 23 23 / 0.5); }
 html.crm-dark .list-view-toolbar-card,

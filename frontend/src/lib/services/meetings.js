@@ -1,5 +1,6 @@
 import api from '../api.js';
 import { userBriefName, listResult, omitEmpty, toIsoDatetime } from '../activityHelpers.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 export function normalizeMeeting(meeting) {
   const from = meeting.from_datetime ?? meeting.start_at;
@@ -32,7 +33,7 @@ function toMeetingPayload(form, { partial = false } = {}) {
 
 export async function listMeetings(params = {}) {
   const { page_size, limit, ...rest } = params;
-  const res = await api.get('/meetings', { params: { ...rest, limit: limit ?? page_size ?? rest.limit } });
+  const res = await api.get('/meetings', { params: { ...rest, limit: limit ?? page_size ?? DEFAULT_PAGE_SIZE } });
   const result = listResult(res);
   return { ...result, data: result.data.map(normalizeMeeting) };
 }

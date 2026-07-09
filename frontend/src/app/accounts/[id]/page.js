@@ -17,7 +17,7 @@ import * as projectsApi from '../../../lib/services/projects.js';
 import * as dealsApi from '../../../lib/services/deals.js';
 import { fetchDealStages, accountMapFromLookups } from '../../../lib/services/lookups.js';
 import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
-import { ACCOUNT_TYPES } from '../../../lib/constants.js';
+import { ACCOUNT_TYPES, DEFAULT_PAGE_SIZE } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
@@ -40,8 +40,8 @@ export default function AccountDetailPage() {
     try {
       const [r, contactResult, projectResult, stages] = await Promise.all([
         accountsApi.getAccount(id),
-        contactsApi.listContacts({ account_id: id, page_size: 100 }),
-        projectsApi.listProjects({ account_id: id, page_size: 100 }),
+        contactsApi.listContacts({ account_id: id, page_size: DEFAULT_PAGE_SIZE }),
+        projectsApi.listProjects({ account_id: id, page_size: DEFAULT_PAGE_SIZE }),
         fetchDealStages().catch(() => FALLBACK_DEAL_STAGES),
       ]);
       setAccount({ ...r, account_name: r.name || r.account_name });

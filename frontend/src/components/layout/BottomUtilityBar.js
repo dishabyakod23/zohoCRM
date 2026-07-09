@@ -13,6 +13,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import ReminderItem from '../calendar/ReminderItem.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 const ICONS = {
   announcements: (
@@ -193,7 +194,7 @@ export default function BottomUtilityBar() {
     calendarApi.getLoginReminders()
       .then(setReminders)
       .catch(() => setReminders([]));
-    announcementsApi.listAnnouncements({ limit: 20 })
+    announcementsApi.listAnnouncements({ limit: DEFAULT_PAGE_SIZE })
       .then(setAnnouncements)
       .catch(() => setAnnouncements([]));
   }, [user?.id, canAssignLeads]);
@@ -202,7 +203,7 @@ export default function BottomUtilityBar() {
     if (!user?.id) return;
     setAuditLogsLoading(true);
     try {
-      const logs = await auditLogsApi.listAuditLogs({ page: 1, page_size: 100 });
+      const logs = await auditLogsApi.listAuditLogs({ page: 1, page_size: DEFAULT_PAGE_SIZE });
       const canSeeAllLogs = role === 'super_admin' || role === 'sales_manager';
       setAuditLogs(canSeeAllLogs ? logs : logs.filter((l) => l.user_id === user.id));
     } catch {
@@ -214,7 +215,7 @@ export default function BottomUtilityBar() {
 
   const loadAnnouncements = () => {
     setAnnouncementsLoading(true);
-    return announcementsApi.listAnnouncements({ limit: 20 })
+    return announcementsApi.listAnnouncements({ limit: DEFAULT_PAGE_SIZE })
       .then(setAnnouncements)
       .catch(() => setAnnouncements([]))
       .finally(() => setAnnouncementsLoading(false));

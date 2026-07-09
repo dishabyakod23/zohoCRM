@@ -1,4 +1,5 @@
-// Prefer GET /api/v1/lookups/lead-statuses (snake_case values) in leads UI
+export const DEFAULT_PAGE_SIZE = 25;
+
 export const LEAD_STATUSES = [
   'None', 'Attempted to Contact', 'Contact in Future', 'Contacted', 'Junk Lead',
   'Lost Lead', 'Not Contacted', 'Pre-Qualified', 'Not Qualified',

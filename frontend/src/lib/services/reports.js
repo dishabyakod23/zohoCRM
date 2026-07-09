@@ -1,4 +1,5 @@
 import api from '../api.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 function dateParams({ date_from, date_to } = {}) {
   const params = {};
@@ -141,7 +142,7 @@ export async function triggerWeeklyReport() {
   return res.data.data;
 }
 
-export async function listWeeklyReportLogs({ page = 1, page_size = 20 } = {}) {
+export async function listWeeklyReportLogs({ page = 1, page_size = DEFAULT_PAGE_SIZE } = {}) {
   const res = await api.get('/admin/reports/weekly/logs', { params: { page, page_size } });
   return {
     data: res.data.data || [],

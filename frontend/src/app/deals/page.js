@@ -19,7 +19,7 @@ import { useOpenCreateParam } from '../../hooks/useOpenCreateParam.js';
 import * as dealsApi from '../../lib/services/deals.js';
 import { fetchDealStages, fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
 import * as contactsApi from '../../lib/services/contacts.js';
-import { LEAD_SOURCES, DEAL_TYPES } from '../../lib/constants.js';
+import { LEAD_SOURCES, DEAL_TYPES, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import CurrencyAmountInput from '../../components/forms/CurrencyAmountInput.js';
 import { formatMoney, DEFAULT_CURRENCY } from '../../lib/currencies.js';
@@ -39,7 +39,7 @@ export default function DealsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(15);
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
@@ -52,7 +52,7 @@ export default function DealsPage() {
   useEffect(() => {
     fetchAccountLookups().then(setAccounts).catch(() => setAccounts([]));
     fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
-    contactsApi.listContacts({ page: 1, page_size: 200 }).then(r => setContacts(r.data || [])).catch(() => setContacts([]));
+    contactsApi.listContacts({ page: 1, page_size: DEFAULT_PAGE_SIZE }).then(r => setContacts(r.data || [])).catch(() => setContacts([]));
   }, []);
 
   const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
