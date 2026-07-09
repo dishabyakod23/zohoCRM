@@ -310,7 +310,27 @@ export default function CreateCampaignForm() {
             }
           }
           await campaignsApi.addCampaignMembers(created.id, resolved);
-          showToast(`Campaign saved with ${resolved.length} recipient${resolved.length === 1 ? '' : 's'}`, 'success');
+          let emailResult = null;
+          try {
+            emailResult = await campaignsApi.sendCampaignEmail(created.id, {
+              subject: form.name?.trim() || 'Campaign Update',
+              html_body: form.description?.trim()
+                ? `<p>${form.description.trim()}</p>`
+                : `<p>This is an update for campaign <strong>${form.name || 'Campaign'}</strong>.</p>`,
+              only_planned: true,
+            });
+          } catch (emailErr) {
+            showToast(`Campaign saved, recipients added, but email sending failed: ${getApiError(emailErr)}`);
+          }
+
+          if (emailResult) {
+            showToast(
+              `Campaign saved. Emails sent: ${emailResult.sent_count || 0}, failed: ${emailResult.failed_count || 0}, skipped: ${emailResult.skipped_count || 0}`,
+              'success',
+            );
+          } else {
+            showToast(`Campaign saved with ${resolved.length} recipient${resolved.length === 1 ? '' : 's'}`, 'success');
+          }
         } catch (err) {
           showToast(`Campaign saved, but recipients could not be added: ${getApiError(err)}`);
         }

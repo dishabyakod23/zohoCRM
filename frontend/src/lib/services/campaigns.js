@@ -84,6 +84,11 @@ export async function addCampaignMembers(campaignId, members) {
   return res.data.data ?? res.data;
 }
 
+export async function sendCampaignEmail(campaignId, payload) {
+  const res = await api.post(`/campaigns/${campaignId}/send-email`, payload);
+  return res.data.data ?? res.data;
+}
+
 export async function updateCampaignMember(campaignId, memberId, payload) {
   const res = await api.patch(`/campaigns/${campaignId}/members/${memberId}`, payload);
   return res.data.data;
