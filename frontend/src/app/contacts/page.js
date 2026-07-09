@@ -16,6 +16,7 @@ import { LIST_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { filterUnreadRecords } from '../../lib/recordViewTracker.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchUsers } from '../../lib/services/lookups.js';
+import PhoneCell from '../../components/justcall/PhoneCell.js';
 import { tableLinkClass, tableEmailClass, tableAvatarClass } from '../../lib/tableStyles.js';
 import { TextFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_CONTACT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
@@ -101,7 +102,7 @@ export default function ContactsPage() {
     { id: 'title', header: 'Title', cell: (c) => c.title || '—' },
     { id: 'company', header: 'Company', cell: (c) => c.account_name || '—' },
     { id: 'email', header: 'Email', cell: (c) => <span className={tableEmailClass}>{c.email || '—'}</span> },
-    { id: 'phone', header: 'Phone', cell: (c) => c.phone || '—' },
+    { id: 'phone', header: 'Phone', cell: (c) => <PhoneCell value={c.phone} label="Call contact" /> },
     { id: 'owner', header: 'Owner', cell: (c) => c.owner_name || '—' },
   ], []);
 

@@ -5,6 +5,8 @@ import RecordNotesTab from './RecordNotesTab.js';
 import RecordActivitiesTab from './RecordActivitiesTab.js';
 import RecordHistoryTab from './RecordHistoryTab.js';
 import { notesSupportedRelatedType } from '../../lib/noteHelpers.js';
+import ClickToCallButton from '../justcall/ClickToCallButton.js';
+import { normalizePhoneForDial } from '../../lib/justCallHelpers.js';
 
 /**
  * Zoho-style record detail page shell: gradient header with avatar,
@@ -107,17 +109,24 @@ export default function RecordDetailLayout({
 }
 
 /** Small labeled icon row used in record sidebars */
-export function InfoRow({ icon, label, value, href }) {
+export function InfoRow({ icon, label, value, href, callNumber }) {
+  const dialTarget = callNumber ?? (href?.startsWith('tel:') ? href.slice(4) : null);
+  const canCall = Boolean(value && normalizePhoneForDial(dialTarget || value));
+
   const content = (
     <div className="flex items-center gap-3 py-2.5">
       <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shrink-0 text-sm">{icon}</div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-[11px] text-zoho-muted font-medium uppercase tracking-wider">{label}</p>
         <p className="text-sm text-zoho-text truncate mt-0.5">{value || '—'}</p>
       </div>
+      {canCall && <ClickToCallButton number={dialTarget || value} label={`Call ${label}`} size="xs" />}
     </div>
   );
-  if (href && value) return <a href={href} className="block hover:bg-brand-50/50 -mx-3 px-3 rounded-lg transition-colors">{content}</a>;
+  if (href && value && !canCall) return <a href={href} className="block hover:bg-brand-50/50 -mx-3 px-3 rounded-lg transition-colors">{content}</a>;
+  if (canCall) {
+    return <div className="block hover:bg-brand-50/50 -mx-3 px-3 rounded-lg transition-colors">{content}</div>;
+  }
   return content;
 }
 

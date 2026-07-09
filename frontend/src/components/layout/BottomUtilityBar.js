@@ -451,6 +451,7 @@ export default function BottomUtilityBar() {
             <div className="p-3 rounded-xl bg-brand-50/40 border border-zoho-border">
               <p className="font-medium mb-2">Quick Tips</p>
               <ul className="text-xs text-zoho-muted space-y-1.5 list-disc pl-4">
+                <li>Click the phone icon to open JustCall and call leads from the app</li>
                 <li>Use the + button to quickly create records</li>
                 <li>Global search finds leads, contacts, and accounts</li>
                 <li>Move leads through Raw → Qualified → Proposal stages</li>

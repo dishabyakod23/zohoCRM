@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import BottomUtilityBar from './BottomUtilityBar';
+import { JustCallProvider } from '../justcall/JustCallProvider.js';
 
 export default function CRMLayout({ children }) {
   const { user, loading } = useAuth();
@@ -28,7 +29,8 @@ export default function CRMLayout({ children }) {
   if (!user) return null;
 
   return (
-    <div className="flex h-screen">
+    <JustCallProvider>
+      <div className="flex h-screen">
       {mobileNavOpen && (
         <button
           type="button"
@@ -44,5 +46,6 @@ export default function CRMLayout({ children }) {
         <BottomUtilityBar />
       </div>
     </div>
+    </JustCallProvider>
   );
 }

@@ -18,6 +18,8 @@ import * as dealsApi from '../../../lib/services/deals.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchDealStages } from '../../../lib/services/lookups.js';
 import { LEAD_SOURCES } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
+import PhoneDisplay from '../../../components/justcall/PhoneDisplay.js';
+import CallRecordButton from '../../../components/justcall/CallRecordButton.js';
 import { TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
 import Link from 'next/link';
@@ -133,6 +135,7 @@ export default function ContactDetailPage() {
         recordHistory={{ entityType: 'contact', recordId: id }}
         actions={
           <div className="flex items-center gap-2">
+            <CallRecordButton phone={contact.phone} mobile={contact.mobile} label="Call Contact" />
             {canEdit && (
               <div className="relative" ref={convertRef}>
                 <button
@@ -209,13 +212,13 @@ export default function ContactDetailPage() {
                 />
               ) },
               { name: 'secondary_email', label: 'Secondary Email' },
-              { name: 'phone', label: 'Phone' },
-              { name: 'other_phone', label: 'Other Phone' },
-              { name: 'mobile', label: 'Mobile' },
-              { name: 'home_phone', label: 'Home Phone' },
+              { name: 'phone', label: 'Phone', format: (v) => <PhoneDisplay value={v} label="Call phone" /> },
+              { name: 'other_phone', label: 'Other Phone', format: (v) => <PhoneDisplay value={v} label="Call other phone" /> },
+              { name: 'mobile', label: 'Mobile', format: (v) => <PhoneDisplay value={v} label="Call mobile" /> },
+              { name: 'home_phone', label: 'Home Phone', format: (v) => <PhoneDisplay value={v} label="Call home phone" /> },
               { name: 'fax', label: 'Fax' },
               { name: 'assistant', label: 'Assistant' },
-              { name: 'asst_phone', label: 'Asst Phone' },
+              { name: 'asst_phone', label: 'Asst Phone', format: (v) => <PhoneDisplay value={v} label="Call assistant phone" /> },
               { name: 'website', label: 'Website' },
               { name: 'skype_id', label: 'Skype ID' },
               { name: 'twitter', label: 'Twitter' },
