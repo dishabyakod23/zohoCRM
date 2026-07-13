@@ -4,7 +4,7 @@ import FormField, { inputClass } from '../forms/FormField.js';
 
 /**
  * Section card that displays fields read-only with per-section Edit → Save/Cancel.
- * @param {{ name: string, label: string, required?: boolean, colSpan?: boolean, format?: (v) => string, render?: (draft, setDraft) => React.ReactNode }} fields
+ * @param {{ name: string, label: string, required?: boolean, colSpan?: boolean, readOnly?: boolean, format?: (v) => string, render?: (draft, setDraft) => React.ReactNode }} fields
  */
 export default function EditableFieldSection({
   title,
@@ -19,7 +19,10 @@ export default function EditableFieldSection({
 
   const startEdit = () => {
     const initial = {};
-    fields.forEach((f) => { initial[f.name] = values[f.name] ?? ''; });
+    fields.forEach((f) => {
+      if (f.readOnly) return;
+      initial[f.name] = values[f.name] ?? '';
+    });
     setDraft(initial);
     setEditing(true);
   };
@@ -58,17 +61,24 @@ export default function EditableFieldSection({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {fields.map((f) => (
               <div key={f.name} className={f.colSpan ? 'sm:col-span-2' : ''}>
-                <FormField label={f.label} required={f.required}>
-                  {f.render
-                    ? f.render(draft, setDraft)
-                    : (
-                      <input
-                        className={inputClass()}
-                        value={draft[f.name] ?? ''}
-                        onChange={(e) => setDraft((d) => ({ ...d, [f.name]: e.target.value }))}
-                      />
-                    )}
-                </FormField>
+                {f.readOnly ? (
+                  <>
+                    <p className="text-[11px] text-zoho-muted font-medium uppercase tracking-wider mb-1">{f.label}</p>
+                    <p className="text-sm text-zoho-text">{display(f) ?? <span className="text-zoho-muted/50">—</span>}</p>
+                  </>
+                ) : (
+                  <FormField label={f.label} required={f.required}>
+                    {f.render
+                      ? f.render(draft, setDraft)
+                      : (
+                        <input
+                          className={inputClass()}
+                          value={draft[f.name] ?? ''}
+                          onChange={(e) => setDraft((d) => ({ ...d, [f.name]: e.target.value }))}
+                        />
+                      )}
+                  </FormField>
+                )}
               </div>
             ))}
           </div>

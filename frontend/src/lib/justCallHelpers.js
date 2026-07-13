@@ -4,9 +4,12 @@ export function normalizePhoneForDial(raw) {
   const trimmed = String(raw).trim();
   if (!trimmed) return '';
 
+  // Reject emails and other non-phone strings that happen to contain digits.
+  if (/[a-zA-Z]/.test(trimmed) && !/^\s*\+?[\d\s()./-]+$/.test(trimmed)) return '';
+
   const hasPlus = trimmed.startsWith('+');
   const digits = trimmed.replace(/\D/g, '');
-  if (!digits) return '';
+  if (!digits || digits.length < 7) return '';
 
   if (hasPlus) return `+${digits}`;
   if (digits.length === 10) return `+1${digits}`;

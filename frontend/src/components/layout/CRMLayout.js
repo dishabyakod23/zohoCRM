@@ -42,7 +42,7 @@ export default function CRMLayout({ children }) {
       <Sidebar mobileOpen={mobileNavOpen} onNavigate={() => setMobileNavOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Header onMenuClick={() => setMobileNavOpen(true)} />
-        <main className="flex-1 overflow-auto pb-0">{children}</main>
+        <main className="flex-1 overflow-auto pb-16">{children}</main>
         <BottomUtilityBar />
       </div>
     </div>

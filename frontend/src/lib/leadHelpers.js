@@ -93,9 +93,63 @@ export function normalizeLead(lead, statusOptions = []) {
   };
 }
 
+function formHas(form, key) {
+  return Object.prototype.hasOwnProperty.call(form, key);
+}
+
 /** Build LeadCreate / LeadUpdate payload — lead_status must be snake_case */
 export function toLeadPayload(form, { partial = false } = {}) {
-  const payload = {
+  const street = [form.building, form.street].filter(Boolean).join(', ') || form.street || null;
+
+  if (partial) {
+    const payload = {};
+    if (formHas(form, 'salutation')) payload.salutation = form.salutation || null;
+    if (formHas(form, 'latitude')) payload.latitude = form.latitude != null && form.latitude !== '' ? Number(form.latitude) : null;
+    if (formHas(form, 'longitude')) payload.longitude = form.longitude != null && form.longitude !== '' ? Number(form.longitude) : null;
+    if (formHas(form, 'first_name')) payload.first_name = form.first_name || null;
+    if (formHas(form, 'last_name')) payload.last_name = form.last_name;
+    if (formHas(form, 'company')) payload.company = form.company;
+    if (formHas(form, 'email')) payload.email = form.email;
+    if (formHas(form, 'phone')) payload.phone = form.phone || null;
+    if (formHas(form, 'mobile')) payload.mobile = form.mobile || null;
+    if (formHas(form, 'title')) payload.title = form.title || null;
+    if (formHas(form, 'source') || formHas(form, 'lead_source')) {
+      payload.lead_source = form.source || form.lead_source || null;
+    }
+    if (formHas(form, 'industry')) payload.industry = form.industry || null;
+    if (formHas(form, 'lead_status') || formHas(form, 'status')) {
+      payload.lead_status = resolveLeadStatusForApi(form.lead_status || form.status);
+    }
+    if (formHas(form, 'description')) payload.description = form.description || null;
+    if (formHas(form, 'website')) payload.website = form.website || null;
+    if (formHas(form, 'annual_revenue')) payload.annual_revenue = form.annual_revenue || null;
+    if (formHas(form, 'fax')) payload.fax = form.fax || null;
+    if (formHas(form, 'skype_id')) payload.skype_id = form.skype_id || null;
+    if (formHas(form, 'secondary_email')) payload.secondary_email = form.secondary_email || null;
+    if (formHas(form, 'twitter')) payload.twitter = form.twitter || null;
+    if (formHas(form, 'email_opt_out')) payload.email_opt_out = form.email_opt_out ?? false;
+    if (formHas(form, 'building') || formHas(form, 'street')) payload.street = street;
+    if (formHas(form, 'city')) payload.city = form.city || null;
+    if (formHas(form, 'state')) payload.state = form.state || null;
+    if (formHas(form, 'country')) payload.country = form.country || null;
+    if (formHas(form, 'zip') || formHas(form, 'zip_code')) payload.zip_code = form.zip || form.zip_code || null;
+    if (formHas(form, 'employees') || formHas(form, 'no_of_employees')) {
+      payload.no_of_employees = form.employees || form.no_of_employees || null;
+    }
+    if (formHas(form, 'rating')) payload.rating = form.rating || null;
+    if (formHas(form, 'deal_size') || formHas(form, 'proposal_amount')) {
+      payload.proposal_amount = form.deal_size || form.proposal_amount || null;
+      payload.deal_size = form.deal_size || form.proposal_amount || null;
+    }
+    if (formHas(form, 'proposal_date')) payload.proposal_date = form.proposal_date ? toDateOnly(form.proposal_date) : null;
+    if (formHas(form, 'closure_date')) payload.closure_date = form.closure_date ? toDateOnly(form.closure_date) : null;
+    if (formHas(form, 'deal_status')) payload.deal_status = form.deal_status || null;
+    if (formHas(form, 'currency')) payload.currency = form.currency || DEFAULT_CURRENCY;
+    if (formHas(form, 'owner_id')) payload.owner_id = form.owner_id || null;
+    return payload;
+  }
+
+  return {
     salutation: form.salutation || null,
     latitude: form.latitude != null && form.latitude !== '' ? Number(form.latitude) : null,
     longitude: form.longitude != null && form.longitude !== '' ? Number(form.longitude) : null,
@@ -117,7 +171,7 @@ export function toLeadPayload(form, { partial = false } = {}) {
     secondary_email: form.secondary_email || null,
     twitter: form.twitter || null,
     email_opt_out: form.email_opt_out ?? false,
-    street: [form.building, form.street].filter(Boolean).join(', ') || form.street || null,
+    street,
     city: form.city || null,
     state: form.state || null,
     country: form.country || null,
@@ -132,11 +186,6 @@ export function toLeadPayload(form, { partial = false } = {}) {
     currency: form.currency || DEFAULT_CURRENCY,
     owner_id: form.owner_id || null,
   };
-
-  if (partial) {
-    return Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== undefined && v !== null && v !== ''));
-  }
-  return payload;
 }
 
 export { STATUS_LABELS };

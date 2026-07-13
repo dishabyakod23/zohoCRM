@@ -14,6 +14,7 @@ import { usePermissions } from '../../../hooks/usePermissions.js';
 import { getApiError } from '../../../lib/api.js';
 import * as campaignsApi from '../../../lib/services/campaigns.js';
 import { fetchCampaignTypes, fetchCampaignStatuses, fetchUsers } from '../../../lib/services/lookups.js';
+import { getLeadDetailPath } from '../../../lib/pipelineHelpers.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function CampaignDetailPage() {
@@ -93,7 +94,7 @@ export default function CampaignDetailPage() {
                 {users.map((u) => <option key={u.id || u.value} value={u.id || u.value}>{u.name}</option>)}
               </select>
             ) },
-            { name: 'member_count', label: 'Members', format: () => String(campaign.member_count || (campaign.members || []).length || 0) },
+            { name: 'member_count', label: 'Members', readOnly: true, format: () => String(campaign.member_count || (campaign.members || []).length || 0) },
             { name: 'description', label: 'Description', colSpan: true, render: (d, set) => (
               <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: e.target.value }))} />
             ) },
@@ -106,7 +107,7 @@ export default function CampaignDetailPage() {
               <ul className="divide-y divide-zoho-border">
                 {members.map((member) => {
                   const href = member.member_type === 'lead'
-                    ? `/leads/${member.member_id}`
+                    ? getLeadDetailPath(member.lead || member, member.member_id)
                     : member.member_type === 'account'
                       ? `/accounts/${member.member_id}`
                       : `/contacts/${member.member_id}`;

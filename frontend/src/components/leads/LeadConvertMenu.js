@@ -131,9 +131,10 @@ export default function LeadConvertMenu({
       <ConfirmDialog
         open={!!pendingOption}
         message={`Convert ${leadName} to ${pendingOption?.label}?`}
-        confirmLabel={converting ? 'Converting...' : `Convert to ${pendingOption?.label}`}
+        confirmLabel={`Convert to ${pendingOption?.label}`}
+        confirming={converting}
         onConfirm={() => runStageConvert(pendingOption)}
-        onCancel={() => setPendingOption(null)}
+        onCancel={() => !converting && setPendingOption(null)}
       />
 
       {accountModalOpen && (

@@ -41,7 +41,10 @@ export function AuthProvider({ children }) {
     localStorage.setItem('crm_user', JSON.stringify(res.data.user));
     setAuthSessionCookie();
     setUser(res.data.user);
-    router.push('/dashboard');
+    const next = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('next')
+      : null;
+    router.push(next?.startsWith('/') ? next : '/dashboard');
   };
 
   const logout = () => {

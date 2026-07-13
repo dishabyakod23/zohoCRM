@@ -121,7 +121,13 @@ html.crm-dark .hover\:bg-gray-50:hover { @apply bg-neutral-800; }
 html.crm-dark .hover\:bg-gray-100:hover { @apply bg-neutral-800; }
 html.crm-dark .hover\:bg-neutral-50:hover { @apply bg-neutral-800; }
 html.crm-dark .bg-brand-50 { @apply bg-neutral-800; }
+html.crm-dark .bg-brand-50\/40 { background-color: rgb(38 38 38 / 0.4); }
 html.crm-dark .bg-brand-50\/60 { background-color: rgb(38 38 38 / 0.6); }
+html.crm-dark .bg-brand-50\/80 { background-color: rgb(38 38 38 / 0.8); }
+html.crm-dark .bg-brand-50\/90 { background-color: rgb(38 38 38 / 0.9); }
+html.crm-dark .text-gray-900 { @apply text-neutral-100; }
+html.crm-dark .text-gray-600 { @apply text-neutral-400; }
+html.crm-dark .text-gray-500 { @apply text-neutral-400; }
 html.crm-dark .bg-gray-50 { @apply bg-neutral-900; }
 html.crm-dark .bg-gray-50\/80 { background-color: rgb(23 23 23 / 0.8); }
 html.crm-dark .border-gray-50 { @apply border-neutral-800; }

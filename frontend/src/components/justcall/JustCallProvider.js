@@ -5,6 +5,7 @@ import JustCallDialerPanel from './JustCallDialerPanel.js';
 import { JUSTCALL_ENABLED, normalizePhoneForDial, openJustCallWebDialer } from '../../lib/justCallHelpers.js';
 
 const JustCallContext = createContext(null);
+const DIALER_WAIT_MS = 10000;
 
 const FALLBACK = {
   enabled: false,
@@ -16,8 +17,13 @@ const FALLBACK = {
   toggleDialer: () => {},
 };
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function JustCallProvider({ children }) {
   const dialerRef = useRef(null);
+  const initStartedRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -25,13 +31,24 @@ export function JustCallProvider({ children }) {
 
   useEffect(() => {
     if (!JUSTCALL_ENABLED || typeof window === 'undefined') return undefined;
+    if (!open && !dialerRef.current) return undefined;
+    if (initStartedRef.current && dialerRef.current) return undefined;
 
     let cancelled = false;
+    let retryTimer;
 
-    (async () => {
+    const init = async () => {
+      const el = document.getElementById('justcall-dialer');
+      if (!el) {
+        retryTimer = window.setTimeout(init, 150);
+        return;
+      }
+      if (initStartedRef.current) return;
+      initStartedRef.current = true;
+
       try {
         const { JustCallDialer } = await import('@justcall/justcall-dialer-sdk');
-        if (cancelled || !document.getElementById('justcall-dialer')) return;
+        if (cancelled) return;
 
         const dialer = new JustCallDialer({
           dialerId: 'justcall-dialer',
@@ -42,17 +59,50 @@ export function JustCallProvider({ children }) {
 
         dialerRef.current = dialer;
         await dialer.ready;
-        if (!cancelled) setReady(true);
+        if (!cancelled) {
+          setReady(true);
+          try {
+            const isLoggedIn = await dialer.isLoggedIn();
+            if (!cancelled) setLoggedIn(!!isLoggedIn);
+          } catch {
+            // ignore login probe failures
+          }
+        }
       } catch (err) {
+        initStartedRef.current = false;
         console.error('JustCall dialer failed to initialize', err);
       }
-    })();
+    };
+
+    init();
 
     return () => {
       cancelled = true;
-      dialerRef.current?.destroy?.();
-      dialerRef.current = null;
+      if (retryTimer) window.clearTimeout(retryTimer);
     };
+  }, [open]);
+
+  useEffect(() => () => {
+    dialerRef.current?.destroy?.();
+    dialerRef.current = null;
+    initStartedRef.current = false;
+  }, []);
+
+  const waitForDialer = useCallback(async () => {
+    const started = Date.now();
+    while (Date.now() - started < DIALER_WAIT_MS) {
+      const dialer = dialerRef.current;
+      if (dialer) {
+        try {
+          await dialer.ready;
+          return dialer;
+        } catch {
+          return null;
+        }
+      }
+      await sleep(120);
+    }
+    return dialerRef.current;
   }, []);
 
   const dialNumber = useCallback(async (rawNumber, { openPanel = true } = {}) => {
@@ -67,16 +117,17 @@ export function JustCallProvider({ children }) {
       return;
     }
 
-    const dialer = dialerRef.current;
+    if (openPanel) setOpen(true);
+
+    const dialer = dialerRef.current || await waitForDialer();
     if (!dialer) {
+      showToast('JustCall dialer is still loading. Opening web dialer instead.');
       openJustCallWebDialer(number);
       return;
     }
 
     try {
       await dialer.ready;
-      if (openPanel) setOpen(true);
-
       const isLoggedIn = await dialer.isLoggedIn();
       if (!isLoggedIn) {
         showToast('Log in to JustCall in the dialer panel to place calls');
@@ -88,7 +139,7 @@ export function JustCallProvider({ children }) {
       showToast('Could not start call. Opening JustCall dialer instead.');
       openJustCallWebDialer(number);
     }
-  }, [showToast]);
+  }, [showToast, waitForDialer]);
 
   const toggleDialer = useCallback(() => setOpen((v) => !v), []);
 

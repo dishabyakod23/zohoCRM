@@ -153,7 +153,7 @@ export default function LeadDetailPage() {
                   { name: 'annual_revenue', label: 'Annual Revenue' },
                   { name: 'no_of_employees', label: 'No. of Employees' },
                   { name: 'website', label: 'Website' },
-                  { name: 'owner_name', label: 'Owner', format: () => lead.owner_name },
+                  { name: 'owner_name', label: 'Owner', readOnly: true, format: () => lead.owner_name },
                 ]}
               />
               <EditableFieldSection

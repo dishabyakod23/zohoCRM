@@ -75,10 +75,18 @@ export default function LeadsPage() {
         params.sort_by = 'updated_at';
         params.sort_order = 'desc';
       }
-      const result = await leadsApi.listLeads({
-        ...params,
-        statusOptions,
-      });
+      const result = isUnreadView
+        ? await leadsApi.listAllLeads({
+          search: params.search,
+          owner_id: params.owner_id,
+          sort_by: params.sort_by,
+          sort_order: params.sort_order,
+          statusOptions,
+        })
+        : await leadsApi.listLeads({
+          ...params,
+          statusOptions,
+        });
       if (requestId !== fetchRequestId.current) return;
       if (isUnreadView) {
         const unread = filterUnreadRecords(result.data, 'lead');

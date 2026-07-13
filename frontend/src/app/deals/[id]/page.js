@@ -161,7 +161,7 @@ export default function DealDetailPage() {
                   {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               ) },
-              { name: 'owner_name', label: 'Owner', format: () => deal.owner_name },
+              { name: 'owner_name', label: 'Owner', readOnly: true, format: () => deal.owner_name },
             ]}
           />
           <EditableFieldSection

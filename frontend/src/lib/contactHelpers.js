@@ -12,8 +12,61 @@ export function normalizeContact(contact, accountMap = {}) {
   };
 }
 
+function formHas(form, key) {
+  return Object.prototype.hasOwnProperty.call(form, key);
+}
+
 export function toContactPayload(form, { partial = false } = {}) {
-  const payload = {
+  if (partial) {
+    const payload = {};
+    if (formHas(form, 'salutation')) payload.salutation = form.salutation || null;
+    if (formHas(form, 'first_name')) payload.first_name = form.first_name || null;
+    if (formHas(form, 'last_name')) payload.last_name = form.last_name;
+    if (formHas(form, 'account_id')) payload.account_id = form.account_id;
+    if (formHas(form, 'email')) payload.email = form.email;
+    if (formHas(form, 'phone')) payload.phone = form.phone || null;
+    if (formHas(form, 'other_phone')) payload.other_phone = form.other_phone || null;
+    if (formHas(form, 'home_phone')) payload.home_phone = form.home_phone || null;
+    if (formHas(form, 'mobile')) payload.mobile = form.mobile || null;
+    if (formHas(form, 'fax')) payload.fax = form.fax || null;
+    if (formHas(form, 'secondary_email')) payload.secondary_email = form.secondary_email || null;
+    if (formHas(form, 'skype_id')) payload.skype_id = form.skype_id || null;
+    if (formHas(form, 'twitter')) payload.twitter = form.twitter || null;
+    if (formHas(form, 'email_opt_out')) payload.email_opt_out = !!form.email_opt_out;
+    if (formHas(form, 'title')) payload.title = form.title || null;
+    if (formHas(form, 'department')) payload.department = form.department || null;
+    if (formHas(form, 'lead_source') || formHas(form, 'source')) {
+      payload.lead_source = form.lead_source || form.source || null;
+    }
+    if (formHas(form, 'reports_to_id')) payload.reports_to_id = form.reports_to_id || null;
+    if (formHas(form, 'assistant')) payload.assistant = form.assistant || null;
+    if (formHas(form, 'asst_phone')) payload.asst_phone = form.asst_phone || null;
+    if (formHas(form, 'date_of_birth')) payload.date_of_birth = form.date_of_birth || null;
+    if (formHas(form, 'website')) payload.website = form.website || null;
+    if (formHas(form, 'mailing_flat')) payload.mailing_flat = form.mailing_flat || null;
+    if (formHas(form, 'mailing_street')) payload.mailing_street = form.mailing_street || null;
+    if (formHas(form, 'mailing_city')) payload.mailing_city = form.mailing_city || null;
+    if (formHas(form, 'mailing_state')) payload.mailing_state = form.mailing_state || null;
+    if (formHas(form, 'mailing_country')) payload.mailing_country = form.mailing_country || null;
+    if (formHas(form, 'mailing_zip')) payload.mailing_zip = form.mailing_zip || null;
+    if (formHas(form, 'mailing_lat')) payload.mailing_lat = form.mailing_lat || null;
+    if (formHas(form, 'mailing_lng')) payload.mailing_lng = form.mailing_lng || null;
+    if (formHas(form, 'other_flat')) payload.other_flat = form.other_flat || null;
+    if (formHas(form, 'other_street')) payload.other_street = form.other_street || null;
+    if (formHas(form, 'other_city')) payload.other_city = form.other_city || null;
+    if (formHas(form, 'other_state')) payload.other_state = form.other_state || null;
+    if (formHas(form, 'other_country')) payload.other_country = form.other_country || null;
+    if (formHas(form, 'other_zip')) payload.other_zip = form.other_zip || null;
+    if (formHas(form, 'other_lat')) payload.other_lat = form.other_lat || null;
+    if (formHas(form, 'other_lng')) payload.other_lng = form.other_lng || null;
+    if (formHas(form, 'description')) payload.description = form.description || null;
+    if (formHas(form, 'proposal_amount')) payload.proposal_amount = form.proposal_amount || null;
+    if (formHas(form, 'currency')) payload.currency = form.currency || DEFAULT_CURRENCY;
+    if (formHas(form, 'owner_id')) payload.owner_id = form.owner_id || null;
+    return payload;
+  }
+
+  return {
     salutation: form.salutation || null,
     first_name: form.first_name || null,
     last_name: form.last_name,
@@ -57,8 +110,4 @@ export function toContactPayload(form, { partial = false } = {}) {
     currency: form.currency || DEFAULT_CURRENCY,
     owner_id: form.owner_id || null,
   };
-  if (partial) {
-    return Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== undefined && v !== null && v !== ''));
-  }
-  return payload;
 }

@@ -12,7 +12,7 @@ export default function JustCallDialerPanel({ open, onClose }) {
           type="button"
           onClick={() => setOpen(true)}
           title="Open JustCall dialer"
-          className="fixed bottom-16 right-4 z-50 w-12 h-12 rounded-full bg-brand-gradient text-white shadow-card-hover flex items-center justify-center hover:opacity-90 transition-opacity"
+          className="fixed bottom-16 right-4 z-[45] w-12 h-12 rounded-full bg-brand-gradient text-white shadow-card-hover flex items-center justify-center hover:opacity-90 transition-opacity ring-4 ring-white/80"
           aria-label="Open JustCall dialer"
         >
           <PhoneIcon className="w-5 h-5" />
@@ -20,7 +20,7 @@ export default function JustCallDialerPanel({ open, onClose }) {
       )}
 
       <div
-        className={`fixed bottom-14 right-4 z-50 flex flex-col bg-white border border-zoho-border rounded-2xl shadow-card-hover overflow-hidden transition-all duration-200 origin-bottom-right ${
+        className={`fixed bottom-14 right-4 z-[55] flex flex-col bg-white border border-zoho-border rounded-2xl shadow-card-hover overflow-hidden transition-all duration-200 origin-bottom-right ${
           open ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'
         }`}
         aria-hidden={!open}
@@ -41,6 +41,7 @@ export default function JustCallDialerPanel({ open, onClose }) {
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
+        {/* Keep dialer mounted so SDK can initialize even when panel is closed */}
         <div id="justcall-dialer" className="w-[365px] h-[610px] bg-white" />
       </div>
     </>

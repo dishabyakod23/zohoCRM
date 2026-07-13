@@ -70,7 +70,14 @@ export default function ContactsPage() {
       if (activeView !== 'My Contacts') {
         params.filters = filters;
       }
-      const result = await contactsApi.listContacts(params, accountMap);
+      const result = isUnreadView
+        ? await contactsApi.listAllContacts({
+          search: params.search,
+          owner_id: params.owner_id,
+          sort_by: params.sort_by,
+          sort_order: params.sort_order,
+        }, accountMap)
+        : await contactsApi.listContacts(params, accountMap);
       if (isUnreadView) {
         const unread = filterUnreadRecords(result.data, 'contact');
         const start = (page - 1) * LIMIT;

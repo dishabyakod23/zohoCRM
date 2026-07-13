@@ -194,7 +194,7 @@ export default function ContactDetailPage() {
                   {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               ) },
-              { name: 'owner_name', label: 'Owner', format: () => contact.owner_name },
+              { name: 'owner_name', label: 'Owner', readOnly: true, format: () => contact.owner_name },
             ]}
           />
           <EditableFieldSection

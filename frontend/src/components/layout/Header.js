@@ -12,6 +12,7 @@ import { getApiError } from '../../lib/api.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { QUICK_CREATE } from '../../lib/constants.js';
 import { userDisplayName, userInitial } from '../../lib/userHelpers.js';
+import { getLeadDetailPath } from '../../lib/pipelineHelpers.js';
 
 export default function Header({ onMenuClick }) {
   const { user, logout } = useAuth();
@@ -26,6 +27,7 @@ export default function Header({ onMenuClick }) {
   const [showNotif, setShowNotif] = useState(false);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
   const searchRef = useRef(null);
+  const searchRequestRef = useRef(null);
   const quickRef = useRef(null);
   const notifRef = useRef(null);
   const profileRef = useRef(null);
@@ -43,31 +45,56 @@ export default function Header({ onMenuClick }) {
 
   useEffect(() => {
     if (search.length < 2) { setResults([]); return; }
+    let cancelled = false;
+    const requestId = Date.now();
+    const latestRequest = { current: requestId };
+    searchRequestRef.current = latestRequest;
     const t = setTimeout(() => {
       Promise.all([
         leadsApi.listLeads({ search, page_size: 4 }),
         contactsApi.listContacts({ search, page_size: 4 }),
         accountsApi.listAccounts({ search, page_size: 4 }),
       ]).then(([leads, contacts, accounts]) => {
+        if (cancelled || searchRequestRef.current !== latestRequest) return;
         setResults([
-          ...leads.data.map(l => ({ type: 'lead', id: l.id, name: `${l.first_name || ''} ${l.last_name}`.trim(), sub: l.company })),
-          ...contacts.data.map(c => ({ type: 'contact', id: c.id, name: `${c.first_name || ''} ${c.last_name}`.trim(), sub: c.account_name })),
-          ...accounts.data.map(a => ({ type: 'account', id: a.id, name: a.name, sub: a.industry })),
+          ...leads.data.map(l => ({
+            type: 'lead',
+            id: l.id,
+            name: `${l.first_name || ''} ${l.last_name}`.trim(),
+            sub: l.company,
+            href: getLeadDetailPath(l, l.id),
+          })),
+          ...contacts.data.map(c => ({
+            type: 'contact',
+            id: c.id,
+            name: `${c.first_name || ''} ${c.last_name}`.trim(),
+            sub: c.account_name,
+            href: `/contacts/${c.id}`,
+          })),
+          ...accounts.data.map(a => ({
+            type: 'account',
+            id: a.id,
+            name: a.name,
+            sub: a.industry,
+            href: `/accounts/${a.id}`,
+          })),
         ].slice(0, 12));
       }).catch((err) => {
+        if (cancelled || searchRequestRef.current !== latestRequest) return;
         setResults([]);
         showToast(getApiError(err));
       });
     }, 300);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  const typeRoute = { lead: 'leads', contact: 'contacts', account: 'accounts' };
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [search, showToast]);
 
   const handleResultClick = (r) => {
     setShowResults(false);
     setSearch('');
-    router.push(`/${typeRoute[r.type] || r.type + 's'}/${r.id}`);
+    router.push(r.href || `/${r.type}s/${r.id}`);
   };
 
   const groups = [...new Set(QUICK_CREATE.map(q => q.group))];

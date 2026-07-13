@@ -354,17 +354,30 @@ export default function RecordDataTable({
   const handleMassUpdate = async () => {
     if (!massField || !massValue) return;
     setMassUpdating(true);
+    const finishMassUpdate = () => {
+      setMassUpdateOpen(false);
+      setMassField('');
+      setMassValue('');
+      setMassLostReason('');
+      clearSelection();
+      onRefresh?.();
+    };
     try {
       if (massUpdateHandler) {
         const result = await massUpdateHandler(selected, massField, massValue, {
           lost_reason: showLostReasonField ? massLostReason : undefined,
         });
         const failed = result?.failed_count ?? 0;
+        const count = result?.success_count ?? result?.updated ?? selected.length;
+        if (failed > 0 && count > 0) {
+          showToast(`Updated ${count} record(s); ${failed} failed`);
+          finishMassUpdate();
+          return;
+        }
         if (failed > 0) {
           showToast((result?.errors || []).join('; ') || `${failed} record(s) failed to update`);
           return;
         }
-        const count = result?.success_count ?? result?.updated ?? selected.length;
         showToast(`Updated ${count} record(s)`, 'success');
       } else {
         let success = 0;
@@ -392,14 +405,15 @@ export default function RecordDataTable({
           showToast(`Updated ${success} record(s)`, 'success');
         }
       }
-      setMassUpdateOpen(false);
-      setMassField('');
-      setMassValue('');
-      setMassLostReason('');
-      clearSelection();
-      onRefresh?.();
+      finishMassUpdate();
     } catch (err) {
-      showToast(getApiError(err));
+      const partial = err?.massUpdateResult;
+      if (partial?.success_count > 0) {
+        showToast(`Updated ${partial.success_count} record(s); ${partial.failed_count || 0} failed`);
+        finishMassUpdate();
+      } else {
+        showToast(getApiError(err));
+      }
     } finally {
       setMassUpdating(false);
     }

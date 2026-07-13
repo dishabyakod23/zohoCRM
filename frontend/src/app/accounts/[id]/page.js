@@ -123,7 +123,7 @@ export default function AccountDetailPage() {
                   {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
                 </select>
               ) },
-              { name: 'owner_name', label: 'Owner', format: () => account.owner_name },
+              { name: 'owner_name', label: 'Owner', readOnly: true, format: () => account.owner_name },
             ]}
           />
           <EditableFieldSection

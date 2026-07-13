@@ -110,8 +110,10 @@ export default function RecordDetailLayout({
 
 /** Small labeled icon row used in record sidebars */
 export function InfoRow({ icon, label, value, href, callNumber }) {
-  const dialTarget = callNumber ?? (href?.startsWith('tel:') ? href.slice(4) : null);
-  const canCall = Boolean(value && normalizePhoneForDial(dialTarget || value));
+  const dialTarget = callNumber
+    ?? (href?.startsWith('tel:') ? href.slice(4) : null);
+  // Only offer click-to-call for explicit phone targets — never guess from email/company text.
+  const canCall = Boolean(value && dialTarget && normalizePhoneForDial(dialTarget));
 
   const content = (
     <div className="flex items-center gap-3 py-2.5">
@@ -120,7 +122,7 @@ export function InfoRow({ icon, label, value, href, callNumber }) {
         <p className="text-[11px] text-zoho-muted font-medium uppercase tracking-wider">{label}</p>
         <p className="text-sm text-zoho-text truncate mt-0.5">{value || '—'}</p>
       </div>
-      {canCall && <ClickToCallButton number={dialTarget || value} label={`Call ${label}`} size="xs" />}
+      {canCall && <ClickToCallButton number={dialTarget} label={`Call ${label}`} size="xs" />}
     </div>
   );
   if (href && value && !canCall) return <a href={href} className="block hover:bg-brand-50/50 -mx-3 px-3 rounded-lg transition-colors">{content}</a>;

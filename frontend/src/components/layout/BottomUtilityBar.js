@@ -167,17 +167,21 @@ export default function BottomUtilityBar() {
   const [a11y, setA11y] = useState({ textScale: 0, colorMode: 'light' });
 
   useEffect(() => {
-    const a11yStored = localStorage.getItem('crm_a11y');
-    if (a11yStored) {
-      const parsed = JSON.parse(a11yStored);
-      if (parsed.largeText && parsed.textScale == null) {
-        parsed.textScale = 1;
-        delete parsed.largeText;
+    try {
+      const a11yStored = localStorage.getItem('crm_a11y');
+      if (a11yStored) {
+        const parsed = JSON.parse(a11yStored);
+        if (parsed.largeText && parsed.textScale == null) {
+          parsed.textScale = 1;
+          delete parsed.largeText;
+        }
+        setA11y({
+          textScale: Math.min(TEXT_SCALE_MAX, Math.max(TEXT_SCALE_MIN, Number(parsed.textScale) || 0)),
+          colorMode: parsed.colorMode === 'dark' ? 'dark' : 'light',
+        });
       }
-      setA11y({
-        textScale: Math.min(TEXT_SCALE_MAX, Math.max(TEXT_SCALE_MIN, Number(parsed.textScale) || 0)),
-        colorMode: parsed.colorMode === 'dark' ? 'dark' : 'light',
-      });
+    } catch {
+      // Ignore corrupt accessibility settings
     }
     if (isStickyNotePinned()) setStickyNoteOpen(true);
   }, []);
