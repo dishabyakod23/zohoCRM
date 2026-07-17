@@ -3,8 +3,12 @@ import { userBriefName, listResult, omitEmpty, toIsoDatetime } from '../activity
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 export function normalizeMeeting(meeting) {
-  const from = meeting.from_datetime ?? meeting.start_at;
-  const to = meeting.to_datetime ?? meeting.end_at;
+  const from = meeting.start_at ?? meeting.from_datetime;
+  const to = meeting.end_at ?? meeting.to_datetime;
+  const participants = meeting.participants || [];
+  const participantIds = meeting.participant_ids
+    || participants.map((p) => p?.id).filter(Boolean)
+    || [];
   return {
     ...meeting,
     from_datetime: from,
@@ -12,22 +16,46 @@ export function normalizeMeeting(meeting) {
     start_at: from,
     end_at: to,
     host_name: userBriefName(meeting.host) || meeting.host_name,
-    participant_ids: meeting.participants || meeting.participant_ids || [],
+    participants,
+    participant_ids: participantIds,
   };
 }
 
-function toMeetingPayload(form, { partial = false } = {}) {
+export function normalizeMeetingReminder(item) {
+  const start = item.start_at ?? item.from_datetime;
+  const end = item.end_at ?? item.to_datetime;
+  return {
+    ...item,
+    id: item.id,
+    title: item.title || 'Meeting',
+    host_id: item.host_id,
+    host_name: userBriefName(item.host) || item.host_name || '—',
+    start_at: start,
+    end_at: end,
+    from_datetime: start,
+    to_datetime: end,
+    location: item.location || null,
+    description: item.description || null,
+    role: item.role || 'participant',
+    message: item.message || `You were added to "${item.title || 'a meeting'}"`,
+  };
+}
+
+function toMeetingPayload(form) {
+  const start = form.start_at || form.from_datetime;
+  const end = form.end_at || form.to_datetime;
+  const participantIds = form.participant_ids || form.participants;
   return omitEmpty({
     title: form.title,
     host_id: form.host_id || null,
-    from_datetime: form.from_datetime || form.start_at ? toIsoDatetime(form.from_datetime || form.start_at) : undefined,
-    to_datetime: form.to_datetime || form.end_at ? toIsoDatetime(form.to_datetime || form.end_at) : undefined,
+    start_at: start ? toIsoDatetime(start) : undefined,
+    end_at: end ? toIsoDatetime(end) : undefined,
     location: form.location,
     description: form.description,
-    participants: form.participants || form.participant_ids,
-    related_type: form.related_type || (form.contact_id ? 'contact' : undefined),
-    related_id: form.related_id || form.contact_id || null,
-    reminder: form.reminder,
+    participant_ids: Array.isArray(participantIds) ? participantIds.filter(Boolean) : undefined,
+    related_entity_type: form.related_entity_type || form.related_type || undefined,
+    related_entity_id: form.related_entity_id || form.related_id || null,
+    contact_id: form.contact_id || null,
   });
 }
 
@@ -49,10 +77,23 @@ export async function createMeeting(form) {
 }
 
 export async function updateMeeting(id, form) {
-  const res = await api.patch(`/meetings/${id}`, toMeetingPayload(form, { partial: true }));
+  const res = await api.patch(`/meetings/${id}`, toMeetingPayload(form));
   return normalizeMeeting(res.data.data);
 }
 
 export async function deleteMeeting(id) {
   await api.delete(`/meetings/${id}`);
+}
+
+/** GET /meetings/reminders — undismissed meeting invites for the current user */
+export async function listMeetingReminders() {
+  const res = await api.get('/meetings/reminders');
+  const data = res.data?.data;
+  return (Array.isArray(data) ? data : []).map(normalizeMeetingReminder);
+}
+
+/** POST /meetings/reminders/{meeting_id}/ack — dismiss invite for current user */
+export async function acknowledgeMeetingReminder(meetingId) {
+  const res = await api.post(`/meetings/reminders/${meetingId}/ack`);
+  return res.data;
 }

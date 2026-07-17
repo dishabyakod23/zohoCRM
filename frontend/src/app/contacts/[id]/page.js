@@ -18,18 +18,47 @@ import * as dealsApi from '../../../lib/services/deals.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchDealStages } from '../../../lib/services/lookups.js';
 import { LEAD_SOURCES } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
-import PhoneDisplay from '../../../components/justcall/PhoneDisplay.js';
-import CallRecordButton from '../../../components/justcall/CallRecordButton.js';
+import PhoneDisplay from '../../../components/cloudtalk/PhoneDisplay.js';
+import CallRecordButton from '../../../components/cloudtalk/CallRecordButton.js';
+import AccountNameCombobox from '../../../components/forms/AccountNameCombobox.js';
+import { resolveContactAccountId } from '../../../lib/resolveContactAccount.js';
 import { TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
-import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
 import Link from 'next/link';
 import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { tableLinkClass } from '../../../lib/tableStyles.js';
+import { useAuth } from '../../../hooks/useAuth.js';
+
+function toHref(raw, kind) {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  if (/^https?:\/\//i.test(value)) return value;
+  if (kind === 'twitter') {
+    const handle = value.replace(/^@/, '');
+    return `https://twitter.com/${encodeURIComponent(handle)}`;
+  }
+  if (kind === 'linkedin') {
+    if (value.includes('linkedin.com')) return `https://${value.replace(/^\/+/, '')}`;
+    return `https://www.linkedin.com/in/${encodeURIComponent(value.replace(/^@/, ''))}`;
+  }
+  return `https://${value.replace(/^\/+/, '')}`;
+}
+
+function formatExternalLink(raw, kind) {
+  const value = String(raw || '').trim();
+  if (!value) return null;
+  const href = toHref(value, kind);
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={tableLinkClass}>
+      {kind === 'twitter' && !value.startsWith('http') ? `@${value.replace(/^@/, '')}` : value}
+    </a>
+  );
+}
 
 export default function ContactDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const { canEdit, canDelete } = usePermissions();
   const [contact, setContact] = useState(null);
   const [accounts, setAccounts] = useState([]);
@@ -78,11 +107,27 @@ export default function ContactDetailPage() {
     }
     setSaving(true);
     try {
-      await contactsApi.updateContact(id, payload);
+      const next = { ...payload };
+      if (Object.prototype.hasOwnProperty.call(payload, 'account_id')
+        || Object.prototype.hasOwnProperty.call(payload, 'account_name')) {
+        const accountId = await resolveContactAccountId({
+          account_id: payload.account_id,
+          account_name: payload.account_name || contact?.account_name,
+          accounts,
+          phone: contact?.phone,
+          mobile: contact?.mobile,
+          owner_id: contact?.owner_id || user?.id,
+        });
+        next.account_id = accountId;
+        delete next.account_name;
+        // Refresh lookups so new accounts appear next edit
+        fetchAccountLookups().then(setAccounts).catch(() => {});
+      }
+      await contactsApi.updateContact(id, next);
       loadContact();
       showToast('Contact updated', 'success');
     } catch (err) {
-      showToast(getApiError(err));
+      showToast(getApiError(err) || err.message);
       throw err;
     } finally {
       setSaving(false);
@@ -181,12 +226,21 @@ export default function ContactDetailPage() {
               { name: 'first_name', label: 'First Name' },
               { name: 'last_name', label: 'Last Name', required: true },
               { name: 'account_id', label: 'Account', format: () => contact.account_name, render: (d, set) => (
-                <select className="input" value={d.account_id ?? ''} onChange={(e) => set((p) => ({ ...p, account_id: e.target.value }))}>
-                  <option value="">--None--</option>
-                  {accounts.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-                </select>
+                <AccountNameCombobox
+                  options={accounts}
+                  valueId={d.account_id ?? ''}
+                  valueLabel={
+                    d.account_name
+                    || accounts.find((a) => String(a.value) === String(d.account_id))?.label
+                    || contact.account_name
+                    || ''
+                  }
+                  onChange={({ account_id, account_name }) => {
+                    set((p) => ({ ...p, account_id, account_name }));
+                  }}
+                />
               ) },
-              { name: 'title', label: 'Job Title' },
+              { name: 'title', label: 'Designation' },
               { name: 'department', label: 'Department' },
               { name: 'lead_source', label: 'Lead Source', render: (d, set) => (
                 <select className="input" value={d.lead_source ?? ''} onChange={(e) => set((p) => ({ ...p, lead_source: e.target.value }))}>
@@ -219,9 +273,18 @@ export default function ContactDetailPage() {
               { name: 'fax', label: 'Fax' },
               { name: 'assistant', label: 'Assistant' },
               { name: 'asst_phone', label: 'Asst Phone', format: (v) => <PhoneDisplay value={v} label="Call assistant phone" /> },
-              { name: 'website', label: 'Website' },
-              { name: 'skype_id', label: 'Skype ID' },
-              { name: 'twitter', label: 'Twitter' },
+              { name: 'website', label: 'Website', format: (v) => formatExternalLink(v), render: (d, set) => (
+                <input className="input" type="url" placeholder="https://" value={d.website ?? ''} onChange={(e) => set((p) => ({ ...p, website: e.target.value }))} />
+              ) },
+              { name: 'skype_id', label: 'LinkedIn', format: (v) => formatExternalLink(v, 'linkedin'), render: (d, set) => (
+                <input className="input" type="url" placeholder="https://linkedin.com/in/…" value={d.skype_id ?? ''} onChange={(e) => set((p) => ({ ...p, skype_id: e.target.value }))} />
+              ) },
+              { name: 'twitter', label: 'Twitter', format: (v) => formatExternalLink(v, 'twitter'), render: (d, set) => (
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-zoho-muted">@</span>
+                  <input className="input flex-1" placeholder="handle" value={d.twitter ?? ''} onChange={(e) => set((p) => ({ ...p, twitter: e.target.value }))} />
+                </div>
+              ) },
               { name: 'date_of_birth', label: 'Date of Birth', render: (d, set) => (
                 <input className="input" type="date" value={(d.date_of_birth ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, date_of_birth: e.target.value }))} />
               ) },
@@ -256,21 +319,6 @@ export default function ContactDetailPage() {
               { name: 'other_state', label: 'State' },
               { name: 'other_zip', label: 'Zip' },
               { name: 'other_country', label: 'Country' },
-            ]}
-          />
-          <EditableFieldSection
-            title="Proposal"
-            canEdit={canEdit}
-            saving={saving}
-            values={contact}
-            onSave={saveSection}
-            fields={[
-              { name: 'proposal_amount', label: 'Proposal Amount', format: (v) => formatMoney(v, contact.currency) },
-              { name: 'currency', label: 'Currency', render: (d, set) => (
-                <select className="input" value={d.currency ?? contact.currency ?? 'INR'} onChange={(e) => set((p) => ({ ...p, currency: e.target.value }))}>
-                  {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
-                </select>
-              ) },
             ]}
           />
           <EditableFieldSection

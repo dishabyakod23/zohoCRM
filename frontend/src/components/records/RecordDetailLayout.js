@@ -5,8 +5,8 @@ import RecordNotesTab from './RecordNotesTab.js';
 import RecordActivitiesTab from './RecordActivitiesTab.js';
 import RecordHistoryTab from './RecordHistoryTab.js';
 import { notesSupportedRelatedType } from '../../lib/noteHelpers.js';
-import ClickToCallButton from '../justcall/ClickToCallButton.js';
-import { normalizePhoneForDial } from '../../lib/justCallHelpers.js';
+import ClickToCallButton from '../cloudtalk/ClickToCallButton.js';
+import { normalizePhoneForDial } from '../../lib/cloudTalkHelpers.js';
 
 /**
  * Zoho-style record detail page shell: gradient header with avatar,

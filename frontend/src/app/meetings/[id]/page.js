@@ -36,11 +36,7 @@ export default function MeetingDetailPage() {
   const saveSection = async (payload) => {
     setSaving(true);
     try {
-      await meetingsApi.updateMeeting(id, {
-        ...payload,
-        from_datetime: payload.from_datetime ?? payload.start_at,
-        to_datetime: payload.to_datetime ?? payload.end_at,
-      });
+      await meetingsApi.updateMeeting(id, payload);
       load();
       showToast('Meeting updated', 'success');
     } catch (err) { showToast(getApiError(err)); throw err; }
@@ -50,6 +46,10 @@ export default function MeetingDetailPage() {
   if (!meeting) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   const related = relatedRecordFromActivity(meeting);
+  const participantLabel = (meeting.participants || [])
+    .map((p) => `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.email)
+    .filter(Boolean)
+    .join(', ') || '—';
 
   return (
     <CRMLayout>
@@ -75,6 +75,28 @@ export default function MeetingDetailPage() {
                 <select className="input" value={d.host_id ?? ''} onChange={(e) => set((p) => ({ ...p, host_id: e.target.value }))}>
                   <option value="">Select</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
+              ) },
+              { name: 'participant_ids', label: 'Participants', format: () => participantLabel, render: (d, set) => (
+                <div className="border border-zoho-border rounded-xl max-h-40 overflow-y-auto p-2 space-y-1">
+                  {users.filter((u) => String(u.id) !== String(d.host_id)).map((u) => {
+                    const ids = d.participant_ids || [];
+                    const checked = ids.includes(u.id);
+                    return (
+                      <label key={u.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-brand-50 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            const next = checked ? ids.filter((x) => x !== u.id) : [...ids, u.id];
+                            set((p) => ({ ...p, participant_ids: next }));
+                          }}
+                          className="rounded border-zoho-border text-brand-600 focus:ring-brand-500"
+                        />
+                        <span>{u.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               ) },
               { name: 'location', label: 'Location' },
               { name: 'description', label: 'Description', colSpan: true, render: (d, set) => (

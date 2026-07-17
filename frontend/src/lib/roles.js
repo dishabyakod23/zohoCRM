@@ -40,7 +40,7 @@ export function canAssignRecords(role) {
   return normalized === 'super_admin' || normalized === 'sales_manager';
 }
 
-/** Permission flags used across the UI (backend still enforces API auth) */
+/** Permission flags used across the UI (API still enforces auth) */
 export function getRolePermissions(role) {
   const normalized = normalizeRole(role);
   const superAdmin = normalized === 'super_admin';

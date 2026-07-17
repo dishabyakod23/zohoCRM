@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useMeetingReminders } from '../../hooks/useMeetingReminders.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import * as accountsApi from '../../lib/services/accounts.js';
@@ -14,10 +15,32 @@ import { QUICK_CREATE } from '../../lib/constants.js';
 import { userDisplayName, userInitial } from '../../lib/userHelpers.js';
 import { getLeadDetailPath } from '../../lib/pipelineHelpers.js';
 
+function formatNotifWhen(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
+
 export default function Header({ onMenuClick }) {
   const { user, logout } = useAuth();
   const { showToast } = useToast();
   const { canQuickCreate } = usePermissions();
+  const {
+    reminders: meetingReminders,
+    count: meetingNotifCount,
+    loading: meetingNotifLoading,
+    refresh: refreshMeetingReminders,
+    acknowledge: acknowledgeMeeting,
+    openPopup: openMeetingInvitePopup,
+  } = useMeetingReminders();
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
@@ -25,6 +48,7 @@ export default function Header({ onMenuClick }) {
   const [showQuick, setShowQuick] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
+  const [ackingId, setAckingId] = useState(null);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
   const searchRef = useRef(null);
   const searchRequestRef = useRef(null);
@@ -99,6 +123,35 @@ export default function Header({ onMenuClick }) {
 
   const groups = [...new Set(QUICK_CREATE.map(q => q.group))];
 
+  const toggleNotif = () => {
+    const next = !showNotif;
+    setShowNotif(next);
+    if (next) refreshMeetingReminders({ quiet: true });
+  };
+
+  const handleAckMeeting = async (id, e) => {
+    e?.stopPropagation?.();
+    e?.preventDefault?.();
+    setAckingId(id);
+    try {
+      await acknowledgeMeeting(id);
+    } catch {
+      // toasted in hook
+    } finally {
+      setAckingId(null);
+    }
+  };
+
+  const handleOpenMeeting = async (reminder) => {
+    setShowNotif(false);
+    try {
+      await acknowledgeMeeting(reminder.id);
+    } catch {
+      // still navigate
+    }
+    router.push(`/meetings/${reminder.id}`);
+  };
+
   return (
     <>
       <header className="h-14 bg-white border-b border-zoho-border flex items-center gap-3 px-4 sticky top-0 z-30">
@@ -158,13 +211,70 @@ export default function Header({ onMenuClick }) {
         {/* Right: notifications, settings, profile */}
         <div className="flex items-center gap-1 ml-auto">
           <div className="relative" ref={notifRef}>
-            <button onClick={() => setShowNotif(!showNotif)} aria-label="Notifications" aria-expanded={showNotif}
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-zoho-muted hover:text-brand-600 hover:bg-brand-50 transition-colors" title="Notifications">
+            <button onClick={toggleNotif} aria-label="Notifications" aria-expanded={showNotif}
+              className="relative w-9 h-9 rounded-xl flex items-center justify-center text-zoho-muted hover:text-brand-600 hover:bg-brand-50 transition-colors" title="Notifications">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+              {meetingNotifCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[1rem] h-4 px-1 bg-accent-pink text-white text-[9px] rounded-full flex items-center justify-center font-bold ring-2 ring-white">
+                  {meetingNotifCount > 9 ? '9+' : meetingNotifCount}
+                </span>
+              )}
             </button>
             {showNotif && (
-              <div className="absolute right-0 top-full mt-2 bg-white border border-zoho-border rounded-xl shadow-card-hover w-64 py-2 z-50 animate-scaleIn origin-top-right">
-                <p className="px-3 py-2 text-sm text-zoho-muted">No new notifications</p>
+              <div className="absolute right-0 top-full mt-2 bg-white border border-zoho-border rounded-xl shadow-card-hover w-80 max-h-96 overflow-hidden z-50 animate-scaleIn origin-top-right flex flex-col">
+                <div className="px-3 py-2 border-b border-zoho-border flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-bold text-brand-600 uppercase tracking-wide">Notifications</p>
+                  {meetingNotifCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => { setShowNotif(false); openMeetingInvitePopup(); }}
+                      className="text-[11px] text-brand-600 hover:underline"
+                    >
+                      Open invite
+                    </button>
+                  )}
+                </div>
+                <div className="overflow-y-auto flex-1">
+                  {meetingNotifLoading && meetingReminders.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-zoho-muted">Loading…</p>
+                  ) : meetingReminders.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-zoho-muted">No new meeting invites</p>
+                  ) : (
+                    meetingReminders.map((n) => (
+                      <div key={n.id} className="px-3 py-2.5 border-t border-gray-50 hover:bg-brand-50/50 transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenMeeting(n)}
+                          className="w-full text-left"
+                        >
+                          <p className="text-sm font-medium text-zoho-text line-clamp-1">{n.title}</p>
+                          <p className="text-xs text-zoho-muted mt-0.5 line-clamp-2">{n.message}</p>
+                          <p className="text-[10px] text-zoho-muted mt-1">
+                            {formatNotifWhen(n.start_at)}
+                            {n.host_name ? ` · ${n.host_name}` : ''}
+                          </p>
+                        </button>
+                        <div className="flex items-center gap-3 mt-2">
+                          <button
+                            type="button"
+                            disabled={ackingId === n.id}
+                            onClick={(e) => handleAckMeeting(n.id, e)}
+                            className="text-[11px] font-medium text-zoho-muted hover:text-zoho-text disabled:opacity-50"
+                          >
+                            {ackingId === n.id ? 'Dismissing…' : 'Dismiss'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenMeeting(n)}
+                            className="text-[11px] font-medium text-brand-600 hover:underline"
+                          >
+                            View
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </div>

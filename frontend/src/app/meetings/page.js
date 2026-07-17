@@ -18,7 +18,7 @@ import { fetchUsers } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
-const EMPTY = { title: '', from_datetime: '', to_datetime: '', host_id: '', location: '', description: '' };
+const EMPTY = { title: '', from_datetime: '', to_datetime: '', host_id: '', location: '', description: '', participant_ids: [] };
 const REQUIRED = { title: 'Meeting Title', from_datetime: 'From Date & Time', to_datetime: 'To Date & Time', host_id: 'Host' };
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -57,6 +57,14 @@ export default function MeetingsPage() {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
+  const toggleParticipant = (userId) => {
+    setForm((p) => {
+      const ids = p.participant_ids || [];
+      const next = ids.includes(userId) ? ids.filter((id) => id !== userId) : [...ids, userId];
+      return { ...p, participant_ids: next };
+    });
+  };
+
   const save = async () => {
     const errs = validateRequired(REQUIRED, form);
     setErrors(errs);
@@ -83,6 +91,11 @@ export default function MeetingsPage() {
     { id: 'host', header: 'Host', cell: (m) => m.host_name },
     { id: 'location', header: 'Location', cell: (m) => m.location || '—' },
   ], []);
+
+  const participantOptions = useMemo(
+    () => users.filter((u) => String(u.id) !== String(form.host_id)),
+    [users, form.host_id],
+  );
 
   return (
     <CRMLayout>
@@ -119,8 +132,32 @@ export default function MeetingsPage() {
           <FormField label="Meeting Title" required error={errors.title} name="title"><input className={inputClass(errors.title)} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></FormField>
           <FormField label="From" required error={errors.from_datetime} name="from_datetime"><input className={inputClass(errors.from_datetime)} type="datetime-local" value={form.from_datetime?.slice(0, 16)} onChange={e => setForm(p => ({ ...p, from_datetime: e.target.value }))} /></FormField>
           <FormField label="To" required error={errors.to_datetime} name="to_datetime"><input className={inputClass(errors.to_datetime)} type="datetime-local" value={form.to_datetime?.slice(0, 16)} onChange={e => setForm(p => ({ ...p, to_datetime: e.target.value }))} /></FormField>
-          <FormField label="Host" required error={errors.host_id} name="host_id"><select className={inputClass(errors.host_id)} value={form.host_id} onChange={e => setForm(p => ({ ...p, host_id: e.target.value }))}><option value="">Select</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></FormField>
+          <FormField label="Host" required error={errors.host_id} name="host_id"><select className={inputClass(errors.host_id)} value={form.host_id} onChange={e => setForm(p => ({ ...p, host_id: e.target.value, participant_ids: (p.participant_ids || []).filter((id) => id !== e.target.value) }))}><option value="">Select</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></FormField>
+          <FormField label="Participants" name="participant_ids">
+            <div className="border border-zoho-border rounded-xl max-h-40 overflow-y-auto p-2 space-y-1">
+              {participantOptions.length === 0 ? (
+                <p className="text-xs text-zoho-muted px-1 py-2">Select a host first, then add other team members.</p>
+              ) : (
+                participantOptions.map((u) => {
+                  const checked = (form.participant_ids || []).includes(u.id);
+                  return (
+                    <label key={u.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-brand-50 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleParticipant(u.id)}
+                        className="rounded border-zoho-border text-brand-600 focus:ring-brand-500"
+                      />
+                      <span>{u.name}</span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            <p className="text-[11px] text-zoho-muted mt-1">Participants get an in-app meeting invite notification.</p>
+          </FormField>
           <FormField label="Location"><input className="input" value={form.location || ''} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} /></FormField>
+          <FormField label="Description"><textarea className="input min-h-[72px]" value={form.description || ''} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></FormField>
         </div>
         <div className="flex gap-2 justify-end mt-4"><button onClick={() => setModal(false)} className="btn-secondary">Cancel</button><button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save'}</button></div>
       </Modal>}

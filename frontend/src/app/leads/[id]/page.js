@@ -9,7 +9,7 @@ import RecordDetailSkeleton from '../../../components/records/RecordDetailSkelet
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
 import EditableEmailField from '../../../components/forms/EditableEmailField.js';
 import LeadConvertMenu from '../../../components/leads/LeadConvertMenu.js';
-import CallRecordButton from '../../../components/justcall/CallRecordButton.js';
+import CallRecordButton from '../../../components/cloudtalk/CallRecordButton.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { useMarkRecordViewed } from '../../../hooks/useMarkRecordViewed.js';

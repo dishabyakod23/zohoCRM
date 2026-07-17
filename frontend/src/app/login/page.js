@@ -4,8 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth.js';
 import { getApiError } from '../../lib/api.js';
-import { setAuthSessionCookie } from '../../lib/authCookie.js';
-import api from '../../lib/api.js';
 import Logo from '../../components/ui/Logo.js';
 import PasswordInput from '../../components/forms/PasswordInput.js';
 
@@ -21,30 +19,6 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [restoring, setRestoring] = useState(true);
-
-  useEffect(() => {
-    const nextPath = getNextPath();
-    const token = localStorage.getItem('crm_token');
-    const storedUser = localStorage.getItem('crm_user');
-    if (!token || !storedUser) {
-      setRestoring(false);
-      return;
-    }
-    setAuthSessionCookie();
-    api.get('/auth/me')
-      .then((r) => {
-        localStorage.setItem('crm_user', JSON.stringify(r.data));
-        setAuthSessionCookie();
-        router.replace(nextPath);
-      })
-      .catch(() => {
-        localStorage.removeItem('crm_token');
-        localStorage.removeItem('crm_refresh_token');
-        localStorage.removeItem('crm_user');
-        setRestoring(false);
-      });
-  }, [router]);
 
   useEffect(() => {
     if (!loading && user) router.replace(getNextPath());
@@ -52,20 +26,21 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); setSubmitting(true);
+    setError('');
+    setSubmitting(true);
     try {
       await login(form.email, form.password);
     } catch (err) {
       setError(getApiError(err));
-    } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading || user || restoring) {
+  if (loading || submitting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black gap-3">
         <div className="w-10 h-10 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" />
+        {submitting && <p className="text-sm text-white/70">Signing in…</p>}
       </div>
     );
   }

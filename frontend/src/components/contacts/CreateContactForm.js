@@ -13,14 +13,14 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchAccountLookups, fetchUsers } from '../../lib/services/lookups.js';
-import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
-import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
+import AccountNameCombobox from '../forms/AccountNameCombobox.js';
+import { resolveContactAccountId } from '../../lib/resolveContactAccount.js';
 
 export function emptyContactForm() {
   return {
-    salutation: '', first_name: '', last_name: '', account_id: '',
+    salutation: '', first_name: '', last_name: '', account_id: '', account_name: '',
     title: '', department: '', lead_source: '', owner_id: '',
-    reports_to_id: '', assistant: '', asst_phone: '', date_of_birth: '',
+    assistant: '', asst_phone: '', date_of_birth: '',
     email_opt_out: false,
     email: '', secondary_email: '', phone: '', other_phone: '', mobile: '',
     home_phone: '', fax: '', skype_id: '', twitter: '', website: '',
@@ -29,8 +29,6 @@ export function emptyContactForm() {
     other_flat: '', other_street: '', other_city: '', other_state: '',
     other_country: '', other_zip: '', other_lat: '', other_lng: '',
     description: '',
-    proposal_amount: '',
-    currency: DEFAULT_CURRENCY,
   };
 }
 
@@ -104,16 +102,10 @@ export default function CreateContactForm() {
   const [accounts, setAccounts] = useState([]);
   const [users, setUsers] = useState([]);
   const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
-  const [contacts, setContacts] = useState([]);
 
   useEffect(() => {
     fetchAccountLookups().then(setAccounts).catch(() => setAccounts([]));
     fetchUsers().then(setUsers).catch(() => setUsers([]));
-    import('../../lib/services/lookups.js').then(m => {
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/lookups/contacts`, {
-        headers: { Authorization: `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('crm_token') : ''}` }
-      }).then(r => r.json()).then(d => setContacts(d.data || [])).catch(() => {});
-    });
   }, []);
 
   const set = (field) => (e) => {
@@ -137,7 +129,9 @@ export default function CreateContactForm() {
   };
 
   const handleSave = async () => {
-    const errs = validateRequired({ last_name: 'Last Name', account_id: 'Account Name', email: 'Email' }, form);
+    const accountOk = !!(form.account_id || String(form.account_name || '').trim());
+    const errs = validateRequired({ last_name: 'Last Name', email: 'Email' }, form);
+    if (!accountOk) errs.account_id = 'Account Name is required';
     const emailErr = validateEmail(form.email);
     if (emailErr) errs.email = emailErr;
     if (form.phone) {
@@ -155,11 +149,19 @@ export default function CreateContactForm() {
     }
     setSaving(true);
     try {
-      const created = await contactsApi.createContact(form);
+      const accountId = await resolveContactAccountId({
+        account_id: form.account_id,
+        account_name: form.account_name,
+        accounts,
+        phone: form.phone,
+        mobile: form.mobile,
+        owner_id: form.owner_id || user?.id,
+      });
+      const created = await contactsApi.createContact({ ...form, account_id: accountId });
       showToast('Contact saved', 'success');
       router.push(created?.id ? `/contacts/${created.id}` : '/contacts');
     } catch (err) {
-      showToast(getApiError(err));
+      showToast(getApiError(err) || err.message);
     } finally {
       setSaving(false);
     }
@@ -223,10 +225,16 @@ export default function CreateContactForm() {
             </FormField>
 
             <FormField label="Account Name" required error={errors.account_id} name="account_id">
-              <select className={inputClass(errors.account_id)} value={form.account_id} onChange={set('account_id')}>
-                <option value="">—None—</option>
-                {accounts.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-              </select>
+              <AccountNameCombobox
+                options={accounts}
+                valueId={form.account_id}
+                valueLabel={form.account_name}
+                error={errors.account_id}
+                onChange={({ account_id, account_name }) => {
+                  setForm((f) => ({ ...f, account_id, account_name }));
+                  setErrors((er) => ({ ...er, account_id: null }));
+                }}
+              />
             </FormField>
 
             <FormField label="Phone" error={errors.phone} name="phone">
@@ -252,7 +260,7 @@ export default function CreateContactForm() {
               </select>
             </FormField>
 
-            <FormField label="Title" name="title">
+            <FormField label="Designation" name="title">
               <input className="input" value={form.title} onChange={set('title')} />
             </FormField>
 
@@ -282,8 +290,8 @@ export default function CreateContactForm() {
               <label htmlFor="email_opt_out" className="text-sm text-zoho-text cursor-pointer select-none">Email Opt Out</label>
             </div>
 
-            <FormField label="Skype ID" name="skype_id">
-              <input className="input" value={form.skype_id} onChange={set('skype_id')} />
+            <FormField label="LinkedIn" name="skype_id">
+              <input className="input" type="url" placeholder="https://linkedin.com/in/…" value={form.skype_id} onChange={set('skype_id')} />
             </FormField>
 
             <FormField label="Secondary Email" name="secondary_email">
@@ -301,13 +309,6 @@ export default function CreateContactForm() {
               <input className="input" type="url" placeholder="https://" value={form.website} onChange={set('website')} />
             </FormField>
 
-            <FormField label="Reporting To" name="reports_to_id">
-              <select className="input" value={form.reports_to_id} onChange={set('reports_to_id')}>
-                <option value="">—None—</option>
-                {contacts.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-            </FormField>
-
           </div>
 
           {/* ── Address Information ── */}
@@ -319,14 +320,6 @@ export default function CreateContactForm() {
 
           {/* ── Description ── */}
           <SectionTitle>Description Information</SectionTitle>
-          <FormField label="Proposal Amount" name="proposal_amount">
-            <CurrencyAmountInput
-              amount={form.proposal_amount}
-              currency={form.currency}
-              onAmountChange={set('proposal_amount')}
-              onCurrencyChange={set('currency')}
-            />
-          </FormField>
           <FormField label="Description" name="description">
             <textarea className="input min-h-[100px] resize-y" placeholder="Add a description…"
               value={form.description} onChange={set('description')} />

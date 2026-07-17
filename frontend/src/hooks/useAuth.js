@@ -16,7 +16,12 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('crm_token');
     if (stored && token) {
       setAuthSessionCookie();
-      setUser(JSON.parse(stored));
+      try {
+        setUser(JSON.parse(stored));
+      } catch {
+        localStorage.removeItem('crm_user');
+      }
+      setLoading(false);
       api.get('/auth/me').then(r => {
         setUser(r.data);
         localStorage.setItem('crm_user', JSON.stringify(r.data));
@@ -28,7 +33,7 @@ export function AuthProvider({ children }) {
         clearAuthSessionCookie();
         setUser(null);
         router.replace('/login');
-      }).finally(() => setLoading(false));
+      });
     } else {
       setLoading(false);
     }
@@ -44,7 +49,7 @@ export function AuthProvider({ children }) {
     const next = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('next')
       : null;
-    router.push(next?.startsWith('/') ? next : '/dashboard');
+    router.replace(next?.startsWith('/') ? next : '/dashboard');
   };
 
   const logout = () => {

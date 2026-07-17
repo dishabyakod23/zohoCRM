@@ -5,7 +5,7 @@ import CRMLayout from '../layout/CRMLayout.js';
 import Modal from '../ui/Modal.js';
 import Badge from '../ui/Badge.js';
 import LeadConvertMenu from './LeadConvertMenu.js';
-import CallRecordButton from '../justcall/CallRecordButton.js';
+import CallRecordButton from '../cloudtalk/CallRecordButton.js';
 import ConfirmDialog from '../ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import RecordDetailLayout, { InfoRow } from '../records/RecordDetailLayout.js';

@@ -91,20 +91,15 @@ export async function deleteContact(id) {
 }
 
 export async function downloadContactImportTemplate() {
-  const headers = [
-    'first_name',
-    'last_name',
-    'email',
-    'mobile',
-    'account',
-    'owner',
-    'Lead Source',
-    'Address',
-    'Proposal Amount',
-    'Description',
-  ];
+  const headers = CONTACT_IMPORT_FIELDS.map((f) => f.key);
   const csv = `${headers.join(',')}\n`;
   downloadBlob(new Blob([csv], { type: 'text/csv' }), 'contacts-import-template.csv');
+}
+
+function coerceImportBool(value) {
+  if (value == null || value === '') return false;
+  const v = String(value).trim().toLowerCase();
+  return ['1', 'true', 'yes', 'y', 'on'].includes(v);
 }
 
 export async function importContactsFile(file, { dry_run = true } = {}) {
@@ -120,18 +115,37 @@ export async function importContactsFile(file, { dry_run = true } = {}) {
       readyRecords,
     });
   }
+
+  let accounts = [];
+  try {
+    const { fetchAccountLookups } = await import('./lookups.js');
+    accounts = await fetchAccountLookups();
+  } catch {
+    accounts = [];
+  }
+
   let imported = 0;
   for (const record of readyRecords) {
-    await api.post('/contacts', {
-      first_name: record.first_name || null,
-      last_name: record.last_name,
-      email: record.email,
-      phone: record.phone || null,
-      account_id: record.account_id,
-      title: record.title || null,
-      department: record.department || null,
-      lead_source: record.lead_source || null,
-    });
+    let accountId = record.account_id || null;
+    if (!accountId && (record.account_name || record.account || record.company)) {
+      const { resolveContactAccountId } = await import('../resolveContactAccount.js');
+      accountId = await resolveContactAccountId({
+        account_id: record.account_id,
+        account_name: record.account_name || record.account || record.company,
+        accounts,
+        phone: record.phone,
+        mobile: record.mobile,
+        owner_id: record.owner_id || null,
+      });
+    }
+
+    const form = {
+      ...record,
+      account_id: accountId,
+      email_opt_out: coerceImportBool(record.email_opt_out),
+      skype_id: record.skype_id || record.linkedin || null,
+    };
+    await api.post('/contacts', toContactPayload(form));
     imported += 1;
   }
   return normalizeImportResult({ imported_count: imported });

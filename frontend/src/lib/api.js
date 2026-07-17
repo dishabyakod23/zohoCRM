@@ -7,6 +7,7 @@ export const API_BASE_URL =
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
+  timeout: 20000,
 });
 
 api.interceptors.request.use((config) => {
@@ -58,6 +59,9 @@ api.interceptors.response.use(
 
 /** Parse FastAPI validation errors */
 export function getApiError(err) {
+  if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+    return 'Request timed out. Check your connection and try again.';
+  }
   const data = err.response?.data;
   if (!data) return err.message || 'Request failed';
 

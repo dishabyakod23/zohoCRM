@@ -36,6 +36,7 @@ export default function CsvImportModal({
   const [mapping, setMapping] = useState({});
   const [hideRecognized, setHideRecognized] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [validationMessage, setValidationMessage] = useState('');
   const [validating, setValidating] = useState(false);
   const [importing, setImporting] = useState(false);
 
@@ -47,6 +48,7 @@ export default function CsvImportModal({
     setMapping({});
     setHideRecognized(false);
     setPreview(null);
+    setValidationMessage('');
   };
 
   useEffect(() => {
@@ -94,9 +96,11 @@ export default function CsvImportModal({
   };
 
   const handleValidate = async () => {
+    setValidationMessage('');
+    setPreview(null);
     const mapErr = validateMapping(mapping, fieldDefs);
     if (mapErr) {
-      showToast(mapErr);
+      setValidationMessage(mapErr);
       return;
     }
     setValidating(true);
@@ -105,19 +109,20 @@ export default function CsvImportModal({
       const result = await importFn(mappedFile, { dry_run: true });
       setPreview(result);
       if (!result.ready_count) {
-        showToast(importValidationNotice(result) || 'No valid rows found after mapping');
+        setValidationMessage(importValidationNotice(result) || 'No valid rows found after mapping');
       }
     } catch (err) {
-      showToast(getApiError(err));
+      setValidationMessage(getApiError(err));
     } finally {
       setValidating(false);
     }
   };
 
   const handleImport = async () => {
+    setValidationMessage('');
     const mapErr = validateMapping(mapping, fieldDefs);
     if (mapErr) {
-      showToast(mapErr);
+      setValidationMessage(mapErr);
       return;
     }
     setImporting(true);
@@ -129,7 +134,7 @@ export default function CsvImportModal({
         setPreview(dryResult);
         readyCount = dryResult.ready_count;
         if (!readyCount) {
-          showToast(importValidationNotice(dryResult) || 'No valid rows found after mapping');
+          setValidationMessage(importValidationNotice(dryResult) || 'No valid rows found after mapping');
           return;
         }
       }
@@ -138,11 +143,14 @@ export default function CsvImportModal({
       onDone?.();
       onClose();
     } catch (err) {
-      showToast(getApiError(err));
+      setValidationMessage(getApiError(err));
     } finally {
       setImporting(false);
     }
   };
+
+  const hasValidationIssues = validationMessage
+    || (preview && (preview.error_count > 0 || preview.warning_count > 0 || !preview.ready_count));
 
   if (!open) return null;
 
@@ -207,6 +215,7 @@ export default function CsvImportModal({
                       value={mapped || ''}
                       onChange={(e) => {
                         setPreview(null);
+                        setValidationMessage('');
                         setMapping((m) => ({ ...m, [header]: e.target.value }));
                       }}
                     >
@@ -230,36 +239,6 @@ export default function CsvImportModal({
             </div>
           </div>
 
-          {preview && (
-            <div className="text-xs space-y-1 border-t border-zoho-border pt-3">
-              <p className="text-green-700">{preview.ready_count} row(s) ready to import</p>
-              {preview.warning_count > 0 && (
-                <>
-                  <p className="text-red-600">{preview.warning_count} row(s) skipped</p>
-                  {preview.warningRecords?.length > 0 && (
-                    <div className="max-h-24 overflow-y-auto bg-red-50 p-2 rounded">
-                      {preview.warningRecords.slice(0, 8).map((w, i) => (
-                        <p key={i}>Row {w.row}: {w.message}</p>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-              {preview.error_count > 0 && (
-                <>
-                  <p className="text-red-600">{preview.error_count} error(s)</p>
-                  {preview.errorRecords?.length > 0 && (
-                    <div className="max-h-24 overflow-y-auto bg-red-50 p-2 rounded">
-                      {preview.errorRecords.slice(0, 8).map((e, i) => (
-                        <p key={i}>Row {e.row}: {e.message}</p>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zoho-border pt-4">
             <div className="flex items-center gap-2 text-xs text-zoho-muted min-w-0">
               <span className="truncate max-w-[200px]" title={file?.name}>{file?.name}</span>
@@ -280,6 +259,50 @@ export default function CsvImportModal({
               </button>
             </div>
           </div>
+
+          {(hasValidationIssues || (preview && preview.ready_count > 0)) && (
+            <div className="text-xs space-y-2 border-t border-zoho-border pt-3 mt-1">
+              {preview?.ready_count > 0 && (
+                <p className="text-green-700 font-medium">{preview.ready_count} row(s) ready to import</p>
+              )}
+
+              {validationMessage && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-700">
+                  {validationMessage}
+                </div>
+              )}
+
+              {preview?.warning_count > 0 && (
+                <>
+                  <p className="text-red-600 font-medium">{preview.warning_count} row(s) skipped</p>
+                  {preview.warningRecords?.length > 0 && (
+                    <div className="max-h-40 overflow-y-auto rounded-xl border border-red-200 bg-red-50 px-3 py-2 space-y-1">
+                      {preview.warningRecords.map((w, i) => (
+                        <p key={`w-${i}`} className="text-red-700">
+                          {w.row != null ? `Row ${w.row}: ` : ''}{w.message}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {preview?.error_count > 0 && (
+                <>
+                  <p className="text-red-600 font-medium">{preview.error_count} error(s)</p>
+                  {preview.errorRecords?.length > 0 && (
+                    <div className="max-h-40 overflow-y-auto rounded-xl border border-red-200 bg-red-50 px-3 py-2 space-y-1">
+                      {preview.errorRecords.map((e, i) => (
+                        <p key={`e-${i}`} className="text-red-700">
+                          {e.row != null ? `Row ${e.row}: ` : ''}{e.message}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
     </Modal>
