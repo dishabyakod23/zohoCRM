@@ -223,7 +223,7 @@ export default function ContactDetailPage() {
             onSave={saveSection}
             fields={[
               { name: 'salutation', label: 'Salutation' },
-              { name: 'first_name', label: 'First Name' },
+              { name: 'first_name', label: 'First Name', required: true },
               { name: 'last_name', label: 'Last Name', required: true },
               { name: 'account_id', label: 'Account', format: () => contact.account_name, render: (d, set) => (
                 <AccountNameCombobox

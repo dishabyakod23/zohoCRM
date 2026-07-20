@@ -68,7 +68,7 @@ export function toContactPayload(form, { partial = false } = {}) {
 
   return {
     salutation: form.salutation || null,
-    first_name: form.first_name || null,
+    first_name: form.first_name,
     last_name: form.last_name,
     account_id: form.account_id,
     email: form.email,

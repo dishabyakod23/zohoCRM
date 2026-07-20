@@ -130,7 +130,11 @@ export default function CreateContactForm() {
 
   const handleSave = async () => {
     const accountOk = !!(form.account_id || String(form.account_name || '').trim());
-    const errs = validateRequired({ last_name: 'Last Name', email: 'Email' }, form);
+    const errs = validateRequired({
+      first_name: 'First Name',
+      last_name: 'Last Name',
+      email: 'Email',
+    }, form);
     if (!accountOk) errs.account_id = 'Account Name is required';
     const emailErr = validateEmail(form.email);
     if (emailErr) errs.email = emailErr;
@@ -201,13 +205,13 @@ export default function CreateContactForm() {
             {/* empty cell to align grid */}
             <div />
 
-            <FormField label="First Name" name="first_name">
+            <FormField label="First Name" required error={errors.first_name} name="first_name">
               <div className="flex gap-2">
                 <select className="input w-24 shrink-0" value={form.salutation} onChange={set('salutation')}>
                   <option value="">—None—</option>
                   {SALUTATIONS.map(s => <option key={s}>{s}</option>)}
                 </select>
-                <input className="input flex-1" placeholder="First Name" value={form.first_name} onChange={set('first_name')} />
+                <input className={inputClass(errors.first_name)} placeholder="First Name" value={form.first_name} onChange={set('first_name')} />
               </div>
             </FormField>
 

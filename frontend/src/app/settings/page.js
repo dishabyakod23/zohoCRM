@@ -139,6 +139,7 @@ export default function SettingsPage() {
     if (!editingUser && (!userForm.password || userForm.password.length < 8)) {
       errs.password = 'Password must be at least 8 characters.';
     }
+    if (!userForm.first_name?.trim()) errs.first_name = 'First name is required.';
     if (!userForm.last_name?.trim()) errs.last_name = 'Last name is required.';
     if (editingUser && userForm.password && userForm.password.length < 8) {
       errs.password = 'Password must be at least 8 characters.';
@@ -153,7 +154,7 @@ export default function SettingsPage() {
     try {
       if (editingUser) {
         const payload = {
-          first_name: userForm.first_name || null,
+          first_name: userForm.first_name,
           last_name: userForm.last_name,
           role: userForm.role,
           is_active: userForm.is_active,
@@ -165,7 +166,7 @@ export default function SettingsPage() {
         await adminApi.createAdminUser({
           email: userForm.email,
           password: userForm.password,
-          first_name: userForm.first_name || null,
+          first_name: userForm.first_name,
           last_name: userForm.last_name,
           role: userForm.role,
         });
@@ -631,9 +632,9 @@ export default function SettingsPage() {
               />
             </FormField>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="First Name" name="first_name">
-                <input className="input" value={userForm.first_name}
-                  onChange={e => setUserForm(f => ({ ...f, first_name: e.target.value }))} />
+              <FormField label="First Name" required error={userErrors.first_name} name="first_name">
+                <input className={inputClass(userErrors.first_name)} value={userForm.first_name}
+                  onChange={e => { setUserForm(f => ({ ...f, first_name: e.target.value })); setUserErrors(er => ({ ...er, first_name: null })); }} />
               </FormField>
               <FormField label="Last Name" required error={userErrors.last_name} name="last_name">
                 <input className={inputClass(userErrors.last_name)} value={userForm.last_name}

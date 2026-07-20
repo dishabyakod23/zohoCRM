@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import FormField, { inputClass } from '../forms/FormField.js';
+import { validateRequired } from '../../lib/validators.js';
 
 /**
  * Section card that displays fields read-only with per-section Edit → Save/Cancel.
@@ -16,6 +17,7 @@ export default function EditableFieldSection({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({});
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const startEdit = () => {
     const initial = {};
@@ -24,12 +26,23 @@ export default function EditableFieldSection({
       initial[f.name] = values[f.name] ?? '';
     });
     setDraft(initial);
+    setFieldErrors({});
     setEditing(true);
   };
 
-  const cancel = () => setEditing(false);
+  const cancel = () => {
+    setFieldErrors({});
+    setEditing(false);
+  };
 
   const save = async () => {
+    const requiredFields = {};
+    fields.forEach((f) => {
+      if (f.required && !f.readOnly) requiredFields[f.name] = f.label;
+    });
+    const errs = validateRequired(requiredFields, draft);
+    setFieldErrors(errs);
+    if (Object.keys(errs).length) return;
     try {
       await onSave(draft);
       setEditing(false);
@@ -67,14 +80,21 @@ export default function EditableFieldSection({
                     <p className="text-sm text-zoho-text">{display(f) ?? <span className="text-zoho-muted/50">—</span>}</p>
                   </>
                 ) : (
-                  <FormField label={f.label} required={f.required}>
+                  <FormField label={f.label} required={f.required} error={fieldErrors[f.name]}>
                     {f.render
-                      ? f.render(draft, setDraft)
+                      ? f.render(draft, (updater) => {
+                        setDraft(updater);
+                        setFieldErrors((er) => ({ ...er, [f.name]: null }));
+                      })
                       : (
                         <input
-                          className={inputClass()}
+                          className={inputClass(fieldErrors[f.name])}
                           value={draft[f.name] ?? ''}
-                          onChange={(e) => setDraft((d) => ({ ...d, [f.name]: e.target.value }))}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setDraft((d) => ({ ...d, [f.name]: value }));
+                            setFieldErrors((er) => ({ ...er, [f.name]: null }));
+                          }}
                         />
                       )}
                   </FormField>

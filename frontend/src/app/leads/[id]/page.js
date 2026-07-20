@@ -142,7 +142,7 @@ export default function LeadDetailPage() {
                 onSave={saveSection}
                 fields={[
                   { name: 'salutation', label: 'Salutation', render: (d, set) => select(SALUTATIONS, null, null)(d, set, 'salutation') },
-                  { name: 'first_name', label: 'First Name' },
+                  { name: 'first_name', label: 'First Name', required: true },
                   { name: 'last_name', label: 'Last Name', required: true },
                   { name: 'company', label: 'Company', required: true },
                   { name: 'title', label: 'Job Title' },

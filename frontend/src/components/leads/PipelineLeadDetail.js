@@ -187,7 +187,7 @@ export default function PipelineLeadDetail({ stage }) {
             values={lead}
             onSave={saveSection}
             fields={[
-              { name: 'first_name', label: 'First Name' },
+              { name: 'first_name', label: 'First Name', required: true },
               { name: 'last_name', label: 'Last Name', required: true },
               { name: 'company', label: 'Company', required: true },
               { name: 'title', label: 'Job Title' },

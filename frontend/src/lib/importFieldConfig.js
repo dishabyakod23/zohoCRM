@@ -19,7 +19,7 @@ export const LEAD_IMPORT_FIELDS = [
 export const CONTACT_IMPORT_FIELDS = [
   { key: 'owner_id', label: 'Contact Owner', aliases: ['owner', 'owner_id', 'owner_email', 'contact_owner'] },
   { key: 'salutation', label: 'Salutation', aliases: ['prefix', 'honorific'] },
-  { key: 'first_name', label: 'First Name', aliases: ['firstname', 'first', 'givenname', 'fname'] },
+  { key: 'first_name', label: 'First Name', required: true, aliases: ['firstname', 'first', 'givenname', 'fname'] },
   { key: 'last_name', label: 'Last Name', required: true, aliases: ['lastname', 'last', 'surname', 'lname'] },
   { key: 'email', label: 'Email', required: true, aliases: ['emailaddress', 'email_address', 'mail'] },
   { key: 'account_name', label: 'Account Name', required: true, aliases: ['account', 'company', 'organization', 'accountname', 'account_id'] },
