@@ -34,7 +34,7 @@ export function emptyContactForm() {
 
 function SectionTitle({ children }) {
   return (
-    <h3 className="text-sm font-semibold text-zoho-text border-b border-zoho-border pb-3 mb-6 mt-10 first:mt-0">
+    <h3 className="text-sm font-semibold text-zoho-text border-b border-zoho-border py-3 mb-6 mt-10 first:mt-0">
       {children}
     </h3>
   );
