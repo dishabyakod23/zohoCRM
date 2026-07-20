@@ -12,6 +12,7 @@ import {
 } from '../listRecordFilters.js';
 import { LEAD_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { sortRecords } from '../listSortHelpers.js';
 
 const CONVERT_MASS_TARGETS = new Set(['account', 'contact', 'deal']);
 
@@ -111,6 +112,7 @@ export async function listWorkItems({
   pipeline_stage,
   sort_by = 'updated_at',
   sort_order = 'desc',
+  sort_key,
   filters = {},
   statusOptions,
 } = {}) {
@@ -127,6 +129,7 @@ export async function listWorkItems({
     items = filterLeadsByPipelineStage(items, pipeline_stage);
   }
   items = applyLeadRecordFilters(items, { ...filters, owner_id: userId });
+  items = sortRecords(items, sort_key || 'created_desc', 'leads');
 
   const start = (page - 1) * page_size;
   return {

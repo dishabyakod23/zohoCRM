@@ -17,6 +17,7 @@ import * as callsApi from '../../lib/services/calls.js';
 import { fetchCallTypes, fetchUsers } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 
 const EMPTY = { subject: '', call_type: 'outbound', start_time: '', assigned_to: '', duration_minutes: 15, description: '' };
 const LIMIT = DEFAULT_PAGE_SIZE;
@@ -36,6 +37,7 @@ export default function CallsPage() {
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   useEffect(() => {
     Promise.all([fetchUsers(), fetchCallTypes()]).then(([u, t]) => { setUsers(u); setCallTypes(t); }).catch(() => {});
@@ -47,7 +49,12 @@ export default function CallsPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await callsApi.listCalls({ page, page_size: LIMIT, search: debouncedSearch || undefined });
+      const result = await callsApi.listCalls({
+        page,
+        page_size: LIMIT,
+        search: debouncedSearch || undefined,
+        ...getSortApiParams(sort, 'calls'),
+      });
       setItems(result.data);
       setTotal(result.total);
     } catch (err) {
@@ -55,7 +62,7 @@ export default function CallsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, showToast]);
+  }, [page, debouncedSearch, sort, showToast]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
@@ -103,6 +110,8 @@ export default function CallsPage() {
           placeholder="Search calls…"
           total={total}
           totalLabel="calls"
+          sort={sort}
+          onSortChange={(v) => { setSort(v); setPage(1); }}
           table={(
             <RecordDataTable
               moduleKey="calls"

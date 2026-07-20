@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import ListViewLayout from './ListViewLayout.js';
+import ListSortSelect from './ListSortSelect.js';
 
 /** Compact search row for list pages without ListToolbar views. */
 export default function ListSearchBar({
@@ -17,6 +18,8 @@ export default function ListSearchBar({
   filterTitle = 'Filter by',
   hasActiveFilters = false,
   onClearFilters = null,
+  sort,
+  onSortChange,
   table,
 }) {
   const [showFilters, setShowFilters] = useState(true);
@@ -30,6 +33,7 @@ export default function ListSearchBar({
           {limitOptions.map((n) => <option key={n} value={n}>{n} per page</option>)}
         </select>
       )}
+      <ListSortSelect value={sort} onChange={onSortChange} />
       {total != null && (
         <span className="text-xs text-zoho-muted">
           {total} {total === 1 ? totalLabel.replace(/s$/, '') : totalLabel}

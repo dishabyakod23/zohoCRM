@@ -18,6 +18,7 @@ import * as dealsApi from '../../lib/services/deals.js';
 import { fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 
 const ENTITY_TYPES = [
   { value: 'account', label: 'Account' },
@@ -43,6 +44,7 @@ export default function DocumentsPage() {
   const [uploadForm, setUploadForm] = useState({ document_name: '', related_entity_type: 'account', related_entity_id: '', file: null });
   const [uploadErrors, setUploadErrors] = useState({});
   const [uploading, setUploading] = useState(false);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
 
@@ -55,6 +57,7 @@ export default function DocumentsPage() {
         page,
         page_size: limit,
         search: debouncedSearch || undefined,
+        ...getSortApiParams(sort, 'documents'),
       });
       setDocs(result.data);
       setTotal(result.total ?? result.data.length);
@@ -63,7 +66,7 @@ export default function DocumentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, showToast]);
+  }, [page, limit, debouncedSearch, sort, showToast]);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
 
@@ -171,6 +174,8 @@ export default function DocumentsPage() {
           placeholder="Search documents…"
           total={total}
           totalLabel="documents"
+          sort={sort}
+          onSortChange={(v) => { setSort(v); setPage(1); }}
           table={(
             <RecordDataTable
               moduleKey="documents"

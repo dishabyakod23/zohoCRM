@@ -17,6 +17,7 @@ import * as meetingsApi from '../../lib/services/meetings.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 
 const EMPTY = { title: '', from_datetime: '', to_datetime: '', host_id: '', location: '', description: '', participant_ids: [] };
 const REQUIRED = { title: 'Meeting Title', from_datetime: 'From Date & Time', to_datetime: 'To Date & Time', host_id: 'Host' };
@@ -36,6 +37,7 @@ export default function MeetingsPage() {
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   useEffect(() => { fetchUsers().then(setUsers).catch(() => {}); }, []);
 
@@ -45,7 +47,12 @@ export default function MeetingsPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await meetingsApi.listMeetings({ page, page_size: LIMIT, search: debouncedSearch || undefined });
+      const result = await meetingsApi.listMeetings({
+        page,
+        page_size: LIMIT,
+        search: debouncedSearch || undefined,
+        ...getSortApiParams(sort, 'meetings'),
+      });
       setItems(result.data);
       setTotal(result.total);
     } catch (err) {
@@ -53,7 +60,7 @@ export default function MeetingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, showToast]);
+  }, [page, debouncedSearch, sort, showToast]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
@@ -114,6 +121,8 @@ export default function MeetingsPage() {
           placeholder="Search meetings…"
           total={total}
           totalLabel="meetings"
+          sort={sort}
+          onSortChange={(v) => { setSort(v); setPage(1); }}
           table={(
             <RecordDataTable
               moduleKey="meetings"

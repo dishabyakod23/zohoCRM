@@ -31,9 +31,11 @@ export function normalizeRecycleItem(item) {
   };
 }
 
-export async function listRecycleBin({ page = 1, page_size = DEFAULT_PAGE_SIZE, entity_type } = {}) {
+export async function listRecycleBin({ page = 1, page_size = DEFAULT_PAGE_SIZE, entity_type, sort_by, sort_order } = {}) {
   const params = { page, page_size };
   if (entity_type) params.entity_type = entity_type;
+  if (sort_by) params.sort_by = sort_by;
+  if (sort_order) params.sort_order = sort_order;
   const res = await api.get('/recycle-bin', { params });
   return {
     data: (res.data.data || []).map(normalizeRecycleItem),

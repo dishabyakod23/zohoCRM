@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import ListViewLayout from './ListViewLayout.js';
+import ListSortSelect from './ListSortSelect.js';
 
 /**
  * List toolbar — views, filter sidebar, search, and integrated table.
@@ -18,6 +19,8 @@ export default function ListToolbar({
   table,
   hasActiveFilters = false,
   onClearFilters,
+  sort,
+  onSortChange,
 }) {
   const [showFilters, setShowFilters] = useState(true);
   const hasFilters = !!children;
@@ -25,6 +28,7 @@ export default function ListToolbar({
   const toolbarLeft = (
     <>
       {extraActions}
+      <ListSortSelect value={sort} onChange={onSortChange} />
       {total != null && (
         <span className="text-xs text-zoho-muted">
           {total} {total !== 1 ? 'records' : 'record'}

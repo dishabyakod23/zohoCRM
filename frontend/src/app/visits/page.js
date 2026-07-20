@@ -16,6 +16,7 @@ import * as visitsApi from '../../lib/services/visits.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchVisitStatuses } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_LIST_SORT, sortRecords } from '../../lib/listSortHelpers.js';
 
 const EMPTY = { title: '', visit_date: '', location: '', status: 'planned', account_id: '' };
 
@@ -32,18 +33,19 @@ export default function VisitsPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
 
   const filteredItems = useMemo(() => {
-    if (!debouncedSearch) return items;
-    const q = debouncedSearch.toLowerCase();
-    return items.filter((v) =>
-      (v.title || v.visit_name || '').toLowerCase().includes(q)
-      || (v.account_name || '').toLowerCase().includes(q)
-      || (v.location || '').toLowerCase().includes(q),
-    );
-  }, [items, debouncedSearch]);
+    const base = !debouncedSearch ? items : items.filter((v) => {
+      const q = debouncedSearch.toLowerCase();
+      return (v.title || v.visit_name || '').toLowerCase().includes(q)
+        || (v.account_name || '').toLowerCase().includes(q)
+        || (v.location || '').toLowerCase().includes(q);
+    });
+    return sortRecords(base, sort, 'visits');
+  }, [items, debouncedSearch, sort]);
 
   useEffect(() => {
     Promise.all([fetchAccountLookups(), fetchVisitStatuses()])
@@ -107,6 +109,8 @@ export default function VisitsPage() {
           search={search}
           onSearchChange={setSearch}
           placeholder="Search visits…"
+          sort={sort}
+          onSortChange={setSort}
           table={(
             <RecordDataTable
               moduleKey="visits"

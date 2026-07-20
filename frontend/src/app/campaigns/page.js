@@ -14,6 +14,7 @@ import * as campaignsApi from '../../lib/services/campaigns.js';
 import { fetchCampaignStatuses } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -27,6 +28,7 @@ export default function CampaignsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   useEffect(() => {
     fetchCampaignStatuses().then(setStatusOptions).catch(() => {});
@@ -35,7 +37,12 @@ export default function CampaignsPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await campaignsApi.listCampaigns({ page, page_size: LIMIT, search: debouncedSearch || undefined });
+      const result = await campaignsApi.listCampaigns({
+        page,
+        page_size: LIMIT,
+        search: debouncedSearch || undefined,
+        ...getSortApiParams(sort, 'campaigns'),
+      });
       setItems(result.data);
       setTotal(result.total);
     } catch (err) {
@@ -43,7 +50,7 @@ export default function CampaignsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, showToast]);
+  }, [page, debouncedSearch, sort, showToast]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
@@ -74,6 +81,8 @@ export default function CampaignsPage() {
           placeholder="Search campaigns…"
           total={total}
           totalLabel="campaigns"
+          sort={sort}
+          onSortChange={(v) => { setSort(v); setPage(1); }}
           table={(
             <RecordDataTable
               moduleKey="campaigns"

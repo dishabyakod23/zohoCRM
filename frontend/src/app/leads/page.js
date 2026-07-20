@@ -21,6 +21,7 @@ import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
+import { DEFAULT_LIST_SORT, getSortApiParams, sortRecords } from '../../lib/listSortHelpers.js';
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -39,6 +40,7 @@ export default function LeadsPage() {
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
   const [users, setUsers] = useState([]);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const fetchRequestId = useRef(0);
 
   useEffect(() => {
@@ -67,20 +69,15 @@ export default function LeadsPage() {
         filters: isUnreadView ? {} : filters,
       };
       if (activeView === 'My Leads' && user?.id) params.owner_id = user.id;
-      if (activeView === 'Recently Created') {
-        params.sort_by = 'created_at';
-        params.sort_order = 'desc';
-      }
-      if (activeView === 'Recently Modified') {
-        params.sort_by = 'updated_at';
-        params.sort_order = 'desc';
-      }
+      const sortParams = activeView === 'Recently Modified'
+        ? { sort_by: 'updated_at', sort_order: 'desc' }
+        : getSortApiParams(sort, 'leads');
+      Object.assign(params, sortParams);
       const result = isUnreadView
         ? await leadsApi.listAllLeads({
           search: params.search,
           owner_id: params.owner_id,
-          sort_by: params.sort_by,
-          sort_order: params.sort_order,
+          ...sortParams,
           statusOptions,
         })
         : await leadsApi.listLeads({
@@ -89,7 +86,7 @@ export default function LeadsPage() {
         });
       if (requestId !== fetchRequestId.current) return;
       if (isUnreadView) {
-        const unread = filterUnreadRecords(result.data, 'lead');
+        const unread = sortRecords(filterUnreadRecords(result.data, 'lead'), sort, 'leads');
         const start = (page - 1) * limit;
         setLeads(unread.slice(start, start + limit));
         setTotal(unread.length);
@@ -103,7 +100,7 @@ export default function LeadsPage() {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, filters, activeView, user?.id, showToast, statusOptions]);
+  }, [page, limit, debouncedSearch, filters, activeView, user?.id, showToast, statusOptions, sort]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -142,9 +139,15 @@ export default function LeadsPage() {
           total={total}
           views={LIST_VIEWS.leads}
           activeView={activeView}
-          onViewChange={(v) => { setActiveView(v); setPage(1); }}
+          onViewChange={(v) => {
+            setActiveView(v);
+            setPage(1);
+            if (v === 'Recently Created') setSort('created_desc');
+          }}
           searchValue={search}
           onSearch={(v) => { setSearch(v); setPage(1); }}
+          sort={sort}
+          onSortChange={(v) => { setSort(v); setPage(1); }}
           hasActiveFilters={countActiveFilters(filters) > 0}
           onClearFilters={() => { setFilters(EMPTY_LEAD_FILTERS); setPage(1); }}
           extraActions={(

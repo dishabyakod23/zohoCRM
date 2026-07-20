@@ -16,6 +16,7 @@ import { tableLinkClass, tableEmailClass, avatarInitialClass } from '../../lib/t
 import { TextFilter, SelectFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import { EMPTY_ACCOUNT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
+import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -32,6 +33,7 @@ export default function AccountsPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState(EMPTY_ACCOUNT_FILTERS);
   const [users, setUsers] = useState([]);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   useEffect(() => {
     fetchUsers().then(setUsers).catch(() => setUsers([]));
@@ -45,6 +47,7 @@ export default function AccountsPage() {
         page_size: LIMIT,
         search: debouncedSearch || undefined,
         filters,
+        ...getSortApiParams(sort, 'accounts'),
       });
       setAccounts(result.data);
       setTotal(result.total);
@@ -53,7 +56,7 @@ export default function AccountsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, filters, showToast]);
+  }, [page, debouncedSearch, filters, sort, showToast]);
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
@@ -99,6 +102,8 @@ export default function AccountsPage() {
           placeholder="Search accounts…"
           total={total}
           totalLabel="accounts"
+          sort={sort}
+          onSortChange={(v) => { setSort(v); setPage(1); }}
           filterTitle="Filter Accounts by"
           hasActiveFilters={countActiveFilters(filters) > 0}
           onClearFilters={() => { setFilters(EMPTY_ACCOUNT_FILTERS); setPage(1); }}

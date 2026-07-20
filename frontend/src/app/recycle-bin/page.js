@@ -13,6 +13,7 @@ import * as recycleBinApi from '../../lib/services/recycleBin.js';
 import { RECYCLE_ENTITY_TYPES } from '../../lib/services/recycleBin.js';
 import { tableActionClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -33,6 +34,7 @@ export default function RecycleBinPage() {
   const [restoringId, setRestoringId] = useState('');
   const [deletingId, setDeletingId] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -41,6 +43,7 @@ export default function RecycleBinPage() {
         page,
         page_size: LIMIT,
         entity_type: entityType || undefined,
+        ...getSortApiParams(sort, 'recycle-bin'),
       });
       setItems(result.data);
       setTotal(result.total);
@@ -49,7 +52,7 @@ export default function RecycleBinPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, entityType, showToast]);
+  }, [page, entityType, sort, showToast]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
@@ -105,6 +108,8 @@ export default function RecycleBinPage() {
         <ListSearchBar
           total={total}
           totalLabel="deleted records"
+          sort={sort}
+          onSortChange={(v) => { setSort(v); setPage(1); }}
           filterTitle="Filter Recycle Bin by"
           filterFields={(
             <SelectFilter

@@ -24,6 +24,7 @@ import { fetchLeadMassUpdateFields, fetchPipelineConvertTargets, FALLBACK_LEAD_S
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
+import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 
 const STAGE_BY_VIEW = {
   'All Work Items': null,
@@ -48,6 +49,7 @@ export default function WorkItemsPage() {
   const [activeView, setActiveView] = useState('All Work Items');
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const fetchRequestId = useRef(0);
 
   useEffect(() => {
@@ -73,6 +75,8 @@ export default function WorkItemsPage() {
         pipeline_stage: STAGE_BY_VIEW[activeView] || undefined,
         filters,
         statusOptions,
+        sort_key: sort,
+        ...getSortApiParams(sort, 'leads'),
       });
       if (requestId !== fetchRequestId.current) return;
       setItems(result.data);
@@ -83,7 +87,7 @@ export default function WorkItemsPage() {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [user?.id, page, limit, debouncedSearch, filters, activeView, showToast, statusOptions]);
+  }, [user?.id, page, limit, debouncedSearch, filters, activeView, showToast, statusOptions, sort]);
 
   useEffect(() => { fetchWorkItems(); }, [fetchWorkItems]);
 
@@ -133,6 +137,8 @@ export default function WorkItemsPage() {
           onViewChange={(v) => { setActiveView(v); setPage(1); }}
           searchValue={search}
           onSearch={(v) => { setSearch(v); setPage(1); }}
+          sort={sort}
+          onSortChange={(v) => { setSort(v); setPage(1); }}
           hasActiveFilters={countActiveFilters(filters) > 0}
           onClearFilters={() => { setFilters(EMPTY_LEAD_FILTERS); setPage(1); }}
           extraActions={(

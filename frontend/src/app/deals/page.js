@@ -23,6 +23,7 @@ import { LEAD_SOURCES, DEAL_TYPES, DEFAULT_PAGE_SIZE } from '../../lib/constants
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import CurrencyAmountInput from '../../components/forms/CurrencyAmountInput.js';
 import { formatMoney, DEFAULT_CURRENCY } from '../../lib/currencies.js';
+import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 
 const EMPTY = { deal_name: '', amount: '', currency: DEFAULT_CURRENCY, stage_value: 'qualification', closing_date: '', probability: 10, account_id: '', contact_id: '', deal_type: '', lead_source: '', description: '', proposal_amount: '' };
 
@@ -46,6 +47,7 @@ export default function DealsPage() {
   const [saving, setSaving] = useState(false);
   const [stageMove, setStageMove] = useState(null);
   const [dragDeal, setDragDeal] = useState(null);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
 
@@ -68,6 +70,7 @@ export default function DealsPage() {
           page,
           page_size: limit,
           search: debouncedSearch || undefined,
+          ...getSortApiParams(sort, 'deals'),
         }, accountMap, stageOptions);
       setDeals(result.data);
       setTotal(result.total);
@@ -76,7 +79,7 @@ export default function DealsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, accountMap, stageOptions, showToast, view]);
+  }, [page, limit, debouncedSearch, accountMap, stageOptions, showToast, view, sort]);
 
   useEffect(() => { fetchDeals(); }, [fetchDeals]);
 
@@ -151,6 +154,8 @@ export default function DealsPage() {
               onLimitChange={(n) => { setLimit(n); setPage(1); }}
               total={total}
               totalLabel="deals"
+              sort={sort}
+              onSortChange={(v) => { setSort(v); setPage(1); }}
               table={(
                 <RecordDataTable
                   moduleKey="deals"

@@ -18,6 +18,7 @@ import * as tasksApi from '../../lib/services/tasks.js';
 import { fetchTaskStatuses, fetchTaskPriorities, fetchUsers } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 
 const EMPTY = { title: '', due_date: '', assigned_to: '', status: 'not_started', priority: 'normal', description: '' };
 const REQUIRED = { title: 'Task Title', due_date: 'Due Date', assigned_to: 'Assigned To', status: 'Status' };
@@ -39,6 +40,7 @@ export default function TasksPage() {
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   useEffect(() => {
     Promise.all([fetchUsers(), fetchTaskStatuses(), fetchTaskPriorities()])
@@ -52,7 +54,12 @@ export default function TasksPage() {
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await tasksApi.listTasks({ page, page_size: LIMIT, search: debouncedSearch || undefined });
+      const result = await tasksApi.listTasks({
+        page,
+        page_size: LIMIT,
+        search: debouncedSearch || undefined,
+        ...getSortApiParams(sort, 'tasks'),
+      });
       setTasks(result.data);
       setTotal(result.total);
     } catch (err) {
@@ -60,7 +67,7 @@ export default function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, showToast]);
+  }, [page, debouncedSearch, sort, showToast]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
@@ -110,6 +117,8 @@ export default function TasksPage() {
           placeholder="Search tasks…"
           total={total}
           totalLabel="tasks"
+          sort={sort}
+          onSortChange={(v) => { setSort(v); setPage(1); }}
           table={(
             <RecordDataTable
               moduleKey="tasks"

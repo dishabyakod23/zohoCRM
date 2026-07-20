@@ -12,6 +12,8 @@ import * as meetingsApi from '../../lib/services/meetings.js';
 import * as callsApi from '../../lib/services/calls.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_LIST_SORT, getSortApiParams, sortRecords } from '../../lib/listSortHelpers.js';
+import ListSortSelect from '../../components/layout/ListSortSelect.js';
 
 export default function ActivitiesPage() {
   const { showToast } = useToast();
@@ -20,24 +22,26 @@ export default function ActivitiesPage() {
   const [meetings, setMeetings] = useState([]);
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   const fetchActivities = useCallback(async () => {
     setLoading(true);
     try {
+      const sortParams = getSortApiParams(sort, tab);
       const [t, m, c] = await Promise.all([
-        tasksApi.listTasks({ page: 1, page_size: DEFAULT_PAGE_SIZE }),
-        meetingsApi.listMeetings({ page: 1, page_size: DEFAULT_PAGE_SIZE }),
-        callsApi.listCalls({ page: 1, page_size: DEFAULT_PAGE_SIZE }),
+        tasksApi.listTasks({ page: 1, page_size: DEFAULT_PAGE_SIZE, ...sortParams }),
+        meetingsApi.listMeetings({ page: 1, page_size: DEFAULT_PAGE_SIZE, ...sortParams }),
+        callsApi.listCalls({ page: 1, page_size: DEFAULT_PAGE_SIZE, ...sortParams }),
       ]);
-      setTasks(t.data);
-      setMeetings(m.data);
-      setCalls(c.data);
+      setTasks(sortRecords(t.data, sort, 'tasks'));
+      setMeetings(sortRecords(m.data, sort, 'meetings'));
+      setCalls(sortRecords(c.data, sort, 'calls'));
     } catch (err) {
       showToast(getApiError(err));
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, sort, tab]);
 
   useEffect(() => { fetchActivities(); }, [fetchActivities]);
 
@@ -93,7 +97,8 @@ export default function ActivitiesPage() {
         </div>
 
         <div className="card rounded-t-none">
-          <div className="flex justify-end px-4 py-2 border-b border-zoho-border">
+          <div className="flex justify-between items-center px-4 py-2 border-b border-zoho-border gap-3">
+            <ListSortSelect value={sort} onChange={setSort} />
             <Link href={tabs.find((t) => t.id === tab)?.href || '/tasks'} className="text-xs text-brand-600 hover:text-brand-700 font-medium">
               View all {tab} →
             </Link>

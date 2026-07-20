@@ -17,6 +17,7 @@ import * as projectsApi from '../../lib/services/projects.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchProjectStatuses } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_LIST_SORT, sortRecords } from '../../lib/listSortHelpers.js';
 
 const EMPTY = { name: '', account_id: '', status: 'planning', start_date: '', end_date: '', description: '' };
 
@@ -33,18 +34,19 @@ export default function ProjectsPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
 
   const filteredItems = useMemo(() => {
-    if (!debouncedSearch) return items;
-    const q = debouncedSearch.toLowerCase();
-    return items.filter((p) =>
-      (p.name || '').toLowerCase().includes(q)
-      || (p.account_name || '').toLowerCase().includes(q)
-      || (p.status_label || '').toLowerCase().includes(q),
-    );
-  }, [items, debouncedSearch]);
+    const base = !debouncedSearch ? items : items.filter((p) => {
+      const q = debouncedSearch.toLowerCase();
+      return (p.name || '').toLowerCase().includes(q)
+        || (p.account_name || '').toLowerCase().includes(q)
+        || (p.status_label || '').toLowerCase().includes(q);
+    });
+    return sortRecords(base, sort, 'projects');
+  }, [items, debouncedSearch, sort]);
 
   useEffect(() => {
     Promise.all([fetchAccountLookups(), fetchProjectStatuses()])
@@ -107,6 +109,8 @@ export default function ProjectsPage() {
           search={search}
           onSearchChange={setSearch}
           placeholder="Search projects…"
+          sort={sort}
+          onSortChange={setSort}
           table={(
             <RecordDataTable
               moduleKey="projects"

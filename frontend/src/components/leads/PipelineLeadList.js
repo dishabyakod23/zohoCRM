@@ -24,6 +24,7 @@ import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFI
 
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 
 const STAGE_MODULE_KEY = {
   [PIPELINE_RAW]: 'raw-leads',
@@ -62,7 +63,9 @@ export default function PipelineLeadList({ stage, description }) {
   const [assigning, setAssigning] = useState(false);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
+  const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const fetchRequestId = useRef(0);
+  const moduleKey = STAGE_MODULE_KEY[stage] || 'raw-leads';
 
   useEffect(() => {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
@@ -85,6 +88,7 @@ export default function PipelineLeadList({ stage, description }) {
         lead_status: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PIPELINE_RAW].includes(stage) ? undefined : (config?.apiStatus || stage),
         filters,
         statusOptions,
+        ...getSortApiParams(sort, moduleKey),
       });
       if (requestId !== fetchRequestId.current) return;
       setLeads(result.data);
@@ -95,7 +99,7 @@ export default function PipelineLeadList({ stage, description }) {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, filters, stage, config?.apiStatus, showToast, statusOptions]);
+  }, [page, limit, debouncedSearch, filters, stage, config?.apiStatus, showToast, statusOptions, sort, moduleKey]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -133,7 +137,6 @@ export default function PipelineLeadList({ stage, description }) {
   );
 
   const totalPages = Math.ceil(total / limit) || 1;
-  const moduleKey = STAGE_MODULE_KEY[stage] || 'raw-leads';
 
   const columns = useMemo(() => {
     if (stage === PIPELINE_PROPOSAL) {
@@ -255,6 +258,8 @@ export default function PipelineLeadList({ stage, description }) {
           limit={limit}
           onLimitChange={(n) => { setLimit(n); setPage(1); }}
           total={total}
+          sort={sort}
+          onSortChange={(v) => { setSort(v); setPage(1); }}
           filterTitle={`Filter ${config?.listTitle || 'records'} by`}
           hasActiveFilters={countActiveFilters(filters) > 0}
           onClearFilters={() => { setFilters(EMPTY_LEAD_FILTERS); setPage(1); }}
