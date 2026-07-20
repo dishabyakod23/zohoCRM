@@ -31,7 +31,7 @@ export function emptyLeadForm() {
 const REQUIRED = { first_name: 'First Name', last_name: 'Last Name', company: 'Company', email: 'Email', lead_status: 'Lead Status' };
 
 function SectionTitle({ children }) {
-  return <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3 mt-6 first:mt-0">{children}</p>;
+  return <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-5 mt-8 first:mt-0">{children}</p>;
 }
 
 export default function CreateLeadForm() {
@@ -186,7 +186,7 @@ export default function CreateLeadForm() {
           </div>
 
           <SectionTitle>Address Information</SectionTitle>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 mb-4">
             <div className="sm:col-span-2">
               <FormField label="Street">
                 <input className="input" value={form.street} onChange={set('street')} />

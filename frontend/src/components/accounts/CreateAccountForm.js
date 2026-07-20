@@ -42,7 +42,7 @@ export function emptyAccountForm() {
 
 function SectionTitle({ children }) {
   return (
-    <h3 className="text-sm font-semibold text-zoho-text border-b border-zoho-border pb-2 mb-4 mt-8 first:mt-0">
+    <h3 className="text-sm font-semibold text-zoho-text border-b border-zoho-border pb-3 mb-6 mt-10 first:mt-0">
       {children}
     </h3>
   );
@@ -56,7 +56,7 @@ function AddressBlock({ prefix, label, form, set, copyFrom }) {
   };
   return (
     <div className="flex-1 min-w-0">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-5 pt-1">
         <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider">{label}</p>
         {copyFrom && (
           <button type="button" onClick={copyFrom} className="text-xs text-brand-600 hover:underline">
@@ -64,7 +64,7 @@ function AddressBlock({ prefix, label, form, set, copyFrom }) {
           </button>
         )}
       </div>
-      <div className="space-y-3">
+      <div className="space-y-4">
         <FormField label="Country / Region" name={`${prefix}_country`}>
           <input className="input" placeholder="—None—" value={form[`${prefix}_country`]} onChange={set(`${prefix}_country`)} />
         </FormField>
@@ -296,7 +296,7 @@ export default function CreateAccountForm() {
 
           {/* ── Address Information ── */}
           <SectionTitle>Address Information</SectionTitle>
-          <div className="flex flex-col sm:flex-row gap-8">
+          <div className="flex flex-col sm:flex-row gap-8 sm:gap-x-12 sm:gap-y-8 pt-1">
             <AddressBlock prefix="billing" label="Billing Address" form={form} set={set} />
             <AddressBlock prefix="shipping" label="Shipping Address" form={form} set={set} copyFrom={copyBillingToShipping} />
           </div>

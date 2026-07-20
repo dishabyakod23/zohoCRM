@@ -73,7 +73,7 @@ export function emptyPipelineLeadForm(ownerId = '', defaults = {}) {
 const REQUIRED = { first_name: 'First Name', last_name: 'Last Name', company: 'Company', email: 'Email' };
 
 function SectionTitle({ children }) {
-  return <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-3 mt-6 first:mt-0">{children}</p>;
+  return <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-5 mt-8 first:mt-0">{children}</p>;
 }
 
 function noneSelect(value, onChange, options, placeholder = '--None--') {
@@ -309,7 +309,7 @@ export default function CreatePipelineLeadForm({
           )}
 
           <SectionTitle>Address Information</SectionTitle>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 mb-2">
             <FormField label="Country / Region" name="country">
               {noneSelect(form.country, set('country'), COUNTRIES)}
             </FormField>

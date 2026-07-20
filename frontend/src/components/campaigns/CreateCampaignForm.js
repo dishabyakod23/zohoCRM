@@ -108,7 +108,7 @@ export function emptyCampaignForm() {
 
 function SectionTitle({ children }) {
   return (
-    <h3 className="text-sm font-semibold text-zoho-text border-b border-zoho-border pb-2 mb-4 mt-8 first:mt-0">
+    <h3 className="text-sm font-semibold text-zoho-text border-b border-zoho-border pb-3 mb-6 mt-10 first:mt-0">
       {children}
     </h3>
   );
