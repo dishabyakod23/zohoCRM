@@ -14,13 +14,12 @@ import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { LIST_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import * as contactsApi from '../../lib/services/contacts.js';
-import { filterUnreadRecords } from '../../lib/recordViewTracker.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchUsers } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass, tableAvatarClass } from '../../lib/tableStyles.js';
 import { TextFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_CONTACT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
-import { DEFAULT_LIST_SORT, getSortApiParams, sortRecords } from '../../lib/listSortHelpers.js';
+import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -58,10 +57,9 @@ export default function ContactsPage() {
   const fetchContacts = useCallback(async () => {
     setLoading(true);
     try {
-      const isUnreadView = activeView === 'Unread Contacts';
       const params = {
-        page: isUnreadView ? 1 : page,
-        page_size: isUnreadView ? DEFAULT_PAGE_SIZE : LIMIT,
+        page,
+        page_size: LIMIT,
         search: debouncedSearch || undefined,
       };
       if (activeView === 'My Contacts' && user?.id) params.owner_id = user.id;
@@ -69,23 +67,9 @@ export default function ContactsPage() {
       if (activeView !== 'My Contacts') {
         params.filters = filters;
       }
-      const result = isUnreadView
-        ? await contactsApi.listAllContacts({
-          search: params.search,
-          owner_id: params.owner_id,
-          sort_by: params.sort_by,
-          sort_order: params.sort_order,
-        }, accountMap)
-        : await contactsApi.listContacts(params, accountMap);
-      if (isUnreadView) {
-        const unread = sortRecords(filterUnreadRecords(result.data, 'contact'), sort, 'contacts');
-        const start = (page - 1) * LIMIT;
-        setContacts(unread.slice(start, start + LIMIT));
-        setTotal(unread.length);
-      } else {
-        setContacts(result.data);
-        setTotal(result.total);
-      }
+      const result = await contactsApi.listContacts(params, accountMap);
+      setContacts(result.data);
+      setTotal(result.total);
     } catch (err) {
       showToast(getApiError(err));
     } finally {
