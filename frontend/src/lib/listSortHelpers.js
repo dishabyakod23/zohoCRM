@@ -8,11 +8,11 @@ export const LIST_SORT_OPTIONS = [
 
 export const MODULE_SORT_CONFIG = {
   accounts: { apiNameField: 'name', getLabel: (r) => r.name },
-  contacts: { apiNameField: 'last_name', getLabel: (r) => `${r.first_name || ''} ${r.last_name || ''}`.trim() },
-  leads: { apiNameField: 'last_name', getLabel: (r) => `${r.first_name || ''} ${r.last_name || ''}`.trim() },
-  'raw-leads': { apiNameField: 'last_name', getLabel: (r) => `${r.first_name || ''} ${r.last_name || ''}`.trim() },
-  'qualified-leads': { apiNameField: 'last_name', getLabel: (r) => `${r.first_name || ''} ${r.last_name || ''}`.trim() },
-  proposals: { apiNameField: 'last_name', getLabel: (r) => `${r.first_name || ''} ${r.last_name || ''}`.trim() },
+  contacts: { apiNameField: 'first_name', compareFirstName: true },
+  leads: { apiNameField: 'first_name', compareFirstName: true },
+  'raw-leads': { apiNameField: 'first_name', compareFirstName: true },
+  'qualified-leads': { apiNameField: 'first_name', compareFirstName: true },
+  proposals: { apiNameField: 'first_name', compareFirstName: true },
   deals: { apiNameField: 'deal_name', getLabel: (r) => r.name || r.deal_name },
   tasks: { apiNameField: 'subject', getLabel: (r) => r.title || r.subject },
   meetings: { apiNameField: 'title', getLabel: (r) => r.title },
@@ -26,6 +26,15 @@ export const MODULE_SORT_CONFIG = {
 
 function compareStrings(a, b) {
   return String(a || '').localeCompare(String(b || ''), undefined, { sensitivity: 'base' });
+}
+
+function compareNameAsc(a, b, config) {
+  if (config.compareFirstName) {
+    const byFirst = compareStrings(a?.first_name, b?.first_name);
+    if (byFirst !== 0) return byFirst;
+    return compareStrings(a?.last_name, b?.last_name);
+  }
+  return compareStrings(config.getLabel(a), config.getLabel(b));
 }
 
 function getCreatedTime(record) {
@@ -53,7 +62,7 @@ export function sortRecords(records, sortKey = DEFAULT_LIST_SORT, moduleKey = 'l
   const sorted = [...records];
   switch (sortKey) {
     case 'name_asc':
-      sorted.sort((a, b) => compareStrings(config.getLabel(a), config.getLabel(b)));
+      sorted.sort((a, b) => compareNameAsc(a, b, config));
       break;
     case 'created_asc':
       sorted.sort((a, b) => getCreatedTime(a) - getCreatedTime(b));
