@@ -25,14 +25,6 @@ const CONTACT_CONVERT_OPTIONS = [
   { value: PIPELINE_PROPOSAL, label: 'Proposal' },
 ];
 
-function resolveCreatedLeadIdFromContactConvert(result) {
-  return result?.lead?.id
-    || result?.lead_id
-    || result?.raw_lead_id
-    || result?.id
-    || null;
-}
-
 export const BULK_MODULE_CONFIG = {
   leads: {
     label: 'Records',
@@ -103,13 +95,7 @@ export const BULK_MODULE_CONFIG = {
     massUpdateFields: ['convert'],
     convertOptions: CONTACT_CONVERT_OPTIONS,
     update: (id, payload) => contactsApi.updateContact(id, payload),
-    convert: async (id, target = PIPELINE_RAW) => {
-      const converted = await contactsApi.convertToRawLead(id);
-      const createdLeadId = resolveCreatedLeadIdFromContactConvert(converted);
-      if (!createdLeadId || target === PIPELINE_RAW) return converted;
-      await leadsApi.advanceLeadStage(createdLeadId, target, { proposal: target === PIPELINE_PROPOSAL });
-      return converted;
-    },
+    convert: (id, target = PIPELINE_RAW) => contactsApi.convertContact(id, target),
     deleteOne: (id) => contactsApi.deleteContact(id),
     exportRow: (r) => ({
       first_name: r.first_name, last_name: r.last_name, email: r.email, phone: r.phone, account: r.account_name,

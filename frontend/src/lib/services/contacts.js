@@ -152,6 +152,18 @@ export async function importContactsFile(file, { dry_run = true } = {}) {
 }
 
 export async function convertToRawLead(contactId) {
-  const res = await api.post(`/contacts/${contactId}/convert-to-raw-lead`);
+  return convertContact(contactId, 'raw_prospect');
+}
+
+const CONTACT_CONVERT_ENDPOINTS = {
+  raw_prospect: 'convert-to-raw-lead',
+  contacted: 'convert-to-lead',
+  qualified_lead: 'convert-to-qualified-lead',
+  proposal: 'convert-to-proposal',
+};
+
+export async function convertContact(contactId, target = 'raw_prospect') {
+  const endpoint = CONTACT_CONVERT_ENDPOINTS[target] || CONTACT_CONVERT_ENDPOINTS.raw_prospect;
+  const res = await api.post(`/contacts/${contactId}/${endpoint}`);
   return res.data?.data || null;
 }
