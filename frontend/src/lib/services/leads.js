@@ -15,6 +15,33 @@ import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
 
 const CONVERT_MASS_TARGETS = new Set(['account', 'contact', 'deal']);
+const PIPELINE_CONVERT_MASS_FIELD = 'pipeline_convert_target';
+
+function isConvertMassUpdateFieldKey(field) {
+  const key = String(field || '').toLowerCase();
+  return key === 'convert' || key === 'pipeline_convert' || key === PIPELINE_CONVERT_MASS_FIELD;
+}
+
+function resolvePipelineConvertMassValue(value, { proposal = false, clearProposal = false } = {}) {
+  if (proposal) return 'proposal';
+  const target = String(value ?? '').toLowerCase();
+  if (clearProposal || target === 'lead') return PIPELINE_LEAD;
+  const mapped = resolveLeadStatusForApi(value);
+  if (mapped) return mapped;
+  if (target === 'proposal') return 'proposal';
+  return value;
+}
+
+async function convertPipelineTargets(ids, value, extras = {}) {
+  const apiValue = resolvePipelineConvertMassValue(value, extras);
+  const result = await massUpdateLeads(ids, PIPELINE_CONVERT_MASS_FIELD, apiValue, extras);
+  if (result?.failed_count > 0) {
+    const err = new Error((result.errors || []).join('; ') || 'Convert failed');
+    err.massUpdateResult = result;
+    throw err;
+  }
+  return result;
+}
 
 async function fetchAllLeadPages(params, statusOptions) {
   const pageSize = DEFAULT_PAGE_SIZE;
@@ -169,38 +196,33 @@ export async function massUpdateLeads(ids, field, value, { lost_reason } = {}) {
   return res.data.data;
 }
 
-function isConvertMassUpdateFieldKey(field) {
-  const key = String(field || '').toLowerCase();
-  return key === 'convert' || key === 'pipeline_convert';
-}
-
-/** Route mass-update Convert to per-lead conversion; other fields use bulk API. */
+/** Route mass-update Convert to pipeline_convert_target API; account/deal uses per-lead convert. */
 export async function applyLeadMassUpdate(ids, field, value, extras = {}) {
   if (isConvertMassUpdateFieldKey(field)) {
     const target = String(value || '').toLowerCase();
-    let success = 0;
-    const errors = [];
-    for (const id of ids) {
-      try {
-        if (CONVERT_MASS_TARGETS.has(target)) {
+    if (CONVERT_MASS_TARGETS.has(target)) {
+      let success = 0;
+      const errors = [];
+      for (const id of ids) {
+        try {
           await convertLead(id, { create_deal: target === 'deal' });
-        } else {
-          await advanceLeadStage(id, value, {
-            proposal: target === 'proposal' || value === PIPELINE_PROPOSAL,
-            clearProposal: target === 'lead' || target === PIPELINE_LEAD || value === PIPELINE_LEAD,
-          });
+          success += 1;
+        } catch (err) {
+          errors.push(`${id}: ${err.response?.data?.message || err.response?.data?.error || err.message || 'Update failed'}`);
         }
-        success += 1;
-      } catch (err) {
-        errors.push(`${id}: ${err.response?.data?.message || err.response?.data?.error || err.message || 'Update failed'}`);
       }
+      if (errors.length) {
+        const err = new Error(errors.join('; '));
+        err.massUpdateResult = { success_count: success, failed_count: errors.length, errors };
+        throw err;
+      }
+      return { success_count: success, updated: success, failed_count: 0, errors: [] };
     }
-    if (errors.length) {
-      const err = new Error(errors.join('; '));
-      err.massUpdateResult = { success_count: success, failed_count: errors.length, errors };
-      throw err;
-    }
-    return { success_count: success, updated: success, failed_count: 0, errors: [] };
+    return convertPipelineTargets(ids, value, {
+      proposal: target === 'proposal' || value === PIPELINE_PROPOSAL,
+      clearProposal: target === 'lead' || target === PIPELINE_LEAD || value === PIPELINE_LEAD,
+      ...extras,
+    });
   }
 
   const fieldKey = String(field || '').toLowerCase();
@@ -274,14 +296,8 @@ export async function importLeadsFile(file, { dry_run = true } = {}) {
 }
 
 export async function advanceLeadStage(id, lead_status, { proposal = false, clearProposal = false } = {}) {
-  const payload = { lead_status: resolveLeadStatusForApi(lead_status) };
-  if (proposal || lead_status === PIPELINE_PROPOSAL) {
-    payload.lead_source = PROPOSAL_SOURCE;
-  } else if (clearProposal) {
-    payload.lead_source = null;
-  }
-  const res = await api.patch(`/leads/${id}`, payload);
-  return normalizeLead(res.data.data);
+  await convertPipelineTargets([id], lead_status, { proposal, clearProposal });
+  return getLead(id);
 }
 
 export async function assignLead(id, owner_id) {
