@@ -17,6 +17,9 @@ import * as contactsApi from '../../../lib/services/contacts.js';
 import * as dealsApi from '../../../lib/services/deals.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchDealStages } from '../../../lib/services/lookups.js';
 import { LEAD_SOURCES } from '../../../lib/constants.js';
+import {
+  PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL,
+} from '../../../lib/pipelineHelpers.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import PhoneDisplay from '../../../components/cloudtalk/PhoneDisplay.js';
 import CallRecordButton from '../../../components/cloudtalk/CallRecordButton.js';
@@ -142,22 +145,20 @@ export default function ContactDetailPage() {
   }, [convertOpen]);
 
   const CONVERT_OPTIONS = [
-    { label: 'Raw Lead',        endpoint: 'convert-to-raw-lead',       path: '/raw-leads' },
-    { label: 'Lead',            endpoint: 'convert-to-lead',           path: '/leads' },
-    { label: 'Qualified Lead',  endpoint: 'convert-to-qualified-lead', path: '/qualified-leads' },
-    { label: 'Proposal',        endpoint: 'convert-to-proposal',       path: '/proposals' },
-    { label: 'Account',         endpoint: 'convert-to-account',        path: '/accounts' },
+    { label: 'Raw Lead', target: PIPELINE_RAW },
+    { label: 'Lead', target: PIPELINE_LEAD },
+    { label: 'Qualified Lead', target: PIPELINE_QUALIFIED },
+    { label: 'Proposal', target: PIPELINE_PROPOSAL },
+    { label: 'Account', target: 'account' },
   ];
 
   const handleConvertTo = async (option) => {
     setConvertOpen(false);
     setConverting(true);
     try {
-      const res = await api.post(`/contacts/${id}/${option.endpoint}`);
-      const record = res.data?.data;
+      const result = await contactsApi.convertContact(id, option.target);
       showToast(`Converted to ${option.label}`, 'success');
-      const newId = record?.id;
-      router.push(newId ? `${option.path}/${newId}` : option.path);
+      router.push(contactsApi.getContactConvertRedirect(result, option.target));
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -195,7 +196,7 @@ export default function ContactDetailPage() {
                   <div className="absolute right-0 mt-1 w-44 bg-white border border-zoho-border rounded-lg shadow-lg z-50 py-1">
                     {CONVERT_OPTIONS.map((opt) => (
                       <button
-                        key={opt.endpoint}
+                        key={opt.label}
                         onClick={() => handleConvertTo(opt)}
                         className="w-full text-left px-3 py-2 text-xs text-zoho-text hover:bg-gray-50 transition-colors"
                       >

@@ -7,6 +7,13 @@ import {
 } from '../listRecordFilters.js';
 import { CONTACT_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { advanceLeadStage, convertLead } from './leads.js';
+import {
+  PIPELINE_RAW,
+  PIPELINE_LEAD,
+  PIPELINE_PROPOSAL,
+  getConvertRedirectPath,
+} from '../pipelineHelpers.js';
 
 async function fetchAllContactPages(params, accountMap) {
   const pageSize = DEFAULT_PAGE_SIZE;
@@ -151,19 +158,39 @@ export async function importContactsFile(file, { dry_run = true } = {}) {
   return normalizeImportResult({ imported_count: imported });
 }
 
+/** Only contact conversion endpoint exposed by the API. */
 export async function convertToRawLead(contactId) {
-  return convertContact(contactId, 'raw_prospect');
+  const res = await api.post(`/contacts/${contactId}/convert-to-raw-lead`);
+  return res.data?.data || null;
 }
 
-const CONTACT_CONVERT_ENDPOINTS = {
-  raw_prospect: 'convert-to-raw-lead',
-  contacted: 'convert-to-lead',
-  qualified_lead: 'convert-to-qualified-lead',
-  proposal: 'convert-to-proposal',
-};
+function resolveLeadIdFromContactConvert(result) {
+  return result?.lead_id || result?.lead?.id || null;
+}
 
-export async function convertContact(contactId, target = 'raw_prospect') {
-  const endpoint = CONTACT_CONVERT_ENDPOINTS[target] || CONTACT_CONVERT_ENDPOINTS.raw_prospect;
-  const res = await api.post(`/contacts/${contactId}/${endpoint}`);
-  return res.data?.data || null;
+export function getContactConvertRedirect(result, target) {
+  if (target === 'account') {
+    return result?.account_id ? `/accounts/${result.account_id}` : '/accounts';
+  }
+  const leadId = resolveLeadIdFromContactConvert(result);
+  if (!leadId) return '/contacts';
+  return getConvertRedirectPath(target, leadId);
+}
+
+/** Convert contact via convert-to-raw-lead, then advance lead stage or convert to account. */
+export async function convertContact(contactId, target = PIPELINE_RAW) {
+  const converted = await convertToRawLead(contactId);
+  const leadId = resolveLeadIdFromContactConvert(converted);
+  if (!leadId || target === PIPELINE_RAW || target === 'raw_prospect') {
+    return { ...converted, lead_id: leadId };
+  }
+  if (target === 'account') {
+    const accountResult = await convertLead(leadId, { create_deal: false });
+    return { ...converted, ...accountResult, lead_id: leadId };
+  }
+  const lead = await advanceLeadStage(leadId, target, {
+    proposal: target === PIPELINE_PROPOSAL || target === 'proposal',
+    clearProposal: target === PIPELINE_LEAD || target === 'contacted',
+  });
+  return { ...converted, lead_id: leadId, lead };
 }
