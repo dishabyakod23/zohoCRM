@@ -156,9 +156,18 @@ export async function fetchLeadMassUpdateFields({ canChangeOwner = false } = {})
   return filterLeadMassUpdateFields(fields, { canChangeOwner });
 }
 
+/** Hide Deal from mass-update convert target dropdowns. */
+export function filterPipelineConvertTargets(options = []) {
+  return (options || []).filter((option) => {
+    const value = String(option?.value ?? '').toLowerCase().trim();
+    const label = String(option?.label ?? '').toLowerCase().trim();
+    return value !== 'deal' && label !== 'deal';
+  });
+}
+
 export async function fetchPipelineConvertTargets() {
   const res = await api.get('/lookups/pipeline-convert-targets');
-  return parseLookupOptions(res.data.data);
+  return filterPipelineConvertTargets(parseLookupOptions(res.data.data));
 }
 
 export async function fetchLostReasons() {
