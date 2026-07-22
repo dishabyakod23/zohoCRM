@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useToast } from '../components/ui/Toast.js';
 import { getApiError } from '../lib/api.js';
 import * as notesApi from '../lib/services/notes.js';
+import { notifyRecordNotesChanged } from '../lib/recordUpdateEvents.js';
 
 export function useRecordNotes(relatedType, recordId) {
   const { showToast } = useToast();
@@ -44,6 +45,7 @@ export function useRecordNotes(relatedType, recordId) {
       const note = await notesApi.createNote(relatedType, recordId, noteText.trim());
       setNotes((prev) => [note, ...prev]);
       setNoteText('');
+      notifyRecordNotesChanged({ relatedType, recordId });
       showToast('Note added', 'success');
       return note;
     } catch (err) {
@@ -74,6 +76,7 @@ export function useRecordNotes(relatedType, recordId) {
       const updated = await notesApi.updateNote(relatedType, recordId, noteId, editText.trim());
       setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, ...updated, body: updated.body } : n)));
       cancelEdit();
+      notifyRecordNotesChanged({ relatedType, recordId });
       showToast('Note updated', 'success');
     } catch (err) {
       showToast(getApiError(err));
@@ -88,6 +91,7 @@ export function useRecordNotes(relatedType, recordId) {
       await notesApi.deleteNote(relatedType, recordId, noteId);
       setNotes((prev) => prev.filter((n) => n.id !== noteId));
       if (editingId === noteId) cancelEdit();
+      notifyRecordNotesChanged({ relatedType, recordId });
       showToast('Note deleted', 'success');
     } catch (err) {
       showToast(getApiError(err));

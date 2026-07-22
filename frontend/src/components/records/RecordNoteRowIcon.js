@@ -1,8 +1,9 @@
 'use client';
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import RecordNoteHoverPreview from './RecordNoteHoverPreview.js';
 import * as notesApi from '../../lib/services/notes.js';
+import { RECORD_NOTES_CHANGED_EVENT } from '../../lib/recordUpdateEvents.js';
 
 function NoteIconSvg({ className }) {
   return (
@@ -29,8 +30,9 @@ export default function RecordNoteRowIcon({
   const [loading, setLoading] = useState(false);
   const loadedRef = useRef(false);
 
-  const loadNotes = useCallback(async () => {
-    if (loadedRef.current || !relatedType || !recordId) return;
+  const loadNotes = useCallback(async (force = false) => {
+    if (!force && loadedRef.current) return;
+    if (!relatedType || !recordId) return;
     loadedRef.current = true;
     setLoading(true);
     try {
@@ -40,10 +42,22 @@ export default function RecordNoteRowIcon({
     } catch {
       setLatestNote(null);
       setNoteCount(0);
+      loadedRef.current = false;
     } finally {
       setLoading(false);
     }
   }, [relatedType, recordId]);
+
+  useEffect(() => {
+    const onNotesChanged = (event) => {
+      const { relatedType: type, recordId: id } = event.detail || {};
+      if (type !== relatedType || String(id) !== String(recordId)) return;
+      loadedRef.current = false;
+      loadNotes(true);
+    };
+    window.addEventListener(RECORD_NOTES_CHANGED_EVENT, onNotesChanged);
+    return () => window.removeEventListener(RECORD_NOTES_CHANGED_EVENT, onNotesChanged);
+  }, [relatedType, recordId, loadNotes]);
 
   const showPreview = () => {
     loadNotes();
