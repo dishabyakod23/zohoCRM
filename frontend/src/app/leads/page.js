@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
+import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
@@ -96,7 +96,7 @@ export default function LeadsPage() {
   );
 
   const columns = useMemo(() => [
-    { id: 'name', header: 'Lead Name', cell: (lead) => <Link href={`/leads/${lead.id}`} className={tableLinkClass}>{lead.first_name} {lead.last_name}</Link> },
+    { id: 'name', header: 'Lead Name', cell: (lead) => <RecordDetailLink href={`/leads/${lead.id}`} className={tableLinkClass}>{lead.first_name} {lead.last_name}</RecordDetailLink> },
     { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
     { id: 'email', header: 'Email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
     { id: 'phone', header: 'Phone', cell: (lead) => <PhoneCell value={lead.phone} label="Call lead" /> },

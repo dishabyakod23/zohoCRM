@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useRecordId } from '../../hooks/useRecordId.js';
+import { useRecordId, isValidRecordId } from '../../hooks/useRecordId.js';
 import CRMLayout from '../layout/CRMLayout.js';
 import Modal from '../ui/Modal.js';
 import Badge from '../ui/Badge.js';
@@ -62,6 +62,7 @@ export default function PipelineLeadDetail({ stage }) {
   };
 
   const loadLead = useCallback(() => {
+    if (!isValidRecordId(id)) return;
     leadsApi.getLead(id).then((r) => {
       if (!leadMatchesStage(r)) {
         showToast('This record is not in the expected pipeline stage');
@@ -83,7 +84,10 @@ export default function PipelineLeadDetail({ stage }) {
     });
   }, [id, stage, config?.listPath, router, showToast, user?.id]);
 
-  useEffect(() => { loadLead(); }, [loadLead]);
+  useEffect(() => {
+    if (!isValidRecordId(id)) return;
+    loadLead();
+  }, [loadLead, id]);
 
   const saveSection = async (payload) => {
     if (payload.email) {

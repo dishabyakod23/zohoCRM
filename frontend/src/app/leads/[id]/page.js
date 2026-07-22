@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useRecordId } from '../../../hooks/useRecordId.js';
+import { useRecordId, isValidRecordId } from '../../../hooks/useRecordId.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
@@ -47,6 +47,7 @@ export default function LeadDetailPage() {
   }, [canAssignLeads]);
 
   const loadLead = useCallback(() => {
+    if (!isValidRecordId(id)) return;
     leadsApi.getLead(id).then((r) => {
       setLead(r);
       trackRecentItem({ type: 'lead', id, name: `${r.first_name} ${r.last_name}`, lead: r });
@@ -57,6 +58,7 @@ export default function LeadDetailPage() {
   }, [id, router, showToast]);
 
   useEffect(() => {
+    if (!isValidRecordId(id)) return;
     loadLead();
   }, [id, loadLead]);
 
