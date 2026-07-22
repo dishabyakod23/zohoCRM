@@ -6,9 +6,11 @@ import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
+import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
+import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { getApiError } from '../../lib/api.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import { ACCOUNT_TYPES, INDUSTRIES, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
@@ -59,6 +61,7 @@ export default function AccountsPage() {
   }, [page, debouncedSearch, filters, sort, showToast]);
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
+  useListRefresh(fetchAccounts);
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
@@ -66,7 +69,7 @@ export default function AccountsPage() {
     { id: 'name', header: 'Company', cell: (a) => (
       <div className="flex items-center gap-2.5">
         <div className={avatarInitialClass(a.name, 'md')}>{(a.name || '?')[0]}</div>
-        <Link href={`/accounts/${a.id}`} className={tableLinkClass}>{a.name}</Link>
+        <RecordDetailLink href={`/accounts/${a.id}`} className={tableLinkClass}>{a.name}</RecordDetailLink>
       </div>
     ) },
     { id: 'industry', header: 'Industry', cell: (a) => a.industry || '—' },

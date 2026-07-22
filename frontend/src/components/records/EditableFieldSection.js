@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { validateRequired } from '../../lib/validators.js';
+import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 
 /**
  * Section card that displays fields read-only with per-section Edit → Save/Cancel.
@@ -45,6 +46,7 @@ export default function EditableFieldSection({
     if (Object.keys(errs).length) return;
     try {
       await onSave(draft);
+      markRecordListStale();
       setEditing(false);
     } catch {
       // Stay in edit mode when save fails; onSave shows the error toast.

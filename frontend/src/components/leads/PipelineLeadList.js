@@ -12,6 +12,7 @@ import RecordDetailLink from '../records/RecordDetailLink.js';
 import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
+import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
@@ -103,6 +104,7 @@ export default function PipelineLeadList({ stage, description }) {
   }, [page, limit, debouncedSearch, filters, stage, config?.apiStatus, showToast, statusOptions, sort, moduleKey]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
+  useListRefresh(fetchLeads);
 
   const downloadTemplate = async () => {
     try {

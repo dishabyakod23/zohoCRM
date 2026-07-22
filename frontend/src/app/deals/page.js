@@ -8,6 +8,7 @@ import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
+import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
@@ -15,6 +16,7 @@ import { validateRequired } from '../../lib/validators.js';
 import { FALLBACK_DEAL_STAGES } from '../../lib/dealHelpers.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
+import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { useOpenCreateParam } from '../../hooks/useOpenCreateParam.js';
 import * as dealsApi from '../../lib/services/deals.js';
 import { fetchDealStages, fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
@@ -82,6 +84,7 @@ export default function DealsPage() {
   }, [page, limit, debouncedSearch, accountMap, stageOptions, showToast, view, sort]);
 
   useEffect(() => { fetchDeals(); }, [fetchDeals]);
+  useListRefresh(fetchDeals);
 
   const totalPages = Math.ceil(total / limit) || 1;
 
@@ -119,7 +122,7 @@ export default function DealsPage() {
   const byStage = (stageValue) => deals.filter(d => d.stage_value === stageValue);
 
   const columns = useMemo(() => [
-    { id: 'name', header: 'Deal Name', cell: (d) => <Link href={`/deals/${d.id}`} className={tableLinkClass}>{d.name}</Link> },
+    { id: 'name', header: 'Deal Name', cell: (d) => <RecordDetailLink href={`/deals/${d.id}`} className={tableLinkClass}>{d.name}</RecordDetailLink> },
     { id: 'account', header: 'Account', cell: (d) => d.account_name || '—' },
     { id: 'amount', header: 'Amount', cell: (d) => fmt(d.amount, d.currency) },
     { id: 'stage', header: 'Stage', cell: (d) => <Badge label={d.stage} /> },
@@ -199,10 +202,10 @@ export default function DealsPage() {
                           >
                             ⋮⋮
                           </div>
-                          <Link href={`/deals/${d.id}`} className="flex-1 block min-w-0">
+                          <RecordDetailLink href={`/deals/${d.id}`} className="flex-1 block min-w-0">
                             <p className="font-medium">{d.name}</p><p className="text-gray-500">{d.account_name}</p>
                             <p className="font-semibold mt-1">{fmt(d.amount, d.currency)}</p>
-                          </Link>
+                          </RecordDetailLink>
                         </div>
                       ))}
                     </div>

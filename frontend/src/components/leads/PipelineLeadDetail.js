@@ -18,7 +18,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
-import { trackRecentItem } from '../layout/BottomUtilityBar.js';
+import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { getPipelineConfig, pipelineStageLabel, isProposalLead, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, proposalDealStatusLabel } from '../../lib/pipelineHelpers.js';
@@ -115,6 +115,7 @@ export default function PipelineLeadDetail({ stage }) {
     setSaving(true);
     try {
       await leadsApi.assignLead(id, assignUserId);
+      markRecordListStale();
       showToast('Lead assigned', 'success');
       setAssignOpen(false);
       loadLead();

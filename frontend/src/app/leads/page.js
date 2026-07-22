@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Badge from '../../components/ui/Badge.js';
@@ -8,6 +9,7 @@ import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
+import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
@@ -87,6 +89,7 @@ export default function LeadsPage() {
   }, [page, limit, debouncedSearch, filters, activeView, user?.id, showToast, statusOptions, sort]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
+  useListRefresh(fetchLeads);
 
   const totalPages = Math.ceil(total / limit) || 1;
 

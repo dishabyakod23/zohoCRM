@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import BulkUpload from '../../components/records/BulkUpload.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
+import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
+import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
@@ -78,6 +80,7 @@ export default function ContactsPage() {
   }, [page, debouncedSearch, accountMap, showToast, activeView, user?.id, filters, sort]);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
+  useListRefresh(fetchContacts);
 
   const initials = (c) => `${c.first_name?.[0] || ''}${c.last_name?.[0] || ''}`.toUpperCase();
   const totalPages = Math.ceil(total / LIMIT) || 1;
@@ -86,7 +89,7 @@ export default function ContactsPage() {
     { id: 'contact', header: 'Contact', cell: (c) => (
       <div className="flex items-center gap-2.5">
         <div className={tableAvatarClass}>{initials(c)}</div>
-        <Link href={`/contacts/${c.id}`} className={tableLinkClass}>{c.first_name} {c.last_name}</Link>
+        <RecordDetailLink href={`/contacts/${c.id}`} className={tableLinkClass}>{c.first_name} {c.last_name}</RecordDetailLink>
       </div>
     ) },
     { id: 'title', header: 'Designation', cell: (c) => c.title || '—' },
