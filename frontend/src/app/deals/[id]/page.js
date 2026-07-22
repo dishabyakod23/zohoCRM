@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRecordId } from '../../../hooks/useRecordId.js';
+import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
@@ -12,7 +14,8 @@ import { usePermissions } from '../../../hooks/usePermissions.js';
 import { getApiError } from '../../../lib/api.js';
 import * as dealsApi from '../../../lib/services/deals.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
-import { fetchDealStages, fetchAccountLookups, accountMapFromLookups } from '../../../lib/services/lookups.js';
+import { fetchDealStages, fetchAccountLookups, accountMapFromLookups, fetchUsers } from '../../../lib/services/lookups.js';
+import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
 import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { LEAD_SOURCES, DEAL_TYPES, DEFAULT_PAGE_SIZE } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
@@ -20,11 +23,12 @@ import { TrashIcon } from '@heroicons/react/24/outline';
 import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
 
 export default function DealDetailPage() {
-  const { id } = useParams();
+  const id = useRecordId();
   const router = useRouter();
   const { showToast } = useToast();
-  const { canEdit, canDelete } = usePermissions();
+  const { canEdit, canDelete, canAssignLeads } = usePermissions();
   const [deal, setDeal] = useState(null);
+  const [users, setUsers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [stageOptions, setStageOptions] = useState(FALLBACK_DEAL_STAGES);
@@ -35,7 +39,8 @@ export default function DealDetailPage() {
     fetchAccountLookups().then(setAccounts).catch(() => {});
     fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
     contactsApi.listContacts({ page: 1, page_size: DEFAULT_PAGE_SIZE }).then((r) => setContacts(r.data || [])).catch(() => {});
-  }, []);
+    if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
+  }, [canAssignLeads]);
 
   const loadDeal = useCallback(() => {
     const accountMap = accountMapFromLookups(accounts);
@@ -73,7 +78,7 @@ export default function DealDetailPage() {
     try {
       const result = await dealsApi.reopenDealAsLead(id);
       showToast('Deal reopened as lead', 'success');
-      if (result?.lead_id) router.push(`/leads/${result.lead_id}`);
+      if (result?.lead_id) navigateToRecord(`/leads/${result.lead_id}`, router);
       else loadDeal();
     } catch (err) {
       showToast(getApiError(err));
@@ -98,7 +103,6 @@ export default function DealDetailPage() {
         badges={<Badge label={deal.stage} />}
         lastUpdated={deal.updated_at ? new Date(deal.updated_at).toLocaleString() : undefined}
         recordNotes={{ relatedType: 'deal', recordId: id, canEdit }}
-        recordActivities={{ entityType: 'deal', recordId: id }}
         recordHistory={{ entityType: 'deal', recordId: id }}
         actions={<>
           {canEdit && isClosedLost && (
@@ -161,7 +165,7 @@ export default function DealDetailPage() {
                   {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               ) },
-              { name: 'owner_name', label: 'Owner', readOnly: true, format: () => deal.owner_name },
+              ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: deal.owner_name }),
             ]}
           />
           <EditableFieldSection

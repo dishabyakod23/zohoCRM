@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRecordId } from '../../../hooks/useRecordId.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
@@ -15,7 +16,8 @@ import api from '../../../lib/api.js';
 import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import * as dealsApi from '../../../lib/services/deals.js';
-import { fetchAccountLookups, accountMapFromLookups, fetchDealStages } from '../../../lib/services/lookups.js';
+import { fetchAccountLookups, accountMapFromLookups, fetchDealStages, fetchUsers } from '../../../lib/services/lookups.js';
+import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
 import { LEAD_SOURCES } from '../../../lib/constants.js';
 import {
   PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL,
@@ -27,6 +29,7 @@ import AccountNameCombobox from '../../../components/forms/AccountNameCombobox.j
 import { resolveContactAccountId } from '../../../lib/resolveContactAccount.js';
 import { TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import RecordDetailLink from '../../../components/records/RecordDetailLink.js';
 import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { tableLinkClass } from '../../../lib/tableStyles.js';
 import { useAuth } from '../../../hooks/useAuth.js';
@@ -58,12 +61,13 @@ function formatExternalLink(raw, kind) {
 }
 
 export default function ContactDetailPage() {
-  const { id } = useParams();
+  const id = useRecordId();
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit, canDelete } = usePermissions();
+  const { canEdit, canDelete, canAssignLeads } = usePermissions();
   const [contact, setContact] = useState(null);
+  const [users, setUsers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [deals, setDeals] = useState([]);
   const [stageOptions, setStageOptions] = useState(FALLBACK_DEAL_STAGES);
@@ -89,7 +93,8 @@ export default function ContactDetailPage() {
   useEffect(() => {
     fetchAccountLookups().then(setAccounts).catch(() => {});
     fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
-  }, []);
+    if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
+  }, [canAssignLeads]);
 
   useEffect(() => { if (accounts.length >= 0) loadContact(); }, [loadContact, accounts]);
 
@@ -177,7 +182,6 @@ export default function ContactDetailPage() {
         avatarLabel={`${contact.first_name?.[0] || ''}${contact.last_name?.[0] || ''}`}
         lastUpdated={contact.updated_at ? new Date(contact.updated_at).toLocaleString() : undefined}
         recordNotes={{ relatedType: 'contact', recordId: id, canEdit }}
-        recordActivities={{ entityType: 'contact', recordId: id }}
         recordHistory={{ entityType: 'contact', recordId: id }}
         actions={
           <div className="flex items-center gap-2">
@@ -249,7 +253,7 @@ export default function ContactDetailPage() {
                   {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               ) },
-              { name: 'owner_name', label: 'Owner', readOnly: true, format: () => contact.owner_name },
+              ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: contact.owner_name }),
             ]}
           />
           <EditableFieldSection
@@ -343,9 +347,9 @@ export default function ContactDetailPage() {
               <ul className="divide-y divide-zoho-border">
                 {deals.map((deal) => (
                   <li key={deal.id} className="py-2 flex items-center justify-between gap-3">
-                    <Link href={`/deals/${deal.id}`} className={`text-sm font-medium ${tableLinkClass}`}>
+                    <RecordDetailLink href={`/deals/${deal.id}`} className={`text-sm font-medium ${tableLinkClass}`}>
                       {deal.name || deal.deal_name}
-                    </Link>
+                    </RecordDetailLink>
                     <span className="text-xs text-zoho-muted">{formatMoney(deal.amount, deal.currency)} · {deal.stage}</span>
                   </li>
                 ))}

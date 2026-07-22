@@ -1,7 +1,9 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRecordId } from '../../../hooks/useRecordId.js';
+import RecordDetailLink from '../../../components/records/RecordDetailLink.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
@@ -15,7 +17,8 @@ import * as accountsApi from '../../../lib/services/accounts.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import * as projectsApi from '../../../lib/services/projects.js';
 import * as dealsApi from '../../../lib/services/deals.js';
-import { fetchDealStages, accountMapFromLookups } from '../../../lib/services/lookups.js';
+import { fetchDealStages, accountMapFromLookups, fetchUsers } from '../../../lib/services/lookups.js';
+import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
 import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { ACCOUNT_TYPES, DEFAULT_PAGE_SIZE } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
@@ -25,11 +28,12 @@ import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
 const INDUSTRIES = ['IT Services', 'E-Commerce', 'Automotive', 'EdTech', 'FinTech', 'Healthcare', 'Manufacturing', 'Retail', 'Other'];
 
 export default function AccountDetailPage() {
-  const { id } = useParams();
+  const id = useRecordId();
   const router = useRouter();
   const { showToast } = useToast();
-  const { canEdit, canDelete } = usePermissions();
+  const { canEdit, canDelete, canAssignLeads } = usePermissions();
   const [account, setAccount] = useState(null);
+  const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [projects, setProjects] = useState([]);
   const [deals, setDeals] = useState([]);
@@ -59,6 +63,10 @@ export default function AccountDetailPage() {
 
   useEffect(() => { loadAccount(); }, [loadAccount]);
 
+  useEffect(() => {
+    if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
+  }, [canAssignLeads]);
+
   const saveSection = async (payload) => {
     setSaving(true);
     try {
@@ -85,7 +93,6 @@ export default function AccountDetailPage() {
         badges={account.account_type ? <Badge label={account.account_type} /> : null}
         lastUpdated={account.updated_at ? new Date(account.updated_at).toLocaleString() : undefined}
         recordNotes={{ relatedType: 'account', recordId: id, canEdit }}
-        recordActivities={{ entityType: 'account', recordId: id }}
         recordHistory={{ entityType: 'account', recordId: id }}
         actions={canDelete && (
           <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
@@ -123,7 +130,7 @@ export default function AccountDetailPage() {
                   {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
                 </select>
               ) },
-              { name: 'owner_name', label: 'Owner', readOnly: true, format: () => account.owner_name },
+              ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: account.owner_name }),
             ]}
           />
           <EditableFieldSection
@@ -154,9 +161,9 @@ export default function AccountDetailPage() {
               <ul className="divide-y divide-zoho-border">
                 {contacts.map((contact) => (
                   <li key={contact.id} className="py-2 flex items-center justify-between gap-3">
-                    <Link href={`/contacts/${contact.id}`} className="text-sm font-medium text-brand-600 hover:underline">
+                    <RecordDetailLink href={`/contacts/${contact.id}`} className="text-sm font-medium text-brand-600 hover:underline">
                       {[contact.first_name, contact.last_name].filter(Boolean).join(' ') || contact.email || 'Contact'}
-                    </Link>
+                    </RecordDetailLink>
                     <span className="text-xs text-zoho-muted">{contact.email || contact.phone || '—'}</span>
                   </li>
                 ))}
@@ -182,9 +189,9 @@ export default function AccountDetailPage() {
                     {deals.map((deal) => (
                       <tr key={deal.id}>
                         <td className="py-2">
-                          <Link href={`/deals/${deal.id}`} className="font-medium text-brand-600 hover:underline">
+                          <RecordDetailLink href={`/deals/${deal.id}`} className="font-medium text-brand-600 hover:underline">
                             {deal.name || deal.deal_name}
-                          </Link>
+                          </RecordDetailLink>
                         </td>
                         <td className="py-2">{formatMoney(deal.amount, deal.currency || account.currency)}</td>
                         <td className="py-2">{deal.stage || '—'}</td>
@@ -214,9 +221,9 @@ export default function AccountDetailPage() {
                     {projects.map((project) => (
                       <tr key={project.id}>
                         <td className="py-2">
-                          <Link href={`/projects/${project.id}`} className="font-medium text-brand-600 hover:underline">
+                          <RecordDetailLink href={`/projects/${project.id}`} className="font-medium text-brand-600 hover:underline">
                             {project.name || project.project_name}
-                          </Link>
+                          </RecordDetailLink>
                         </td>
                         <td className="py-2">{formatMoney(project.budget ?? project.deal_size, account.currency)}</td>
                         <td className="py-2">{project.status_label || project.status || '—'}</td>

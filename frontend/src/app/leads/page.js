@@ -15,13 +15,12 @@ import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { LIST_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { filterUnreadRecords } from '../../lib/recordViewTracker.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchPipelineConvertTargets, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
-import { DEFAULT_LIST_SORT, getSortApiParams, sortRecords } from '../../lib/listSortHelpers.js';
+import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -60,40 +59,25 @@ export default function LeadsPage() {
     const requestId = ++fetchRequestId.current;
     setLoading(true);
     try {
-      const isUnreadView = activeView === 'Unread Leads';
       const params = {
-        page: isUnreadView ? 1 : page,
-        page_size: isUnreadView ? DEFAULT_PAGE_SIZE : limit,
+        page,
+        page_size: limit,
         search: debouncedSearch || undefined,
-        lead_status: isUnreadView ? undefined : (filters.status || PIPELINE_LEAD),
-        filters: isUnreadView ? {} : filters,
+        lead_status: filters.status || PIPELINE_LEAD,
+        filters,
       };
       if (activeView === 'My Leads' && user?.id) params.owner_id = user.id;
       const sortParams = activeView === 'Recently Modified'
         ? { sort_by: 'updated_at', sort_order: 'desc' }
         : getSortApiParams(sort, 'leads');
       Object.assign(params, sortParams);
-      const result = isUnreadView
-        ? await leadsApi.listAllLeads({
-          search: params.search,
-          owner_id: params.owner_id,
-          ...sortParams,
-          statusOptions,
-        })
-        : await leadsApi.listLeads({
-          ...params,
-          statusOptions,
-        });
+      const result = await leadsApi.listLeads({
+        ...params,
+        statusOptions,
+      });
       if (requestId !== fetchRequestId.current) return;
-      if (isUnreadView) {
-        const unread = sortRecords(filterUnreadRecords(result.data, 'lead'), sort, 'leads');
-        const start = (page - 1) * limit;
-        setLeads(unread.slice(start, start + limit));
-        setTotal(unread.length);
-      } else {
-        setLeads(result.data);
-        setTotal(result.total);
-      }
+      setLeads(result.data);
+      setTotal(result.total);
     } catch (err) {
       if (requestId !== fetchRequestId.current) return;
       showToast(getApiError(err));

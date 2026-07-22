@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRecordId } from '../../../hooks/useRecordId.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
@@ -17,7 +18,8 @@ import { getApiError } from '../../../lib/api.js';
 import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import * as leadsApi from '../../../lib/services/leads.js';
-import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../../lib/services/lookups.js';
+import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchUsers } from '../../../lib/services/lookups.js';
+import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
 import { LEAD_SOURCES, SALUTATIONS, RATINGS } from '../../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../../lib/pipelineHelpers.js';
 import {
@@ -27,11 +29,12 @@ import {
 const INDUSTRIES = ['IT Services', 'E-Commerce', 'EdTech', 'Automotive', 'Finance', 'Healthcare', 'Manufacturing', 'Education', 'Media', 'Real Estate', 'Other'];
 
 export default function LeadDetailPage() {
-  const { id } = useParams();
+  const id = useRecordId();
   const router = useRouter();
   const { showToast } = useToast();
-  const { canEdit, canDelete, isSuperAdmin } = usePermissions();
+  const { canEdit, canDelete, isSuperAdmin, canAssignLeads } = usePermissions();
   const [lead, setLead] = useState(null);
+  const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -40,7 +43,8 @@ export default function LeadDetailPage() {
 
   useEffect(() => {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
-  }, []);
+    if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
+  }, [canAssignLeads]);
 
   const loadLead = useCallback(() => {
     leadsApi.getLead(id).then((r) => {
@@ -98,7 +102,6 @@ export default function LeadDetailPage() {
         badges={<Badge label={lead.status} />}
         lastUpdated={new Date(lead.updated_at).toLocaleString()}
         recordNotes={{ relatedType: 'lead', recordId: id, canEdit: editable }}
-        recordActivities={{ entityType: 'lead', recordId: id }}
         recordHistory={{ entityType: 'lead', recordId: id }}
         actions={
           <>
@@ -153,7 +156,7 @@ export default function LeadDetailPage() {
                   { name: 'annual_revenue', label: 'Annual Revenue' },
                   { name: 'no_of_employees', label: 'No. of Employees' },
                   { name: 'website', label: 'Website' },
-                  { name: 'owner_name', label: 'Owner', readOnly: true, format: () => lead.owner_name },
+                  ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: lead.owner_name }),
                 ]}
               />
               <EditableFieldSection

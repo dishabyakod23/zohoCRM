@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRecordId } from '../../hooks/useRecordId.js';
 import CRMLayout from '../layout/CRMLayout.js';
 import Modal from '../ui/Modal.js';
 import Badge from '../ui/Badge.js';
@@ -21,6 +22,7 @@ import { trackRecentItem } from '../layout/BottomUtilityBar.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { getPipelineConfig, pipelineStageLabel, isProposalLead, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, proposalDealStatusLabel } from '../../lib/pipelineHelpers.js';
+import { ownerFieldConfig } from '../forms/ownerField.js';
 import { LEAD_SOURCES } from '../../lib/constants.js';
 import { formatMoney, CURRENCIES } from '../../lib/currencies.js';
 import {
@@ -31,7 +33,7 @@ const INDUSTRIES = ['IT Services', 'E-Commerce', 'EdTech', 'Automotive', 'Financ
 
 export default function PipelineLeadDetail({ stage }) {
   const config = getPipelineConfig(stage);
-  const { id } = useParams();
+  const id = useRecordId();
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -141,7 +143,6 @@ export default function PipelineLeadDetail({ stage }) {
         badges={<><Badge label={pipelineStageLabel(stage)} /><Badge label={lead.status} /></>}
         lastUpdated={new Date(lead.updated_at).toLocaleString()}
         recordNotes={{ relatedType: 'lead', recordId: id, canEdit: editable }}
-        recordActivities={{ entityType: 'lead', recordId: id }}
         recordHistory={{ entityType: 'lead', recordId: id }}
         actions={
           <>
@@ -153,7 +154,7 @@ export default function PipelineLeadDetail({ stage }) {
               canEdit={editable}
               isAdmin={isSuperAdmin}
             />
-            {canAssignLeads && config?.allowAssign && (
+            {canAssignLeads && (
               <button onClick={() => setAssignOpen(true)} className="btn-secondary text-xs flex items-center gap-1.5">
                 <UserIcon className="w-4 h-4" /> Assign
               </button>
@@ -194,6 +195,7 @@ export default function PipelineLeadDetail({ stage }) {
               { name: 'lead_status', label: 'Lead Status', format: () => lead.status, render: (d, set) => select(statusOptions)(d, set, 'lead_status') },
               { name: 'source', label: 'Lead Source', render: (d, set) => select(LEAD_SOURCES, null, null)(d, set, 'source') },
               { name: 'industry', label: 'Industry', render: (d, set) => select(INDUSTRIES, null, null)(d, set, 'industry') },
+              ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: lead.owner_name }),
               { name: 'description', label: 'Description', colSpan: true, render: (d, set) => (
                 <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: e.target.value }))} />
               ) },

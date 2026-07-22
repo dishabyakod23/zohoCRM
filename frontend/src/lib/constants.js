@@ -50,7 +50,7 @@ export const QUICK_CREATE = [
 export const WORK_ITEM_VIEWS = ['All Work Items', 'Raw Leads', 'Leads', 'Qualified Leads', 'Proposals'];
 
 export const LIST_VIEWS = {
-  leads: ['All Leads', 'My Leads', 'Unread Leads', 'Recently Created', 'Recently Modified'],
+  leads: ['All Leads', 'My Leads', 'Recently Created', 'Recently Modified'],
   contacts: ['All Contacts', 'My Contacts', 'Recently Created'],
   accounts: ['All Accounts', 'My Accounts', 'Recently Created'],
 };
