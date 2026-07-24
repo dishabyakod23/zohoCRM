@@ -68,17 +68,21 @@ export function filterLeadsByPipelineStage(leads, stage) {
     return active.filter(isProposalLead);
   }
   if (stage === PIPELINE_QUALIFIED) {
-    return active.filter((l) => l.lead_status === 'qualified_lead' && !isProposalLead(l));
+    return active.filter((l) => resolveLeadPipelineStage(l) === PIPELINE_QUALIFIED);
   }
   if (stage === PIPELINE_RAW) {
-    return active.filter((l) => {
-      if (isProposalLead(l)) return false;
-      if (l.lead_status === 'qualified_lead') return false;
-      if (l.lead_status === 'contacted') return false;
-      return true;
-    });
+    return active.filter((l) => resolveLeadPipelineStage(l) === PIPELINE_RAW);
   }
-  return active;
+  return active.filter((l) => resolveLeadPipelineStage(l) === stage);
+}
+
+function normalizedLeadStatus(lead) {
+  const raw = lead?.lead_status ?? lead?.status;
+  if (!raw) return null;
+  const mapped = toApiLeadStatus(raw);
+  if (mapped) return mapped;
+  const key = String(raw).toLowerCase().trim().replace(/\s+/g, '_');
+  return toApiLeadStatus(key) || key;
 }
 
 export const PIPELINE_STAGE_CONFIG = {
@@ -183,10 +187,11 @@ export function getConvertOptions(stage, { isAdmin = false } = {}) {
 export function resolveLeadPipelineStage(lead) {
   if (!lead) return null;
   if (isProposalLead(lead)) return PIPELINE_PROPOSAL;
-  if (lead.lead_status === 'qualified_lead') return PIPELINE_QUALIFIED;
-  if (lead.lead_status === 'raw_prospect') return PIPELINE_RAW;
-  if (lead.lead_status === 'contacted') return PIPELINE_LEAD;
-  return lead.lead_status;
+  const status = normalizedLeadStatus(lead);
+  if (status === 'qualified_lead') return PIPELINE_QUALIFIED;
+  if (status === 'raw_prospect') return PIPELINE_RAW;
+  if (status === 'contacted') return PIPELINE_LEAD;
+  return status || null;
 }
 
 export const RAW_LEAD_CSV_HEADERS = [

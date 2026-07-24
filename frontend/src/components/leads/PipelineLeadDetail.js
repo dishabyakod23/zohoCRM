@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useRecordId, isValidRecordId } from '../../hooks/useRecordId.js';
+import { useRecordId, isValidRecordId, getRecordIdFromPathname } from '../../hooks/useRecordId.js';
 import CRMLayout from '../layout/CRMLayout.js';
 import Modal from '../ui/Modal.js';
 import Badge from '../ui/Badge.js';
@@ -21,9 +21,10 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
-import { getPipelineConfig, pipelineStageLabel, isProposalLead, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, proposalDealStatusLabel } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, proposalDealStatusLabel, resolveLeadPipelineStage, getLeadDetailPath } from '../../lib/pipelineHelpers.js';
 import { ownerFieldConfig } from '../forms/ownerField.js';
 import { trackRecentItem } from '../layout/BottomUtilityBar.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { LEAD_SOURCES } from '../../lib/constants.js';
 import { formatMoney, CURRENCIES } from '../../lib/currencies.js';
 import {
@@ -55,17 +56,15 @@ export default function PipelineLeadDetail({ stage }) {
     if (canAssignLeads) fetchUsers().then(setUsers).catch(() => {});
   }, [canAssignLeads]);
 
-  const leadMatchesStage = (r) => {
-    if (stage === PIPELINE_PROPOSAL) return isProposalLead(r);
-    if (stage === PIPELINE_QUALIFIED) return r.lead_status === 'qualified_lead' && !isProposalLead(r);
-    if (stage === PIPELINE_RAW) return r.lead_status === 'raw_prospect';
-    return r.lead_status === stage;
-  };
-
   const loadLead = useCallback(() => {
     if (!isValidRecordId(id)) return;
     leadsApi.getLead(id).then((r) => {
-      if (!leadMatchesStage(r)) {
+      const resolved = resolveLeadPipelineStage(r);
+      if (resolved !== stage) {
+        if (resolved) {
+          navigateToRecord(getLeadDetailPath(r, id), router);
+          return;
+        }
         showToast('This record is not in the expected pipeline stage');
         router.push(config?.listPath || '/dashboard');
         return;
@@ -84,6 +83,18 @@ export default function PipelineLeadDetail({ stage }) {
       router.push(config?.listPath || '/dashboard');
     });
   }, [id, stage, config?.listPath, router, showToast, user?.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || isValidRecordId(id)) return undefined;
+    const timer = window.setTimeout(() => {
+      const fromPath = getRecordIdFromPathname(window.location.pathname);
+      if (!isValidRecordId(fromPath)) {
+        showToast('Lead not found');
+        router.push(config?.listPath || '/dashboard');
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [id, config?.listPath, router, showToast]);
 
   useEffect(() => {
     if (!isValidRecordId(id)) return;
