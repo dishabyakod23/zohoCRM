@@ -49,7 +49,7 @@ export default function PipelineLeadList({ stage, description }) {
   const config = getPipelineConfig(stage);
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canAssignLeads, canEdit } = usePermissions();
+  const { canAssignLeads, canEdit, canBulkUpload } = usePermissions();
   const [leads, setLeads] = useState([]);
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -244,7 +244,7 @@ export default function PipelineLeadList({ stage, description }) {
         <ListPageHeader
           title={config?.listTitle}
           subtitle={description}
-          secondaryActions={config?.allowUpload && canEdit ? (
+          secondaryActions={config?.allowUpload && canBulkUpload ? (
             <button type="button" onClick={() => setUploadOpen(true)} className="btn-secondary-sm">
               Bulk Upload
             </button>

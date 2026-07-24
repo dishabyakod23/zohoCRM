@@ -4,7 +4,7 @@ import { toConvertPayload } from '../dealHelpers.js';
 import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
 import {
   PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PIPELINE_LEAD, PROPOSAL_SOURCE,
-  filterLeadsByPipelineStage, toApiLeadStatus,
+  filterLeadsByPipelineStage, toApiLeadStatus, RAW_LEAD_CSV_HEADERS,
 } from '../pipelineHelpers.js';
 import {
   applyLeadRecordFilters,
@@ -13,6 +13,7 @@ import {
 import { LEAD_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
+import { ensureCsvColumn } from '../csvHelpers.js';
 
 const CONVERT_MASS_TARGETS = new Set(['account', 'contact', 'deal']);
 const PIPELINE_CONVERT_MASS_FIELD = 'pipeline_convert_target';
@@ -260,24 +261,14 @@ export async function deleteLeadAttachment(leadId, attachmentId) {
 }
 
 export async function downloadLeadImportTemplate() {
-  const headers = [
-    'first_name',
-    'last_name',
-    'email',
-    'mobile',
-    'account',
-    'owner',
-    'Lead Source',
-    'Address',
-    'Proposal Amount',
-    'Description',
-  ];
-  const csv = `${headers.join(',')}\n`;
-  downloadBlob(new Blob([csv], { type: 'text/csv' }), 'leads-import-template.csv');
+  const headers = [...RAW_LEAD_CSV_HEADERS, 'lead_status'];
+  const csv = `${headers.join(',')}\nraw,lead,raw@example.com,,,,,Manual Entry,,raw_prospect\n`;
+  downloadBlob(new Blob([csv], { type: 'text/csv' }), 'raw-leads-import-template.csv');
 }
 
-export async function importLeadsFile(file, { dry_run = true } = {}) {
-  const csv = await file.text();
+export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus = PIPELINE_RAW } = {}) {
+  const rawCsv = await file.text();
+  const csv = ensureCsvColumn(rawCsv, 'lead_status', defaultLeadStatus);
   if (dry_run) {
     const res = await api.post('/leads/bulk-upload', { csv });
     const payload = res.data.data || {};

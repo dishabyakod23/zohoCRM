@@ -17,7 +17,8 @@ export const ROLE_ACCESS = {
 };
 
 export function roleLabel(role) {
-  return ROLE_LABELS[role] || role?.replace(/_/g, ' ') || '—';
+  const normalized = normalizeRole(role);
+  return ROLE_LABELS[normalized] || normalized?.replace(/_/g, ' ') || '—';
 }
 
 /** Super Admin and Sales Manager share full UI access (API still enforces auth). */
@@ -30,14 +31,15 @@ export function isSuperAdmin(role) {
   return hasAdminAccess(role);
 }
 
-/** Map legacy / display role names to API UserRole values */
+/** Map legacy / display / API role names to canonical UserRole values */
 export function normalizeRole(role) {
   if (!role) return role;
   const key = String(role).toLowerCase().trim().replace(/\s+/g, '_');
   if (key === 'admin' || key === 'superadmin' || key === 'super_admin') return 'super_admin';
   if (key === 'manager' || key === 'sales_manager') return 'sales_manager';
-  if (key === 'rep' || key === 'sales_rep') return 'sales_rep';
-  return role;
+  if (key === 'business_rep' || key === 'rep' || key === 'sales_rep') return 'sales_rep';
+  if (key === 'viewer') return 'viewer';
+  return key;
 }
 
 /** Super Admin and Sales Manager can reassign records to other users */
@@ -64,6 +66,7 @@ export function getRolePermissions(role) {
     canAccessReports: !viewer,
     canBulkDelete: admin,
     canAssignLeads: admin,
+    canBulkUpload: !viewer,
     canQuickCreate: !viewer,
     isSuperAdmin: admin,
     isViewer: viewer,

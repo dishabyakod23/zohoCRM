@@ -1,10 +1,10 @@
 'use client';
 import { useAuth } from './useAuth.js';
-import { getRolePermissions, roleLabel, ROLE_ACCESS } from '../lib/roles.js';
+import { getRolePermissions, roleLabel, ROLE_ACCESS, normalizeRole } from '../lib/roles.js';
 
 export function usePermissions() {
   const { user } = useAuth();
-  const role = user?.role;
+  const role = normalizeRole(user?.role);
   const permissions = getRolePermissions(role);
 
   return {

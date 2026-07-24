@@ -29,7 +29,7 @@ export default function ContactsPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit } = usePermissions();
+  const { canEdit, canBulkUpload } = usePermissions();
   const [contacts, setContacts] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [total, setTotal] = useState(0);
@@ -105,7 +105,7 @@ export default function ContactsPage() {
         <ListPageHeader
           title="Contacts"
           subtitle="People linked to your accounts and deals."
-          secondaryActions={canEdit ? <BulkUpload onDone={fetchContacts} /> : null}
+          secondaryActions={canBulkUpload ? <BulkUpload onDone={fetchContacts} /> : null}
           primaryAction={canEdit ? (
             <button type="button" onClick={() => router.push('/contacts/create')} className="btn-primary-sm">
               Create Contact

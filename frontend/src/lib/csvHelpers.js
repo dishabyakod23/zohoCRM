@@ -123,6 +123,22 @@ export function getMappedFieldKeys(mapping) {
   return [...new Set(Object.values(mapping).filter(Boolean))];
 }
 
+/** Add a column with a default value when the mapped CSV is missing a required API field. */
+export function ensureCsvColumn(csv, column, defaultValue) {
+  const parsed = parseCsvText(csv);
+  if (!parsed.headers.length) return csv;
+  const colKey = normalizeHeaderKey(column);
+  if (parsed.headers.some((h) => normalizeHeaderKey(h) === colKey)) return csv;
+
+  const newHeaders = [...parsed.headers, column];
+  const lines = [newHeaders.join(',')];
+  for (const row of parsed.rows) {
+    const cells = newHeaders.map((h) => (h === column ? defaultValue : (row[h] ?? '')));
+    lines.push(cells.map(escapeCsvCell).join(','));
+  }
+  return lines.join('\n');
+}
+
 export function validateMapping(mapping, fieldDefs) {
   const mappedFields = new Set(Object.values(mapping).filter(Boolean));
   const missing = fieldDefs.filter((f) => f.required && !mappedFields.has(f.key));

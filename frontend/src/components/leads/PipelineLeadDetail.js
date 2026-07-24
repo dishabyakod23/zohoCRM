@@ -23,6 +23,7 @@ import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { getPipelineConfig, pipelineStageLabel, isProposalLead, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, proposalDealStatusLabel } from '../../lib/pipelineHelpers.js';
 import { ownerFieldConfig } from '../forms/ownerField.js';
+import { trackRecentItem } from '../layout/BottomUtilityBar.js';
 import { LEAD_SOURCES } from '../../lib/constants.js';
 import { formatMoney, CURRENCIES } from '../../lib/currencies.js';
 import {
