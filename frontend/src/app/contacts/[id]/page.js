@@ -27,6 +27,7 @@ import PhoneDisplay from '../../../components/cloudtalk/PhoneDisplay.js';
 import CallRecordButton from '../../../components/cloudtalk/CallRecordButton.js';
 import AccountNameCombobox from '../../../components/forms/AccountNameCombobox.js';
 import { resolveContactAccountId } from '../../../lib/resolveContactAccount.js';
+import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import RecordDetailLink from '../../../components/records/RecordDetailLink.js';
@@ -163,7 +164,7 @@ export default function ContactDetailPage() {
     try {
       const result = await contactsApi.convertContact(id, option.target);
       showToast(`Converted to ${option.label}`, 'success');
-      router.push(contactsApi.getContactConvertRedirect(result, option.target));
+      navigateToRecord(contactsApi.getContactConvertRedirect(result, option.target), router);
     } catch (err) {
       showToast(getApiError(err));
     } finally {
