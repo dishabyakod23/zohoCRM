@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
+import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
@@ -24,6 +25,7 @@ import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
 
 export default function DealDetailPage() {
   const id = useRecordId();
+  const ready = useRecordIdGuard(id, { fallbackPath: '/deals', message: 'Deal not found' });
   const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete, canAssignLeads } = usePermissions();
@@ -43,6 +45,7 @@ export default function DealDetailPage() {
   }, [canAssignLeads]);
 
   const loadDeal = useCallback(() => {
+    if (!ready) return;
     const accountMap = accountMapFromLookups(accounts);
     dealsApi.getDeal(id, accountMap, stageOptions).then((r) => {
       setDeal({
@@ -55,9 +58,9 @@ export default function DealDetailPage() {
       showToast('Deal not found');
       router.push('/deals');
     });
-  }, [id, accounts, stageOptions, router, showToast]);
+  }, [id, ready, accounts, stageOptions, router, showToast]);
 
-  useEffect(() => { if (stageOptions.length) loadDeal(); }, [loadDeal, stageOptions.length]);
+  useEffect(() => { if (ready && stageOptions.length) loadDeal(); }, [ready, loadDeal, stageOptions.length]);
 
   const saveSection = async (payload) => {
     setSaving(true);
@@ -89,7 +92,7 @@ export default function DealDetailPage() {
 
   const fmt = (n, currency) => formatMoney(n, currency || deal?.currency);
 
-  if (!deal) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
+  if (!ready || !deal) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   const isClosedLost = String(deal.stage_value || deal.stage || '').toLowerCase().includes('closed_lost')
     || String(deal.stage || '').toLowerCase().includes('closed lost');

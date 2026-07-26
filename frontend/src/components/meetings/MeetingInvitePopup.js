@@ -1,5 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { useMeetingReminders } from '../../hooks/useMeetingReminders.js';
 import { userBriefName } from '../../lib/activityHelpers.js';
 
@@ -44,7 +45,7 @@ export default function MeetingInvitePopup() {
     } catch {
       // still navigate
     }
-    router.push(`/meetings/${id}`);
+    navigateToRecord(`/meetings/${id}`, router);
   };
 
   return (

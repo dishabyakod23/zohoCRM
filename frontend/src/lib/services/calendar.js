@@ -2,7 +2,7 @@ import api from '../api.js';
 import { normalizeEvent, toDateKey } from '../calendarHelpers.js';
 
 /**
- * Calendar API — https://api-salescrm.duckdns.org/docs#/Calendar
+ * Calendar API — https://salescrm-api.duckdns.org/docs#/Calendar
  * GET/POST   /calendar/events
  * GET        /calendar/reminders
  * GET/PATCH/DELETE /calendar/events/{event_id}

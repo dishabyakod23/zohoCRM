@@ -17,6 +17,23 @@ export function normalizeAuditLog(log) {
   };
 }
 
+/** Auth/session refresh noise — not useful in dashboard or activity feeds. */
+export function isNoiseAuditLog(log) {
+  const action = String(log.action || '').toLowerCase();
+  const entityType = String(log.entity_type || log.record_type || '').toLowerCase();
+  const summary = String(log.summary || '').toLowerCase();
+
+  if (action.includes('refresh')) return true;
+  if (entityType.includes('session')) return true;
+  if (/^refreshed\b/.test(summary)) return true;
+  return false;
+}
+
+export function filterVisibleAuditLogs(logs, limit) {
+  const filtered = (logs || []).filter((log) => !isNoiseAuditLog(log));
+  return limit ? filtered.slice(0, limit) : filtered;
+}
+
 export async function getEntityTimeline(entityType, entityId, params = {}) {
   const res = await api.get(`${AUDIT_LOGS_BASE}/timeline/${entityType}/${entityId}`, { params });
   return (res.data.data || []).map(normalizeAuditLog);

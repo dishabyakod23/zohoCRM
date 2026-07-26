@@ -18,6 +18,7 @@ import {
 } from '../../lib/constants.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 
 const COUNTRIES = ['India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Singapore', 'UAE', 'Other'];
 const INDIAN_STATES = [
@@ -156,7 +157,7 @@ export default function CreatePipelineLeadForm({
     try {
       const created = await createFn(form);
       showToast(successToast, 'success');
-      router.push(created?.id ? `${listPath}/${created.id}` : listPath);
+      navigateToRecord(created?.id ? `${listPath}/${created.id}` : listPath);
     } catch (err) {
       showToast(getApiError(err));
     } finally {

@@ -10,6 +10,7 @@ import { getApiError } from '../../lib/api.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import { fetchCampaignTypes, fetchCampaignStatuses, fetchUsers } from '../../lib/services/lookups.js';
@@ -337,7 +338,7 @@ export default function CreateCampaignForm() {
       } else {
         showToast('Campaign saved', 'success');
       }
-      router.push(created?.id ? `/campaigns/${created.id}` : '/campaigns');
+      navigateToRecord(created?.id ? `/campaigns/${created.id}` : '/campaigns');
     } catch (err) {
       showToast(getApiError(err));
     } finally {

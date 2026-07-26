@@ -8,6 +8,7 @@ import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
+import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -88,7 +89,7 @@ export default function ProjectsPage() {
   };
 
   const columns = useMemo(() => [
-    { id: 'name', header: 'Name', cell: (p) => <Link href={`/projects/${p.id}`} className={tableLinkClass}>{p.name}</Link> },
+    { id: 'name', header: 'Name', cell: (p) => <RecordDetailLink href={`/projects/${p.id}`} className={tableLinkClass}>{p.name}</RecordDetailLink> },
     { id: 'account', header: 'Account', cell: (p) => p.account_name || '—' },
     { id: 'status', header: 'Status', cell: (p) => <Badge label={p.status_label} /> },
     { id: 'dates', header: 'Dates', cell: (p) => <span className="text-xs">{p.start_date || '—'} → {p.end_date || '—'}</span> },

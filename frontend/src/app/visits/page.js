@@ -7,6 +7,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
+import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -87,7 +88,7 @@ export default function VisitsPage() {
   };
 
   const columns = useMemo(() => [
-    { id: 'title', header: 'Title', cell: (v) => <Link href={`/visits/${v.id}`} className={tableLinkClass}>{v.title}</Link> },
+    { id: 'title', header: 'Title', cell: (v) => <RecordDetailLink href={`/visits/${v.id}`} className={tableLinkClass}>{v.title}</RecordDetailLink> },
     { id: 'date', header: 'Date', cell: (v) => new Date(v.visit_date).toLocaleString() },
     { id: 'account', header: 'Account', cell: (v) => v.account_name || '—' },
     { id: 'location', header: 'Location', cell: (v) => v.location || '—' },

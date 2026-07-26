@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import RecordNotesTab from './RecordNotesTab.js';
-import RecordActivitiesTab from './RecordActivitiesTab.js';
 import RecordHistoryTab from './RecordHistoryTab.js';
 import { notesSupportedRelatedType } from '../../lib/noteHelpers.js';
 import ClickToCallButton from '../cloudtalk/ClickToCallButton.js';
@@ -25,7 +24,6 @@ export default function RecordDetailLayout({
   tabs,
   defaultTab = 'Overview',
   recordNotes,
-  recordActivities,
   recordHistory,
   children,
   tabContent,
@@ -33,12 +31,10 @@ export default function RecordDetailLayout({
   const showNotes = recordNotes?.relatedType
     && recordNotes?.recordId
     && notesSupportedRelatedType(recordNotes.relatedType);
-  const showActivities = recordActivities?.entityType && recordActivities?.recordId;
   const showHistory = recordHistory?.entityType && recordHistory?.recordId;
   const resolvedTabs = tabs ?? [
     'Overview',
     ...(showNotes ? ['Notes'] : []),
-    ...(showActivities ? ['Activities'] : []),
     ...(showHistory ? ['History'] : []),
   ];
   const [activeTab, setActiveTab] = useState(defaultTab);
@@ -49,9 +45,6 @@ export default function RecordDetailLayout({
     if (tabContent) return tabContent(tab);
     if (tab === 'Notes' && showNotes && recordNotes) {
       return <RecordNotesTab relatedType={recordNotes.relatedType} recordId={recordNotes.recordId} canEdit={recordNotes.canEdit} />;
-    }
-    if (tab === 'Activities' && showActivities) {
-      return <RecordActivitiesTab entityType={recordActivities.entityType} recordId={recordActivities.recordId} />;
     }
     if (tab === 'History' && showHistory) {
       return <RecordHistoryTab entityType={recordHistory.entityType} recordId={recordHistory.recordId} />;

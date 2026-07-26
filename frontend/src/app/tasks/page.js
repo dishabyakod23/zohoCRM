@@ -7,6 +7,7 @@ import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
+import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -93,7 +94,7 @@ export default function TasksPage() {
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
   const columns = useMemo(() => [
-    { id: 'title', header: 'Title', cell: (t) => <Link href={`/tasks/${t.id}`} className={tableLinkClass}>{t.title}</Link> },
+    { id: 'title', header: 'Title', cell: (t) => <RecordDetailLink href={`/tasks/${t.id}`} className={tableLinkClass}>{t.title}</RecordDetailLink> },
     { id: 'due', header: 'Due Date', cell: (t) => <span className={new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-600 font-medium' : ''}>{new Date(t.due_date).toLocaleString()}</span> },
     { id: 'assigned', header: 'Assigned To', cell: (t) => t.assigned_name },
     { id: 'status', header: 'Status', cell: (t) => <Badge label={t.status_label} /> },

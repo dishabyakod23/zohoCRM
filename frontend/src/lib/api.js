@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { setAuthSessionCookie, clearAuthSessionCookie } from './authCookie.js';
+import { loginHref } from './safeRedirect.js';
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'https://api-salescrm.duckdns.org/api/v1';
+  process.env.NEXT_PUBLIC_API_URL || 'https://salescrm-api.duckdns.org/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -44,13 +45,13 @@ api.interceptors.response.use(
           localStorage.removeItem('crm_refresh_token');
           localStorage.removeItem('crm_user');
           clearAuthSessionCookie();
-          window.location.href = '/login';
+          window.location.href = loginHref();
         }
       } else {
         localStorage.removeItem('crm_token');
         localStorage.removeItem('crm_user');
         clearAuthSessionCookie();
-        window.location.href = '/login';
+        window.location.href = loginHref();
       }
     }
     return Promise.reject(err);

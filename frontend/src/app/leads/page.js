@@ -83,6 +83,8 @@ export default function LeadsPage() {
     } catch (err) {
       if (requestId !== fetchRequestId.current) return;
       showToast(getApiError(err));
+      setLeads([]);
+      setTotal(0);
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }

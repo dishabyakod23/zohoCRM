@@ -12,6 +12,7 @@ import { validateRequired, validateEmail, validatePhone } from '../../lib/valida
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as contactsApi from '../../lib/services/contacts.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { fetchAccountLookups, fetchUsers } from '../../lib/services/lookups.js';
 import AccountNameCombobox from '../forms/AccountNameCombobox.js';
 import { resolveContactAccountId } from '../../lib/resolveContactAccount.js';
@@ -163,7 +164,7 @@ export default function CreateContactForm() {
       });
       const created = await contactsApi.createContact({ ...form, account_id: accountId });
       showToast('Contact saved', 'success');
-      router.push(created?.id ? `/contacts/${created.id}` : '/contacts');
+      navigateToRecord(created?.id ? `/contacts/${created.id}` : '/contacts');
     } catch (err) {
       showToast(getApiError(err) || err.message);
     } finally {

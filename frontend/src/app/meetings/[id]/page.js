@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRecordId } from '../../../hooks/useRecordId.js';
+import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
@@ -16,7 +18,8 @@ import { fetchUsers } from '../../../lib/services/lookups.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function MeetingDetailPage() {
-  const { id } = useParams();
+  const id = useRecordId();
+  const ready = useRecordIdGuard(id, { fallbackPath: '/meetings', message: 'Meeting not found' });
   const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
@@ -28,10 +31,11 @@ export default function MeetingDetailPage() {
   useEffect(() => { fetchUsers().then(setUsers); }, []);
 
   const load = useCallback(() => {
+    if (!ready) return;
     meetingsApi.getMeeting(id).then(setMeeting).catch(() => { showToast('Meeting not found'); router.push('/meetings'); });
-  }, [id, router, showToast]);
+  }, [id, ready, router, showToast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (ready) load(); }, [ready, load]);
 
   const saveSection = async (payload) => {
     setSaving(true);
@@ -43,7 +47,7 @@ export default function MeetingDetailPage() {
     finally { setSaving(false); }
   };
 
-  if (!meeting) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
+  if (!ready || !meeting) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   const related = relatedRecordFromActivity(meeting);
   const participantLabel = (meeting.participants || [])

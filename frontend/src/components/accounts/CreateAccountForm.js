@@ -10,6 +10,7 @@ import { getApiError } from '../../lib/api.js';
 import { ACCOUNT_TYPES, RATINGS, INDUSTRIES } from '../../lib/constants.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as accountsApi from '../../lib/services/accounts.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { fetchAccountLookups, fetchContactLookups, fetchUsers } from '../../lib/services/lookups.js';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
@@ -175,7 +176,7 @@ export default function CreateAccountForm() {
     try {
       const created = await accountsApi.createAccountWithRelations(form);
       showToast('Account saved', 'success');
-      router.push(created?.id ? `/accounts/${created.id}` : '/accounts');
+      navigateToRecord(created?.id ? `/accounts/${created.id}` : '/accounts');
     } catch (err) {
       showToast(getApiError(err));
     } finally {

@@ -6,6 +6,7 @@ import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
+import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -92,7 +93,7 @@ export default function MeetingsPage() {
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
   const columns = useMemo(() => [
-    { id: 'title', header: 'Title', cell: (m) => <Link href={`/meetings/${m.id}`} className={tableLinkClass}>{m.title}</Link> },
+    { id: 'title', header: 'Title', cell: (m) => <RecordDetailLink href={`/meetings/${m.id}`} className={tableLinkClass}>{m.title}</RecordDetailLink> },
     { id: 'from', header: 'From', cell: (m) => new Date(m.from_datetime).toLocaleString() },
     { id: 'to', header: 'To', cell: (m) => new Date(m.to_datetime).toLocaleString() },
     { id: 'host', header: 'Host', cell: (m) => m.host_name },

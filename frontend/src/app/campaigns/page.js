@@ -6,6 +6,7 @@ import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
+import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
@@ -57,7 +58,7 @@ export default function CampaignsPage() {
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
   const columns = useMemo(() => [
-    { id: 'name', header: 'Name', cell: (c) => <Link href={`/campaigns/${c.id}`} className={tableLinkClass}>{c.name}</Link> },
+    { id: 'name', header: 'Name', cell: (c) => <RecordDetailLink href={`/campaigns/${c.id}`} className={tableLinkClass}>{c.name}</RecordDetailLink> },
     { id: 'type', header: 'Type', cell: (c) => c.type_label },
     { id: 'status', header: 'Status', cell: (c) => <Badge label={c.status_label} /> },
     { id: 'dates', header: 'Dates', cell: (c) => <span className="text-xs">{c.start_date} → {c.end_date}</span> },

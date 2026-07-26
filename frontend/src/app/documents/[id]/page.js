@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRecordId } from '../../../hooks/useRecordId.js';
+import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout, { FieldSection } from '../../../components/records/RecordDetailLayout.js';
@@ -14,7 +16,8 @@ import * as documentsApi from '../../../lib/services/documents.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function DocumentDetailPage() {
-  const { id } = useParams();
+  const id = useRecordId();
+  const ready = useRecordIdGuard(id, { fallbackPath: '/documents', message: 'Document not found' });
   const router = useRouter();
   const { showToast } = useToast();
   const { canDelete, canDownload } = usePermissions();
@@ -22,17 +25,18 @@ export default function DocumentDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const load = useCallback(() => {
+    if (!ready) return;
     documentsApi.getDocument(id).then(setDoc).catch(() => { showToast('Document not found'); router.push('/documents'); });
-  }, [id, router, showToast]);
+  }, [id, ready, router, showToast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (ready) load(); }, [ready, load]);
 
   const handleDownload = async () => {
     try { await documentsApi.downloadDocument(id, doc.file_name || doc.name); }
     catch (err) { showToast(getApiError(err)); }
   };
 
-  if (!doc) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
+  if (!ready || !doc) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   const related = doc.related_type && doc.related_id
     ? { type: doc.related_type, id: doc.related_id, label: doc.related_name || `${doc.related_type} #${doc.related_id}` }

@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRecordId } from '../../../hooks/useRecordId.js';
+import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
@@ -8,6 +10,7 @@ import RecordDetailLayout from '../../../components/records/RecordDetailLayout.j
 import RecordDetailSkeleton from '../../../components/records/RecordDetailSkeleton.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
 import Link from 'next/link';
+import RecordDetailLink from '../../../components/records/RecordDetailLink.js';
 import { tableLinkClass } from '../../../lib/tableStyles.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
@@ -18,7 +21,8 @@ import { getLeadDetailPath } from '../../../lib/pipelineHelpers.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function CampaignDetailPage() {
-  const { id } = useParams();
+  const id = useRecordId();
+  const ready = useRecordIdGuard(id, { fallbackPath: '/campaigns', message: 'Campaign not found' });
   const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
@@ -35,11 +39,12 @@ export default function CampaignDetailPage() {
   }, []);
 
   const load = useCallback(() => {
+    if (!ready) return;
     campaignsApi.getCampaign(id).then(setCampaign)
       .catch(() => { showToast('Campaign not found'); router.push('/campaigns'); });
-  }, [id, router, showToast]);
+  }, [id, ready, router, showToast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (ready) load(); }, [ready, load]);
 
   const saveSection = async (payload) => {
     setSaving(true);
@@ -51,7 +56,7 @@ export default function CampaignDetailPage() {
     finally { setSaving(false); }
   };
 
-  if (!campaign) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
+  if (!ready || !campaign) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   const members = campaign.members || [];
 
@@ -60,7 +65,6 @@ export default function CampaignDetailPage() {
       <RecordDetailLayout backHref="/campaigns" backLabel="Campaigns" title={campaign.name} badges={<Badge label={campaign.status_label} />}
         lastUpdated={campaign.updated_at ? new Date(campaign.updated_at).toLocaleString() : undefined}
         recordNotes={{ relatedType: 'campaign', recordId: id, canEdit }}
-        recordActivities={{ entityType: 'campaign', recordId: id }}
         recordHistory={{ entityType: 'campaign', recordId: id }}
         actions={canDelete && <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5"><TrashIcon className="w-4 h-4" /> Delete</button>}>
         <div className="space-y-4">
@@ -113,9 +117,9 @@ export default function CampaignDetailPage() {
                       : `/contacts/${member.member_id}`;
                   return (
                     <li key={member.id} className="py-2 flex items-center justify-between gap-3">
-                      <Link href={href} className={`text-sm font-medium ${tableLinkClass}`}>
+                      <RecordDetailLink href={href} className={`text-sm font-medium ${tableLinkClass}`}>
                         {member.member_name || `${member.member_type} #${member.member_id}`}
-                      </Link>
+                      </RecordDetailLink>
                       <span className="text-xs text-zoho-muted capitalize">{member.member_type}</span>
                     </li>
                   );

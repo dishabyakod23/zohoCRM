@@ -98,6 +98,8 @@ export default function PipelineLeadList({ stage, description }) {
     } catch (err) {
       if (requestId !== fetchRequestId.current) return;
       showToast(getApiError(err));
+      setLeads([]);
+      setTotal(0);
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
@@ -164,7 +166,7 @@ export default function PipelineLeadList({ stage, description }) {
       { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
       { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || 'Unassigned' },
     ];
-    if (canAssignLeads) {
+    if (config?.allowAssign !== false && canAssignLeads) {
       cols.push({
         id: 'assign',
         header: 'Assign',

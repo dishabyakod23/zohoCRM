@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRecordId } from '../../../hooks/useRecordId.js';
+import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
@@ -15,7 +17,8 @@ import { fetchAccountLookups, accountMapFromLookups, fetchProjectStatuses } from
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function ProjectDetailPage() {
-  const { id } = useParams();
+  const id = useRecordId();
+  const ready = useRecordIdGuard(id, { fallbackPath: '/projects', message: 'Project not found' });
   const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
@@ -30,12 +33,13 @@ export default function ProjectDetailPage() {
   }, []);
 
   const load = useCallback(() => {
+    if (!ready) return;
     const map = accountMapFromLookups(accounts);
     projectsApi.getProject(id, map).then((p) => setProject({ ...p, name: p.project_name }))
       .catch(() => { showToast('Project not found'); router.push('/projects'); });
-  }, [id, accounts, router, showToast]);
+  }, [id, ready, accounts, router, showToast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (ready) load(); }, [ready, load]);
 
   const saveSection = async (payload) => {
     setSaving(true);
@@ -47,7 +51,7 @@ export default function ProjectDetailPage() {
     finally { setSaving(false); }
   };
 
-  if (!project) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
+  if (!ready || !project) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   return (
     <CRMLayout>

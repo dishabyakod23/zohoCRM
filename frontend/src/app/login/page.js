@@ -6,11 +6,12 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { getApiError } from '../../lib/api.js';
 import Logo from '../../components/ui/Logo.js';
 import PasswordInput from '../../components/forms/PasswordInput.js';
+import { safeNextPath } from '../../lib/safeRedirect.js';
 
 function getNextPath() {
   if (typeof window === 'undefined') return '/dashboard';
   const next = new URLSearchParams(window.location.search).get('next');
-  return next?.startsWith('/') ? next : '/dashboard';
+  return safeNextPath(next);
 }
 
 export default function LoginPage() {

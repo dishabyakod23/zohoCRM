@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
+import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import RecordDetailLink from '../../../components/records/RecordDetailLink.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
@@ -29,6 +30,7 @@ const INDUSTRIES = ['IT Services', 'E-Commerce', 'Automotive', 'EdTech', 'FinTec
 
 export default function AccountDetailPage() {
   const id = useRecordId();
+  const ready = useRecordIdGuard(id, { fallbackPath: '/accounts', message: 'Account not found' });
   const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete, canAssignLeads } = usePermissions();
@@ -41,6 +43,7 @@ export default function AccountDetailPage() {
   const [saving, setSaving] = useState(false);
 
   const loadAccount = useCallback(async () => {
+    if (!ready) return;
     try {
       const [r, contactResult, projectResult, stages] = await Promise.all([
         accountsApi.getAccount(id),
@@ -59,9 +62,9 @@ export default function AccountDetailPage() {
       showToast('Account not found');
       router.push('/accounts');
     }
-  }, [id, router, showToast]);
+  }, [id, ready, router, showToast]);
 
-  useEffect(() => { loadAccount(); }, [loadAccount]);
+  useEffect(() => { if (ready) loadAccount(); }, [ready, loadAccount]);
 
   useEffect(() => {
     if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
@@ -81,7 +84,7 @@ export default function AccountDetailPage() {
     }
   };
 
-  if (!account) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
+  if (!ready || !account) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   return (
     <CRMLayout>

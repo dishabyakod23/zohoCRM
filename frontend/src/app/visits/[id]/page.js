@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRecordId } from '../../../hooks/useRecordId.js';
+import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
@@ -15,7 +17,8 @@ import { fetchAccountLookups, accountMapFromLookups, fetchVisitStatuses } from '
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function VisitDetailPage() {
-  const { id } = useParams();
+  const id = useRecordId();
+  const ready = useRecordIdGuard(id, { fallbackPath: '/visits', message: 'Visit not found' });
   const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
@@ -30,12 +33,13 @@ export default function VisitDetailPage() {
   }, []);
 
   const load = useCallback(() => {
+    if (!ready) return;
     const map = accountMapFromLookups(accounts);
     visitsApi.getVisit(id, map).then((v) => setVisit({ ...v, title: v.visit_name }))
       .catch(() => { showToast('Visit not found'); router.push('/visits'); });
-  }, [id, accounts, router, showToast]);
+  }, [id, ready, accounts, router, showToast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (ready) load(); }, [ready, load]);
 
   const saveSection = async (payload) => {
     setSaving(true);
@@ -47,7 +51,7 @@ export default function VisitDetailPage() {
     finally { setSaving(false); }
   };
 
-  if (!visit) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
+  if (!ready || !visit) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   const related = visit.related_type && visit.related_id
     ? { type: visit.related_type, id: visit.related_id, label: visit.account_name || visit.contact_name || `${visit.related_type} #${visit.related_id}` }

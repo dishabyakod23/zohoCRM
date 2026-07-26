@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import RecordDetailLink from './RecordDetailLink.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import * as tasksApi from '../../lib/services/tasks.js';
@@ -25,6 +25,7 @@ function activityDate(item) {
 export default function RecordActivitiesTab({ entityType, recordId }) {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [tasks, setTasks] = useState([]);
   const [calls, setCalls] = useState([]);
   const [meetings, setMeetings] = useState([]);
@@ -32,6 +33,7 @@ export default function RecordActivitiesTab({ entityType, recordId }) {
   useEffect(() => {
     if (!entityType || !recordId) return;
     setLoading(true);
+    setLoadError('');
     Promise.all([
       tasksApi.listTasks({ page: 1, page_size: DEFAULT_PAGE_SIZE }),
       callsApi.listCalls({ page: 1, page_size: DEFAULT_PAGE_SIZE }),
@@ -42,7 +44,13 @@ export default function RecordActivitiesTab({ entityType, recordId }) {
         setCalls((c.data || []).filter((row) => matchesEntity(row, entityType, recordId)));
         setMeetings((m.data || []).filter((row) => matchesEntity(row, entityType, recordId)));
       })
-      .catch((err) => showToast(getApiError(err)))
+      .catch((err) => {
+        setLoadError(getApiError(err));
+        setTasks([]);
+        setCalls([]);
+        setMeetings([]);
+        showToast(getApiError(err));
+      })
       .finally(() => setLoading(false));
   }, [entityType, recordId, showToast]);
 
@@ -78,6 +86,14 @@ export default function RecordActivitiesTab({ entityType, recordId }) {
 
   if (loading) return <TabPanelSkeleton rows={3} />;
 
+  if (loadError) {
+    return (
+      <div className="card p-8 text-center text-sm text-red-600">
+        Could not load activities. {loadError}
+      </div>
+    );
+  }
+
   if (!items.length) {
     return (
       <div className="card p-8 text-center text-sm text-zoho-muted">
@@ -92,7 +108,7 @@ export default function RecordActivitiesTab({ entityType, recordId }) {
         <div key={item.id} className="px-5 py-3 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-wider text-zoho-muted">{item.type}</p>
-            <Link href={item.href} className={`text-sm font-medium ${tableLinkClass}`}>{item.label || '—'}</Link>
+            <RecordDetailLink href={item.href} className={`text-sm font-medium ${tableLinkClass}`}>{item.label || '—'}</RecordDetailLink>
             {item.meta && <p className="text-xs text-zoho-muted mt-0.5">{item.meta}</p>}
           </div>
           <span className="text-xs text-zoho-muted shrink-0">

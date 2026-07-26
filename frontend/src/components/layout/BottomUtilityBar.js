@@ -207,9 +207,10 @@ export default function BottomUtilityBar() {
     if (!user?.id) return;
     setAuditLogsLoading(true);
     try {
-      const logs = await auditLogsApi.listAuditLogs({ page: 1, page_size: DEFAULT_PAGE_SIZE });
+      const logs = await auditLogsApi.listAuditLogs({ page: 1, page_size: 100 });
       const canSeeAllLogs = role === 'super_admin' || role === 'sales_manager';
-      setAuditLogs(canSeeAllLogs ? logs : logs.filter((l) => l.user_id === user.id));
+      const scopedLogs = canSeeAllLogs ? logs : logs.filter((l) => l.user_id === user.id);
+      setAuditLogs(auditLogsApi.filterVisibleAuditLogs(scopedLogs, DEFAULT_PAGE_SIZE));
     } catch {
       setAuditLogs([]);
     } finally {
@@ -265,7 +266,7 @@ export default function BottomUtilityBar() {
 
   return (
     <>
-      <footer className="h-12 bg-white/80 backdrop-blur-md border-t border-zoho-border flex items-stretch shrink-0 z-40">
+      <footer className="h-12 bg-white/80 backdrop-blur-md border-t border-zoho-border flex items-stretch shrink-0 z-40" data-tour="bottom-utility-bar">
         {items.map((item, i) => (
           <button
             key={item.key}
@@ -462,7 +463,7 @@ export default function BottomUtilityBar() {
                 <li>Convert leads to accounts and contacts</li>
               </ul>
             </div>
-            <p className="text-xs text-zoho-muted">API: api-salescrm.duckdns.org</p>
+            <p className="text-xs text-zoho-muted">API: salescrm-api.duckdns.org</p>
           </div>
         </Panel>
       )}

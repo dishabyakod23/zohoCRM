@@ -5,6 +5,7 @@ import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
+import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import * as tasksApi from '../../lib/services/tasks.js';
@@ -46,7 +47,7 @@ export default function ActivitiesPage() {
   useEffect(() => { fetchActivities(); }, [fetchActivities]);
 
   const taskColumns = useMemo(() => [
-    { id: 'subject', header: 'Subject', cell: (t) => <Link href={`/tasks/${t.id}`} className={tableLinkClass}>{t.title}</Link> },
+    { id: 'subject', header: 'Subject', cell: (t) => <RecordDetailLink href={`/tasks/${t.id}`} className={tableLinkClass}>{t.title}</RecordDetailLink> },
     { id: 'due', header: 'Due Date', cell: (t) => <span className={new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-600' : ''}>{new Date(t.due_date).toLocaleString()}</span> },
     { id: 'status', header: 'Status', cell: (t) => <Badge label={t.status_label} /> },
     { id: 'priority', header: 'Priority', cell: (t) => t.priority_label },
@@ -54,7 +55,7 @@ export default function ActivitiesPage() {
   ], []);
 
   const meetingColumns = useMemo(() => [
-    { id: 'title', header: 'Title', cell: (m) => <Link href={`/meetings/${m.id}`} className={tableLinkClass}>{m.title}</Link> },
+    { id: 'title', header: 'Title', cell: (m) => <RecordDetailLink href={`/meetings/${m.id}`} className={tableLinkClass}>{m.title}</RecordDetailLink> },
     { id: 'from', header: 'From', cell: (m) => new Date(m.from_datetime).toLocaleString() },
     { id: 'to', header: 'To', cell: (m) => new Date(m.to_datetime).toLocaleString() },
     { id: 'host', header: 'Host', cell: (m) => m.host_name },
@@ -62,7 +63,7 @@ export default function ActivitiesPage() {
   ], []);
 
   const callColumns = useMemo(() => [
-    { id: 'subject', header: 'Subject', cell: (c) => <Link href={`/calls/${c.id}`} className={tableLinkClass}>{c.subject}</Link> },
+    { id: 'subject', header: 'Subject', cell: (c) => <RecordDetailLink href={`/calls/${c.id}`} className={tableLinkClass}>{c.subject}</RecordDetailLink> },
     { id: 'type', header: 'Type', cell: (c) => c.call_type_label },
     { id: 'date', header: 'Date', cell: (c) => new Date(c.start_time).toLocaleString() },
     { id: 'assigned', header: 'Assigned To', cell: (c) => c.assigned_name },

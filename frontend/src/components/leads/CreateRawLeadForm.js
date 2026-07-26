@@ -12,6 +12,7 @@ import { validateRequired, validateEmail } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { PIPELINE_RAW } from '../../lib/pipelineHelpers.js';
 import {
@@ -140,7 +141,7 @@ export default function CreateRawLeadForm() {
     try {
       const created = await leadsApi.createRawLead(form);
       showToast('Raw lead created', 'success');
-      router.push(created?.id ? `/raw-leads/${created.id}` : '/raw-leads');
+      navigateToRecord(created?.id ? `/raw-leads/${created.id}` : '/raw-leads');
     } catch (err) {
       showToast(getApiError(err));
     } finally {

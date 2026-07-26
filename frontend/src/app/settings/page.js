@@ -16,6 +16,7 @@ import { triggerWeeklyReport } from '../../lib/services/reports.js';
 import * as authApi from '../../lib/services/auth.js';
 import AnnouncementsPanel from '../../components/admin/AnnouncementsPanel.js';
 import { slugifyStatusValue } from '../../lib/statusHelpers.js';
+import { ONBOARDING_RESTART_EVENT } from '../../lib/onboardingTour.js';
 
 const EMPTY_USER = {
   email: '',
@@ -342,6 +343,19 @@ export default function SettingsPage() {
                 <div><dt className="text-zoho-muted text-xs">Email</dt><dd>{user?.email}</dd></div>
                 <div><dt className="text-zoho-muted text-xs">Role</dt><dd className="text-brand-600">{myRoleLabel}</dd></div>
               </dl>
+            </div>
+            <div className="card p-5">
+              <h2 className="text-sm font-semibold mb-1">Product tour</h2>
+              <p className="text-sm text-zoho-muted mb-4">
+                Replay the guided walkthrough of navigation, search, quick create, and other key areas.
+              </p>
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event(ONBOARDING_RESTART_EVENT))}
+                className="btn-secondary text-xs"
+              >
+                Replay tour
+              </button>
             </div>
             <div className="card p-5">
               <h2 className="text-sm font-semibold mb-1">Password</h2>

@@ -64,13 +64,14 @@ export default function DashboardPage() {
     Promise.all([
       dashboardApi.getDashboardHome(),
       leadsApi.countLeadsThisMonth().catch(() => 0),
-      auditLogsApi.listAuditLogs({ page: 1, page_size: DEFAULT_PAGE_SIZE }).catch(() => []),
+      auditLogsApi.listAuditLogs({ page: 1, page_size: 100 }).catch(() => []),
     ]).then(([home, leadsThisMonth, logs]) => {
       const leadsTotal = (home.leads_by_status || home.leadsByStatus || []).reduce((s, r) => s + r.count, 0);
       const qualifiedCount = (home.leads_by_status || home.leadsByStatus || []).find(r => /qualified/i.test(r.label || r.key || r.status || ''))?.count ?? 0;
       const topAccountsRaw = home.top_accounts || [];
       const canSeeAllLogs = role === 'super_admin' || role === 'sales_manager';
-      setAuditLogs(canSeeAllLogs ? logs : logs.filter((log) => log.user_id === user.id));
+      const scopedLogs = canSeeAllLogs ? logs : logs.filter((log) => log.user_id === user.id);
+      setAuditLogs(auditLogsApi.filterVisibleAuditLogs(scopedLogs, DEFAULT_PAGE_SIZE));
       setStats({
         leads: { total: leadsTotal, this_month: leadsThisMonth, qualified: qualifiedCount },
         accounts: { total: topAccountsRaw.length },

@@ -74,6 +74,8 @@ export default function ContactsPage() {
       setTotal(result.total);
     } catch (err) {
       showToast(getApiError(err));
+      setContacts([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }

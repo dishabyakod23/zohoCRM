@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRecordId } from '../../../hooks/useRecordId.js';
+import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
@@ -16,7 +18,8 @@ import { fetchCallTypes, fetchUsers } from '../../../lib/services/lookups.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function CallDetailPage() {
-  const { id } = useParams();
+  const id = useRecordId();
+  const ready = useRecordIdGuard(id, { fallbackPath: '/calls', message: 'Call not found' });
   const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
@@ -29,10 +32,11 @@ export default function CallDetailPage() {
   useEffect(() => { Promise.all([fetchUsers(), fetchCallTypes()]).then(([u, t]) => { setUsers(u); setCallTypes(t); }); }, []);
 
   const load = useCallback(() => {
+    if (!ready) return;
     callsApi.getCall(id).then(setCall).catch(() => { showToast('Call not found'); router.push('/calls'); });
-  }, [id, router, showToast]);
+  }, [id, ready, router, showToast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (ready) load(); }, [ready, load]);
 
   const saveSection = async (payload) => {
     setSaving(true);
@@ -49,7 +53,7 @@ export default function CallDetailPage() {
     finally { setSaving(false); }
   };
 
-  if (!call) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
+  if (!ready || !call) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   const related = relatedRecordFromActivity(call);
   const editValues = { ...call, duration: call.duration ?? call.duration_minutes };

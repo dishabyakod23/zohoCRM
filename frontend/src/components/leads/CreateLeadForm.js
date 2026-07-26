@@ -12,6 +12,7 @@ import { validateRequired, validateEmail, validatePhone } from '../../lib/valida
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
@@ -79,7 +80,7 @@ export default function CreateLeadForm() {
     try {
       const created = await leadsApi.createLead(form);
       showToast('Lead saved', 'success');
-      router.push(created?.id ? `/leads/${created.id}` : '/leads');
+      navigateToRecord(created?.id ? `/leads/${created.id}` : '/leads');
     } catch (err) {
       showToast(getApiError(err));
     } finally {

@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRecordId, isValidRecordId } from '../../../hooks/useRecordId.js';
+import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import Badge from '../../../components/ui/Badge.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
@@ -30,6 +31,7 @@ const INDUSTRIES = ['IT Services', 'E-Commerce', 'EdTech', 'Automotive', 'Financ
 
 export default function LeadDetailPage() {
   const id = useRecordId();
+  const ready = useRecordIdGuard(id, { fallbackPath: '/leads', message: 'Lead not found' });
   const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete, isSuperAdmin, canAssignLeads } = usePermissions();
@@ -47,7 +49,7 @@ export default function LeadDetailPage() {
   }, [canAssignLeads]);
 
   const loadLead = useCallback(() => {
-    if (!isValidRecordId(id)) return;
+    if (!ready || !isValidRecordId(id)) return;
     leadsApi.getLead(id).then((r) => {
       setLead(r);
       trackRecentItem({ type: 'lead', id, name: `${r.first_name} ${r.last_name}`, lead: r });
@@ -55,12 +57,12 @@ export default function LeadDetailPage() {
       showToast('Lead not found');
       router.push('/leads');
     });
-  }, [id, router, showToast]);
+  }, [id, ready, router, showToast]);
 
   useEffect(() => {
-    if (!isValidRecordId(id)) return;
+    if (!ready || !isValidRecordId(id)) return;
     loadLead();
-  }, [id, loadLead]);
+  }, [id, ready, loadLead]);
 
   const saveSection = async (payload) => {
     if (payload.email) {
@@ -83,7 +85,7 @@ export default function LeadDetailPage() {
     }
   };
 
-  if (!lead) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
+  if (!ready || !lead) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   const editable = canEdit && !lead.is_converted;
   const select = (opts, key = 'value', labelKey = 'label') => (draft, setDraft, field) => (

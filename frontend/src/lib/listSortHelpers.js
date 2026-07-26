@@ -2,6 +2,7 @@ export const DEFAULT_LIST_SORT = 'created_desc';
 
 export const LIST_SORT_OPTIONS = [
   { value: 'name_asc', label: 'Name (A → Z)' },
+  { value: 'name_desc', label: 'Name (Z → A)' },
   { value: 'created_desc', label: 'Recently Created' },
   { value: 'created_asc', label: 'Oldest Created' },
 ];
@@ -48,6 +49,8 @@ export function getSortApiParams(sortKey = DEFAULT_LIST_SORT, moduleKey = 'leads
   switch (sortKey) {
     case 'name_asc':
       return { sort_by: config.apiNameField, sort_order: 'asc' };
+    case 'name_desc':
+      return { sort_by: config.apiNameField, sort_order: 'desc' };
     case 'created_asc':
       return { sort_by: 'created_at', sort_order: 'asc' };
     case 'created_desc':
@@ -63,6 +66,9 @@ export function sortRecords(records, sortKey = DEFAULT_LIST_SORT, moduleKey = 'l
   switch (sortKey) {
     case 'name_asc':
       sorted.sort((a, b) => compareNameAsc(a, b, config));
+      break;
+    case 'name_desc':
+      sorted.sort((a, b) => compareNameAsc(b, a, config));
       break;
     case 'created_asc':
       sorted.sort((a, b) => getCreatedTime(a) - getCreatedTime(b));

@@ -6,6 +6,7 @@ import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
+import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -86,7 +87,7 @@ export default function CallsPage() {
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
   const columns = useMemo(() => [
-    { id: 'subject', header: 'Subject', cell: (c) => <Link href={`/calls/${c.id}`} className={tableLinkClass}>{c.subject}</Link> },
+    { id: 'subject', header: 'Subject', cell: (c) => <RecordDetailLink href={`/calls/${c.id}`} className={tableLinkClass}>{c.subject}</RecordDetailLink> },
     { id: 'type', header: 'Type', cell: (c) => c.call_type_label },
     { id: 'date', header: 'Date', cell: (c) => new Date(c.start_time).toLocaleString() },
     { id: 'duration', header: 'Duration', cell: (c) => `${c.duration_minutes} min` },

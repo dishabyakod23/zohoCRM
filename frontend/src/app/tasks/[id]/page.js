@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useRecordId } from '../../../hooks/useRecordId.js';
+import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
@@ -16,7 +18,8 @@ import { fetchTaskStatuses, fetchTaskPriorities, fetchUsers } from '../../../lib
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function TaskDetailPage() {
-  const { id } = useParams();
+  const id = useRecordId();
+  const ready = useRecordIdGuard(id, { fallbackPath: '/tasks', message: 'Task not found' });
   const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
@@ -33,11 +36,12 @@ export default function TaskDetailPage() {
   }, []);
 
   const load = useCallback(() => {
+    if (!ready) return;
     tasksApi.getTask(id).then((t) => setTask({ ...t, title: t.title || t.subject, assigned_to: t.assigned_to ?? t.assigned_to_id }))
       .catch(() => { showToast('Task not found'); router.push('/tasks'); });
-  }, [id, router, showToast]);
+  }, [id, ready, router, showToast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (ready) load(); }, [ready, load]);
 
   const saveSection = async (payload) => {
     setSaving(true);
@@ -49,7 +53,7 @@ export default function TaskDetailPage() {
     finally { setSaving(false); }
   };
 
-  if (!task) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
+  if (!ready || !task) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   const related = relatedRecordFromActivity(task);
 

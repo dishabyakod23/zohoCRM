@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
@@ -84,6 +85,8 @@ export default function WorkItemsPage() {
     } catch (err) {
       if (requestId !== fetchRequestId.current) return;
       showToast(getApiError(err));
+      setItems([]);
+      setTotal(0);
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
@@ -103,9 +106,9 @@ export default function WorkItemsPage() {
       id: 'name',
       header: 'Lead Name',
       cell: (lead) => (
-        <Link href={getLeadDetailPath(lead, lead.id)} className={tableLinkClass}>
+        <RecordDetailLink href={getLeadDetailPath(lead, lead.id)} className={tableLinkClass}>
           {lead.first_name} {lead.last_name}
-        </Link>
+        </RecordDetailLink>
       ),
     },
     { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },

@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api.js';
 import { setAuthSessionCookie, clearAuthSessionCookie } from '../lib/authCookie.js';
+import { safeNextPath, loginHref } from '../lib/safeRedirect.js';
 
 const AuthContext = createContext(null);
 
@@ -32,7 +33,7 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('crm_user');
         clearAuthSessionCookie();
         setUser(null);
-        router.replace('/login');
+        router.replace(loginHref());
       });
     } else {
       setLoading(false);
@@ -49,7 +50,7 @@ export function AuthProvider({ children }) {
     const next = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('next')
       : null;
-    router.replace(next?.startsWith('/') ? next : '/dashboard');
+    router.replace(safeNextPath(next));
   };
 
   const logout = () => {
@@ -58,7 +59,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('crm_user');
     clearAuthSessionCookie();
     setUser(null);
-    router.push('/login');
+    router.push(loginHref());
   };
 
   return (

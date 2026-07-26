@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { ArrowPathIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import Modal from '../ui/Modal.js';
 import ConfirmDialog from '../ui/ConfirmDialog.js';
@@ -58,7 +59,7 @@ export default function LeadConvertMenu({
       });
       showToast(`Converted to ${option.label}`, 'success');
       setPendingOption(null);
-      router.push(getConvertRedirectPath(option.target, leadId));
+      navigateToRecord(getConvertRedirectPath(option.target, leadId), router);
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -82,8 +83,8 @@ export default function LeadConvertMenu({
       const result = await leadsApi.convertLead(leadId, convertForm);
       showToast('Converted to Account', 'success');
       setAccountModalOpen(false);
-      if (result.deal?.id) router.push(`/deals/${result.deal.id}`);
-      else if (result.account?.id) router.push(`/accounts/${result.account.id}`);
+      if (result.deal?.id) navigateToRecord(`/deals/${result.deal.id}`, router);
+      else if (result.account?.id) navigateToRecord(`/accounts/${result.account.id}`, router);
     } catch (err) {
       showToast(getApiError(err));
     } finally {

@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
+import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
@@ -63,6 +64,7 @@ function formatExternalLink(raw, kind) {
 
 export default function ContactDetailPage() {
   const id = useRecordId();
+  const ready = useRecordIdGuard(id, { fallbackPath: '/contacts', message: 'Contact not found' });
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -81,6 +83,7 @@ export default function ContactDetailPage() {
   useMarkRecordViewed('contact', id);
 
   const loadContact = useCallback(() => {
+    if (!ready) return;
     const map = accountMapFromLookups(accounts);
     contactsApi.getContact(id, map).then((r) => {
       setContact(r);
@@ -89,7 +92,7 @@ export default function ContactDetailPage() {
       showToast(getApiError(err) || 'Contact not found');
       router.push('/contacts');
     });
-  }, [id, accounts, router, showToast]);
+  }, [id, ready, accounts, router, showToast]);
 
   useEffect(() => {
     fetchAccountLookups().then(setAccounts).catch(() => {});
@@ -97,7 +100,7 @@ export default function ContactDetailPage() {
     if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, [canAssignLeads]);
 
-  useEffect(() => { if (accounts.length >= 0) loadContact(); }, [loadContact, accounts]);
+  useEffect(() => { if (ready) loadContact(); }, [ready, loadContact]);
 
   useEffect(() => {
     const map = accountMapFromLookups(accounts);
@@ -172,7 +175,7 @@ export default function ContactDetailPage() {
     }
   };
 
-  if (!contact) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
+  if (!ready || !contact) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
   return (
     <CRMLayout>

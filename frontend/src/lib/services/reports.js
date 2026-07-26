@@ -1,5 +1,6 @@
 import api from '../api.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { normalizeRole } from '../roles.js';
 
 function dateParams({ date_from, date_to } = {}) {
   const params = {};
@@ -110,8 +111,9 @@ export { listAdminUsers, getAdminSettings, updateWeeklyReportSettings } from './
 
 export function isWeeklyRecipientEligible(user, settings) {
   if (!user?.is_active || !settings) return false;
-  if (user.role === 'super_admin' && settings.super_admin_enabled) return true;
-  if (user.role === 'sales_manager' && settings.sales_manager_enabled) return true;
+  const role = normalizeRole(user.role);
+  if (role === 'super_admin' && settings.super_admin_enabled) return true;
+  if (role === 'sales_manager' && settings.sales_manager_enabled) return true;
   return false;
 }
 
