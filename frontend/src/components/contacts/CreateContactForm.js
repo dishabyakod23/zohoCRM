@@ -134,7 +134,6 @@ export default function CreateContactForm() {
     const errs = validateRequired({
       first_name: 'First Name',
       last_name: 'Last Name',
-      email: 'Email',
     }, form);
     if (!accountOk) errs.account_id = 'Account Name is required';
     const emailErr = validateEmail(form.email);
@@ -220,7 +219,7 @@ export default function CreateContactForm() {
               <input className={inputClass(errors.last_name)} value={form.last_name} onChange={set('last_name')} />
             </FormField>
 
-            <FormField label="Email" required error={errors.email || emailError} name="email">
+            <FormField label="Email" error={errors.email || emailError} name="email">
               <div>
                 <input className={inputClass(errors.email || emailError)} type="email" value={form.email} onChange={set('email')} />
                 {checkingEmail && !(errors.email || emailError) && (
