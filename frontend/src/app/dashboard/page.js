@@ -6,6 +6,7 @@ import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import * as dashboardApi from '../../lib/services/dashboard.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import * as accountsApi from '../../lib/services/accounts.js';
 import * as auditLogsApi from '../../lib/services/auditLogs.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -64,8 +65,10 @@ export default function DashboardPage() {
     Promise.all([
       dashboardApi.getDashboardHome(),
       leadsApi.countLeadsThisMonth().catch(() => 0),
+      accountsApi.countAccounts().catch(() => 0),
+      leadsApi.countProposals().catch(() => 0),
       auditLogsApi.listAuditLogs({ page: 1, page_size: 100 }).catch(() => []),
-    ]).then(([home, leadsThisMonth, logs]) => {
+    ]).then(([home, leadsThisMonth, accountsTotal, proposalsTotal, logs]) => {
       const leadsTotal = (home.leads_by_status || home.leadsByStatus || []).reduce((s, r) => s + r.count, 0);
       const qualifiedCount = (home.leads_by_status || home.leadsByStatus || []).find(r => /qualified/i.test(r.label || r.key || r.status || ''))?.count ?? 0;
       const topAccountsRaw = home.top_accounts || [];
@@ -74,7 +77,8 @@ export default function DashboardPage() {
       setAuditLogs(auditLogsApi.filterVisibleAuditLogs(scopedLogs, DEFAULT_PAGE_SIZE));
       setStats({
         leads: { total: leadsTotal, this_month: leadsThisMonth, qualified: qualifiedCount },
-        accounts: { total: topAccountsRaw.length },
+        accounts: { total: accountsTotal },
+        proposals: { total: proposalsTotal },
         topAccounts: topAccountsRaw.map((a) => ({
           id: a.id,
           name: a.account_name || a.name,
@@ -124,18 +128,20 @@ export default function DashboardPage() {
               icon={ChartBarIcon}
               gradient="bg-gradient-to-br from-accent-yellow to-brand-600"
             />
-            <KpiCard
-              title="Top Accounts"
-              value={stats.accounts.total}
-              sub={formatMoneyTotalsByCurrency(stats.topAccounts)}
-              icon={BuildingOffice2Icon}
-              gradient="bg-gradient-to-br from-accent-orange to-accent-pink"
-            />
+            <Link href="/accounts" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
+              <KpiCard
+                title="Accounts"
+                value={stats.accounts.total}
+                sub={formatMoneyTotalsByCurrency(stats.topAccounts) || 'Total accounts'}
+                icon={BuildingOffice2Icon}
+                gradient="bg-gradient-to-br from-accent-orange to-accent-pink"
+              />
+            </Link>
             <Link href="/proposals" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
                 title="Proposals"
-                value="Open"
-                sub="Manage proposal pipeline"
+                value={stats.proposals.total}
+                sub="In proposal pipeline"
                 icon={DocumentTextIcon}
                 gradient="bg-gradient-to-br from-accent-pink to-brand-600"
               />

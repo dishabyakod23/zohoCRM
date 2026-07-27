@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import AuthShell from '../../components/auth/AuthShell.js';
 import { getApiError } from '../../lib/api.js';
 import * as authApi from '../../lib/services/auth.js';
+import { normalizeLoginEmail } from '../../lib/authHelpers.js';
 
 function ForgotPasswordForm() {
   const router = useRouter();
@@ -25,7 +26,7 @@ function ForgotPasswordForm() {
     setSuccess('');
     setSubmitting(true);
     try {
-      const message = await authApi.forgotPassword(email.trim());
+      const message = await authApi.forgotPassword(normalizeLoginEmail(email));
       setSuccess(message);
     } catch (err) {
       setError(getApiError(err));
@@ -35,7 +36,7 @@ function ForgotPasswordForm() {
   };
 
   const goToReset = () => {
-    const params = new URLSearchParams({ email: email.trim() });
+    const params = new URLSearchParams({ email: normalizeLoginEmail(email) });
     router.push(`/reset-password?${params.toString()}`);
   };
 

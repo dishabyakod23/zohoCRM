@@ -162,7 +162,6 @@ export default function PipelineLeadList({ stage, description }) {
       { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
       { id: 'email', header: 'Email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
       { id: 'phone', header: 'Phone', cell: (lead) => <PhoneCell value={lead.phone} label="Call lead" /> },
-      { id: 'source', header: 'Source', cell: (lead) => lead.source || '—' },
       { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
       { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || 'Unassigned' },
     ];

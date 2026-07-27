@@ -16,6 +16,7 @@ import { triggerWeeklyReport } from '../../lib/services/reports.js';
 import * as authApi from '../../lib/services/auth.js';
 import AnnouncementsPanel from '../../components/admin/AnnouncementsPanel.js';
 import { slugifyStatusValue } from '../../lib/statusHelpers.js';
+import { normalizeLoginEmail } from '../../lib/authHelpers.js';
 import { ONBOARDING_RESTART_EVENT } from '../../lib/onboardingTour.js';
 
 const EMPTY_USER = {
@@ -165,7 +166,7 @@ export default function SettingsPage() {
         showToast('User updated', 'success');
       } else {
         await adminApi.createAdminUser({
-          email: userForm.email,
+          email: normalizeLoginEmail(userForm.email),
           password: userForm.password,
           first_name: userForm.first_name,
           last_name: userForm.last_name,

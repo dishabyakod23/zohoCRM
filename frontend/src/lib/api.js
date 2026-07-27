@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { setAuthSessionCookie, clearAuthSessionCookie } from './authCookie.js';
 import { loginHref } from './safeRedirect.js';
+import { parseAuthTokenResponse } from './authHelpers.js';
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'https://salescrm-api.duckdns.org/api/v1';
@@ -34,11 +35,13 @@ api.interceptors.response.use(
         original._retry = true;
         try {
           const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refresh });
-          localStorage.setItem('crm_token', data.access_token);
-          localStorage.setItem('crm_refresh_token', data.refresh_token);
-          localStorage.setItem('crm_user', JSON.stringify(data.user));
+          const auth = parseAuthTokenResponse(data);
+          if (!auth?.access_token) throw new Error('Refresh failed');
+          localStorage.setItem('crm_token', auth.access_token);
+          localStorage.setItem('crm_refresh_token', auth.refresh_token);
+          localStorage.setItem('crm_user', JSON.stringify(auth.user));
           setAuthSessionCookie();
-          original.headers.Authorization = `Bearer ${data.access_token}`;
+          original.headers.Authorization = `Bearer ${auth.access_token}`;
           return api(original);
         } catch {
           localStorage.removeItem('crm_token');

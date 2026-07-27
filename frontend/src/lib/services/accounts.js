@@ -101,6 +101,11 @@ export async function listAccounts({
   };
 }
 
+export async function countAccounts() {
+  const result = await listAccounts({ page: 1, page_size: 1 });
+  return result.total ?? result.meta?.total ?? 0;
+}
+
 export async function getAccount(id) {
   const res = await api.get(`/accounts/${id}`);
   return normalizeAccount(res.data.data);

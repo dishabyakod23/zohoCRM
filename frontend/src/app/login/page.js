@@ -7,6 +7,7 @@ import { getApiError } from '../../lib/api.js';
 import Logo from '../../components/ui/Logo.js';
 import PasswordInput from '../../components/forms/PasswordInput.js';
 import { safeNextPath } from '../../lib/safeRedirect.js';
+import { normalizeLoginEmail } from '../../lib/authHelpers.js';
 
 function getNextPath() {
   if (typeof window === 'undefined') return '/dashboard';
@@ -66,7 +67,10 @@ export default function LoginPage() {
           <div>
             <label className="label">Email</label>
             <input className="input" type="email" value={form.email}
-              onChange={e => setForm(p => ({ ...p, email: e.target.value }))} required />
+              onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+              onBlur={e => setForm(p => ({ ...p, email: normalizeLoginEmail(e.target.value) }))}
+              autoComplete="email"
+              required />
           </div>
           <div>
             <label className="label">Password</label>

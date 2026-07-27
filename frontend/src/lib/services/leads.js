@@ -321,7 +321,6 @@ export async function createProposal(form) {
   });
 }
 
-/** Count leads created since the start of the current calendar month. */
 export async function countLeadsThisMonth() {
   const monthStart = new Date();
   monthStart.setDate(1);
@@ -333,6 +332,16 @@ export async function countLeadsThisMonth() {
     if (!lead.created_at) return false;
     return new Date(lead.created_at) >= monthStart;
   }).length;
+}
+
+export async function countProposals(statusOptions = []) {
+  const result = await listLeads({
+    page: 1,
+    page_size: 1,
+    pipeline_stage: PIPELINE_PROPOSAL,
+    statusOptions,
+  });
+  return result.total ?? 0;
 }
 
 /** Parse CSV text into row objects keyed by header names */

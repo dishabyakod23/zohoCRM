@@ -4,6 +4,12 @@ import { useRouter } from 'next/navigation';
 import api from '../lib/api.js';
 import { setAuthSessionCookie, clearAuthSessionCookie } from '../lib/authCookie.js';
 import { safeNextPath, loginHref } from '../lib/safeRedirect.js';
+import {
+  normalizeLoginEmail,
+  normalizeLoginPassword,
+  parseAuthTokenResponse,
+  parseAuthUserResponse,
+} from '../lib/authHelpers.js';
 
 const AuthContext = createContext(null);
 
@@ -23,9 +29,11 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('crm_user');
       }
       setLoading(false);
-      api.get('/auth/me').then(r => {
-        setUser(r.data);
-        localStorage.setItem('crm_user', JSON.stringify(r.data));
+      api.get('/auth/me').then((r) => {
+        const me = parseAuthUserResponse(r.data);
+        if (!me?.id) throw new Error('Invalid session');
+        setUser(me);
+        localStorage.setItem('crm_user', JSON.stringify(me));
         setAuthSessionCookie();
       }).catch(() => {
         localStorage.removeItem('crm_token');
@@ -41,12 +49,19 @@ export function AuthProvider({ children }) {
   }, [router]);
 
   const login = async (email, password) => {
-    const res = await api.post('/auth/login', { email, password });
-    localStorage.setItem('crm_token', res.data.access_token);
-    localStorage.setItem('crm_refresh_token', res.data.refresh_token);
-    localStorage.setItem('crm_user', JSON.stringify(res.data.user));
+    const res = await api.post('/auth/login', {
+      email: normalizeLoginEmail(email),
+      password: normalizeLoginPassword(password),
+    });
+    const auth = parseAuthTokenResponse(res.data);
+    if (!auth?.access_token || !auth?.user) {
+      throw new Error('Login failed. Please try again.');
+    }
+    localStorage.setItem('crm_token', auth.access_token);
+    localStorage.setItem('crm_refresh_token', auth.refresh_token);
+    localStorage.setItem('crm_user', JSON.stringify(auth.user));
     setAuthSessionCookie();
-    setUser(res.data.user);
+    setUser(auth.user);
     const next = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('next')
       : null;
