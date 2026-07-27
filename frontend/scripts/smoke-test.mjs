@@ -1,6 +1,24 @@
 import assert from 'node:assert/strict';
 
-// Mirrors src/lib/safeRedirect.js for CI without a test runner.
+// Mirrors src/lib/authHelpers.js for CI without a test runner.
+function parseAuthUserResponse(body) {
+  if (!body) return null;
+  if (body.id) return body;
+  if (body.data?.id) return body.data;
+  const nested = body?.data;
+  return nested?.id ? nested : null;
+}
+
+function isPublicAuthPath(pathname = '') {
+  const path = String(pathname || '').replace(/\/$/, '') || '/';
+  return path === '/login' || path === '/forgot-password' || path === '/reset-password';
+}
+
+assert.equal(parseAuthUserResponse({ id: 'u1', email: 'a@b.com', role: 'business_rep' }).role, 'business_rep');
+assert.equal(parseAuthUserResponse({ data: { id: 'u1', role: 'business_rep' } }).id, 'u1');
+assert.equal(isPublicAuthPath('/login/'), true);
+assert.equal(isPublicAuthPath('/dashboard'), false);
+
 function safeNextPath(next, fallback = '/dashboard') {
   if (!next || typeof next !== 'string') return fallback;
   const path = next.trim();

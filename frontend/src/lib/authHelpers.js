@@ -19,7 +19,14 @@ export function parseAuthTokenResponse(body) {
 /** `/auth/me` may return the user flat or wrapped in `{ data }`. */
 export function parseAuthUserResponse(body) {
   if (!body) return null;
-  if (body.id && body.email) return body;
-  if (body.data?.id && body.data?.email) return body.data;
-  return body?.data ?? body;
+  if (body.id) return body;
+  if (body.data?.id) return body.data;
+  const nested = body?.data;
+  return nested?.id ? nested : null;
+}
+
+/** True when the browser is on an unauthenticated route. */
+export function isPublicAuthPath(pathname = '') {
+  const path = String(pathname || '').replace(/\/$/, '') || '/';
+  return path === '/login' || path === '/forgot-password' || path === '/reset-password';
 }

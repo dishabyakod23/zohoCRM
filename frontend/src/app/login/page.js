@@ -33,7 +33,8 @@ export default function LoginPage() {
     try {
       await login(form.email, form.password);
     } catch (err) {
-      setError(getApiError(err));
+      setError(getApiError(err) || 'Invalid email or password.');
+    } finally {
       setSubmitting(false);
     }
   };

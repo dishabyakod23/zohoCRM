@@ -10,7 +10,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
-import { USER_ROLES, ROLE_LABELS, ROLE_ACCESS, roleLabel } from '../../lib/roles.js';
+import { USER_ROLES, ROLE_LABELS, ROLE_ACCESS, roleLabel, normalizeRole } from '../../lib/roles.js';
 import * as adminApi from '../../lib/services/admin.js';
 import { triggerWeeklyReport } from '../../lib/services/reports.js';
 import * as authApi from '../../lib/services/auth.js';
@@ -128,7 +128,7 @@ export default function SettingsPage() {
       password: '',
       first_name: u.first_name || '',
       last_name: u.last_name || '',
-      role: u.role,
+      role: normalizeRole(u.role) || 'sales_rep',
       is_active: u.is_active,
     });
     setUserErrors({});

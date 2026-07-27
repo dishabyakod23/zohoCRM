@@ -9,6 +9,7 @@ import {
   normalizeLoginPassword,
   parseAuthTokenResponse,
   parseAuthUserResponse,
+  isPublicAuthPath,
 } from '../lib/authHelpers.js';
 
 const AuthContext = createContext(null);
@@ -23,25 +24,23 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('crm_token');
     if (stored && token) {
       setAuthSessionCookie();
-      try {
-        setUser(JSON.parse(stored));
-      } catch {
-        localStorage.removeItem('crm_user');
-      }
-      setLoading(false);
       api.get('/auth/me').then((r) => {
         const me = parseAuthUserResponse(r.data);
         if (!me?.id) throw new Error('Invalid session');
         setUser(me);
         localStorage.setItem('crm_user', JSON.stringify(me));
         setAuthSessionCookie();
+        setLoading(false);
       }).catch(() => {
         localStorage.removeItem('crm_token');
         localStorage.removeItem('crm_refresh_token');
         localStorage.removeItem('crm_user');
         clearAuthSessionCookie();
         setUser(null);
-        router.replace(loginHref());
+        setLoading(false);
+        if (typeof window !== 'undefined' && !isPublicAuthPath(window.location.pathname)) {
+          router.replace(loginHref());
+        }
       });
     } else {
       setLoading(false);
