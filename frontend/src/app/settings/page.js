@@ -631,10 +631,11 @@ export default function SettingsPage() {
 
       {userModal && (
         <Modal title={editingUser ? 'Edit User' : 'Add User'} onClose={() => setUserModal(false)}>
-          <div className="space-y-3">
+          <div key={editingUser?.id || 'new-user'} className="space-y-3">
             {!editingUser && (
               <FormField label="Email" required error={userErrors.email} name="email">
                 <input className={inputClass(userErrors.email)} type="email" value={userForm.email}
+                  autoComplete="off"
                   onChange={e => { setUserForm(f => ({ ...f, email: e.target.value })); setUserErrors(er => ({ ...er, email: null })); }} />
               </FormField>
             )}
@@ -643,8 +644,14 @@ export default function SettingsPage() {
                 className={inputClass(userErrors.password)}
                 value={userForm.password}
                 onChange={e => { setUserForm(f => ({ ...f, password: e.target.value })); setUserErrors(er => ({ ...er, password: null })); }}
-                placeholder={editingUser ? 'Leave blank to keep current' : 'Min. 8 characters'}
+                placeholder={editingUser ? 'Leave blank to keep current password' : 'Min. 8 characters'}
+                autoComplete="new-password"
               />
+              {editingUser && (
+                <p className="mt-1.5 text-xs text-zoho-muted">
+                  Passwords are encrypted and cannot be viewed. Leave this blank to keep the user&apos;s current password, or enter a new one to reset it.
+                </p>
+              )}
             </FormField>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="First Name" required error={userErrors.first_name} name="first_name">
