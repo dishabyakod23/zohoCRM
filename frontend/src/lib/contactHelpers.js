@@ -23,7 +23,7 @@ export function toContactPayload(form, { partial = false } = {}) {
     if (formHas(form, 'first_name')) payload.first_name = form.first_name || null;
     if (formHas(form, 'last_name')) payload.last_name = form.last_name;
     if (formHas(form, 'account_id')) payload.account_id = form.account_id;
-    if (formHas(form, 'email')) payload.email = form.email?.trim() || null;
+    if (formHas(form, 'email')) payload.email = form.email;
     if (formHas(form, 'phone')) payload.phone = form.phone || null;
     if (formHas(form, 'other_phone')) payload.other_phone = form.other_phone || null;
     if (formHas(form, 'home_phone')) payload.home_phone = form.home_phone || null;
@@ -71,7 +71,7 @@ export function toContactPayload(form, { partial = false } = {}) {
     first_name: form.first_name,
     last_name: form.last_name,
     account_id: form.account_id,
-    email: form.email?.trim() || null,
+    email: form.email,
     phone: form.phone || null,
     other_phone: form.other_phone || null,
     home_phone: form.home_phone || null,
