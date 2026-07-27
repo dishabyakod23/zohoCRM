@@ -147,7 +147,7 @@ export default function RecordDataTable({
   massUpdateHandler,
 }) {
   const { showToast } = useToast();
-  const { canEdit, canDelete, canAssignLeads } = usePermissions();
+  const { canEdit, canDelete, canAssignLeads, canEditRecord, canDeleteRecord } = usePermissions();
   const config = useMemo(() => getBulkConfig(moduleKey), [moduleKey]);
   const noteMeta = useMemo(() => getNoteMeta(moduleKey), [moduleKey]);
   const showNotes = notesApiSupported(moduleKey);
@@ -182,6 +182,11 @@ export default function RecordDataTable({
     () => records.filter((r) => selected.includes(getRowId(r))),
     [records, selected, getRowId],
   );
+
+  const canMassEditSelection = selectedRecords.length > 0
+    && selectedRecords.every((record) => canEditRecord(record));
+  const canMassDeleteSelection = selectedRecords.length > 0
+    && selectedRecords.every((record) => canDeleteRecord(record));
 
   useEffect(() => {
     setSelected((prev) => {
@@ -539,7 +544,7 @@ export default function RecordDataTable({
               {config.emailField && (
                 <button type="button" onClick={handleSendEmail} className="btn-secondary text-xs">Send Email</button>
               )}
-              {canEdit && hasMassUpdate && (
+              {canMassEditSelection && hasMassUpdate && (
                 <button type="button" onClick={() => setMassUpdateOpen(true)} className="btn-secondary text-xs">Mass Update</button>
               )}
               <div className="relative" ref={menuRef}>
@@ -552,7 +557,7 @@ export default function RecordDataTable({
                     {canEdit && <button type="button" onClick={openTaskModal} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Create Task</button>}
                     {canEdit && <button type="button" onClick={openCampaignModal} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Add to Campaigns</button>}
                     <button type="button" onClick={() => { handlePrintLabels(); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Print Mailing Labels</button>
-                    {canDelete && <button type="button" onClick={() => { setDeleteConfirm(true); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600">Delete</button>}
+                    {canDelete && <button type="button" onClick={() => { if (!canMassDeleteSelection) { showToast('You can only delete records you own.'); setMenuOpen(false); return; } setDeleteConfirm(true); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600">Delete</button>}
                     <button type="button" onClick={() => { handleExport(); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Export Selected Records</button>
                   </div>
                 )}

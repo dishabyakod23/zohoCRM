@@ -24,6 +24,7 @@ import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib
 import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, proposalDealStatusLabel, resolveLeadPipelineStage, getLeadDetailPath } from '../../lib/pipelineHelpers.js';
 import { ownerFieldConfig } from '../forms/ownerField.js';
 import { trackRecentItem } from '../layout/BottomUtilityBar.js';
+import ReadOnlyRecordBanner from '../records/ReadOnlyRecordBanner.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { LEAD_SOURCES } from '../../lib/constants.js';
 import { formatMoney, CURRENCIES } from '../../lib/currencies.js';
@@ -39,7 +40,7 @@ export default function PipelineLeadDetail({ stage }) {
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit, canDelete, canAssignLeads, isSuperAdmin } = usePermissions();
+  const { canEditRecord, canDeleteRecord, canAssignLeads, isSuperAdmin } = usePermissions();
   const [lead, setLead] = useState(null);
   const [users, setUsers] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -140,7 +141,8 @@ export default function PipelineLeadDetail({ stage }) {
 
   if (!lead) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
-  const editable = canEdit;
+  const editable = canEditRecord(lead);
+  const deletable = canDeleteRecord(lead);
   const select = (opts, key = 'value', labelKey = 'label') => (draft, setDraft, field) => (
     <select className="input" value={draft[field] ?? ''} onChange={(e) => setDraft((d) => ({ ...d, [field]: e.target.value }))}>
       <option value="">--None--</option>
@@ -152,6 +154,7 @@ export default function PipelineLeadDetail({ stage }) {
 
   return (
     <CRMLayout>
+      <ReadOnlyRecordBanner show={!editable} />
       <RecordDetailLayout
         backHref={config.listPath}
         backLabel={config.listTitle}
@@ -176,7 +179,7 @@ export default function PipelineLeadDetail({ stage }) {
                 <UserIcon className="w-4 h-4" /> Assign
               </button>
             )}
-            {canDelete && (
+            {deletable && (
               <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
                 <TrashIcon className="w-4 h-4" /> Delete
               </button>

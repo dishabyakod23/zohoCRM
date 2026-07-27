@@ -32,6 +32,7 @@ import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import RecordDetailLink from '../../../components/records/RecordDetailLink.js';
+import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
 import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { tableLinkClass } from '../../../lib/tableStyles.js';
 import { useAuth } from '../../../hooks/useAuth.js';
@@ -68,7 +69,7 @@ export default function ContactDetailPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit, canDelete, canAssignLeads } = usePermissions();
+  const { canEditRecord, canDeleteRecord, canAssignLeads } = usePermissions();
   const [contact, setContact] = useState(null);
   const [users, setUsers] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -177,20 +178,24 @@ export default function ContactDetailPage() {
 
   if (!ready || !contact) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
+  const editable = canEditRecord(contact);
+  const deletable = canDeleteRecord(contact);
+
   return (
     <CRMLayout>
+      <ReadOnlyRecordBanner show={!editable} />
       <RecordDetailLayout
         backHref="/contacts" backLabel="Contacts"
         title={`${contact.first_name} ${contact.last_name}`}
         subtitle={contact.title ? `${contact.title}${contact.account_name ? ` at ${contact.account_name}` : ''}` : contact.account_name}
         avatarLabel={`${contact.first_name?.[0] || ''}${contact.last_name?.[0] || ''}`}
         lastUpdated={contact.updated_at ? new Date(contact.updated_at).toLocaleString() : undefined}
-        recordNotes={{ relatedType: 'contact', recordId: id, canEdit }}
+        recordNotes={{ relatedType: 'contact', recordId: id, canEdit: editable }}
         recordHistory={{ entityType: 'contact', recordId: id }}
         actions={
           <div className="flex items-center gap-2">
             <CallRecordButton phone={contact.phone} mobile={contact.mobile} label="Call Contact" />
-            {canEdit && (
+            {editable && (
               <div className="relative" ref={convertRef}>
                 <button
                   onClick={() => setConvertOpen((o) => !o)}
@@ -215,7 +220,7 @@ export default function ContactDetailPage() {
                 )}
               </div>
             )}
-            {canDelete && (
+            {deletable && (
               <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
                 <TrashIcon className="w-4 h-4" /> Delete
               </button>
@@ -226,7 +231,7 @@ export default function ContactDetailPage() {
         <div className="space-y-4">
           <EditableFieldSection
             title="Contact Information"
-            canEdit={canEdit}
+            canEdit={editable}
             saving={saving}
             values={contact}
             onSave={saveSection}
@@ -262,7 +267,7 @@ export default function ContactDetailPage() {
           />
           <EditableFieldSection
             title="Contact Details"
-            canEdit={canEdit}
+            canEdit={editable}
             saving={saving}
             values={contact}
             onSave={saveSection}
@@ -304,7 +309,7 @@ export default function ContactDetailPage() {
           />
           <EditableFieldSection
             title="Mailing Address"
-            canEdit={canEdit}
+            canEdit={editable}
             saving={saving}
             values={contact}
             onSave={saveSection}
@@ -318,7 +323,7 @@ export default function ContactDetailPage() {
           />
           <EditableFieldSection
             title="Other Address"
-            canEdit={canEdit}
+            canEdit={editable}
             saving={saving}
             values={contact}
             onSave={saveSection}
@@ -332,7 +337,7 @@ export default function ContactDetailPage() {
           />
           <EditableFieldSection
             title="Description"
-            canEdit={canEdit}
+            canEdit={editable}
             saving={saving}
             values={contact}
             onSave={saveSection}

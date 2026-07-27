@@ -24,6 +24,7 @@ import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { ACCOUNT_TYPES, DEFAULT_PAGE_SIZE } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
+import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
 import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
 
 const INDUSTRIES = ['IT Services', 'E-Commerce', 'Automotive', 'EdTech', 'FinTech', 'Healthcare', 'Manufacturing', 'Retail', 'Other'];
@@ -33,7 +34,7 @@ export default function AccountDetailPage() {
   const ready = useRecordIdGuard(id, { fallbackPath: '/accounts', message: 'Account not found' });
   const router = useRouter();
   const { showToast } = useToast();
-  const { canEdit, canDelete, canAssignLeads } = usePermissions();
+  const { canEditRecord, canDeleteRecord, canAssignLeads } = usePermissions();
   const [account, setAccount] = useState(null);
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -86,8 +87,12 @@ export default function AccountDetailPage() {
 
   if (!ready || !account) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
+  const editable = canEditRecord(account);
+  const deletable = canDeleteRecord(account);
+
   return (
     <CRMLayout>
+      <ReadOnlyRecordBanner show={!editable} />
       <RecordDetailLayout
         backHref="/accounts" backLabel="Accounts"
         title={account.name}
@@ -95,9 +100,9 @@ export default function AccountDetailPage() {
         avatarLabel={account.name?.[0]}
         badges={account.account_type ? <Badge label={account.account_type} /> : null}
         lastUpdated={account.updated_at ? new Date(account.updated_at).toLocaleString() : undefined}
-        recordNotes={{ relatedType: 'account', recordId: id, canEdit }}
+        recordNotes={{ relatedType: 'account', recordId: id, canEdit: editable }}
         recordHistory={{ entityType: 'account', recordId: id }}
-        actions={canDelete && (
+        actions={deletable && (
           <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
             <TrashIcon className="w-4 h-4" /> Delete
           </button>
@@ -106,7 +111,7 @@ export default function AccountDetailPage() {
         <div className="space-y-4">
           <EditableFieldSection
             title="Account Information"
-            canEdit={canEdit}
+            canEdit={editable}
             saving={saving}
             values={account}
             onSave={saveSection}
@@ -138,7 +143,7 @@ export default function AccountDetailPage() {
           />
           <EditableFieldSection
             title="Address Information"
-            canEdit={canEdit}
+            canEdit={editable}
             saving={saving}
             values={account}
             onSave={saveSection}
@@ -240,7 +245,7 @@ export default function AccountDetailPage() {
 
           <EditableFieldSection
             title="Description"
-            canEdit={canEdit}
+            canEdit={editable}
             saving={saving}
             values={account}
             onSave={saveSection}

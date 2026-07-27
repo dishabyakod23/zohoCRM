@@ -21,6 +21,7 @@ import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { LEAD_SOURCES, DEAL_TYPES, DEFAULT_PAGE_SIZE } from '../../../lib/constants.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
+import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
 import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
 
 export default function DealDetailPage() {
@@ -28,7 +29,7 @@ export default function DealDetailPage() {
   const ready = useRecordIdGuard(id, { fallbackPath: '/deals', message: 'Deal not found' });
   const router = useRouter();
   const { showToast } = useToast();
-  const { canEdit, canDelete, canAssignLeads } = usePermissions();
+  const { canEditRecord, canDeleteRecord, canAssignLeads } = usePermissions();
   const [deal, setDeal] = useState(null);
   const [users, setUsers] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -97,23 +98,27 @@ export default function DealDetailPage() {
   const isClosedLost = String(deal.stage_value || deal.stage || '').toLowerCase().includes('closed_lost')
     || String(deal.stage || '').toLowerCase().includes('closed lost');
 
+  const editable = canEditRecord(deal);
+  const deletable = canDeleteRecord(deal);
+
   return (
     <CRMLayout>
+      <ReadOnlyRecordBanner show={!editable} />
       <RecordDetailLayout
         backHref="/deals" backLabel="Deals"
         title={deal.deal_name || deal.name}
         subtitle={deal.account_name || 'No account linked'}
         badges={<Badge label={deal.stage} />}
         lastUpdated={deal.updated_at ? new Date(deal.updated_at).toLocaleString() : undefined}
-        recordNotes={{ relatedType: 'deal', recordId: id, canEdit }}
+        recordNotes={{ relatedType: 'deal', recordId: id, canEdit: editable }}
         recordHistory={{ entityType: 'deal', recordId: id }}
         actions={<>
-          {canEdit && isClosedLost && (
+          {editable && isClosedLost && (
             <button type="button" onClick={reopenAsLead} disabled={saving} className="btn-secondary text-xs">
               Reopen as Lead
             </button>
           )}
-          {canDelete && (
+          {deletable && (
             <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
               <TrashIcon className="w-4 h-4" /> Delete
             </button>
@@ -123,7 +128,7 @@ export default function DealDetailPage() {
         <div className="space-y-4">
           <EditableFieldSection
             title="Deal Information"
-            canEdit={canEdit}
+            canEdit={editable}
             saving={saving}
             values={deal}
             onSave={saveSection}
@@ -173,7 +178,7 @@ export default function DealDetailPage() {
           />
           <EditableFieldSection
             title="Description"
-            canEdit={canEdit}
+            canEdit={editable}
             saving={saving}
             values={deal}
             onSave={saveSection}

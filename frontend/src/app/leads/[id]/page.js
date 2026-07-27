@@ -11,6 +11,7 @@ import RecordDetailSkeleton from '../../../components/records/RecordDetailSkelet
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
 import EditableEmailField from '../../../components/forms/EditableEmailField.js';
 import LeadConvertMenu from '../../../components/leads/LeadConvertMenu.js';
+import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
 import CallRecordButton from '../../../components/cloudtalk/CallRecordButton.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
@@ -34,7 +35,7 @@ export default function LeadDetailPage() {
   const ready = useRecordIdGuard(id, { fallbackPath: '/leads', message: 'Lead not found' });
   const router = useRouter();
   const { showToast } = useToast();
-  const { canEdit, canDelete, isSuperAdmin, canAssignLeads } = usePermissions();
+  const { canEditRecord, canDeleteRecord, isSuperAdmin, canAssignLeads } = usePermissions();
   const [lead, setLead] = useState(null);
   const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
@@ -87,7 +88,8 @@ export default function LeadDetailPage() {
 
   if (!ready || !lead) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
-  const editable = canEdit && !lead.is_converted;
+  const editable = canEditRecord(lead) && !lead.is_converted;
+  const deletable = canDeleteRecord(lead);
   const select = (opts, key = 'value', labelKey = 'label') => (draft, setDraft, field) => (
     <select className="input" value={draft[field] ?? ''} onChange={(e) => setDraft((d) => ({ ...d, [field]: e.target.value }))}>
       <option value="">--None--</option>
@@ -99,6 +101,7 @@ export default function LeadDetailPage() {
 
   return (
     <CRMLayout>
+      <ReadOnlyRecordBanner show={!editable && !lead.is_converted} />
       <RecordDetailLayout
         backHref="/leads" backLabel="Leads"
         title={`${lead.first_name} ${lead.last_name}`}
@@ -118,7 +121,7 @@ export default function LeadDetailPage() {
               isAdmin={isSuperAdmin}
               isConverted={lead.is_converted}
             />
-            {canDelete && (
+            {deletable && (
               <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
                 <TrashIcon className="w-4 h-4" /> Delete
               </button>
