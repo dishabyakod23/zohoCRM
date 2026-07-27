@@ -334,14 +334,19 @@ export async function countLeadsThisMonth() {
   }).length;
 }
 
+export async function summarizeProposals(statusOptions = []) {
+  const { data } = await listAllLeads({ pipeline_stage: PIPELINE_PROPOSAL }, statusOptions);
+  const dealSize = data.reduce((sum, lead) => {
+    const size = Number(lead.deal_size ?? lead.proposal_amount);
+    return sum + (Number.isFinite(size) ? size : 0);
+  }, 0);
+  return { total: data.length, dealSize };
+}
+
+/** @deprecated use summarizeProposals */
 export async function countProposals(statusOptions = []) {
-  const result = await listLeads({
-    page: 1,
-    page_size: 1,
-    pipeline_stage: PIPELINE_PROPOSAL,
-    statusOptions,
-  });
-  return result.total ?? 0;
+  const summary = await summarizeProposals(statusOptions);
+  return summary.total;
 }
 
 /** Parse CSV text into row objects keyed by header names */

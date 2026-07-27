@@ -51,6 +51,11 @@ function KpiCard({ title, value, sub, subClass, icon: Icon, gradient }) {
   );
 }
 
+function formatProposalKpi({ dealSize = 0, total = 0 } = {}) {
+  const amount = Number.isFinite(Number(dealSize)) ? Math.round(Number(dealSize)) : 0;
+  return `${amount}(${total})`;
+}
+
 export default function DashboardPage() {
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -66,9 +71,9 @@ export default function DashboardPage() {
       dashboardApi.getDashboardHome(),
       leadsApi.countLeadsThisMonth().catch(() => 0),
       accountsApi.countAccounts().catch(() => 0),
-      leadsApi.countProposals().catch(() => 0),
+      leadsApi.summarizeProposals().catch(() => ({ total: 0, dealSize: 0 })),
       auditLogsApi.listAuditLogs({ page: 1, page_size: 100 }).catch(() => []),
-    ]).then(([home, leadsThisMonth, accountsTotal, proposalsTotal, logs]) => {
+    ]).then(([home, leadsThisMonth, accountsTotal, proposalsSummary, logs]) => {
       const leadsTotal = (home.leads_by_status || home.leadsByStatus || []).reduce((s, r) => s + r.count, 0);
       const qualifiedCount = (home.leads_by_status || home.leadsByStatus || []).find(r => /qualified/i.test(r.label || r.key || r.status || ''))?.count ?? 0;
       const topAccountsRaw = home.top_accounts || [];
@@ -78,7 +83,7 @@ export default function DashboardPage() {
       setStats({
         leads: { total: leadsTotal, this_month: leadsThisMonth, qualified: qualifiedCount },
         accounts: { total: accountsTotal },
-        proposals: { total: proposalsTotal },
+        proposals: proposalsSummary,
         topAccounts: topAccountsRaw.map((a) => ({
           id: a.id,
           name: a.account_name || a.name,
@@ -140,7 +145,7 @@ export default function DashboardPage() {
             <Link href="/proposals" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
                 title="Proposals"
-                value={stats.proposals.total}
+                value={formatProposalKpi(stats.proposals)}
                 sub="In proposal pipeline"
                 icon={DocumentTextIcon}
                 gradient="bg-gradient-to-br from-accent-pink to-brand-600"
