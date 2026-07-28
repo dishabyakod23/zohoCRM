@@ -13,7 +13,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { QUICK_CREATE, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
-import { leadStatusLabel, pluralizeLeadStatusLabel } from '../../lib/leadHelpers.js';
+import { pluralizeLeadStatusLabel } from '../../lib/leadHelpers.js';
 import { formatCompactMoney, formatIndianRupees, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { avatarInitialClass } from '../../lib/tableStyles.js';
 import {
@@ -70,33 +70,37 @@ export default function DashboardPage() {
     Promise.all([
       dashboardApi.getDashboardHome(),
       leadsApi.countLeadsThisMonth().catch(() => 0),
-      leadsApi.countQualifiedLeads().catch(() => 0),
+      leadsApi.summarizePipelineDashboard().catch(() => ({
+        leadsByPipeline: [],
+        totalLeads: 0,
+        qualifiedCount: 0,
+        proposals: { total: 0, dealSize: 0 },
+      })),
       accountsApi.countAccounts({ recordKind: 'account' }).catch(() => 0),
-      leadsApi.summarizeProposals().catch(() => ({ total: 0, dealSize: 0 })),
       auditLogsApi.listActivityLogsLastDays(30, {
         user,
         canSeeAll: role === 'super_admin' || role === 'sales_manager',
       }).catch(() => []),
       buildAccountKindContext().catch(() => ({ dealAccountIds: new Set() })),
-    ]).then(([home, leadsThisMonth, qualifiedCount, accountsTotal, proposalsSummary, logs, accountKindContext]) => {
-      const leadsTotal = (home.leads_by_status || home.leadsByStatus || []).reduce((s, r) => s + r.count, 0);
+    ]).then(([home, leadsThisMonth, pipelineSummary, accountsTotal, logs, accountKindContext]) => {
       const topAccountsRaw = (home.top_accounts || [])
         .filter((account) => isConfirmedAccount(account, accountKindContext));
       setAuditLogs(auditLogsApi.filterVisibleAuditLogs(logs, DEFAULT_PAGE_SIZE));
       setStats({
-        leads: { total: leadsTotal, this_month: leadsThisMonth, qualified: qualifiedCount },
+        leads: {
+          total: pipelineSummary.totalLeads,
+          this_month: leadsThisMonth,
+          qualified: pipelineSummary.qualifiedCount,
+        },
         accounts: { total: accountsTotal },
-        proposals: proposalsSummary,
+        proposals: pipelineSummary.proposals,
         topAccounts: topAccountsRaw.map((a) => ({
           id: a.id,
           name: a.account_name || a.name,
           revenue: Number(a.annual_revenue ?? a.revenue) || 0,
           currency: a.currency || DEFAULT_CURRENCY,
         })),
-        leadsByStatus: (home.leads_by_status || home.leadsByStatus || []).map(r => ({
-          status: leadStatusLabel(r.label || r.status || r.key),
-          count: r.count,
-        })),
+        leadsByStatus: pipelineSummary.leadsByPipeline,
       });
       setLoading(false);
     }).catch((err) => {
@@ -157,7 +161,7 @@ export default function DashboardPage() {
               />
             </Link>
 
-            <Widget title="My Leads by Status" className="col-span-12 lg:col-span-6">
+            <Widget title="Leads by Pipeline" className="col-span-12 lg:col-span-6">
               {stats.leadsByStatus?.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart><Pie data={stats.leadsByStatus} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} label={({ status, count }) => `${pluralizeLeadStatusLabel(status, count)}: ${count}`}>

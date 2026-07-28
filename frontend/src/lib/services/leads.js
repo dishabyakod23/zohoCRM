@@ -4,7 +4,7 @@ import { toConvertPayload } from '../dealHelpers.js';
 import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
 import {
   PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PIPELINE_LEAD, PROPOSAL_SOURCE,
-  filterLeadsByPipelineStage, toApiLeadStatus, RAW_LEAD_CSV_HEADERS,
+  filterLeadsByPipelineStage, toApiLeadStatus, RAW_LEAD_CSV_HEADERS, pipelineStageLabel,
 } from '../pipelineHelpers.js';
 import {
   applyLeadRecordFilters,
@@ -337,6 +337,32 @@ export async function countLeadsThisMonth() {
 export async function countQualifiedLeads(statusOptions = []) {
   const { data } = await listAllLeads({ pipeline_stage: PIPELINE_QUALIFIED }, statusOptions);
   return data.length;
+}
+
+/** Pipeline counts for dashboard KPIs and chart (single fetch, matches list pages). */
+export async function summarizePipelineDashboard(statusOptions = []) {
+  const { data } = await listAllLeads({}, statusOptions);
+  const stages = [PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL];
+  const leadsByPipeline = stages
+    .map((stage) => ({
+      status: pipelineStageLabel(stage),
+      count: filterLeadsByPipelineStage(data, stage).length,
+    }))
+    .filter((row) => row.count > 0);
+
+  const proposalLeads = filterLeadsByPipelineStage(data, PIPELINE_PROPOSAL);
+  const qualifiedCount = filterLeadsByPipelineStage(data, PIPELINE_QUALIFIED).length;
+  const dealSize = proposalLeads.reduce((sum, lead) => {
+    const size = Number(lead.deal_size ?? lead.proposal_amount);
+    return sum + (Number.isFinite(size) ? size : 0);
+  }, 0);
+
+  return {
+    leadsByPipeline,
+    totalLeads: leadsByPipeline.reduce((sum, row) => sum + row.count, 0),
+    qualifiedCount,
+    proposals: { total: proposalLeads.length, dealSize },
+  };
 }
 
 export async function summarizeProposals(statusOptions = []) {
