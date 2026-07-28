@@ -1,4 +1,5 @@
 import * as accountsApi from './services/accounts.js';
+import { COMPANY_ACCOUNT_TYPE, CONFIRMED_ACCOUNT_TYPE } from './companyHelpers.js';
 
 /**
  * Resolve a contact's account_id from either a selected lookup id or a typed name.
@@ -23,7 +24,7 @@ export async function resolveContactAccountId({
   }
 
   if (!typed) {
-    throw new Error('Account Name is required');
+    throw new Error('Company name is required');
   }
 
   const match = accounts.find(
@@ -34,6 +35,7 @@ export async function resolveContactAccountId({
   const accountPhone = String(phone || mobile || '').replace(/\D/g, '');
   const created = await accountsApi.createAccount({
     account_name: typed,
+    account_type: COMPANY_ACCOUNT_TYPE,
     phone: accountPhone.length >= 7 ? (phone || mobile) : '0000000',
     owner_id: owner_id || null,
   });

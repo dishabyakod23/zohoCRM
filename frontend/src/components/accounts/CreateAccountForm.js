@@ -8,6 +8,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { ACCOUNT_TYPES, RATINGS, INDUSTRIES } from '../../lib/constants.js';
+import { CONFIRMED_ACCOUNT_TYPE } from '../../lib/companyHelpers.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
@@ -26,7 +27,7 @@ export function emptyAccountForm() {
   return {
     owner_id: '',
     account_name: '', parent_account_id: '', account_number: '',
-    account_type: '', industry: '', annual_revenue: '', rating: '',
+    account_type: CONFIRMED_ACCOUNT_TYPE, industry: '', annual_revenue: '', rating: '',
     phone: '', fax: '', website: '', ticker_symbol: '', ownership: '',
     employees: '', sic_code: '',
     billing_flat: '', billing_street: '', billing_city: '', billing_state: '',

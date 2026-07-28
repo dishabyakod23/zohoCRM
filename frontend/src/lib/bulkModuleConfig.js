@@ -112,6 +112,16 @@ export const BULK_MODULE_CONFIG = {
     exportRow: (r) => ({ name: r.name, industry: r.industry, phone: r.phone, city: r.billing_city || r.city, status: r.account_type }),
     mailingLabel: (r) => `${r.name || ''}\n${[r.billing_city || r.city, r.billing_state || r.state].filter(Boolean).join(', ')}`,
   },
+  companies: {
+    label: 'Records',
+    emailField: null,
+    statusField: 'account_type',
+    massUpdateFields: ['status'],
+    update: (id, payload) => accountsApi.updateAccount(id, payload),
+    deleteOne: (id) => accountsApi.deleteAccount(id),
+    exportRow: (r) => ({ name: r.name, industry: r.industry, phone: r.phone, contacts: r.contact_count, city: r.billing_city || r.city }),
+    mailingLabel: (r) => `${r.name || ''}\n${[r.billing_city || r.city, r.billing_state || r.state].filter(Boolean).join(', ')}`,
+  },
   deals: {
     label: 'Records',
     emailField: null,

@@ -8,6 +8,8 @@ import ConfirmDialog from '../ui/ConfirmDialog.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import * as accountsApi from '../../lib/services/accounts.js';
+import { CONFIRMED_ACCOUNT_TYPE } from '../../lib/companyHelpers.js';
 import { fetchDealStages } from '../../lib/services/lookups.js';
 import { FALLBACK_DEAL_STAGES } from '../../lib/dealHelpers.js';
 import {
@@ -81,6 +83,9 @@ export default function LeadConvertMenu({
     setConverting(true);
     try {
       const result = await leadsApi.convertLead(leadId, convertForm);
+      if (result.account?.id) {
+        await accountsApi.updateAccount(result.account.id, { account_type: CONFIRMED_ACCOUNT_TYPE });
+      }
       showToast('Converted to Account', 'success');
       setAccountModalOpen(false);
       if (result.deal?.id) navigateToRecord(`/deals/${result.deal.id}`, router);

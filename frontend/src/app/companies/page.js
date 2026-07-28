@@ -1,19 +1,16 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
-import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
 import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import { useToast } from '../../components/ui/Toast.js';
-import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { getApiError } from '../../lib/api.js';
-import * as accountsApi from '../../lib/services/accounts.js';
-import { ACCOUNT_TYPES, INDUSTRIES, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import * as companiesApi from '../../lib/services/companies.js';
+import { INDUSTRIES, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { tableLinkClass, tableEmailClass, avatarInitialClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
@@ -22,12 +19,9 @@ import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.j
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
-const ACCOUNT_STATUS_OPTIONS = ACCOUNT_TYPES.map((t) => ({ value: t, label: t }));
-
-export default function AccountsPage() {
+export default function CompaniesPage() {
   const { showToast } = useToast();
-  const { canEdit } = usePermissions();
-  const [accounts, setAccounts] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -41,18 +35,17 @@ export default function AccountsPage() {
     fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, []);
 
-  const fetchAccounts = useCallback(async () => {
+  const fetchCompanies = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await accountsApi.listAccounts({
+      const result = await companiesApi.listCompanies({
         page,
         page_size: LIMIT,
         search: debouncedSearch || undefined,
         filters,
-        recordKind: 'account',
         ...getSortApiParams(sort, 'accounts'),
       });
-      setAccounts(result.data);
+      setCompanies(result.data);
       setTotal(result.total);
     } catch (err) {
       showToast(getApiError(err));
@@ -61,28 +54,31 @@ export default function AccountsPage() {
     }
   }, [page, debouncedSearch, filters, sort, showToast]);
 
-  useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
-  useListRefresh(fetchAccounts);
+  useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
+  useListRefresh(fetchCompanies);
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
   const columns = useMemo(() => [
-    { id: 'name', header: 'Company', cell: (a) => (
+    { id: 'name', header: 'Company', cell: (company) => (
       <div className="flex items-center gap-2.5">
-        <div className={avatarInitialClass(a.name, 'md')}>{(a.name || '?')[0]}</div>
-        <RecordDetailLink href={`/accounts/${a.id}`} className={tableLinkClass}>{a.name}</RecordDetailLink>
+        <div className={avatarInitialClass(company.name, 'md')}>{(company.name || '?')[0]}</div>
+        <RecordDetailLink href={`/companies/${company.id}`} className={tableLinkClass}>{company.name}</RecordDetailLink>
       </div>
     ) },
-    { id: 'industry', header: 'Industry', cell: (a) => a.industry || '—' },
-    { id: 'website', header: 'Website', cell: (a) => a.website ? <a href={a.website} target="_blank" rel="noreferrer" className={`${tableEmailClass} text-xs hover:text-zoho-text hover:underline`}>{a.website.replace('https://', '')}</a> : '—' },
-    { id: 'email', header: 'Email', cell: (a) => <span className={tableEmailClass}>{a.email || '—'}</span> },
-    { id: 'status', header: 'Status', cell: (a) => <Badge label={a.account_type || '—'} /> },
-    { id: 'city', header: 'City', cell: (a) => a.billing_city || a.city || '—' },
-    { id: 'owner', header: 'Owner', cell: (a) => a.owner_name || '—' },
+    { id: 'contacts', header: 'Contacts', cell: (company) => company.contact_count || 0 },
+    { id: 'industry', header: 'Industry', cell: (company) => company.industry || '—' },
+    { id: 'website', header: 'Website', cell: (company) => company.website ? (
+      <a href={company.website} target="_blank" rel="noreferrer" className={`${tableEmailClass} text-xs hover:text-zoho-text hover:underline`}>
+        {company.website.replace('https://', '')}
+      </a>
+    ) : '—' },
+    { id: 'email', header: 'Email', cell: (company) => <span className={tableEmailClass}>{company.email || '—'}</span> },
+    { id: 'city', header: 'City', cell: (company) => company.billing_city || company.city || '—' },
+    { id: 'owner', header: 'Owner', cell: (company) => company.owner_name || '—' },
   ], []);
 
   const industryOptions = INDUSTRIES.map((value) => ({ value, label: value }));
-  const statusOptions = ACCOUNT_STATUS_OPTIONS;
 
   const updateFilter = (key, value) => {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -93,22 +89,19 @@ export default function AccountsPage() {
     <CRMLayout>
       <div className="p-6">
         <ListPageHeader
-          title="Accounts"
-          subtitle="Confirmed customers converted from proposals or created with an active deal."
-          primaryAction={canEdit ? (
-            <Link href="/accounts/create" className="btn-primary-sm">Create Account</Link>
-          ) : null}
+          title="Companies"
+          subtitle="Organizations linked to your contacts. Add a company when creating a contact."
         />
 
         <ListSearchBar
           search={search}
           onSearchChange={(v) => { setSearch(v); setPage(1); }}
-          placeholder="Search accounts…"
+          placeholder="Search companies…"
           total={total}
-          totalLabel="accounts"
+          totalLabel="companies"
           sort={sort}
           onSortChange={(v) => { setSort(v); setPage(1); }}
-          filterTitle="Filter Accounts by"
+          filterTitle="Filter Companies by"
           hasActiveFilters={countActiveFilters(filters) > 0}
           onClearFilters={() => { setFilters(EMPTY_ACCOUNT_FILTERS); setPage(1); }}
           filterFields={(
@@ -116,20 +109,18 @@ export default function AccountsPage() {
               <SelectFilter label="Industry" value={filters.industry} onChange={(v) => updateFilter('industry', v)} options={industryOptions} emptyLabel="All industries" />
               <TextFilter label="Website" value={filters.website} onChange={(v) => updateFilter('website', v)} />
               <TextFilter label="Email" value={filters.email} onChange={(v) => updateFilter('email', v)} />
-              <SelectFilter label="Status" value={filters.status} onChange={(v) => updateFilter('status', v)} options={statusOptions} emptyLabel="All statuses" />
               <TextFilter label="City" value={filters.city} onChange={(v) => updateFilter('city', v)} />
               <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
             </>
           )}
           table={(
             <RecordDataTable
-              moduleKey="accounts"
-              records={accounts}
+              moduleKey="companies"
+              records={companies}
               loading={loading}
               columns={columns}
-              statusOptions={ACCOUNT_STATUS_OPTIONS}
-              onRefresh={fetchAccounts}
-              emptyMessage="No accounts found"
+              onRefresh={fetchCompanies}
+              emptyMessage="No companies found. Companies appear when you add contacts with a company name."
               pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
             />
           )}

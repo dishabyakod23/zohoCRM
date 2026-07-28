@@ -136,7 +136,7 @@ export default function CreateContactForm() {
       last_name: 'Last Name',
       email: 'Email',
     }, form);
-    if (!accountOk) errs.account_id = 'Account Name is required';
+    if (!accountOk) errs.account_id = 'Company name is required';
     const emailErr = validateEmail(form.email);
     if (emailErr) errs.email = emailErr;
     if (form.phone) {
@@ -229,11 +229,12 @@ export default function CreateContactForm() {
               </div>
             </FormField>
 
-            <FormField label="Account Name" required error={errors.account_id} name="account_id">
+            <FormField label="Company Name" required error={errors.account_id} name="account_id">
               <AccountNameCombobox
                 options={accounts}
                 valueId={form.account_id}
                 valueLabel={form.account_name}
+                placeholder="Search or type company name"
                 error={errors.account_id}
                 onChange={({ account_id, account_name }) => {
                   setForm((f) => ({ ...f, account_id, account_name }));

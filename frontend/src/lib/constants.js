@@ -33,6 +33,7 @@ export const NAV_MODULES = [
   { href: '/leads', label: 'Leads', section: 'modules', icon: 'Leads' },
   { href: '/qualified-leads', label: 'Qualified Leads', section: 'modules', icon: 'Qualified' },
   { href: '/proposals', label: 'Proposals', section: 'modules', icon: 'Proposals' },
+  { href: '/companies', label: 'Companies', section: 'modules', icon: 'Companies' },
   { href: '/accounts', label: 'Accounts', section: 'modules', icon: 'Accounts' },
   { href: '/calendar', label: 'Calendar', section: 'modules', icon: 'Calendar' },
   { href: '/campaigns', label: 'Campaigns', section: 'modules', icon: 'Campaigns' },

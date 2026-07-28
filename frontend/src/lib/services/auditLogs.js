@@ -34,6 +34,8 @@ export function isNoiseAuditLog(log) {
   if (/^refreshed\b/.test(summary)) return true;
   if (/\bsigned\s*in\b/.test(summary)) return true;
   if (/\bsign[\s-]?in\b/.test(summary)) return true;
+  if (action.includes('api_action') || action.includes('api action')) return true;
+  if (/submitted\s+api\s+action/i.test(summary)) return true;
   return false;
 }
 

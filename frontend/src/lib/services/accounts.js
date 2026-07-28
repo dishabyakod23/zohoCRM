@@ -6,6 +6,10 @@ import {
   applyAccountRecordFilters,
   hasAccountClientFilters,
 } from '../listRecordFilters.js';
+import {
+  buildAccountKindContext,
+  filterAccountsByKind,
+} from '../companyHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 
 async function fetchAccountContactEmailMap() {
@@ -67,6 +71,7 @@ export async function listAccounts({
   sort_by,
   sort_order,
   filters = {},
+  recordKind,
 } = {}) {
   const params = { page, page_size };
   if (search) params.search = search;
@@ -76,15 +81,19 @@ export async function listAccounts({
   if (sort_order) params.sort_order = sort_order;
 
   const emailMap = await fetchAccountContactEmailMap();
+  const kindContext = recordKind ? await buildAccountKindContext() : null;
 
-  if (hasAccountClientFilters(filters)) {
+  if (hasAccountClientFilters(filters) || recordKind) {
     const allAccounts = attachContactEmails(await fetchAllAccountPages({
       search,
       owner_id: mergedOwnerId,
       sort_by,
       sort_order,
     }), emailMap);
-    const filtered = applyAccountRecordFilters(allAccounts, filters);
+    const scoped = recordKind
+      ? filterAccountsByKind(allAccounts, recordKind, kindContext)
+      : allAccounts;
+    const filtered = applyAccountRecordFilters(scoped, filters);
     const start = (page - 1) * page_size;
     return {
       data: filtered.slice(start, start + page_size),

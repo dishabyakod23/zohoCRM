@@ -13,11 +13,14 @@ function isNoiseAuditLog(log) {
   if (/^refreshed\b/.test(summary)) return true;
   if (/\bsigned\s*in\b/.test(summary)) return true;
   if (/\bsign[\s-]?in\b/.test(summary)) return true;
+  if (action.includes('api_action') || action.includes('api action')) return true;
+  if (/submitted\s+api\s+action/i.test(summary)) return true;
   return false;
 }
 
 assert.equal(isNoiseAuditLog({ action: 'login', summary: 'Signed In User' }), true);
 assert.equal(isNoiseAuditLog({ action: 'create', summary: 'Created Lead' }), false);
+assert.equal(isNoiseAuditLog({ summary: 'Submitted API Action' }), true);
 
 function parseAuthUserResponse(body) {
   if (!body) return null;

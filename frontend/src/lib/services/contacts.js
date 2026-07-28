@@ -8,6 +8,8 @@ import {
 import { CONTACT_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { advanceLeadStage, convertLead } from './leads.js';
+import * as accountsApi from './accounts.js';
+import { CONFIRMED_ACCOUNT_TYPE } from '../companyHelpers.js';
 import {
   PIPELINE_RAW,
   PIPELINE_LEAD,
@@ -186,6 +188,9 @@ export async function convertContact(contactId, target = PIPELINE_RAW) {
   }
   if (target === 'account') {
     const accountResult = await convertLead(leadId, { create_deal: false });
+    if (accountResult.account?.id) {
+      await accountsApi.updateAccount(accountResult.account.id, { account_type: CONFIRMED_ACCOUNT_TYPE });
+    }
     return { ...converted, ...accountResult, lead_id: leadId };
   }
   const lead = await advanceLeadStage(leadId, target, {
