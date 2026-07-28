@@ -13,7 +13,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { QUICK_CREATE, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { leadStatusLabel, pluralizeLeadStatusLabel } from '../../lib/leadHelpers.js';
-import { formatCompactMoney, formatMoneyTotalsByCurrency, DEFAULT_CURRENCY } from '../../lib/currencies.js';
+import { formatCompactMoney, formatMoneyTotalsByCurrency, formatIndianRupees, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { avatarInitialClass } from '../../lib/tableStyles.js';
 import {
   UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
@@ -52,8 +52,7 @@ function KpiCard({ title, value, sub, subClass, icon: Icon, gradient }) {
 }
 
 function formatProposalKpi({ dealSize = 0, total = 0 } = {}) {
-  const amount = Number.isFinite(Number(dealSize)) ? Math.round(Number(dealSize)) : 0;
-  return `${amount}(${total})`;
+  return `${formatIndianRupees(dealSize)}(${total})`;
 }
 
 export default function DashboardPage() {

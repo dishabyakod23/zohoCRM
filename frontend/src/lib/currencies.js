@@ -96,3 +96,16 @@ export function formatMoney(amount, currencyCode = DEFAULT_CURRENCY) {
     return `${currency.symbol} ${num.toLocaleString()}`;
   }
 }
+
+/** Whole INR amounts with Indian grouping, e.g. ₹32,50,000 */
+export function formatIndianRupees(amount) {
+  if (amount == null || amount === '') return '—';
+  const num = Math.round(Number(amount));
+  if (Number.isNaN(num)) return amount;
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(num);
+}
