@@ -7,16 +7,18 @@ import { getApiError } from '../../lib/api.js';
 import * as dashboardApi from '../../lib/services/dashboard.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import * as accountsApi from '../../lib/services/accounts.js';
+import * as companiesApi from '../../lib/services/companies.js';
 import * as auditLogsApi from '../../lib/services/auditLogs.js';
+import { buildAccountKindContext, isConfirmedAccount } from '../../lib/companyHelpers.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { QUICK_CREATE, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { leadStatusLabel, pluralizeLeadStatusLabel } from '../../lib/leadHelpers.js';
-import { formatCompactMoney, formatMoneyTotalsByCurrency, formatIndianRupees, DEFAULT_CURRENCY } from '../../lib/currencies.js';
+import { formatCompactMoney, formatIndianRupees, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { avatarInitialClass } from '../../lib/tableStyles.js';
 import {
-  UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
+  UserGroupIcon, BuildingLibraryIcon, DocumentTextIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 const COLORS = ['#6f5cf5', '#14c8b0', '#ff9f5a', '#ff5fa2', '#3aa0ff', '#ffc94d'];
@@ -69,19 +71,23 @@ export default function DashboardPage() {
     Promise.all([
       dashboardApi.getDashboardHome(),
       leadsApi.countLeadsThisMonth().catch(() => 0),
-      accountsApi.countAccounts().catch(() => 0),
+      companiesApi.countCompanies().catch(() => 0),
+      accountsApi.countAccounts({ recordKind: 'account' }).catch(() => 0),
       leadsApi.summarizeProposals().catch(() => ({ total: 0, dealSize: 0 })),
       auditLogsApi.listActivityLogsLastDays(30, {
         user,
         canSeeAll: role === 'super_admin' || role === 'sales_manager',
       }).catch(() => []),
-    ]).then(([home, leadsThisMonth, accountsTotal, proposalsSummary, logs]) => {
+      buildAccountKindContext().catch(() => ({ dealAccountIds: new Set() })),
+    ]).then(([home, leadsThisMonth, companiesTotal, accountsTotal, proposalsSummary, logs, accountKindContext]) => {
       const leadsTotal = (home.leads_by_status || home.leadsByStatus || []).reduce((s, r) => s + r.count, 0);
       const qualifiedCount = (home.leads_by_status || home.leadsByStatus || []).find(r => /qualified/i.test(r.label || r.key || r.status || ''))?.count ?? 0;
-      const topAccountsRaw = home.top_accounts || [];
+      const topAccountsRaw = (home.top_accounts || [])
+        .filter((account) => isConfirmedAccount(account, accountKindContext));
       setAuditLogs(auditLogsApi.filterVisibleAuditLogs(logs, DEFAULT_PAGE_SIZE));
       setStats({
         leads: { total: leadsTotal, this_month: leadsThisMonth, qualified: qualifiedCount },
+        companies: { total: companiesTotal },
         accounts: { total: accountsTotal },
         proposals: proposalsSummary,
         topAccounts: topAccountsRaw.map((a) => ({
@@ -133,12 +139,12 @@ export default function DashboardPage() {
               icon={ChartBarIcon}
               gradient="bg-gradient-to-br from-accent-yellow to-brand-600"
             />
-            <Link href="/accounts" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
+            <Link href="/companies" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
-                title="Accounts"
-                value={stats.accounts.total}
-                sub={formatMoneyTotalsByCurrency(stats.topAccounts) || 'Total accounts'}
-                icon={BuildingOffice2Icon}
+                title="Companies"
+                value={stats.companies.total}
+                sub={`${stats.accounts.total} confirmed account${stats.accounts.total === 1 ? '' : 's'}`}
+                icon={BuildingLibraryIcon}
                 gradient="bg-gradient-to-br from-accent-orange to-accent-pink"
               />
             </Link>
@@ -190,8 +196,13 @@ export default function DashboardPage() {
             </Widget>
 
             <Widget title="Top Accounts by Revenue" className="col-span-12 lg:col-span-6">
+              <div className="flex justify-end -mt-1 mb-2">
+                <Link href="/accounts" className="text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline">
+                  View accounts →
+                </Link>
+              </div>
               <div className="space-y-1">
-                {stats.topAccounts?.map((a) => (
+                {stats.topAccounts?.length > 0 ? stats.topAccounts.map((a) => (
                   <div key={a.id || a.name} className="flex items-center justify-between text-sm py-2 px-2 -mx-2 rounded-lg hover:bg-brand-50/60 transition-colors">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span className={avatarInitialClass(a.name)}>{a.name?.[0]}</span>
@@ -199,7 +210,9 @@ export default function DashboardPage() {
                     </div>
                     <span className="text-brand-600 font-semibold shrink-0">{fmt(a.revenue, a.currency)}</span>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-sm text-zoho-muted text-center py-8">No confirmed accounts yet</p>
+                )}
               </div>
             </Widget>
 

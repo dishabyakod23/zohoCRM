@@ -110,8 +110,8 @@ export async function listAccounts({
   };
 }
 
-export async function countAccounts() {
-  const result = await listAccounts({ page: 1, page_size: 1 });
+export async function countAccounts({ recordKind } = {}) {
+  const result = await listAccounts({ page: 1, page_size: 1, recordKind });
   return result.total ?? result.meta?.total ?? 0;
 }
 

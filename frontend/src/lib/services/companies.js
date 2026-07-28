@@ -65,6 +65,11 @@ export async function listCompanies({
   };
 }
 
+export async function countCompanies() {
+  const result = await listCompanies({ page: 1, page_size: 1 });
+  return result.total ?? result.meta?.total ?? 0;
+}
+
 export async function getCompany(id) {
   return accountsApi.getAccount(id);
 }
