@@ -9,6 +9,8 @@ import {
   openCloudTalkWebPhone,
   tryCloudTalkDesktopDial,
 } from '../../lib/cloudTalkHelpers.js';
+import { upsertStoredCloudTalkCall } from '../../lib/cloudTalkCallLog.js';
+import { normalizeIframeCloudTalkCall } from '../../lib/services/cloudTalkCalls.js';
 
 const CloudTalkContext = createContext(null);
 
@@ -42,6 +44,7 @@ function parseCloudTalkMessage(data) {
 
 export function CloudTalkProvider({ children }) {
   const iframeRef = useRef(null);
+  const activeCallRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [iframeMounted, setIframeMounted] = useState(false);
   const [ready, setReady] = useState(false);
@@ -51,6 +54,86 @@ export function CloudTalkProvider({ children }) {
   const ensureIframe = useCallback(() => {
     setIframeMounted(true);
   }, []);
+
+  const readCurrentUser = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('crm_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const persistIframeCall = useCallback((payload, eventName) => {
+    const props = payload?.properties || {};
+    const callUuid = props.call_uuid;
+    if (!callUuid) return;
+
+    const now = new Date().toISOString();
+    const existing = activeCallRef.current?.callUuid === callUuid
+      ? activeCallRef.current
+      : null;
+
+    if (eventName === 'ringing') {
+      activeCallRef.current = {
+        callUuid,
+        direction: 'incoming',
+        externalNumber: props.external_number,
+        contactName: props.contact?.name,
+        startedAt: now,
+      };
+      return;
+    }
+
+    if (eventName === 'dialing') {
+      activeCallRef.current = {
+        callUuid,
+        direction: 'outgoing',
+        externalNumber: props.external_number,
+        contactName: props.contact?.name,
+        startedAt: now,
+      };
+      return;
+    }
+
+    if (eventName === 'contact_info') {
+      if (!activeCallRef.current || activeCallRef.current.callUuid !== callUuid) {
+        activeCallRef.current = {
+          callUuid,
+          direction: 'outgoing',
+          externalNumber: props.external_number,
+          contactName: props.contact?.name,
+          startedAt: now,
+        };
+      } else if (props.contact?.name) {
+        activeCallRef.current.contactName = props.contact.name;
+      }
+      return;
+    }
+
+    if (eventName !== 'ended') return;
+
+    const active = existing || activeCallRef.current || {
+      callUuid,
+      direction: 'outgoing',
+      externalNumber: props.external_number,
+      contactName: props.contact?.name,
+      startedAt: now,
+    };
+
+    const entry = normalizeIframeCloudTalkCall({
+      callUuid: active.callUuid,
+      direction: active.direction,
+      externalNumber: active.externalNumber || props.external_number,
+      contactName: active.contactName || props.contact?.name,
+      startedAt: active.startedAt,
+      endedAt: now,
+      user: readCurrentUser(),
+    });
+    upsertStoredCloudTalkCall(entry);
+    if (activeCallRef.current?.callUuid === callUuid) activeCallRef.current = null;
+  }, [readCurrentUser]);
 
   const setOpenPanel = useCallback((value) => {
     if (value) ensureIframe();
@@ -69,11 +152,13 @@ export function CloudTalkProvider({ children }) {
         case 'ringing':
           ensureIframe();
           setOpen(true);
+          persistIframeCall(payload, 'ringing');
           break;
         case 'dialing':
         case 'calling':
           setLoggedIn(true);
           setReady(true);
+          if (payload.event === 'dialing') persistIframeCall(payload, 'dialing');
           break;
         case 'login':
           setLoggedIn(true);
@@ -82,6 +167,12 @@ export function CloudTalkProvider({ children }) {
         case 'logout':
           setLoggedIn(false);
           break;
+        case 'contact_info':
+          persistIframeCall(payload, 'contact_info');
+          break;
+        case 'ended':
+          persistIframeCall(payload, 'ended');
+          break;
         default:
           break;
       }
@@ -89,7 +180,7 @@ export function CloudTalkProvider({ children }) {
 
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [ensureIframe]);
+  }, [ensureIframe, persistIframeCall]);
 
   const postDialToIframe = useCallback((number) => {
     const iframe = iframeRef.current;

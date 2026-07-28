@@ -1,5 +1,9 @@
 import api, { API_BASE_URL } from '../api.js';
 import { formatEnumLabel, userBriefName } from '../activityHelpers.js';
+import {
+  listCloudTalkCallsLastDays,
+  scopeCloudTalkCalls,
+} from './cloudTalkCalls.js';
 
 const AUDIT_LOGS_BASE = `${API_BASE_URL}/audit-logs`;
 const HISTORY_BASE = `${API_BASE_URL}/history`;
@@ -70,6 +74,27 @@ export async function listAuditLogsLastDays(days = 30, params = {}) {
 export function filterVisibleAuditLogs(logs, limit) {
   const filtered = (logs || []).filter((log) => !isNoiseAuditLog(log));
   return limit ? filtered.slice(0, limit) : filtered;
+}
+
+export function mergeActivityLogs(auditLogs = [], cloudTalkCalls = []) {
+  const merged = [...auditLogs, ...cloudTalkCalls];
+  merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  return merged;
+}
+
+/** Audit logs plus CloudTalk call history for the last N days. */
+export async function listActivityLogsLastDays(
+  days = 30,
+  { user, canSeeAll = false, ...params } = {},
+) {
+  const scopedParams = canSeeAll ? params : { ...params, user_id: user?.id };
+  const [auditLogs, cloudTalkCalls] = await Promise.all([
+    listAuditLogsLastDays(days, scopedParams),
+    listCloudTalkCallsLastDays(days, scopedParams).catch(() => []),
+  ]);
+
+  const scopedCloudTalk = scopeCloudTalkCalls(cloudTalkCalls, { user, canSeeAll });
+  return mergeActivityLogs(auditLogs, scopedCloudTalk);
 }
 
 export async function getEntityTimeline(entityType, entityId, params = {}) {

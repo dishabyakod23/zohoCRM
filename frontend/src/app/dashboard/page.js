@@ -71,14 +71,15 @@ export default function DashboardPage() {
       leadsApi.countLeadsThisMonth().catch(() => 0),
       accountsApi.countAccounts().catch(() => 0),
       leadsApi.summarizeProposals().catch(() => ({ total: 0, dealSize: 0 })),
-      auditLogsApi.listAuditLogsLastDays(30).catch(() => []),
+      auditLogsApi.listActivityLogsLastDays(30, {
+        user,
+        canSeeAll: role === 'super_admin' || role === 'sales_manager',
+      }).catch(() => []),
     ]).then(([home, leadsThisMonth, accountsTotal, proposalsSummary, logs]) => {
       const leadsTotal = (home.leads_by_status || home.leadsByStatus || []).reduce((s, r) => s + r.count, 0);
       const qualifiedCount = (home.leads_by_status || home.leadsByStatus || []).find(r => /qualified/i.test(r.label || r.key || r.status || ''))?.count ?? 0;
       const topAccountsRaw = home.top_accounts || [];
-      const canSeeAllLogs = role === 'super_admin' || role === 'sales_manager';
-      const scopedLogs = canSeeAllLogs ? logs : logs.filter((log) => log.user_id === user.id);
-      setAuditLogs(auditLogsApi.filterVisibleAuditLogs(scopedLogs, DEFAULT_PAGE_SIZE));
+      setAuditLogs(auditLogsApi.filterVisibleAuditLogs(logs, DEFAULT_PAGE_SIZE));
       setStats({
         leads: { total: leadsTotal, this_month: leadsThisMonth, qualified: qualifiedCount },
         accounts: { total: accountsTotal },

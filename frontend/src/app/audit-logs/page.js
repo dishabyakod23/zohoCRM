@@ -27,15 +27,13 @@ export default function AuditLogsPage() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      const params = {};
       const canSeeAllLogs = role === 'super_admin' || role === 'sales_manager';
-      if (!canSeeAllLogs) params.user_id = user.id;
-
-      const allLogs = await auditLogsApi.listAuditLogsLastDays(AUDIT_LOG_DAYS, params);
-      const scopedLogs = canSeeAllLogs
-        ? allLogs
-        : allLogs.filter((log) => log.user_id === user.id);
-      setLogs(scopedLogs);
+      const allLogs = await auditLogsApi.listActivityLogsLastDays(AUDIT_LOG_DAYS, {
+        user,
+        canSeeAll: canSeeAllLogs,
+        ...(canSeeAllLogs ? {} : { user_id: user.id }),
+      });
+      setLogs(allLogs);
     } catch (err) {
       showToast(getApiError(err));
       setLogs([]);
@@ -53,7 +51,7 @@ export default function AuditLogsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Audit Logs"
-          subtitle={`Activity from the last ${AUDIT_LOG_DAYS} days (sign-in events excluded)`}
+          subtitle={`CRM activity and CloudTalk calls from the last ${AUDIT_LOG_DAYS} days (sign-in events excluded)`}
         />
 
         {loading ? (
@@ -70,7 +68,10 @@ export default function AuditLogsPage() {
               <div key={log.id} className="px-5 py-4 hover:bg-brand-50/40 transition-colors">
                 <p className="text-sm font-medium text-zoho-text">{log.summary}</p>
                 <p className="text-xs text-zoho-muted mt-1">
-                  {log.user_name || 'System'} · {formatWhen(log.created_at)}
+                  {log.user_name || 'System'}
+                  {log.source === 'cloudtalk' ? ' · CloudTalk' : ''}
+                  {' · '}
+                  {formatWhen(log.created_at)}
                 </p>
               </div>
             ))}
