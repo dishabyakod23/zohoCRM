@@ -334,6 +334,11 @@ export async function countLeadsThisMonth() {
   }).length;
 }
 
+export async function countQualifiedLeads(statusOptions = []) {
+  const { data } = await listAllLeads({ pipeline_stage: PIPELINE_QUALIFIED }, statusOptions);
+  return data.length;
+}
+
 export async function summarizeProposals(statusOptions = []) {
   const { data } = await listAllLeads({ pipeline_stage: PIPELINE_PROPOSAL }, statusOptions);
   const dealSize = data.reduce((sum, lead) => {

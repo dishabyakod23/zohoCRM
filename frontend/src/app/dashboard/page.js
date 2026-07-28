@@ -7,7 +7,6 @@ import { getApiError } from '../../lib/api.js';
 import * as dashboardApi from '../../lib/services/dashboard.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import * as accountsApi from '../../lib/services/accounts.js';
-import * as companiesApi from '../../lib/services/companies.js';
 import * as auditLogsApi from '../../lib/services/auditLogs.js';
 import { buildAccountKindContext, isConfirmedAccount } from '../../lib/companyHelpers.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -18,7 +17,7 @@ import { leadStatusLabel, pluralizeLeadStatusLabel } from '../../lib/leadHelpers
 import { formatCompactMoney, formatIndianRupees, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { avatarInitialClass } from '../../lib/tableStyles.js';
 import {
-  UserGroupIcon, BuildingLibraryIcon, DocumentTextIcon, ChartBarIcon,
+  UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 const COLORS = ['#6f5cf5', '#14c8b0', '#ff9f5a', '#ff5fa2', '#3aa0ff', '#ffc94d'];
@@ -71,7 +70,7 @@ export default function DashboardPage() {
     Promise.all([
       dashboardApi.getDashboardHome(),
       leadsApi.countLeadsThisMonth().catch(() => 0),
-      companiesApi.countCompanies().catch(() => 0),
+      leadsApi.countQualifiedLeads().catch(() => 0),
       accountsApi.countAccounts({ recordKind: 'account' }).catch(() => 0),
       leadsApi.summarizeProposals().catch(() => ({ total: 0, dealSize: 0 })),
       auditLogsApi.listActivityLogsLastDays(30, {
@@ -79,15 +78,13 @@ export default function DashboardPage() {
         canSeeAll: role === 'super_admin' || role === 'sales_manager',
       }).catch(() => []),
       buildAccountKindContext().catch(() => ({ dealAccountIds: new Set() })),
-    ]).then(([home, leadsThisMonth, companiesTotal, accountsTotal, proposalsSummary, logs, accountKindContext]) => {
+    ]).then(([home, leadsThisMonth, qualifiedCount, accountsTotal, proposalsSummary, logs, accountKindContext]) => {
       const leadsTotal = (home.leads_by_status || home.leadsByStatus || []).reduce((s, r) => s + r.count, 0);
-      const qualifiedCount = (home.leads_by_status || home.leadsByStatus || []).find(r => /qualified/i.test(r.label || r.key || r.status || ''))?.count ?? 0;
       const topAccountsRaw = (home.top_accounts || [])
         .filter((account) => isConfirmedAccount(account, accountKindContext));
       setAuditLogs(auditLogsApi.filterVisibleAuditLogs(logs, DEFAULT_PAGE_SIZE));
       setStats({
         leads: { total: leadsTotal, this_month: leadsThisMonth, qualified: qualifiedCount },
-        companies: { total: companiesTotal },
         accounts: { total: accountsTotal },
         proposals: proposalsSummary,
         topAccounts: topAccountsRaw.map((a) => ({
@@ -132,19 +129,21 @@ export default function DashboardPage() {
               icon={UserGroupIcon}
               gradient="bg-gradient-to-br from-accent-teal to-brand-600"
             />
-            <KpiCard
-              title="Qualified Leads"
-              value={stats.leads.qualified}
-              sub="In qualified stage"
-              icon={ChartBarIcon}
-              gradient="bg-gradient-to-br from-accent-yellow to-brand-600"
-            />
-            <Link href="/companies" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
+            <Link href="/qualified-leads" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
-                title="Companies"
-                value={stats.companies.total}
-                sub={`${stats.accounts.total} confirmed account${stats.accounts.total === 1 ? '' : 's'}`}
-                icon={BuildingLibraryIcon}
+                title="Qualified Leads"
+                value={stats.leads.qualified}
+                sub="In qualified stage"
+                icon={ChartBarIcon}
+                gradient="bg-gradient-to-br from-accent-yellow to-brand-600"
+              />
+            </Link>
+            <Link href="/accounts" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
+              <KpiCard
+                title="Accounts"
+                value={stats.accounts.total}
+                sub="Confirmed customers"
+                icon={BuildingOffice2Icon}
                 gradient="bg-gradient-to-br from-accent-orange to-accent-pink"
               />
             </Link>
