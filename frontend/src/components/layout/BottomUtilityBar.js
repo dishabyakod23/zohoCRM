@@ -5,9 +5,7 @@ import StickyNote, { isStickyNotePinned } from './StickyNote.js';
 import { getRecentItemHref } from '../../lib/recentItemHelpers.js';
 import * as calendarApi from '../../lib/services/calendar.js';
 import * as announcementsApi from '../../lib/services/announcements.js';
-import * as auditLogsApi from '../../lib/services/auditLogs.js';
 import { formatAnnouncementDate } from '../../lib/services/announcements.js';
-import { formatEnumLabel } from '../../lib/activityHelpers.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useToast } from '../ui/Toast.js';
@@ -53,79 +51,6 @@ const TEXT_SCALE_MIN = 0;
 const TEXT_SCALE_MAX = 5;
 const TEXT_SCALE_LABELS = ['Default', 'Comfort', 'Large', 'Larger', 'Extra large', 'Maximum'];
 
-function parseAuditValue(value) {
-  if (value == null) return null;
-  if (typeof value === 'object') return value;
-  const text = String(value).trim();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
-}
-
-function extractDisplayName(value) {
-  const parsed = parseAuditValue(value);
-  if (!parsed) return '';
-  if (typeof parsed === 'string') return parsed;
-  if (typeof parsed !== 'object') return String(parsed);
-  const first = parsed.first_name || parsed.firstName || '';
-  const last = parsed.last_name || parsed.lastName || '';
-  const full = `${first} ${last}`.trim();
-  return full
-    || parsed.name
-    || parsed.title
-    || parsed.subject
-    || parsed.deal_name
-    || parsed.account_name
-    || parsed.company
-    || parsed.email
-    || '';
-}
-
-function formatValue(value) {
-  const parsed = parseAuditValue(value);
-  if (!parsed) return '';
-  if (typeof parsed === 'string') return formatEnumLabel(parsed);
-  if (typeof parsed !== 'object') return String(parsed);
-  const label = extractDisplayName(parsed);
-  if (label) return label;
-  return Object.entries(parsed)
-    .filter(([, v]) => v != null && v !== '')
-    .slice(0, 2)
-    .map(([k, v]) => `${formatEnumLabel(k)}: ${String(v)}`)
-    .join(', ');
-}
-
-function buildAuditMessage(log) {
-  const action = String(log.action || '').toLowerCase();
-  const entity = formatEnumLabel(log.entity_type || log.record_type || 'record').toLowerCase();
-  const name = extractDisplayName(log.new_value) || extractDisplayName(log.old_value);
-  const oldVal = formatValue(log.old_value);
-  const newVal = formatValue(log.new_value);
-  const field = formatEnumLabel(log.field_name || '');
-
-  if (action.includes('create')) {
-    return `Created new ${entity}${name ? ` - ${name}` : ''}`;
-  }
-  if (action.includes('delete')) {
-    return `Deleted ${entity}${name ? ` - ${name}` : ''}`;
-  }
-  if (action.includes('update')) {
-    const isStatusChange = ['status', 'lead_status'].includes(String(log.field_name || '').toLowerCase());
-    if (isStatusChange && oldVal && newVal) {
-      if (name) return `Updated ${oldVal.toLowerCase()} ${name} to ${newVal.toLowerCase()} ${name}`;
-      return `Updated ${entity} from ${oldVal} to ${newVal}`;
-    }
-    if (field && oldVal && newVal) {
-      return `Updated ${entity}${name ? ` - ${name}` : ''} (${field}: ${oldVal} -> ${newVal})`;
-    }
-    return `Updated ${entity}${name ? ` - ${name}` : ''}`;
-  }
-  return `${formatEnumLabel(log.action) || 'Updated'} ${entity}${name ? ` - ${name}` : ''}`;
-}
-
 function StepButton({ onClick, disabled, label, children }) {
   return (
     <button
@@ -154,15 +79,13 @@ function Panel({ title, onClose, children, wide }) {
 
 export default function BottomUtilityBar() {
   const { user } = useAuth();
-  const { canAssignLeads, role } = usePermissions();
+  const { canAssignLeads } = usePermissions();
   const { showToast } = useToast();
   const [active, setActive] = useState(null);
   const [reminders, setReminders] = useState([]);
   const [completingReminderId, setCompletingReminderId] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [auditLogsLoading, setAuditLogsLoading] = useState(false);
   const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
   const [a11y, setA11y] = useState({ textScale: 0, colorMode: 'light' });
 
@@ -203,21 +126,6 @@ export default function BottomUtilityBar() {
       .catch(() => setAnnouncements([]));
   }, [user?.id, canAssignLeads]);
 
-  const loadAuditLogs = async () => {
-    if (!user?.id) return;
-    setAuditLogsLoading(true);
-    try {
-      const logs = await auditLogsApi.listAuditLogs({ page: 1, page_size: 100 });
-      const canSeeAllLogs = role === 'super_admin' || role === 'sales_manager';
-      const scopedLogs = canSeeAllLogs ? logs : logs.filter((l) => l.user_id === user.id);
-      setAuditLogs(auditLogsApi.filterVisibleAuditLogs(scopedLogs, DEFAULT_PAGE_SIZE));
-    } catch {
-      setAuditLogs([]);
-    } finally {
-      setAuditLogsLoading(false);
-    }
-  };
-
   const loadAnnouncements = () => {
     setAnnouncementsLoading(true);
     return announcementsApi.listAnnouncements({ limit: DEFAULT_PAGE_SIZE })
@@ -241,7 +149,8 @@ export default function BottomUtilityBar() {
 
   const toggle = (key) => {
     if (key === 'audit') {
-      loadAuditLogs();
+      window.open('/audit-logs/', '_blank', 'noopener,noreferrer');
+      return;
     }
     if (key === 'reminders') {
       calendarApi.getLoginReminders()
@@ -251,7 +160,7 @@ export default function BottomUtilityBar() {
     if (key === 'announcements') {
       loadAnnouncements();
     }
-    setActive(prev => prev === key ? null : key);
+    setActive((prev) => (prev === key ? null : key));
   };
 
   const toggleStickyNote = () => setStickyNoteOpen(v => !v);
@@ -352,29 +261,6 @@ export default function BottomUtilityBar() {
                   completing={completingReminderId === t.id}
                   onNavigate={() => setActive(null)}
                 />
-              ))}
-            </div>
-          )}
-        </Panel>
-      )}
-
-      {active === 'audit' && (
-        <Panel title="Audit Logs" onClose={() => setActive(null)}>
-          {auditLogsLoading ? (
-            <p className="text-sm text-zoho-muted text-center py-6">Loading audit logs…</p>
-          ) : auditLogs.length === 0 ? (
-            <p className="text-sm text-zoho-muted text-center py-6">No audit logs found.</p>
-          ) : (
-            <div className="space-y-2">
-              {auditLogs.map((log) => (
-                <div key={log.id} className="p-3 rounded-xl border border-zoho-border hover:bg-brand-50/40 transition-colors">
-                  <p className="text-sm font-medium text-zoho-text">
-                    {log.summary || buildAuditMessage(log)}
-                  </p>
-                  <p className="text-xs text-zoho-muted mt-1">
-                    {log.user_name || 'System'} · {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
-                  </p>
-                </div>
               ))}
             </div>
           )}

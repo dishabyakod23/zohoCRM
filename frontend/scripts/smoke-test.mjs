@@ -1,6 +1,24 @@
 import assert from 'node:assert/strict';
 
-// Mirrors src/lib/authHelpers.js for CI without a test runner.
+// Mirrors src/lib/services/auditLogs.js for CI without a test runner.
+function isNoiseAuditLog(log) {
+  const action = String(log.action || '').toLowerCase();
+  const entityType = String(log.entity_type || log.record_type || '').toLowerCase();
+  const summary = String(log.summary || '').toLowerCase();
+
+  if (action.includes('refresh')) return true;
+  if (action === 'login' || action === 'logout') return true;
+  if (action.includes('sign_in') || action.includes('signin')) return true;
+  if (entityType.includes('session')) return true;
+  if (/^refreshed\b/.test(summary)) return true;
+  if (/\bsigned\s*in\b/.test(summary)) return true;
+  if (/\bsign[\s-]?in\b/.test(summary)) return true;
+  return false;
+}
+
+assert.equal(isNoiseAuditLog({ action: 'login', summary: 'Signed In User' }), true);
+assert.equal(isNoiseAuditLog({ action: 'create', summary: 'Created Lead' }), false);
+
 function parseAuthUserResponse(body) {
   if (!body) return null;
   if (body.id) return body;

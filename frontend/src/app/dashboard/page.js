@@ -71,7 +71,7 @@ export default function DashboardPage() {
       leadsApi.countLeadsThisMonth().catch(() => 0),
       accountsApi.countAccounts().catch(() => 0),
       leadsApi.summarizeProposals().catch(() => ({ total: 0, dealSize: 0 })),
-      auditLogsApi.listAuditLogs({ page: 1, page_size: 100 }).catch(() => []),
+      auditLogsApi.listAuditLogsLastDays(30).catch(() => []),
     ]).then(([home, leadsThisMonth, accountsTotal, proposalsSummary, logs]) => {
       const leadsTotal = (home.leads_by_status || home.leadsByStatus || []).reduce((s, r) => s + r.count, 0);
       const qualifiedCount = (home.leads_by_status || home.leadsByStatus || []).find(r => /qualified/i.test(r.label || r.key || r.status || ''))?.count ?? 0;
@@ -162,6 +162,15 @@ export default function DashboardPage() {
             </Widget>
 
             <Widget title="Audit Logs" className="col-span-12 lg:col-span-6">
+              <div className="flex justify-end -mt-1 mb-2">
+                <button
+                  type="button"
+                  onClick={() => window.open('/audit-logs/', '_blank', 'noopener,noreferrer')}
+                  className="text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline"
+                >
+                  View all (30 days) →
+                </button>
+              </div>
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {auditLogs.length > 0 ? auditLogs.map((log) => (
                   <div key={log.id} className="flex gap-3 text-sm py-2 px-2 -mx-2 rounded-lg hover:bg-brand-50/60 transition-colors">
