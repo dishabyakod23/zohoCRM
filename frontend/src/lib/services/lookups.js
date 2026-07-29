@@ -71,6 +71,16 @@ export async function fetchAccountLookups() {
   });
 }
 
+export async function fetchCompanyLookups() {
+  return cachedLookup('companies', async () => {
+    const res = await api.get('/lookups/companies');
+    return parseLookupOptions(res.data.data).map((company) => ({
+      ...company,
+      name: company.label,
+    }));
+  });
+}
+
 export async function fetchContactLookups() {
   return cachedLookup('contacts', async () => {
     const res = await api.get('/lookups/contacts');

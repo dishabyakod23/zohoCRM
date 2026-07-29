@@ -6,10 +6,6 @@ import {
   applyAccountRecordFilters,
   hasAccountClientFilters,
 } from '../listRecordFilters.js';
-import {
-  buildAccountKindContext,
-  filterAccountsByKind,
-} from '../companyHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { cachedRequest } from '../requestCache.js';
 
@@ -76,8 +72,6 @@ export async function listAccounts({
   sort_by,
   sort_order,
   filters = {},
-  recordKind,
-  context,
   campaignMemberIds,
 } = {}) {
   const params = { page, page_size };
@@ -88,19 +82,15 @@ export async function listAccounts({
   if (sort_order) params.sort_order = sort_order;
 
   const emailMap = await fetchAccountContactEmailMap();
-  const kindContext = recordKind ? (context || await buildAccountKindContext()) : null;
 
-  if (hasAccountClientFilters(filters) || recordKind) {
+  if (hasAccountClientFilters(filters) || campaignMemberIds) {
     const allAccounts = attachContactEmails(await fetchAllAccountPages({
       search,
       owner_id: mergedOwnerId,
       sort_by,
       sort_order,
     }), emailMap);
-    const scoped = recordKind
-      ? filterAccountsByKind(allAccounts, recordKind, kindContext)
-      : allAccounts;
-    const filtered = applyAccountRecordFilters(scoped, filters, { campaignMemberIds });
+    const filtered = applyAccountRecordFilters(allAccounts, filters, { campaignMemberIds });
     const start = (page - 1) * page_size;
     return {
       data: filtered.slice(start, start + page_size),
@@ -117,13 +107,8 @@ export async function listAccounts({
   };
 }
 
-export async function countAccounts({ recordKind, context } = {}) {
-  if (recordKind === 'account' && context) {
-    const emailMap = await fetchAccountContactEmailMap();
-    const allAccounts = attachContactEmails(await fetchAllAccountPages({}), emailMap);
-    return filterAccountsByKind(allAccounts, 'account', context).length;
-  }
-  const result = await listAccounts({ page: 1, page_size: 1, recordKind, context });
+export async function countAccounts() {
+  const result = await listAccounts({ page: 1, page_size: 1 });
   return result.total ?? result.meta?.total ?? 0;
 }
 

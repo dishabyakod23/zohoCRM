@@ -17,7 +17,7 @@ import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { LIST_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { normalizeContact } from '../../lib/contactHelpers.js';
-import { fetchAccountLookups, accountMapFromLookups, fetchUsers } from '../../lib/services/lookups.js';
+import { fetchCompanyLookups, accountMapFromLookups, fetchUsers } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass, tableAvatarClass } from '../../lib/tableStyles.js';
 import { TextFilter, OwnerFilter, CampaignFilter } from '../../components/layout/ListFilterFields.js';
@@ -52,7 +52,7 @@ export default function ContactsPage() {
   accountMapRef.current = accountMap;
 
   useEffect(() => {
-    fetchAccountLookups().then((rows) => {
+    fetchCompanyLookups().then((rows) => {
       setAccounts(rows);
       const map = accountMapFromLookups(rows);
       setContacts((prev) => prev.map((contact) => normalizeContact(contact, map)));

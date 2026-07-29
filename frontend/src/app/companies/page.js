@@ -49,7 +49,7 @@ export default function CompaniesPage() {
         search: debouncedSearch || undefined,
         filters,
         campaignMemberIds,
-        ...getSortApiParams(sort, 'accounts'),
+        ...getSortApiParams(sort, 'companies'),
       });
       setCompanies(result.data);
       setTotal(result.total);

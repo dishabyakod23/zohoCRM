@@ -9,6 +9,7 @@ export const LIST_SORT_OPTIONS = [
 
 export const MODULE_SORT_CONFIG = {
   accounts: { apiNameField: 'name', getLabel: (r) => r.name },
+  companies: { apiNameField: 'company_name', getLabel: (r) => r.name || r.company_name },
   contacts: { apiNameField: 'first_name', compareFirstName: true },
   leads: { apiNameField: 'first_name', compareFirstName: true },
   'raw-leads': { apiNameField: 'first_name', compareFirstName: true },

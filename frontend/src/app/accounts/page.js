@@ -53,7 +53,6 @@ export default function AccountsPage() {
         page_size: LIMIT,
         search: debouncedSearch || undefined,
         filters,
-        recordKind: 'account',
         campaignMemberIds,
         ...getSortApiParams(sort, 'accounts'),
       });

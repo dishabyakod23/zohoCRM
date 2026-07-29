@@ -8,7 +8,7 @@ import * as dashboardApi from '../../lib/services/dashboard.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import * as auditLogsApi from '../../lib/services/auditLogs.js';
-import { buildAccountKindContext, isConfirmedAccount } from '../../lib/companyHelpers.js';
+import { isConfirmedAccount } from '../../lib/companyHelpers.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
@@ -76,7 +76,6 @@ export default function DashboardPage() {
         leadsThisMonth: 0,
         proposals: { total: 0, dealSize: 0 },
       })),
-      buildAccountKindContext().catch(() => ({ dealAccountIds: new Set() })),
       auditLogsApi.listRecentActivityLogs(30, {
         user,
         canSeeAll: role === 'super_admin' || role === 'sales_manager',
@@ -84,13 +83,10 @@ export default function DashboardPage() {
         enrichPhones: false,
         cloudTalkLimit: 50,
       }).catch(() => []),
-    ]).then(async ([home, pipelineSummary, accountKindContext, logs]) => {
-      const accountsTotal = await accountsApi.countAccounts({
-        recordKind: 'account',
-        context: accountKindContext,
-      }).catch(() => 0);
+    ]).then(async ([home, pipelineSummary, logs]) => {
+      const accountsTotal = await accountsApi.countAccounts().catch(() => 0);
       const topAccountsRaw = (home.top_accounts || [])
-        .filter((account) => isConfirmedAccount(account, accountKindContext));
+        .filter((account) => isConfirmedAccount(account));
       setAuditLogs(logs);
       setStats({
         leads: {

@@ -1,9 +1,8 @@
-import * as accountsApi from './services/accounts.js';
-import { COMPANY_ACCOUNT_TYPE, CONFIRMED_ACCOUNT_TYPE } from './companyHelpers.js';
+import * as companiesApi from './services/companies.js';
 
 /**
- * Resolve a contact's account_id from either a selected lookup id or a typed name.
- * Creates the account when the name is new.
+ * Resolve a contact's account_id from either a selected company id or a typed name.
+ * Creates the company when the name is new.
  */
 export async function resolveContactAccountId({
   account_id,
@@ -19,7 +18,6 @@ export async function resolveContactAccountId({
   if (id) {
     const known = accounts.find((a) => String(a.value) === id);
     if (known) return known.value;
-    // Id present but not in lookups — still prefer it if UUID-like
     if (/^[0-9a-f-]{36}$/i.test(id)) return id;
   }
 
@@ -33,9 +31,8 @@ export async function resolveContactAccountId({
   if (match) return match.value;
 
   const accountPhone = String(phone || mobile || '').replace(/\D/g, '');
-  const created = await accountsApi.createAccount({
-    account_name: typed,
-    account_type: COMPANY_ACCOUNT_TYPE,
+  const created = await companiesApi.createCompany({
+    company_name: typed,
     phone: accountPhone.length >= 7 ? (phone || mobile) : '0000000',
     owner_id: owner_id || null,
   });

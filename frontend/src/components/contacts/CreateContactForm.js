@@ -13,7 +13,7 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
-import { fetchAccountLookups, fetchUsers } from '../../lib/services/lookups.js';
+import { fetchCompanyLookups, fetchUsers } from '../../lib/services/lookups.js';
 import AccountNameCombobox from '../forms/AccountNameCombobox.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { resolveContactAccountId } from '../../lib/resolveContactAccount.js';
@@ -107,7 +107,7 @@ export default function CreateContactForm() {
   const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
 
   useEffect(() => {
-    fetchAccountLookups().then(setAccounts).catch(() => setAccounts([]));
+    fetchCompanyLookups().then(setAccounts).catch(() => setAccounts([]));
     fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, []);
 

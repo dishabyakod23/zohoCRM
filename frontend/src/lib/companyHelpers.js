@@ -1,4 +1,5 @@
 import * as dealsApi from './services/deals.js';
+import { ownerName } from './recordHelpers.js';
 import { cachedRequest } from './requestCache.js';
 
 const ACCOUNT_KIND_CACHE_MS = 5 * 60 * 1000;
@@ -14,10 +15,6 @@ export function isConfirmedAccount(account, { dealAccountIds = new Set() } = {})
   return false;
 }
 
-export function isCompanyAccount(account, context) {
-  return !isConfirmedAccount(account, context);
-}
-
 export async function buildAccountKindContext() {
   return cachedRequest('account-kind-context', async () => {
     const deals = await dealsApi.listAllDeals();
@@ -30,37 +27,58 @@ export async function buildAccountKindContext() {
   }, ACCOUNT_KIND_CACHE_MS);
 }
 
-export function filterAccountsByKind(accounts, kind, context) {
-  const list = accounts || [];
-  if (kind === 'account') {
-    return list.filter((account) => isConfirmedAccount(account, context));
-  }
-  if (kind === 'company') {
-    return list.filter((account) => isCompanyAccount(account, context));
-  }
-  return list;
+export function normalizeCompany(company) {
+  if (!company) return company;
+  const name = company.company_name || company.account_name || company.name;
+  return {
+    ...company,
+    name,
+    company_name: name,
+    account_name: name,
+    owner_name: ownerName(company) || company.owner_name,
+  };
 }
 
-export async function fetchContactCountByAccount() {
-  const { default: api } = await import('./api.js');
-  const { DEFAULT_PAGE_SIZE } = await import('./constants.js');
-  const pageSize = DEFAULT_PAGE_SIZE;
-  let page = 1;
-  const counts = new Map();
+export function toCompanyPayload(form, { partial = false } = {}) {
+  const payload = {
+    company_name: form.company_name || form.account_name || form.name,
+    industry: form.industry || null,
+    phone: form.phone || null,
+    fax: form.fax || null,
+    website: form.website || null,
+    billing_flat: form.billing_flat || null,
+    billing_street: form.billing_street || null,
+    billing_city: form.billing_city || null,
+    billing_state: form.billing_state || null,
+    billing_country: form.billing_country || null,
+    billing_zip: form.billing_zip || null,
+    billing_lat: form.billing_lat || null,
+    billing_lng: form.billing_lng || null,
+    shipping_flat: form.shipping_flat || null,
+    shipping_street: form.shipping_street || null,
+    shipping_city: form.shipping_city || null,
+    shipping_state: form.shipping_state || null,
+    shipping_country: form.shipping_country || null,
+    shipping_zip: form.shipping_zip || null,
+    shipping_lat: form.shipping_lat || null,
+    shipping_lng: form.shipping_lng || null,
+    description: form.description || null,
+    owner_id: form.owner_id || null,
+  };
 
-  while (page <= 50) {
-    const res = await api.get('/contacts', { params: { page, page_size: pageSize } });
-    const batch = res.data.data || [];
-    for (const contact of batch) {
-      const accountId = contact.account_id;
-      if (!accountId) continue;
-      const key = String(accountId);
-      counts.set(key, (counts.get(key) || 0) + 1);
-    }
-    const total = res.data.meta?.total ?? batch.length;
-    if (batch.length === 0 || page * pageSize >= total) break;
-    page += 1;
+  if (partial) {
+    const entries = Object.entries(payload).filter(([key, value]) => {
+      if (key === 'company_name') {
+        const hasName = Object.prototype.hasOwnProperty.call(form, 'company_name')
+          || Object.prototype.hasOwnProperty.call(form, 'account_name')
+          || Object.prototype.hasOwnProperty.call(form, 'name');
+        return hasName && value !== undefined && value !== null && value !== '';
+      }
+      return Object.prototype.hasOwnProperty.call(form, key)
+        && value !== undefined && value !== null && value !== '';
+    });
+    return Object.fromEntries(entries);
   }
 
-  return counts;
+  return payload;
 }

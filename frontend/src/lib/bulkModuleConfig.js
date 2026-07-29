@@ -1,6 +1,7 @@
 import * as leadsApi from './services/leads.js';
 import * as contactsApi from './services/contacts.js';
 import * as accountsApi from './services/accounts.js';
+import * as companiesApi from './services/companies.js';
 import * as dealsApi from './services/deals.js';
 import * as tasksApi from './services/tasks.js';
 import * as callsApi from './services/calls.js';
@@ -117,8 +118,8 @@ export const BULK_MODULE_CONFIG = {
     emailField: null,
     statusField: 'account_type',
     massUpdateFields: ['status', 'campaign'],
-    update: (id, payload) => accountsApi.updateAccount(id, payload),
-    deleteOne: (id) => accountsApi.deleteAccount(id),
+    update: (id, payload) => companiesApi.updateCompany(id, payload),
+    deleteOne: (id) => companiesApi.deleteCompany(id),
     exportRow: (r) => ({ name: r.name, industry: r.industry, phone: r.phone, contacts: r.contact_count, city: r.billing_city || r.city }),
     mailingLabel: (r) => `${r.name || ''}\n${[r.billing_city || r.city, r.billing_state || r.state].filter(Boolean).join(', ')}`,
   },

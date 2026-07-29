@@ -134,8 +134,8 @@ export async function importContactsFile(file, { dry_run = true, campaignId } = 
   let accounts = [];
   let campaignLookups = [];
   try {
-    const { fetchAccountLookups } = await import('./lookups.js');
-    accounts = await fetchAccountLookups();
+    const { fetchCompanyLookups } = await import('./lookups.js');
+    accounts = await fetchCompanyLookups();
   } catch {
     accounts = [];
   }
