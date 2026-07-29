@@ -1,5 +1,7 @@
 'use client';
 import { createContext, useContext } from 'react';
+import CampaignCombobox from '../forms/CampaignCombobox.js';
+import { resolveCampaignId } from '../../lib/campaignRecordHelpers.js';
 
 const FilterLayoutContext = createContext('inline');
 
@@ -100,13 +102,25 @@ export function OwnerFilter({ users = [], value, onChange }) {
 }
 
 export function CampaignFilter({ campaigns = [], value, onChange, loading = false }) {
+  const layout = useFilterLayout();
+  const widthClass = layout === 'sidebar' ? 'w-full' : 'w-48';
+  const selected = campaigns.find((c) => String(c.value) === String(value));
+
   return (
-    <SelectFilter
-      label="Campaign"
-      value={value}
-      onChange={onChange}
-      options={campaigns}
-      emptyLabel={loading ? 'Loading…' : 'All campaigns'}
-    />
+    <FilterField label="Campaign">
+      <div className={widthClass}>
+        <CampaignCombobox
+          options={campaigns}
+          valueId={value || ''}
+          valueLabel={selected?.label || ''}
+          onChange={({ campaign_id, campaign_name }) => {
+            const id = campaign_id || resolveCampaignId(campaign_name, campaigns) || '';
+            onChange(id);
+          }}
+          disabled={loading && !campaigns.length}
+          placeholder={loading ? 'Loading…' : 'Search or type campaign'}
+        />
+      </div>
+    </FilterField>
   );
 }

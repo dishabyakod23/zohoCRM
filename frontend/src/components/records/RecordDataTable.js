@@ -1,7 +1,8 @@
 'use client';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import Modal from '../ui/Modal.js';
-import FormField, { inputClass } from '../forms/FormField.js';
+import FormField from '../forms/FormField.js';
+import CampaignCombobox from '../forms/CampaignCombobox.js';
 import ConfirmDialog from '../ui/ConfirmDialog.js';
 import { useToast } from '../ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -15,9 +16,8 @@ import RecordNotesSidePanel from './RecordNotesSidePanel.js';
 import * as tasksApi from '../../lib/services/tasks.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
 import { fetchUsers, fetchMassUpdateFieldOptions, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
-import { fetchCampaignLookups, assignRecordsToCampaign } from '../../lib/campaignRecordHelpers.js';
+import { fetchCampaignLookups, assignRecordsToCampaign, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
-import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 const defaultGetRowId = (r) => r.id;
 
@@ -51,7 +51,7 @@ function normalizeConvertTargetValue(value) {
 }
 
 function MassUpdatePanel({
-  open, field, value, onFieldChange, onValueChange, onCancel, onUpdate, updating,
+  open, field, value, campaignName, onFieldChange, onValueChange, onCampaignChange, onCancel, onUpdate, updating,
   statusOptions, massUpdateFields, dynamicFields, loadingFields,
   valueOptions, loadingValueOptions, useDynamicFields, isConvertField,
   showLostReason, lostReason, lostReasonOptions, onLostReasonChange, loadingLostReasons,
@@ -60,10 +60,25 @@ function MassUpdatePanel({
 
   const isDynamic = useDynamicFields && Array.isArray(dynamicFields) && dynamicFields.length > 0;
   const valuePlaceholder = isConvertField ? 'Select target' : 'Select value';
+  const isCampaignField = String(field || '').toLowerCase() === 'campaign';
+  const hasCampaignValue = !!(value || String(campaignName || '').trim());
 
   let valueInput = null;
   if (field) {
-    if (loadingValueOptions) {
+    if (isCampaignField) {
+      valueInput = (
+        <div className="flex-1 min-w-0">
+          <CampaignCombobox
+            options={valueOptions || []}
+            valueId={value || ''}
+            valueLabel={campaignName || ''}
+            onChange={({ campaign_id, campaign_name }) => onCampaignChange?.({ campaign_id, campaign_name })}
+            disabled={loadingValueOptions}
+            placeholder={loadingValueOptions ? 'Loading campaigns…' : 'Search or type campaign name'}
+          />
+        </div>
+      );
+    } else if (loadingValueOptions) {
       valueInput = (
         <select className="input flex-1" disabled>
           <option>Loading options…</option>
@@ -88,13 +103,6 @@ function MassUpdatePanel({
         <select className="input flex-1" value={value} onChange={(e) => onValueChange(e.target.value)}>
           <option value="">Select value</option>
           {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-      );
-    } else if (field === 'campaign') {
-      valueInput = (
-        <select className="input flex-1" value={value} onChange={(e) => onValueChange(e.target.value)}>
-          <option value="">{loadingValueOptions ? 'Loading campaigns…' : 'Select campaign'}</option>
-          {(valueOptions || []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       );
     } else {
@@ -134,7 +142,7 @@ function MassUpdatePanel({
         </div>
         <div className="flex gap-2 justify-end mt-4 pt-3 border-t border-gray-100">
           <button type="button" onClick={onCancel} className="btn-secondary text-xs">Cancel</button>
-          <button type="button" onClick={onUpdate} disabled={updating || loadingValueOptions || loadingLostReasons || !field || !value || (showLostReason && !lostReason)} className="btn-primary text-xs">
+          <button type="button" onClick={onUpdate} disabled={updating || loadingValueOptions || loadingLostReasons || !field || (!isCampaignField && !value) || (isCampaignField && !hasCampaignValue) || (showLostReason && !lostReason)} className="btn-primary text-xs">
             {updating ? 'Updating...' : 'Update'}
           </button>
         </div>
@@ -168,6 +176,7 @@ export default function RecordDataTable({
   const [massUpdateOpen, setMassUpdateOpen] = useState(false);
   const [massField, setMassField] = useState('');
   const [massValue, setMassValue] = useState('');
+  const [massCampaignName, setMassCampaignName] = useState('');
   const [massUpdating, setMassUpdating] = useState(false);
   const [dynamicMassFields, setDynamicMassFields] = useState([]);
   const [dynamicConvertTargets, setDynamicConvertTargets] = useState([]);
@@ -181,8 +190,8 @@ export default function RecordDataTable({
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
   const [campaignModal, setCampaignModal] = useState(false);
-  const [campaigns, setCampaigns] = useState([]);
-  const [selectedCampaign, setSelectedCampaign] = useState('');
+  const [campaignLookups, setCampaignLookups] = useState([]);
+  const [selectedCampaign, setSelectedCampaign] = useState({ campaign_id: '', campaign_name: '' });
   const [users, setUsers] = useState([]);
   const [taskForm, setTaskForm] = useState({ title: '', due_date: '', assigned_to: '', description: '' });
   const [savingTask, setSavingTask] = useState(false);
@@ -388,24 +397,38 @@ export default function RecordDataTable({
   };
 
   const handleMassUpdate = async () => {
-    if (!massField || !massValue) return;
+    const isCampaignField = String(massField).toLowerCase() === 'campaign';
+    const hasValue = isCampaignField
+      ? !!(massValue || String(massCampaignName || '').trim())
+      : !!massValue;
+    if (!massField || !hasValue) return;
     setMassUpdating(true);
     const finishMassUpdate = () => {
       setMassUpdateOpen(false);
       setMassField('');
       setMassValue('');
+      setMassCampaignName('');
       setMassLostReason('');
       clearSelection();
       onRefresh?.();
     };
     try {
-      if (String(massField).toLowerCase() === 'campaign') {
+      if (isCampaignField) {
         const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
         if (!memberType) {
           showToast('Campaign assignment is not supported for this module');
           return;
         }
-        await assignRecordsToCampaign(massValue, memberType, selected);
+        const campaignId = await resolveOrCreateCampaignId({
+          campaign_id: massValue,
+          campaign_name: massCampaignName,
+          campaigns: massValueOptions,
+        });
+        if (!campaignId) {
+          showToast('Select or enter a campaign name');
+          return;
+        }
+        await assignRecordsToCampaign(campaignId, memberType, selected);
         showToast(`Added ${selected.length} record(s) to campaign`, 'success');
         finishMassUpdate();
         return;
@@ -519,13 +542,15 @@ export default function RecordDataTable({
   };
 
   const openCampaignModal = () => {
-    campaignsApi.listCampaigns({ page: 1, page_size: DEFAULT_PAGE_SIZE }).then((r) => setCampaigns(r.data)).catch(() => {});
+    fetchCampaignLookups().then(setCampaignLookups).catch(() => setCampaignLookups([]));
+    setSelectedCampaign({ campaign_id: '', campaign_name: '' });
     setCampaignModal(true);
     setMenuOpen(false);
   };
 
   const addToCampaign = async () => {
-    if (!selectedCampaign) return;
+    const hasCampaign = !!(selectedCampaign.campaign_id || String(selectedCampaign.campaign_name || '').trim());
+    if (!hasCampaign) return;
     const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
     if (!memberType) {
       showToast('Add to Campaign is only supported for Leads and Contacts lists');
@@ -533,13 +558,21 @@ export default function RecordDataTable({
     }
     setSavingCampaign(true);
     try {
-      await Promise.all(selected.map((id) => campaignsApi.addCampaignMember(selectedCampaign, {
+      const campaignId = await resolveOrCreateCampaignId({
+        ...selectedCampaign,
+        campaigns: campaignLookups,
+      });
+      if (!campaignId) {
+        showToast('Select or enter a campaign name');
+        return;
+      }
+      await Promise.all(selected.map((id) => campaignsApi.addCampaignMember(campaignId, {
         member_type: memberType,
         member_id: id,
       })));
       showToast(`Added ${selected.length} record(s) to campaign`, 'success');
       setCampaignModal(false);
-      setSelectedCampaign('');
+      setSelectedCampaign({ campaign_id: '', campaign_name: '' });
       clearSelection();
     } catch (err) {
       showToast(getApiError(err));
@@ -556,9 +589,15 @@ export default function RecordDataTable({
         open={massUpdateOpen}
         field={massField}
         value={massValue}
-        onFieldChange={(f) => { setMassField(f); setMassValue(''); setMassLostReason(''); }}
+        campaignName={massCampaignName}
+        onFieldChange={(f) => { setMassField(f); setMassValue(''); setMassCampaignName(''); setMassLostReason(''); }}
         onValueChange={(v) => { setMassValue(v); setMassLostReason(''); }}
-        onCancel={() => { setMassUpdateOpen(false); setMassField(''); setMassValue(''); setMassLostReason(''); }}
+        onCampaignChange={({ campaign_id, campaign_name }) => {
+          setMassValue(campaign_id);
+          setMassCampaignName(campaign_name);
+          setMassLostReason('');
+        }}
+        onCancel={() => { setMassUpdateOpen(false); setMassField(''); setMassValue(''); setMassCampaignName(''); setMassLostReason(''); }}
         onUpdate={handleMassUpdate}
         updating={massUpdating}
         statusOptions={statusOptions}
@@ -701,14 +740,21 @@ export default function RecordDataTable({
       {campaignModal && (
         <Modal title="Add to Campaign" onClose={() => setCampaignModal(false)}>
           <FormField label="Campaign">
-            <select className={inputClass()} value={selectedCampaign} onChange={(e) => setSelectedCampaign(e.target.value)}>
-              <option value="">Select campaign</option>
-              {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <CampaignCombobox
+              options={campaignLookups}
+              valueId={selectedCampaign.campaign_id}
+              valueLabel={selectedCampaign.campaign_name}
+              onChange={setSelectedCampaign}
+              placeholder="Search or type campaign name"
+            />
           </FormField>
           <div className="flex gap-2 justify-end pt-4">
             <button onClick={() => setCampaignModal(false)} className="btn-secondary">Cancel</button>
-            <button onClick={addToCampaign} disabled={!selectedCampaign || savingCampaign} className="btn-primary">
+            <button
+              onClick={addToCampaign}
+              disabled={!(selectedCampaign.campaign_id || selectedCampaign.campaign_name?.trim()) || savingCampaign}
+              className="btn-primary"
+            >
               {savingCampaign ? 'Adding...' : 'Add to Campaign'}
             </button>
           </div>
