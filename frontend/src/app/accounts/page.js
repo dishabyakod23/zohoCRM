@@ -54,6 +54,7 @@ export default function AccountsPage() {
         search: debouncedSearch || undefined,
         filters,
         campaignMemberIds,
+        includeContactEmails: true,
         ...getSortApiParams(sort, 'accounts'),
       });
       setAccounts(result.data);

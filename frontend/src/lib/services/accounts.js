@@ -73,6 +73,7 @@ export async function listAccounts({
   sort_order,
   filters = {},
   campaignMemberIds,
+  includeContactEmails = false,
 } = {}) {
   const params = { page, page_size };
   if (search) params.search = search;
@@ -81,15 +82,19 @@ export async function listAccounts({
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
 
-  const emailMap = await fetchAccountContactEmailMap();
+  const needsEmailMap = includeContactEmails || !!String(filters.email || '').trim();
+  const emailMap = needsEmailMap ? await fetchAccountContactEmailMap() : null;
+  const withEmails = (rows) => (
+    emailMap ? attachContactEmails(rows, emailMap) : (rows || []).map(normalizeAccount)
+  );
 
   if (hasAccountClientFilters(filters) || campaignMemberIds) {
-    const allAccounts = attachContactEmails(await fetchAllAccountPages({
+    const allAccounts = withEmails(await fetchAllAccountPages({
       search,
       owner_id: mergedOwnerId,
       sort_by,
       sort_order,
-    }), emailMap);
+    }));
     const filtered = applyAccountRecordFilters(allAccounts, filters, { campaignMemberIds });
     const start = (page - 1) * page_size;
     return {
@@ -101,15 +106,15 @@ export async function listAccounts({
 
   const res = await api.get('/accounts', { params });
   return {
-    data: attachContactEmails((res.data.data || []).map(normalizeAccount), emailMap),
+    data: withEmails(res.data.data || []),
     total: res.data.meta?.total ?? 0,
     meta: res.data.meta,
   };
 }
 
 export async function countAccounts() {
-  const result = await listAccounts({ page: 1, page_size: 1 });
-  return result.total ?? result.meta?.total ?? 0;
+  const res = await api.get('/accounts', { params: { page: 1, page_size: 1 } });
+  return res.data.meta?.total ?? 0;
 }
 
 export async function getAccount(id) {
