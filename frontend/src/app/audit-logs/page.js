@@ -51,7 +51,7 @@ export default function AuditLogsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Audit Logs"
-          subtitle={`CRM activity and CloudTalk calls from the last ${AUDIT_LOG_DAYS} days (sign-in events excluded)`}
+          subtitle={`CRM activity and CloudTalk calls from the last ${AUDIT_LOG_DAYS} days (sign-in and system noise excluded)`}
         />
 
         {loading ? (

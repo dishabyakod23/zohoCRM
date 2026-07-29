@@ -4,6 +4,10 @@ import {
   listCloudTalkCallsLastDays,
   scopeCloudTalkCalls,
 } from './cloudTalkCalls.js';
+import {
+  enrichActivityLogsWithPhoneNames,
+  getCrmPhoneLookup,
+} from './phoneDirectory.js';
 
 const AUDIT_LOGS_BASE = `${API_BASE_URL}/audit-logs`;
 const HISTORY_BASE = `${API_BASE_URL}/history`;
@@ -21,7 +25,7 @@ export function normalizeAuditLog(log) {
   };
 }
 
-/** Auth/session/sign-in noise — not useful in dashboard or activity feeds. */
+/** Auth/session/sign-in and low-level API noise — not useful in dashboard or activity feeds. */
 export function isNoiseAuditLog(log) {
   const action = String(log.action || '').toLowerCase();
   const entityType = String(log.entity_type || log.record_type || '').toLowerCase();
@@ -36,6 +40,9 @@ export function isNoiseAuditLog(log) {
   if (/\bsign[\s-]?in\b/.test(summary)) return true;
   if (action.includes('api_action') || action.includes('api action')) return true;
   if (/submitted\s+api\s+action/i.test(summary)) return true;
+  if (entityType.includes('http_status') || entityType.includes('http status')) return true;
+  if (/\bhttp\s+status\b/i.test(summary)) return true;
+  if (/\bstatus\s+to\s+\d{3}\b/i.test(summary) && /\bhttp\b/i.test(summary)) return true;
   return false;
 }
 
@@ -96,7 +103,14 @@ export async function listActivityLogsLastDays(
   ]);
 
   const scopedCloudTalk = scopeCloudTalkCalls(cloudTalkCalls, { user, canSeeAll });
-  return mergeActivityLogs(auditLogs, scopedCloudTalk);
+  const merged = mergeActivityLogs(auditLogs, scopedCloudTalk);
+
+  try {
+    const lookup = await getCrmPhoneLookup();
+    return enrichActivityLogsWithPhoneNames(merged, lookup);
+  } catch {
+    return merged;
+  }
 }
 
 export async function getEntityTimeline(entityType, entityId, params = {}) {

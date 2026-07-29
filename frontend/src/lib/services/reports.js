@@ -140,7 +140,7 @@ export async function previewWeeklyReport() {
 }
 
 export async function triggerWeeklyReport() {
-  const res = await api.post('/reports/weekly/trigger');
+  const res = await api.post('/admin/reports/weekly/trigger');
   return res.data.data;
 }
 

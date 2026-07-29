@@ -8,6 +8,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
 import { leadStatusLabel } from '../../lib/leadHelpers.js';
 import * as reportsApi from '../../lib/services/reports.js';
+import { formatWeeklyReportSchedule } from '../../lib/weeklyReportSchedule.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import PerformanceReportsPanel from '../../components/reports/PerformanceReportsPanel.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -344,6 +345,12 @@ export default function ReportsPage() {
                     <button onClick={handleTriggerWeekly} disabled={triggering || !reportRecipients.length} className="btn-secondary text-xs">{triggering ? 'Sending...' : `Send individual reports to ${reportRecipients.length} recipient(s)`}</button>
                     <button onClick={loadWeeklyData} className="btn-secondary text-xs">Refresh Preview</button>
                   </div>
+                  {weeklySettings?.enabled && (
+                    <p className="text-xs text-gray-500 mt-3">
+                      Scheduled send: {formatWeeklyReportSchedule(weeklySettings)}. When enabled, the CRM calls{' '}
+                      <code className="text-brand-600">POST /admin/reports/weekly/trigger</code> at that time while an admin session is open.
+                    </p>
+                  )}
                 </div>
 
                 <div className="card p-5">
