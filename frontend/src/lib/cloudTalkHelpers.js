@@ -24,8 +24,10 @@ export function normalizePhoneForDial(raw) {
   return `+${digits}`;
 }
 
-export function cloudTalkPhoneUrl({ partner = CLOUDTALK_PARTNER } = {}) {
+export function cloudTalkPhoneUrl({ partner = CLOUDTALK_PARTNER, number } = {}) {
   const params = new URLSearchParams({ partner });
+  const normalized = number ? normalizePhoneForDial(number) : '';
+  if (normalized) params.set('number', normalized);
   return `${CLOUDTALK_ORIGIN}?${params.toString()}`;
 }
 
@@ -42,7 +44,7 @@ export function buildCloudTalkDeepLink(number, fromNumber) {
 export function openCloudTalkWebPhone(number) {
   const normalized = normalizePhoneForDial(number);
   if (!normalized || typeof window === 'undefined') return;
-  window.open(cloudTalkPhoneUrl(), '_blank', 'noopener,noreferrer');
+  window.open(cloudTalkPhoneUrl({ number: normalized }), '_blank', 'noopener,noreferrer');
 }
 
 export function tryCloudTalkDesktopDial(number, fromNumber) {

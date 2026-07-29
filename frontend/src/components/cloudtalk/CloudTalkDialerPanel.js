@@ -9,9 +9,18 @@ const IFRAME_H = 700;
 const SCALE = 0.68;
 
 export default function CloudTalkDialerPanel({ open, iframeMounted, onClose }) {
-  const { ready, loggedIn, iframeRef, onIframeLoad, setOpen } = useCloudTalk();
+  const {
+    ready,
+    loggedIn,
+    iframeRef,
+    onIframeLoad,
+    setOpen,
+    iframeBootNumber,
+    pendingDialNumber,
+  } = useCloudTalk();
   const panelW = Math.round(IFRAME_W * SCALE);
   const panelH = Math.round(IFRAME_H * SCALE);
+  const iframeSrc = cloudTalkPhoneUrl({ number: iframeBootNumber || undefined });
 
   return (
     <>
@@ -38,7 +47,11 @@ export default function CloudTalkDialerPanel({ open, iframeMounted, onClose }) {
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-zoho-text">CloudTalk</h3>
             <p className="text-[10px] text-zoho-muted truncate">
-              {ready ? (loggedIn ? 'Ready to call' : 'Log in to place calls') : 'Loading dialer…'}
+              {pendingDialNumber
+                ? `Dial: ${pendingDialNumber}`
+                : ready
+                  ? (loggedIn ? 'Ready to call' : 'Log in to place calls')
+                  : 'Loading dialer…'}
             </p>
           </div>
           <button
@@ -54,7 +67,7 @@ export default function CloudTalkDialerPanel({ open, iframeMounted, onClose }) {
           {iframeMounted ? (
             <iframe
               ref={iframeRef}
-              src={cloudTalkPhoneUrl()}
+              src={iframeSrc}
               title="CloudTalk Phone"
               allow="microphone *"
               onLoad={onIframeLoad}
