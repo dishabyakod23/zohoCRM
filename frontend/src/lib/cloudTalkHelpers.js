@@ -41,9 +41,11 @@ export function cloudTalkPhoneUrl({ partner = CLOUDTALK_PARTNER, number, autoCal
       params.set('autocall', 'true');
       params.set('auto_call', 'true');
       params.set('dial', 'true');
+      params.set('click_to_call', 'true');
     }
   }
-  return `${CLOUDTALK_ORIGIN}?${params.toString()}`;
+  const path = normalized ? '/p/dialpad' : '';
+  return `${CLOUDTALK_ORIGIN}${path}?${params.toString()}`;
 }
 
 /** Send the number into the embedded dialer without reloading the iframe. */

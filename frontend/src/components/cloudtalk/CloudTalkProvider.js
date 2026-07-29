@@ -191,12 +191,25 @@ export function CloudTalkProvider({ children }) {
           setLoggedIn(false);
           break;
         case 'contact_info':
+          loggedInRef.current = true;
+          setLoggedIn(true);
           persistIframeCall(payload, 'contact_info');
           break;
         case 'ended':
+          loggedInRef.current = true;
+          setLoggedIn(true);
           persistIframeCall(payload, 'ended');
           break;
+        case 'hangup':
+          loggedInRef.current = true;
+          setLoggedIn(true);
+          break;
         default:
+          if (payload.event) {
+            loggedInRef.current = true;
+            setLoggedIn(true);
+            setReady(true);
+          }
           break;
       }
     };
@@ -234,6 +247,14 @@ export function CloudTalkProvider({ children }) {
       setOpen(true);
       await waitForIframe();
 
+      if (!loggedInRef.current) {
+        showToast(
+          autoCall
+            ? 'Log into CloudTalk in the dialer panel first. The number will be filled after sign-in — press the green call button if it does not dial automatically.'
+            : 'Log into CloudTalk in the dialer panel first.',
+        );
+      }
+
       const iframe = iframeRef.current;
       if (iframe && !iframeHasLoadedRef.current) {
         const url = cloudTalkPhoneUrl({ number, autoCall });
@@ -242,6 +263,10 @@ export function CloudTalkProvider({ children }) {
       } else if (iframe) {
         postNumberToCloudTalkIframe(iframe, number, { autoCall });
         await postCloudTalkDialWithRetries(iframeRef, number, { autoCall });
+      }
+
+      if (autoCall) {
+        tryCloudTalkDesktopDial(number);
       }
       return;
     }

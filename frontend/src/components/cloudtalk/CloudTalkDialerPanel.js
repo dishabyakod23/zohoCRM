@@ -45,7 +45,9 @@ export default function CloudTalkDialerPanel({ open, iframeMounted, onClose }) {
             <h3 className="text-sm font-semibold text-zoho-text">CloudTalk</h3>
             <p className="text-[10px] text-zoho-muted truncate">
               {ready
-                ? (loggedIn ? 'Ready to call' : 'Log in to place calls')
+                ? (loggedIn
+                  ? 'Ready — click a phone icon in the CRM to dial'
+                  : 'Log in to CloudTalk below to place calls')
                 : 'Loading dialer…'}
             </p>
           </div>

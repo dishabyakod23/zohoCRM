@@ -19,14 +19,18 @@ export function buildCloudTalkPastePayloads(number) {
 
 /** Trigger an outbound call (auto-dial when supported by CloudTalk). */
 export function buildCloudTalkDialPayloads(number, { autoCall = true } = {}) {
-  const properties = { external_number: number };
+  const properties = { external_number: number, autocall: autoCall, auto_call: autoCall };
   const objects = [
-    { event: 'dial', properties: { ...properties, autocall: autoCall, auto_call: autoCall } },
-    { event: 'click_to_call', properties: { ...properties, autocall: autoCall } },
-    { event: 'call', properties: { ...properties, autocall: autoCall } },
+    { event: 'dial', properties },
+    { event: 'click_to_call', properties },
+    { event: 'outbound_call', properties },
+    { event: 'call', properties },
+    { event: 'paste_and_dial', properties },
+    { action: 'click_to_call', number, external_number: number, autocall: autoCall },
     { action: 'call', number, external_number: number, autocall: autoCall },
     { action: 'dial', number, external_number: number, autocall: autoCall },
     { type: 'cloudtalk-dial', number, external_number: number, autocall: autoCall },
+    { type: 'cloudtalk-click-to-call', number, external_number: number, autocall: autoCall },
   ];
   return [...objects.map((p) => JSON.stringify(p)), ...objects];
 }
