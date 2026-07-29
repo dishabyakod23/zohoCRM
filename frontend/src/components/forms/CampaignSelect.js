@@ -1,14 +1,15 @@
 'use client';
 import FormField from './FormField.js';
+import CampaignCombobox from './CampaignCombobox.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 
 export default function CampaignSelect({
   value,
+  valueLabel = '',
   onChange,
   label = 'Campaign',
   name = 'campaign_id',
-  className = 'input',
-  placeholder = '—None—',
+  placeholder = 'Search or type campaign name',
   required = false,
   error,
 }) {
@@ -16,17 +17,16 @@ export default function CampaignSelect({
 
   return (
     <FormField label={label} name={name} required={required} error={error}>
-      <select
-        className={className}
-        value={value || ''}
-        onChange={(e) => onChange(e.target.value)}
+      <CampaignCombobox
+        id={name}
+        options={campaigns}
+        valueId={value || ''}
+        valueLabel={valueLabel}
+        onChange={onChange}
+        error={error}
         disabled={loading && !campaigns.length}
-      >
-        <option value="">{loading ? 'Loading campaigns…' : placeholder}</option>
-        {campaigns.map((c) => (
-          <option key={c.value} value={c.value}>{c.label}</option>
-        ))}
-      </select>
+        placeholder={loading && !campaigns.length ? 'Loading campaigns…' : placeholder}
+      />
     </FormField>
   );
 }

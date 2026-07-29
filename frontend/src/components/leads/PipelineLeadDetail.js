@@ -114,10 +114,10 @@ export default function PipelineLeadDetail({ stage }) {
     }
     setSaving(true);
     try {
-      const { campaign_id: draftCampaignId, ...leadPayload } = payload;
+      const { campaign_id: draftCampaignId, campaign_name: draftCampaignName, ...leadPayload } = payload;
       await leadsApi.updateLead(id, leadPayload);
-      if (draftCampaignId !== undefined) {
-        await saveCampaignFromDraft({ campaign_id: draftCampaignId });
+      if (draftCampaignId !== undefined || draftCampaignName !== undefined) {
+        await saveCampaignFromDraft({ campaign_id: draftCampaignId, campaign_name: draftCampaignName });
       }
       loadLead();
       showToast('Updated', 'success');

@@ -17,7 +17,7 @@ import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
-import { afterRecordSave } from '../../lib/campaignRecordHelpers.js';
+import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 
 const OWNERSHIP_OPTIONS = ['Public', 'Private', 'Subsidiary', 'Other'];
 
@@ -38,6 +38,7 @@ export function emptyAccountForm() {
     shipping_country: '', shipping_zip: '', shipping_lat: '', shipping_lng: '',
     description: '',
     campaign_id: '',
+    campaign_name: '',
     proposal_amount: '',
     currency: DEFAULT_CURRENCY,
     contact_ids: [],
@@ -179,7 +180,11 @@ export default function CreateAccountForm() {
     setSaving(true);
     try {
       const created = await accountsApi.createAccountWithRelations(form);
-      await afterRecordSave({ campaignId: form.campaign_id, memberType: 'account', recordId: created?.id });
+      const campaignId = await resolveOrCreateCampaignId({
+        campaign_id: form.campaign_id,
+        campaign_name: form.campaign_name,
+      });
+      await afterRecordSave({ campaignId, memberType: 'account', recordId: created?.id });
       showToast('Account saved', 'success');
       navigateToRecord(created?.id ? `/accounts/${created.id}` : '/accounts');
     } catch (err) {
@@ -250,7 +255,11 @@ export default function CreateAccountForm() {
                 {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
               </select>
             </FormField>
-            <CampaignSelect value={form.campaign_id} onChange={(v) => setForm((f) => ({ ...f, campaign_id: v }))} />
+            <CampaignSelect
+              value={form.campaign_id}
+              valueLabel={form.campaign_name}
+              onChange={({ campaign_id, campaign_name }) => setForm((f) => ({ ...f, campaign_id, campaign_name }))}
+            />
 
             <FormField label="Annual Revenue" name="annual_revenue">
               <CurrencyAmountInput

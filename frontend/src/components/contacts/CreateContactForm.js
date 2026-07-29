@@ -17,12 +17,12 @@ import { fetchAccountLookups, fetchUsers } from '../../lib/services/lookups.js';
 import AccountNameCombobox from '../forms/AccountNameCombobox.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { resolveContactAccountId } from '../../lib/resolveContactAccount.js';
-import { afterRecordSave } from '../../lib/campaignRecordHelpers.js';
+import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 
 export function emptyContactForm() {
   return {
     salutation: '', first_name: '', last_name: '', account_id: '', account_name: '',
-    title: '', department: '', lead_source: '', owner_id: '', campaign_id: '',
+    title: '', department: '', lead_source: '', owner_id: '', campaign_id: '', campaign_name: '',
     assistant: '', asst_phone: '', date_of_birth: '',
     email_opt_out: false,
     email: '', secondary_email: '', phone: '', other_phone: '', mobile: '',
@@ -165,7 +165,11 @@ export default function CreateContactForm() {
         owner_id: form.owner_id || user?.id,
       });
       const created = await contactsApi.createContact({ ...form, account_id: accountId });
-      await afterRecordSave({ campaignId: form.campaign_id, memberType: 'contact', recordId: created?.id });
+      const campaignId = await resolveOrCreateCampaignId({
+        campaign_id: form.campaign_id,
+        campaign_name: form.campaign_name,
+      });
+      await afterRecordSave({ campaignId, memberType: 'contact', recordId: created?.id });
       showToast('Contact saved', 'success');
       navigateToRecord(created?.id ? `/contacts/${created.id}` : '/contacts');
     } catch (err) {
@@ -269,7 +273,11 @@ export default function CreateContactForm() {
               </select>
             </FormField>
 
-            <CampaignSelect value={form.campaign_id} onChange={(v) => setForm((f) => ({ ...f, campaign_id: v }))} />
+            <CampaignSelect
+              value={form.campaign_id}
+              valueLabel={form.campaign_name}
+              onChange={({ campaign_id, campaign_name }) => setForm((f) => ({ ...f, campaign_id, campaign_name }))}
+            />
 
             <FormField label="Designation" name="title">
               <input className="input" value={form.title} onChange={set('title')} />

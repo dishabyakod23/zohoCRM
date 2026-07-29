@@ -21,6 +21,30 @@ export function resolveCampaignId(value, campaigns = []) {
   return byName?.value || '';
 }
 
+/** Find existing campaign by id/name, or create one when the user typed a new name. */
+export async function resolveOrCreateCampaignId({
+  campaign_id,
+  campaign_name,
+  campaigns,
+} = {}) {
+  const list = campaigns ?? await fetchCampaignLookups();
+  const resolvedId = resolveCampaignId(campaign_id, list);
+  if (resolvedId) return resolvedId;
+
+  const typedName = String(campaign_name || '').trim();
+  const nameFromId = campaign_id && !resolvedId
+    ? String(campaign_id).trim()
+    : '';
+  const name = typedName || (nameFromId && !/^[0-9a-f-]{36}$/i.test(nameFromId) ? nameFromId : '');
+  if (!name) return '';
+
+  const existing = list.find((c) => String(c.label).trim().toLowerCase() === name.toLowerCase());
+  if (existing) return existing.value;
+
+  const created = await campaignsApi.createCampaign({ name });
+  return created.id;
+}
+
 export async function assignRecordToCampaign(campaignId, memberType, memberId) {
   if (!campaignId || !memberId) return;
   try {

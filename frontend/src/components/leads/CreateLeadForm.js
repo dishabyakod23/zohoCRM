@@ -17,7 +17,7 @@ import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lo
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
-import { afterRecordSave } from '../../lib/campaignRecordHelpers.js';
+import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 
 export function emptyLeadForm() {
   return {
@@ -28,6 +28,7 @@ export function emptyLeadForm() {
     street: '', city: '', state: '', zip_code: '', country: 'India',
     description: '',
     campaign_id: '',
+    campaign_name: '',
     currency: DEFAULT_CURRENCY,
   };
 }
@@ -82,7 +83,11 @@ export default function CreateLeadForm() {
     setSaving(true);
     try {
       const created = await leadsApi.createLead(form);
-      await afterRecordSave({ campaignId: form.campaign_id, memberType: 'lead', recordId: created?.id });
+      const campaignId = await resolveOrCreateCampaignId({
+        campaign_id: form.campaign_id,
+        campaign_name: form.campaign_name,
+      });
+      await afterRecordSave({ campaignId, memberType: 'lead', recordId: created?.id });
       showToast('Lead saved', 'success');
       navigateToRecord(created?.id ? `/leads/${created.id}` : '/leads');
     } catch (err) {
@@ -136,7 +141,11 @@ export default function CreateLeadForm() {
                 {LEAD_SOURCES.map((s) => <option key={s}>{s}</option>)}
               </select>
             </FormField>
-            <CampaignSelect value={form.campaign_id} onChange={(v) => setForm((f) => ({ ...f, campaign_id: v }))} />
+            <CampaignSelect
+              value={form.campaign_id}
+              valueLabel={form.campaign_name}
+              onChange={({ campaign_id, campaign_name }) => setForm((f) => ({ ...f, campaign_id, campaign_name }))}
+            />
             <FormField label="Industry">
               <select className="input" value={form.industry} onChange={set('industry')}>
                 <option value="">--None--</option>

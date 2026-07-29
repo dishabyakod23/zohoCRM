@@ -5,6 +5,7 @@ import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { getImportFields } from '../../lib/importFieldConfig.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
+import { resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 import {
   parseCsvFile,
   suggestColumnMapping,
@@ -40,7 +41,7 @@ export default function CsvImportModal({
   const [validationMessage, setValidationMessage] = useState('');
   const [validating, setValidating] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [defaultCampaignId, setDefaultCampaignId] = useState('');
+  const [defaultCampaign, setDefaultCampaign] = useState({ campaign_id: '', campaign_name: '' });
 
   const reset = () => {
     setStep(STEPS.upload);
@@ -51,7 +52,7 @@ export default function CsvImportModal({
     setHideRecognized(false);
     setPreview(null);
     setValidationMessage('');
-    setDefaultCampaignId('');
+    setDefaultCampaign({ campaign_id: '', campaign_name: '' });
   };
 
   useEffect(() => {
@@ -141,9 +142,10 @@ export default function CsvImportModal({
           return;
         }
       }
+      const campaignId = await resolveOrCreateCampaignId(defaultCampaign);
       const result = await importFn(mappedFile, {
         dry_run: false,
-        campaignId: defaultCampaignId || undefined,
+        campaignId: campaignId || undefined,
       });
       showToast(`Imported ${result.imported_count ?? result.ready_count ?? readyCount} record(s)`, 'success');
       onDone?.();
@@ -173,8 +175,9 @@ export default function CsvImportModal({
             </button>
           )}
           <CampaignSelect
-            value={defaultCampaignId}
-            onChange={setDefaultCampaignId}
+            value={defaultCampaign.campaign_id}
+            valueLabel={defaultCampaign.campaign_name}
+            onChange={setDefaultCampaign}
             label="Campaign (optional — applies to all imported rows)"
           />
           <input type="file" accept=".csv" onChange={handleFile} className="text-sm w-full" />

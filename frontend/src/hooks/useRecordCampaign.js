@@ -1,7 +1,9 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import CampaignCombobox from '../components/forms/CampaignCombobox.js';
 import {
   findRecordCampaign,
+  resolveOrCreateCampaignId,
   saveRecordCampaignChange,
 } from '../lib/campaignRecordHelpers.js';
 import { useCampaignLookups } from './useCampaignLookups.js';
@@ -36,31 +38,34 @@ export function useRecordCampaign(memberType, recordId) {
     label: 'Campaign',
     format: () => campaignName || null,
     render: (draft, set) => (
-      <select
-        className="input"
-        value={draft.campaign_id ?? ''}
-        onChange={(e) => set((prev) => ({ ...prev, campaign_id: e.target.value }))}
-      >
-        <option value="">--None--</option>
-        {campaigns.map((c) => (
-          <option key={c.value} value={c.value}>{c.label}</option>
-        ))}
-      </select>
+      <CampaignCombobox
+        options={campaigns}
+        valueId={draft.campaign_id ?? campaignId ?? ''}
+        valueLabel={draft.campaign_name ?? campaignName ?? ''}
+        onChange={({ campaign_id, campaign_name }) => {
+          set((prev) => ({ ...prev, campaign_id, campaign_name }));
+        }}
+      />
     ),
-  }), [campaigns, campaignName]);
+  }), [campaigns, campaignId, campaignName]);
 
   const saveCampaignFromDraft = async (draft) => {
-    if (!recordId || draft.campaign_id === undefined) return;
+    if (!recordId || (draft.campaign_id === undefined && draft.campaign_name === undefined)) return;
+    const resolvedId = await resolveOrCreateCampaignId({
+      campaign_id: draft.campaign_id,
+      campaign_name: draft.campaign_name,
+      campaigns,
+    });
     await saveRecordCampaignChange({
-      campaignId: draft.campaign_id,
+      campaignId: resolvedId,
       previousCampaignId: previousCampaignIdRef.current,
       memberType,
       recordId,
     });
-    previousCampaignIdRef.current = draft.campaign_id || '';
-    const match = campaigns.find((c) => c.value === draft.campaign_id);
-    setCampaignId(draft.campaign_id || '');
-    setCampaignName(match?.label || '');
+    previousCampaignIdRef.current = resolvedId || '';
+    const match = campaigns.find((c) => c.value === resolvedId);
+    setCampaignId(resolvedId || '');
+    setCampaignName(match?.label || draft.campaign_name || '');
   };
 
   return {

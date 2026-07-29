@@ -20,7 +20,7 @@ import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
-import { afterRecordSave } from '../../lib/campaignRecordHelpers.js';
+import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 
 const COUNTRIES = ['India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Singapore', 'UAE', 'Other'];
 const INDIAN_STATES = [
@@ -69,6 +69,7 @@ export function emptyPipelineLeadForm(ownerId = '', defaults = {}) {
     longitude: '',
     description: '',
     campaign_id: '',
+    campaign_name: '',
     currency: DEFAULT_CURRENCY,
     ...defaults,
   };
@@ -159,7 +160,11 @@ export default function CreatePipelineLeadForm({
     setSaving(true);
     try {
       const created = await createFn(form);
-      await afterRecordSave({ campaignId: form.campaign_id, memberType: 'lead', recordId: created?.id });
+      const campaignId = await resolveOrCreateCampaignId({
+        campaign_id: form.campaign_id,
+        campaign_name: form.campaign_name,
+      });
+      await afterRecordSave({ campaignId, memberType: 'lead', recordId: created?.id });
       showToast(successToast, 'success');
       navigateToRecord(created?.id ? `${listPath}/${created.id}` : listPath);
     } catch (err) {
@@ -224,7 +229,11 @@ export default function CreatePipelineLeadForm({
                 {noneSelect(form.source, set('source'), LEAD_SOURCES)}
               </FormField>
             )}
-            <CampaignSelect value={form.campaign_id} onChange={(v) => setForm((f) => ({ ...f, campaign_id: v }))} />
+            <CampaignSelect
+              value={form.campaign_id}
+              valueLabel={form.campaign_name}
+              onChange={({ campaign_id, campaign_name }) => setForm((f) => ({ ...f, campaign_id, campaign_name }))}
+            />
             <FormField label="Industry" name="industry">
               {noneSelect(form.industry, set('industry'), INDUSTRIES)}
             </FormField>
