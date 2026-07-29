@@ -342,6 +342,10 @@ export async function countQualifiedLeads(statusOptions = []) {
 /** Pipeline counts for dashboard KPIs and chart (single fetch, matches list pages). */
 export async function summarizePipelineDashboard(statusOptions = []) {
   const { data } = await listAllLeads({}, statusOptions);
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
   const stages = [PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL];
   const leadsByPipeline = stages
     .map((stage) => ({
@@ -356,11 +360,16 @@ export async function summarizePipelineDashboard(statusOptions = []) {
     const size = Number(lead.deal_size ?? lead.proposal_amount);
     return sum + (Number.isFinite(size) ? size : 0);
   }, 0);
+  const leadsThisMonth = data.filter((lead) => {
+    if (!lead.created_at) return false;
+    return new Date(lead.created_at) >= monthStart;
+  }).length;
 
   return {
     leadsByPipeline,
     totalLeads: leadsByPipeline.reduce((sum, row) => sum + row.count, 0),
     qualifiedCount,
+    leadsThisMonth,
     proposals: { total: proposalLeads.length, dealSize },
   };
 }

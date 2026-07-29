@@ -27,14 +27,15 @@ export default function PerformanceReportsPanel() {
       setUsers(list);
       const managers = list.filter((u) => u.role === 'super_admin' || u.role === 'sales_manager');
       setManagementRecipients(managers);
-      if (!selectedUserId && list.length) {
+      setSelectedUserId((current) => {
+        if (current) return current;
         const firstRep = list.find((u) => u.role !== 'super_admin') || list[0];
-        setSelectedUserId(String(firstRep.id));
-      }
+        return firstRep ? String(firstRep.id) : '';
+      });
     } catch (err) {
       showToast(getApiError(err));
     }
-  }, [selectedUserId, showToast]);
+  }, [showToast]);
 
   const loadPreview = useCallback(async () => {
     if (!selectedUserId) return;

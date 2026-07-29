@@ -118,13 +118,12 @@ export default function BottomUtilityBar() {
 
   useEffect(() => {
     if (!user?.id) return;
-    calendarApi.getLoginReminders()
-      .then(setReminders)
-      .catch(() => setReminders([]));
-    announcementsApi.listAnnouncements({ limit: DEFAULT_PAGE_SIZE })
-      .then(setAnnouncements)
-      .catch(() => setAnnouncements([]));
-  }, [user?.id, canAssignLeads]);
+    if (active === 'reminders' && reminders.length === 0) {
+      calendarApi.getLoginReminders()
+        .then(setReminders)
+        .catch(() => setReminders([]));
+    }
+  }, [user?.id, active, reminders.length]);
 
   const loadAnnouncements = () => {
     setAnnouncementsLoading(true);

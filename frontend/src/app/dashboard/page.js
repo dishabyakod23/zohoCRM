@@ -69,27 +69,33 @@ export default function DashboardPage() {
 
     Promise.all([
       dashboardApi.getDashboardHome(),
-      leadsApi.countLeadsThisMonth().catch(() => 0),
       leadsApi.summarizePipelineDashboard().catch(() => ({
         leadsByPipeline: [],
         totalLeads: 0,
         qualifiedCount: 0,
+        leadsThisMonth: 0,
         proposals: { total: 0, dealSize: 0 },
       })),
-      accountsApi.countAccounts({ recordKind: 'account' }).catch(() => 0),
-      auditLogsApi.listActivityLogsLastDays(30, {
+      buildAccountKindContext().catch(() => ({ dealAccountIds: new Set() })),
+      auditLogsApi.listRecentActivityLogs(30, {
         user,
         canSeeAll: role === 'super_admin' || role === 'sales_manager',
+        limit: DEFAULT_PAGE_SIZE,
+        enrichPhones: false,
+        cloudTalkLimit: 50,
       }).catch(() => []),
-      buildAccountKindContext().catch(() => ({ dealAccountIds: new Set() })),
-    ]).then(([home, leadsThisMonth, pipelineSummary, accountsTotal, logs, accountKindContext]) => {
+    ]).then(async ([home, pipelineSummary, accountKindContext, logs]) => {
+      const accountsTotal = await accountsApi.countAccounts({
+        recordKind: 'account',
+        context: accountKindContext,
+      }).catch(() => 0);
       const topAccountsRaw = (home.top_accounts || [])
         .filter((account) => isConfirmedAccount(account, accountKindContext));
-      setAuditLogs(auditLogsApi.filterVisibleAuditLogs(logs, DEFAULT_PAGE_SIZE));
+      setAuditLogs(logs);
       setStats({
         leads: {
           total: pipelineSummary.totalLeads,
-          this_month: leadsThisMonth,
+          this_month: pipelineSummary.leadsThisMonth ?? 0,
           qualified: pipelineSummary.qualifiedCount,
         },
         accounts: { total: accountsTotal },

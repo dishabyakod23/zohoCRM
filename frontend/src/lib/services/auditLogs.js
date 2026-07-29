@@ -1,5 +1,6 @@
 import api, { API_BASE_URL } from '../api.js';
 import { formatEnumLabel, userBriefName } from '../activityHelpers.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import {
   listCloudTalkCallsLastDays,
   scopeCloudTalkCalls,
@@ -91,7 +92,7 @@ export function mergeActivityLogs(auditLogs = [], cloudTalkCalls = []) {
   return merged;
 }
 
-/** Audit logs plus CloudTalk call history for the last N days. */
+/** Audit logs plus CloudTalk call history for the last N days (full window). */
 export async function listActivityLogsLastDays(
   days = 30,
   { user, canSeeAll = false, ...params } = {},
@@ -99,7 +100,7 @@ export async function listActivityLogsLastDays(
   const scopedParams = canSeeAll ? params : { ...params, user_id: user?.id };
   const [auditLogs, cloudTalkCalls] = await Promise.all([
     listAuditLogsLastDays(days, scopedParams),
-    listCloudTalkCallsLastDays(days, scopedParams).catch(() => []),
+    listCloudTalkCallsLastDays(days, scopedParams, { limit: 200 }).catch(() => []),
   ]);
 
   const scopedCloudTalk = scopeCloudTalkCalls(cloudTalkCalls, { user, canSeeAll });
@@ -110,6 +111,53 @@ export async function listActivityLogsLastDays(
     return enrichActivityLogsWithPhoneNames(merged, lookup);
   } catch {
     return merged;
+  }
+}
+
+/** Lightweight activity feed for widgets — one audit page, optional phone enrichment. */
+export async function listRecentActivityLogs(
+  days = 30,
+  {
+    user,
+    canSeeAll = false,
+    limit = DEFAULT_PAGE_SIZE,
+    enrichPhones = true,
+    includeCloudTalk = true,
+    cloudTalkLimit = 100,
+    ...params
+  } = {},
+) {
+  const scopedParams = canSeeAll ? params : { ...params, user_id: user?.id };
+  const { start_at, end_at } = auditLogDateRange(days);
+  const auditPageSize = limit ? Math.min(Math.max(limit * 3, limit), 100) : 100;
+
+  const [auditRes, cloudTalkCalls] = await Promise.all([
+    api.get(AUDIT_LOGS_BASE, {
+      params: {
+        ...scopedParams,
+        page: 1,
+        page_size: auditPageSize,
+        start_at,
+        end_at,
+      },
+    }),
+    includeCloudTalk
+      ? listCloudTalkCallsLastDays(days, scopedParams, { limit: cloudTalkLimit }).catch(() => [])
+      : Promise.resolve([]),
+  ]);
+
+  const auditLogs = filterVisibleAuditLogs((auditRes.data.data || []).map(normalizeAuditLog));
+  const scopedCloudTalk = scopeCloudTalkCalls(cloudTalkCalls, { user, canSeeAll });
+  const merged = mergeActivityLogs(auditLogs, scopedCloudTalk);
+  const sliced = limit ? merged.slice(0, limit) : merged;
+
+  if (!enrichPhones) return sliced;
+
+  try {
+    const lookup = await getCrmPhoneLookup();
+    return enrichActivityLogsWithPhoneNames(sliced, lookup);
+  } catch {
+    return sliced;
   }
 }
 

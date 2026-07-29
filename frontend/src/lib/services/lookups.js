@@ -3,6 +3,7 @@ import { leadStatusLabel } from '../leadHelpers.js';
 import { dealStageLabel, FALLBACK_DEAL_STAGES } from '../dealHelpers.js';
 import { parseLookupOptions } from '../recordHelpers.js';
 import { INDUSTRIES, RATINGS } from '../constants.js';
+import { cachedLookup } from '../lookupCache.js';
 
 /** Fallback when lookups API is unavailable */
 export const FALLBACK_LEAD_STATUSES = [
@@ -33,41 +34,51 @@ export function parseLeadStatusLookups(data) {
 }
 
 export async function fetchLeadStatuses() {
-  try {
-    const res = await api.get('/lookups/lead-statuses');
-    const options = parseLeadStatusLookups(res.data.data);
-    return options.length ? options : FALLBACK_LEAD_STATUSES;
-  } catch {
-    return FALLBACK_LEAD_STATUSES;
-  }
+  return cachedLookup('lead-statuses', async () => {
+    try {
+      const res = await api.get('/lookups/lead-statuses');
+      const options = parseLeadStatusLookups(res.data.data);
+      return options.length ? options : FALLBACK_LEAD_STATUSES;
+    } catch {
+      return FALLBACK_LEAD_STATUSES;
+    }
+  });
 }
 
 export async function fetchUsers() {
-  const res = await api.get('/lookups/users');
-  return (res.data.data || []).map(u => ({
-    ...u,
-    name: u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
-  }));
+  return cachedLookup('users', async () => {
+    const res = await api.get('/lookups/users');
+    return (res.data.data || []).map(u => ({
+      ...u,
+      name: u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+    }));
+  });
 }
 
 export async function fetchDealStages() {
-  const res = await api.get('/lookups/deal-stages');
-  const options = parseLookupOptions(res.data.data, dealStageLabel);
-  return options.length ? options : FALLBACK_DEAL_STAGES;
+  return cachedLookup('deal-stages', async () => {
+    const res = await api.get('/lookups/deal-stages');
+    const options = parseLookupOptions(res.data.data, dealStageLabel);
+    return options.length ? options : FALLBACK_DEAL_STAGES;
+  });
 }
 
 export async function fetchAccountLookups() {
-  const res = await api.get('/lookups/accounts');
-  return parseLookupOptions(res.data.data).map(a => ({ ...a, name: a.label }));
+  return cachedLookup('accounts', async () => {
+    const res = await api.get('/lookups/accounts');
+    return parseLookupOptions(res.data.data).map(a => ({ ...a, name: a.label }));
+  });
 }
 
 export async function fetchContactLookups() {
-  const res = await api.get('/lookups/contacts');
-  return (res.data.data || []).map((c) => ({
-    value: c.value ?? c.id,
-    label: (c.label ?? `${c.first_name || ''} ${c.last_name || ''}`.trim()) || c.email || c.value,
-    email: c.email,
-  })).filter((c) => c.value);
+  return cachedLookup('contacts', async () => {
+    const res = await api.get('/lookups/contacts');
+    return (res.data.data || []).map((c) => ({
+      value: c.value ?? c.id,
+      label: (c.label ?? `${c.first_name || ''} ${c.last_name || ''}`.trim()) || c.email || c.value,
+      email: c.email,
+    })).filter((c) => c.value);
+  });
 }
 
 async function fetchLookup(path, labelFn) {
@@ -146,8 +157,10 @@ export function normalizeMassUpdateField(raw = {}) {
 }
 
 export async function fetchLeadSources() {
-  const res = await api.get('/lookups/lead-sources');
-  return parseLookupOptions(res.data.data);
+  return cachedLookup('lead-sources', async () => {
+    const res = await api.get('/lookups/lead-sources');
+    return parseLookupOptions(res.data.data);
+  });
 }
 
 export async function fetchLeadMassUpdateFields({ canChangeOwner = false } = {}) {

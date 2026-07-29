@@ -167,7 +167,7 @@ export function scopeCloudTalkCalls(calls, { user, canSeeAll }) {
   });
 }
 
-export async function listCloudTalkCallsLastDays(days = 30, params = {}) {
+export async function listCloudTalkCallsLastDays(days = 30, params = {}, { limit = 200 } = {}) {
   if (!CLOUDTALK_ENABLED) return [];
 
   const { date_from, date_to } = cloudTalkDateRange(days);
@@ -180,7 +180,7 @@ export async function listCloudTalkCallsLastDays(days = 30, params = {}) {
         ...params,
         date_from,
         date_to,
-        limit: 1000,
+        limit,
         page: 1,
       },
     });

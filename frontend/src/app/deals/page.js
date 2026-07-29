@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
@@ -52,10 +52,17 @@ export default function DealsPage() {
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
+  const accountMapRef = useRef(accountMap);
+  const stageOptionsRef = useRef(FALLBACK_DEAL_STAGES);
+  accountMapRef.current = accountMap;
+  stageOptionsRef.current = stageOptions;
 
   useEffect(() => {
     fetchAccountLookups().then(setAccounts).catch(() => setAccounts([]));
-    fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
+    fetchDealStages().then((options) => {
+      stageOptionsRef.current = options;
+      setStageOptions(options);
+    }).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
     contactsApi.listContacts({ page: 1, page_size: DEFAULT_PAGE_SIZE }).then(r => setContacts(r.data || [])).catch(() => setContacts([]));
   }, []);
 
@@ -67,13 +74,13 @@ export default function DealsPage() {
     try {
       const isKanban = view === 'kanban';
       const result = isKanban
-        ? await dealsApi.listAllDeals({ search: debouncedSearch || undefined }, accountMap, stageOptions)
+        ? await dealsApi.listAllDeals({ search: debouncedSearch || undefined }, accountMapRef.current, stageOptionsRef.current)
         : await dealsApi.listDeals({
           page,
           page_size: limit,
           search: debouncedSearch || undefined,
           ...getSortApiParams(sort, 'deals'),
-        }, accountMap, stageOptions);
+        }, accountMapRef.current, stageOptionsRef.current);
       setDeals(result.data);
       setTotal(result.total);
     } catch (err) {
@@ -81,7 +88,7 @@ export default function DealsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, accountMap, stageOptions, showToast, view, sort]);
+  }, [page, limit, debouncedSearch, showToast, view, sort]);
 
   useEffect(() => { fetchDeals(); }, [fetchDeals]);
   useListRefresh(fetchDeals);

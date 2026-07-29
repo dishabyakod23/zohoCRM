@@ -92,32 +92,44 @@ export default function ReportsPage() {
     }
   }, [tab, dateRange.start, dateRange.end, showToast]);
 
-  const loadWeeklyData = useCallback(async () => {
+  const loadWeeklySettings = useCallback(async () => {
     if (!admin) return;
     setLoading(true);
     try {
-      const [settings, preview, logs, users] = await Promise.all([
+      const [settings, preview, users] = await Promise.all([
         reportsApi.getAdminSettings(),
         reportsApi.previewWeeklyReport(),
-        reportsApi.listWeeklyReportLogs({ page: logsPage, page_size: DEFAULT_PAGE_SIZE }),
         reportsApi.listAdminUsers(),
       ]);
       setWeeklySettings(settings.weekly_report);
       setAdminUsers(users);
       setWeeklyPreview(preview);
-      setWeeklyLogs(logs.data);
-      setLogsTotal(logs.total);
     } catch (err) {
       showToast(getApiError(err));
     } finally {
       setLoading(false);
     }
+  }, [admin, showToast]);
+
+  const loadWeeklyLogs = useCallback(async () => {
+    if (!admin) return;
+    try {
+      const logs = await reportsApi.listWeeklyReportLogs({ page: logsPage, page_size: DEFAULT_PAGE_SIZE });
+      setWeeklyLogs(logs.data);
+      setLogsTotal(logs.total);
+    } catch (err) {
+      showToast(getApiError(err));
+    }
   }, [admin, logsPage, showToast]);
 
   useEffect(() => {
-    if (tab === 'weekly') loadWeeklyData();
+    if (tab === 'weekly') loadWeeklySettings();
     else loadReportData();
-  }, [tab, loadReportData, loadWeeklyData]);
+  }, [tab, loadReportData, loadWeeklySettings]);
+
+  useEffect(() => {
+    if (tab === 'weekly' && admin) loadWeeklyLogs();
+  }, [tab, admin, loadWeeklyLogs]);
 
   const download = async () => {
     const cfg = EXPORT_PATHS[tab];
@@ -343,7 +355,7 @@ export default function ReportsPage() {
                   <div className="flex gap-2 mt-4">
                     <button onClick={saveWeeklySettings} disabled={savingSettings} className="btn-primary text-xs">{savingSettings ? 'Saving...' : 'Save Settings'}</button>
                     <button onClick={handleTriggerWeekly} disabled={triggering || !reportRecipients.length} className="btn-secondary text-xs">{triggering ? 'Sending...' : `Send individual reports to ${reportRecipients.length} recipient(s)`}</button>
-                    <button onClick={loadWeeklyData} className="btn-secondary text-xs">Refresh Preview</button>
+                    <button onClick={() => { loadWeeklySettings(); loadWeeklyLogs(); }} className="btn-secondary text-xs">Refresh Preview</button>
                   </div>
                   {weeklySettings?.enabled && (
                     <p className="text-xs text-gray-500 mt-3">

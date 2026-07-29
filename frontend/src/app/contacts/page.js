@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
@@ -16,6 +16,7 @@ import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { LIST_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import * as contactsApi from '../../lib/services/contacts.js';
+import { normalizeContact } from '../../lib/contactHelpers.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchUsers } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass, tableAvatarClass } from '../../lib/tableStyles.js';
@@ -43,9 +44,15 @@ export default function ContactsPage() {
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
+  const accountMapRef = useRef(accountMap);
+  accountMapRef.current = accountMap;
 
   useEffect(() => {
-    fetchAccountLookups().then(setAccounts).catch(() => setAccounts([]));
+    fetchAccountLookups().then((rows) => {
+      setAccounts(rows);
+      const map = accountMapFromLookups(rows);
+      setContacts((prev) => prev.map((contact) => normalizeContact(contact, map)));
+    }).catch(() => setAccounts([]));
     fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, []);
 
@@ -69,7 +76,7 @@ export default function ContactsPage() {
       if (activeView !== 'My Contacts') {
         params.filters = filters;
       }
-      const result = await contactsApi.listContacts(params, accountMap);
+      const result = await contactsApi.listContacts(params, accountMapRef.current);
       setContacts(result.data);
       setTotal(result.total);
     } catch (err) {
@@ -79,7 +86,7 @@ export default function ContactsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, accountMap, showToast, activeView, user?.id, filters, sort]);
+  }, [page, debouncedSearch, showToast, activeView, user?.id, filters, sort]);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
   useListRefresh(fetchContacts);

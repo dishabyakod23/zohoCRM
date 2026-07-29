@@ -7,6 +7,7 @@ import {
   extractCloudTalkPhone,
 } from '../phoneLookup.js';
 import { cloudTalkCallSummary } from './cloudTalkCalls.js';
+import { cachedRequest } from '../requestCache.js';
 
 const CACHE_MS = 5 * 60 * 1000;
 
@@ -14,11 +15,29 @@ const CONTACT_PHONE_FIELDS = ['phone', 'mobile', 'other_phone', 'home_phone', 'a
 const LEAD_PHONE_FIELDS = ['phone', 'mobile'];
 const ACCOUNT_PHONE_FIELDS = ['phone'];
 
+function toIndexRecords(records, entityType, phoneFields) {
+  return (records || []).map((record) => ({ record, entityType, phoneFields }));
+}
+
 let cachedLookup = null;
 let cachedAt = 0;
 
-function toIndexRecords(records, entityType, phoneFields) {
-  return (records || []).map((record) => ({ record, entityType, phoneFields }));
+function buildLookupFromCrm() {
+  return cachedRequest('crm-phone-lookup', async () => {
+    const [contactsRes, leadsRes, accountsRes] = await Promise.all([
+      contactsApi.listAllContacts().catch(() => ({ data: [] })),
+      leadsApi.listAllLeads().catch(() => ({ data: [] })),
+      accountsApi.listAllAccounts().catch(() => ({ data: [] })),
+    ]);
+
+    const index = buildPhoneLookupIndex([
+      ...toIndexRecords(accountsRes.data, 'account', ACCOUNT_PHONE_FIELDS),
+      ...toIndexRecords(leadsRes.data, 'lead', LEAD_PHONE_FIELDS),
+      ...toIndexRecords(contactsRes.data, 'contact', CONTACT_PHONE_FIELDS),
+    ]);
+
+    return createPhoneLookup(index);
+  }, CACHE_MS);
 }
 
 export async function getCrmPhoneLookup({ force = false } = {}) {
@@ -26,19 +45,7 @@ export async function getCrmPhoneLookup({ force = false } = {}) {
     return cachedLookup;
   }
 
-  const [contactsRes, leadsRes, accountsRes] = await Promise.all([
-    contactsApi.listAllContacts().catch(() => ({ data: [] })),
-    leadsApi.listAllLeads().catch(() => ({ data: [] })),
-    accountsApi.listAllAccounts().catch(() => ({ data: [] })),
-  ]);
-
-  const index = buildPhoneLookupIndex([
-    ...toIndexRecords(accountsRes.data, 'account', ACCOUNT_PHONE_FIELDS),
-    ...toIndexRecords(leadsRes.data, 'lead', LEAD_PHONE_FIELDS),
-    ...toIndexRecords(contactsRes.data, 'contact', CONTACT_PHONE_FIELDS),
-  ]);
-
-  cachedLookup = createPhoneLookup(index);
+  cachedLookup = await buildLookupFromCrm();
   cachedAt = Date.now();
   return cachedLookup;
 }

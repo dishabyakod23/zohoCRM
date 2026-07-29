@@ -11,26 +11,31 @@ import {
   filterAccountsByKind,
 } from '../companyHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { cachedRequest } from '../requestCache.js';
+
+const EMAIL_MAP_CACHE_MS = 5 * 60 * 1000;
 
 async function fetchAccountContactEmailMap() {
-  const pageSize = DEFAULT_PAGE_SIZE;
-  let page = 1;
-  const map = new Map();
+  return cachedRequest('account-contact-emails', async () => {
+    const pageSize = DEFAULT_PAGE_SIZE;
+    let page = 1;
+    const map = new Map();
 
-  while (page <= 50) {
-    const res = await api.get('/contacts', { params: { page, page_size: pageSize } });
-    const batch = res.data.data || [];
-    for (const contact of batch) {
-      const accountId = contact.account_id;
-      const email = String(contact.email || '').trim();
-      if (accountId && email && !map.has(accountId)) map.set(accountId, email);
+    while (page <= 50) {
+      const res = await api.get('/contacts', { params: { page, page_size: pageSize } });
+      const batch = res.data.data || [];
+      for (const contact of batch) {
+        const accountId = contact.account_id;
+        const email = String(contact.email || '').trim();
+        if (accountId && email && !map.has(accountId)) map.set(accountId, email);
+      }
+      const total = res.data.meta?.total ?? batch.length;
+      if (batch.length === 0 || page * pageSize >= total) break;
+      page += 1;
     }
-    const total = res.data.meta?.total ?? batch.length;
-    if (batch.length === 0 || page * pageSize >= total) break;
-    page += 1;
-  }
 
-  return map;
+    return map;
+  }, EMAIL_MAP_CACHE_MS);
 }
 
 function attachContactEmails(accounts, emailMap) {
@@ -72,6 +77,7 @@ export async function listAccounts({
   sort_order,
   filters = {},
   recordKind,
+  context,
 } = {}) {
   const params = { page, page_size };
   if (search) params.search = search;
@@ -81,7 +87,7 @@ export async function listAccounts({
   if (sort_order) params.sort_order = sort_order;
 
   const emailMap = await fetchAccountContactEmailMap();
-  const kindContext = recordKind ? await buildAccountKindContext() : null;
+  const kindContext = recordKind ? (context || await buildAccountKindContext()) : null;
 
   if (hasAccountClientFilters(filters) || recordKind) {
     const allAccounts = attachContactEmails(await fetchAllAccountPages({
@@ -110,8 +116,13 @@ export async function listAccounts({
   };
 }
 
-export async function countAccounts({ recordKind } = {}) {
-  const result = await listAccounts({ page: 1, page_size: 1, recordKind });
+export async function countAccounts({ recordKind, context } = {}) {
+  if (recordKind === 'account' && context) {
+    const emailMap = await fetchAccountContactEmailMap();
+    const allAccounts = attachContactEmails(await fetchAllAccountPages({}), emailMap);
+    return filterAccountsByKind(allAccounts, 'account', context).length;
+  }
+  const result = await listAccounts({ page: 1, page_size: 1, recordKind, context });
   return result.total ?? result.meta?.total ?? 0;
 }
 

@@ -1,4 +1,7 @@
 import * as dealsApi from './services/deals.js';
+import { cachedRequest } from './requestCache.js';
+
+const ACCOUNT_KIND_CACHE_MS = 5 * 60 * 1000;
 
 export const COMPANY_ACCOUNT_TYPE = 'Prospect';
 export const CONFIRMED_ACCOUNT_TYPE = 'Customer';
@@ -16,13 +19,15 @@ export function isCompanyAccount(account, context) {
 }
 
 export async function buildAccountKindContext() {
-  const deals = await dealsApi.listAllDeals();
-  const dealAccountIds = new Set(
-    (deals.data || [])
-      .filter((deal) => deal.account_id)
-      .map((deal) => String(deal.account_id)),
-  );
-  return { dealAccountIds };
+  return cachedRequest('account-kind-context', async () => {
+    const deals = await dealsApi.listAllDeals();
+    const dealAccountIds = new Set(
+      (deals.data || [])
+        .filter((deal) => deal.account_id)
+        .map((deal) => String(deal.account_id)),
+    );
+    return { dealAccountIds };
+  }, ACCOUNT_KIND_CACHE_MS);
 }
 
 export function filterAccountsByKind(accounts, kind, context) {

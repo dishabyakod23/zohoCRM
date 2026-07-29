@@ -1,4 +1,5 @@
 import api from '../api.js';
+import { cachedRequest, invalidateCachedRequest } from '../requestCache.js';
 import {
   LEAD_STATUS_CATEGORY,
   LEAD_STATUS_CATEGORY_CANDIDATES,
@@ -65,17 +66,21 @@ export async function updateAdminUser(id, payload) {
 }
 
 export async function getAdminSettings() {
-  const res = await api.get('/admin/settings');
-  return res.data.data;
+  return cachedRequest('admin:settings', async () => {
+    const res = await api.get('/admin/settings');
+    return res.data.data;
+  }, 2 * 60 * 1000);
 }
 
 export async function updateAppSettings(payload) {
   const res = await api.patch('/admin/settings/app', payload);
+  invalidateCachedRequest('admin:settings');
   return res.data.data;
 }
 
 export async function updateWeeklyReportSettings(payload) {
   const res = await api.patch('/admin/settings/weekly-report', payload);
+  invalidateCachedRequest('admin:settings');
   return res.data.data;
 }
 

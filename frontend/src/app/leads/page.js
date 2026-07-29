@@ -17,6 +17,7 @@ import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { LIST_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import { normalizeLead } from '../../lib/leadHelpers.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchPipelineConvertTargets, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
@@ -39,13 +40,18 @@ export default function LeadsPage() {
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [activeView, setActiveView] = useState('All Leads');
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const statusOptionsRef = useRef(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
   const [users, setUsers] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const fetchRequestId = useRef(0);
 
   useEffect(() => {
-    fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
+    fetchLeadStatuses().then((options) => {
+      statusOptionsRef.current = options;
+      setStatusOptions(options);
+      setLeads((prev) => prev.map((lead) => normalizeLead(lead, options)));
+    }).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
     fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
     fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, []);
@@ -75,7 +81,7 @@ export default function LeadsPage() {
       Object.assign(params, sortParams);
       const result = await leadsApi.listLeads({
         ...params,
-        statusOptions,
+        statusOptions: statusOptionsRef.current,
       });
       if (requestId !== fetchRequestId.current) return;
       setLeads(result.data);
@@ -88,7 +94,7 @@ export default function LeadsPage() {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, filters, activeView, user?.id, showToast, statusOptions, sort]);
+  }, [page, limit, debouncedSearch, filters, activeView, user?.id, showToast, sort]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
   useListRefresh(fetchLeads);

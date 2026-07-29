@@ -29,14 +29,16 @@ export default function ActivitiesPage() {
     setLoading(true);
     try {
       const sortParams = getSortApiParams(sort, tab);
-      const [t, m, c] = await Promise.all([
-        tasksApi.listTasks({ page: 1, page_size: DEFAULT_PAGE_SIZE, ...sortParams }),
-        meetingsApi.listMeetings({ page: 1, page_size: DEFAULT_PAGE_SIZE, ...sortParams }),
-        callsApi.listCalls({ page: 1, page_size: DEFAULT_PAGE_SIZE, ...sortParams }),
-      ]);
-      setTasks(sortRecords(t.data, sort, 'tasks'));
-      setMeetings(sortRecords(m.data, sort, 'meetings'));
-      setCalls(sortRecords(c.data, sort, 'calls'));
+      if (tab === 'tasks') {
+        const t = await tasksApi.listTasks({ page: 1, page_size: DEFAULT_PAGE_SIZE, ...sortParams });
+        setTasks(sortRecords(t.data, sort, 'tasks'));
+      } else if (tab === 'meetings') {
+        const m = await meetingsApi.listMeetings({ page: 1, page_size: DEFAULT_PAGE_SIZE, ...sortParams });
+        setMeetings(sortRecords(m.data, sort, 'meetings'));
+      } else {
+        const c = await callsApi.listCalls({ page: 1, page_size: DEFAULT_PAGE_SIZE, ...sortParams });
+        setCalls(sortRecords(c.data, sort, 'calls'));
+      }
     } catch (err) {
       showToast(getApiError(err));
     } finally {
