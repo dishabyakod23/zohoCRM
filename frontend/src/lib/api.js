@@ -4,12 +4,12 @@ import { loginHref } from './safeRedirect.js';
 import { parseAuthTokenResponse } from './authHelpers.js';
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'https://test-crm.origami.dev/api/v1';
+  process.env.NEXT_PUBLIC_API_URL || 'https://salescrm-api.duckdns.org/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 20000,
+  timeout: 45000,
 });
 
 api.interceptors.request.use((config) => {
@@ -64,7 +64,7 @@ api.interceptors.response.use(
 /** Parse FastAPI validation errors */
 export function getApiError(err) {
   if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-    return 'Request timed out. Check your connection and try again.';
+    return 'The server is taking too long to respond. Wait a moment and try again — this can happen when the API wakes from idle.';
   }
   const data = err.response?.data;
   if (!data) return err.message || 'Request failed';

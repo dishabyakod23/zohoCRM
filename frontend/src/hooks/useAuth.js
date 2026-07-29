@@ -5,12 +5,11 @@ import api from '../lib/api.js';
 import { setAuthSessionCookie, clearAuthSessionCookie } from '../lib/authCookie.js';
 import { safeNextPath, loginHref } from '../lib/safeRedirect.js';
 import {
-  normalizeLoginEmail,
-  normalizeLoginPassword,
   parseAuthTokenResponse,
   parseAuthUserResponse,
   isPublicAuthPath,
 } from '../lib/authHelpers.js';
+import { postLogin } from '../lib/authClient.js';
 
 const AuthContext = createContext(null);
 
@@ -24,7 +23,7 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('crm_token');
     if (stored && token) {
       setAuthSessionCookie();
-      api.get('/auth/me').then((r) => {
+      api.get('/auth/me', { timeout: 45000 }).then((r) => {
         const me = parseAuthUserResponse(r.data);
         if (!me?.id) throw new Error('Invalid session');
         setUser(me);
@@ -48,10 +47,7 @@ export function AuthProvider({ children }) {
   }, [router]);
 
   const login = async (email, password) => {
-    const res = await api.post('/auth/login', {
-      email: normalizeLoginEmail(email),
-      password: normalizeLoginPassword(password),
-    });
+    const res = await postLogin(email, password);
     const auth = parseAuthTokenResponse(res.data);
     if (!auth?.access_token || !auth?.user) {
       throw new Error('Login failed. Please try again.');
