@@ -1,6 +1,6 @@
 # Zoho CRM Clone — Next.js Frontend
 
-A Zoho-style CRM UI built with **Next.js 14** and **Tailwind CSS**. The frontend talks directly to the external [Sales CRM API](https://api-salescrm.duckdns.org/docs) — no local backend required for normal development.
+A Zoho-style CRM UI built with **Next.js 14** and **Tailwind CSS**. The frontend talks directly to the external [Sales CRM API (test)](https://test-crm.origami.dev/docs) — no local backend required for normal development.
 
 ## Features
 
@@ -35,7 +35,7 @@ Open **http://localhost:3002**
 
 | Variable | Default |
 |----------|---------|
-| `NEXT_PUBLIC_API_URL` | `https://api-salescrm.duckdns.org/api/v1` |
+| `NEXT_PUBLIC_API_URL` | `https://test-crm.origami.dev/api/v1` |
 
 For **Vercel**, set `NEXT_PUBLIC_API_URL` in project settings (root directory: `frontend`).
 
@@ -70,7 +70,7 @@ frontend/
 ```
 
 - **Auth:** Tokens in `localStorage` + `crm_session` cookie for middleware route protection
-- **API docs:** https://api-salescrm.duckdns.org/docs
+- **API docs:** https://test-crm.origami.dev/docs
 
 ---
 

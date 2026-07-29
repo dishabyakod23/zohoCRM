@@ -348,7 +348,7 @@ export default function BottomUtilityBar() {
                 <li>Convert leads to accounts and contacts</li>
               </ul>
             </div>
-            <p className="text-xs text-zoho-muted">API: salescrm-api.duckdns.org</p>
+            <p className="text-xs text-zoho-muted">API: test-crm.origami.dev</p>
           </div>
         </Panel>
       )}

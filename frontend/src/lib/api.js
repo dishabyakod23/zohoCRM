@@ -4,7 +4,7 @@ import { loginHref } from './safeRedirect.js';
 import { parseAuthTokenResponse } from './authHelpers.js';
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'https://salescrm-api.duckdns.org/api/v1';
+  process.env.NEXT_PUBLIC_API_URL || 'https://test-crm.origami.dev/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
