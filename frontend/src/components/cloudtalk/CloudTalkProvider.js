@@ -5,10 +5,11 @@ import CloudTalkDialerPanel from './CloudTalkDialerPanel.js';
 import {
   CLOUDTALK_ENABLED,
   CLOUDTALK_ORIGIN,
-  applyNumberToCloudTalkIframe,
   cloudTalkPhoneUrl,
+  loadCloudTalkIframeWithNumber,
   normalizePhoneForDial,
   openCloudTalkWebPhone,
+  postNumberToCloudTalkIframe,
   tryCloudTalkDesktopDial,
 } from '../../lib/cloudTalkHelpers.js';
 import { postCloudTalkDialWithRetries } from '../../lib/cloudTalkDialMessages.js';
@@ -22,7 +23,6 @@ const FALLBACK = {
   ready: false,
   loggedIn: false,
   open: false,
-  pendingDialNumber: '',
   setOpen: () => {},
   dialNumber: () => {},
   toggleDialer: () => {},
@@ -50,19 +50,21 @@ export function CloudTalkProvider({ children }) {
   const iframeRef = useRef(null);
   const activeCallRef = useRef(null);
   const pendingDialRef = useRef('');
+  const iframeHasLoadedRef = useRef(false);
+  const loggedInRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [iframeMounted, setIframeMounted] = useState(false);
   const [iframeSrc, setIframeSrc] = useState(() => cloudTalkPhoneUrl());
-  const [pendingDialNumber, setPendingDialNumber] = useState('');
   const [ready, setReady] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const { showToast } = useToast();
 
-  const flushPendingDial = useCallback(async (number) => {
-    const normalized = normalizePhoneForDial(number || pendingDialRef.current);
+  const flushPendingDial = useCallback(async () => {
+    const normalized = normalizePhoneForDial(pendingDialRef.current);
     if (!normalized) return;
     const iframe = iframeRef.current;
-    if (iframe) applyNumberToCloudTalkIframe(iframe, normalized);
+    if (!iframe) return;
+    postNumberToCloudTalkIframe(iframe, normalized);
     await postCloudTalkDialWithRetries(iframeRef, normalized);
   }, []);
 
@@ -171,16 +173,19 @@ export function CloudTalkProvider({ children }) {
           break;
         case 'dialing':
         case 'calling':
+          loggedInRef.current = true;
           setLoggedIn(true);
           setReady(true);
           if (payload.event === 'dialing') persistIframeCall(payload, 'dialing');
           break;
         case 'login':
+          loggedInRef.current = true;
           setLoggedIn(true);
           setReady(true);
           flushPendingDial();
           break;
         case 'logout':
+          loggedInRef.current = false;
           setLoggedIn(false);
           break;
         case 'contact_info':
@@ -220,16 +225,21 @@ export function CloudTalkProvider({ children }) {
     }
 
     pendingDialRef.current = number;
-    setPendingDialNumber(number);
-    setIframeSrc(cloudTalkPhoneUrl({ number }));
 
     if (openPanel) {
       ensureIframe();
       setOpen(true);
       await waitForIframe();
+
       const iframe = iframeRef.current;
-      if (iframe) applyNumberToCloudTalkIframe(iframe, number);
-      await flushPendingDial(number);
+      if (iframe && !iframeHasLoadedRef.current) {
+        const url = cloudTalkPhoneUrl({ number });
+        setIframeSrc(url);
+        loadCloudTalkIframeWithNumber(iframe, number);
+      } else if (iframe) {
+        postNumberToCloudTalkIframe(iframe, number);
+        await postCloudTalkDialWithRetries(iframeRef, number);
+      }
       return;
     }
 
@@ -237,7 +247,7 @@ export function CloudTalkProvider({ children }) {
     if (!openedDesktop) {
       showToast('Open the CloudTalk dialer to place calls from the CRM');
     }
-  }, [ensureIframe, flushPendingDial, showToast, waitForIframe]);
+  }, [ensureIframe, showToast, waitForIframe]);
 
   const toggleDialer = useCallback(() => {
     setOpen((v) => {
@@ -247,6 +257,7 @@ export function CloudTalkProvider({ children }) {
   }, [ensureIframe]);
 
   const onIframeLoad = useCallback(() => {
+    iframeHasLoadedRef.current = true;
     setReady(true);
     flushPendingDial();
   }, [flushPendingDial]);
@@ -258,7 +269,6 @@ export function CloudTalkProvider({ children }) {
     open,
     iframeMounted,
     iframeSrc,
-    pendingDialNumber,
     setOpen: setOpenPanel,
     toggleDialer,
     dialNumber,
@@ -270,7 +280,6 @@ export function CloudTalkProvider({ children }) {
     open,
     iframeMounted,
     iframeSrc,
-    pendingDialNumber,
     dialNumber,
     toggleDialer,
     onIframeLoad,

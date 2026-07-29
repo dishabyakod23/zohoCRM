@@ -1,8 +1,6 @@
 'use client';
-import { ClipboardDocumentIcon, PhoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { useCallback } from 'react';
+import { PhoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useCloudTalk } from './CloudTalkProvider.js';
-import { useToast } from '../ui/Toast.js';
 
 /** CloudTalk requires min 420×700; we scale the iframe so the panel fits the viewport. */
 const IFRAME_W = 420;
@@ -17,21 +15,9 @@ export default function CloudTalkDialerPanel({ open, iframeMounted, onClose }) {
     onIframeLoad,
     setOpen,
     iframeSrc,
-    pendingDialNumber,
   } = useCloudTalk();
-  const { showToast } = useToast();
   const panelW = Math.round(IFRAME_W * SCALE);
   const panelH = Math.round(IFRAME_H * SCALE);
-
-  const copyDialNumber = useCallback(async () => {
-    if (!pendingDialNumber || typeof navigator === 'undefined') return;
-    try {
-      await navigator.clipboard.writeText(pendingDialNumber);
-      showToast('Number copied — paste into CloudTalk dialer (Ctrl+V)');
-    } catch {
-      showToast('Copy failed — select the number and copy manually');
-    }
-  }, [pendingDialNumber, showToast]);
 
   return (
     <>
@@ -72,28 +58,6 @@ export default function CloudTalkDialerPanel({ open, iframeMounted, onClose }) {
             <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
-
-        {pendingDialNumber ? (
-          <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-zoho-border bg-white shrink-0">
-            <input
-              type="text"
-              readOnly
-              value={pendingDialNumber}
-              onFocus={(e) => e.target.select()}
-              className="flex-1 min-w-0 text-xs font-mono text-zoho-text bg-zoho-surface border border-zoho-border rounded-md px-2 py-1"
-              aria-label="Number to dial"
-            />
-            <button
-              type="button"
-              onClick={copyDialNumber}
-              title="Copy number to paste in CloudTalk"
-              className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-zoho-muted hover:text-brand-600 hover:bg-brand-50"
-              aria-label="Copy dial number"
-            >
-              <ClipboardDocumentIcon className="w-4 h-4" />
-            </button>
-          </div>
-        ) : null}
 
         <div className="relative overflow-hidden bg-white shrink-0" style={{ width: panelW, height: panelH }}>
           {iframeMounted ? (

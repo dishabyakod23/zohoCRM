@@ -37,8 +37,17 @@ export function cloudTalkPhoneUrl({ partner = CLOUDTALK_PARTNER, number } = {}) 
   return `${CLOUDTALK_ORIGIN}?${params.toString()}`;
 }
 
-/** Push the clicked number into the embedded CloudTalk iframe (URL + postMessage). */
-export function applyNumberToCloudTalkIframe(iframe, number) {
+/** Send the number into the embedded dialer without reloading the iframe. */
+export function postNumberToCloudTalkIframe(iframe, number) {
+  if (!iframe || !number) return;
+  postCloudTalkDialMessages(iframe, number);
+}
+
+/**
+ * Set iframe URL with number (first load only). CloudTalk docs require keeping
+ * the iframe mounted — do not call this on every click-to-dial after login.
+ */
+export function loadCloudTalkIframeWithNumber(iframe, number) {
   if (!iframe || !number) return;
   const url = cloudTalkPhoneUrl({ number });
   try {
@@ -48,6 +57,11 @@ export function applyNumberToCloudTalkIframe(iframe, number) {
     iframe.setAttribute('src', url);
   }
   postCloudTalkDialMessages(iframe, number);
+}
+
+/** @deprecated Use postNumberToCloudTalkIframe — reloading clears the dial pad. */
+export function applyNumberToCloudTalkIframe(iframe, number) {
+  postNumberToCloudTalkIframe(iframe, number);
 }
 
 /** Deep link for CloudTalk Desktop app (ct+tel:). */

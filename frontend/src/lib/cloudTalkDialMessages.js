@@ -1,22 +1,28 @@
 import { CLOUDTALK_ORIGIN } from './cloudTalkHelpers.js';
 
-/** Payloads sent parent → CloudTalk iframe (symmetric with their outbound events). */
+/**
+ * Payloads parent → CloudTalk iframe (paste into dial pad).
+ * Mirror outbound event shape: { event, properties: { external_number } }.
+ */
 export function buildCloudTalkDialPayloads(number) {
   const properties = { external_number: number };
 
   const objects = [
-    { event: 'dial', properties },
     { event: 'paste', properties },
+    { event: 'paste_number', properties },
     { event: 'set_number', properties },
-    { action: 'paste', number },
-    { action: 'call', number, autocall: false },
-    { action: 'call', number, autocall: true },
-    { type: 'cloudtalk-paste', number },
-    { type: 'cloudtalk-dial', number },
+    { event: 'click_to_call', properties },
+    { event: 'dial', properties: { ...properties, autocall: false } },
+    { event: 'dial', properties: { ...properties, autocall: true } },
+    { event: 'call', properties },
+    { action: 'paste', number, external_number: number },
+    { action: 'call', number, external_number: number, autocall: false },
+    { type: 'cloudtalk-paste', number, external_number: number },
+    { type: 'cloudtalk-dial', number, external_number: number },
   ];
 
   const serialized = objects.map((payload) => JSON.stringify(payload));
-  return [...serialized, ...objects, number];
+  return [...serialized, ...objects];
 }
 
 export function postCloudTalkDialMessages(iframe, number) {
@@ -40,8 +46,8 @@ export function postCloudTalkDialMessages(iframe, number) {
 }
 
 export async function postCloudTalkDialWithRetries(iframeRef, number, {
-  attempts = 20,
-  intervalMs = 350,
+  attempts = 24,
+  intervalMs = 300,
 } = {}) {
   for (let i = 0; i < attempts; i += 1) {
     const iframe = typeof iframeRef === 'function' ? iframeRef() : iframeRef?.current;
