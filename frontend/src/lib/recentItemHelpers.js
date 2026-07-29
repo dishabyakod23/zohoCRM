@@ -1,7 +1,9 @@
 import { getLeadDetailPath } from './pipelineHelpers.js';
+import { companyDetailHref } from './recordNavigation.js';
 
 const TYPE_PATHS = {
   account: (id) => `/accounts/${id}`,
+  company: (id) => companyDetailHref(id),
   contact: (id) => `/contacts/${id}`,
   deal: (id) => `/deals/${id}`,
   task: (id) => `/tasks/${id}`,

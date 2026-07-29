@@ -15,10 +15,12 @@ import { getApiError } from '../../lib/api.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import { ACCOUNT_TYPES, INDUSTRIES, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { tableLinkClass, tableEmailClass, avatarInitialClass } from '../../lib/tableStyles.js';
-import { TextFilter, SelectFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
+import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter } from '../../components/layout/ListFilterFields.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import { EMPTY_ACCOUNT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
+import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
+import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -36,6 +38,8 @@ export default function AccountsPage() {
   const [filters, setFilters] = useState(EMPTY_ACCOUNT_FILTERS);
   const [users, setUsers] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
+  const { campaigns } = useCampaignLookups();
+  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'account');
 
   useEffect(() => {
     fetchUsers().then(setUsers).catch(() => setUsers([]));
@@ -50,6 +54,7 @@ export default function AccountsPage() {
         search: debouncedSearch || undefined,
         filters,
         recordKind: 'account',
+        campaignMemberIds,
         ...getSortApiParams(sort, 'accounts'),
       });
       setAccounts(result.data);
@@ -59,7 +64,7 @@ export default function AccountsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, filters, sort, showToast]);
+  }, [page, debouncedSearch, filters, sort, showToast, campaignMemberIds]);
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
   useListRefresh(fetchAccounts);
@@ -119,6 +124,7 @@ export default function AccountsPage() {
               <SelectFilter label="Status" value={filters.status} onChange={(v) => updateFilter('status', v)} options={statusOptions} emptyLabel="All statuses" />
               <TextFilter label="City" value={filters.city} onChange={(v) => updateFilter('city', v)} />
               <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
+              <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => updateFilter('campaign_id', v)} />
             </>
           )}
           table={(

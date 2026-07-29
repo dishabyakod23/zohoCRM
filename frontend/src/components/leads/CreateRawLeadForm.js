@@ -19,7 +19,9 @@ import {
   LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES,
 } from '../../lib/constants.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
+import { afterRecordSave } from '../../lib/campaignRecordHelpers.js';
 
 const COUNTRIES = ['India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Singapore', 'UAE', 'Other'];
 const INDIAN_STATES = [
@@ -62,6 +64,7 @@ export function emptyRawLeadForm(ownerId = '') {
     latitude: '',
     longitude: '',
     description: '',
+    campaign_id: '',
     currency: DEFAULT_CURRENCY,
   };
 }
@@ -140,6 +143,7 @@ export default function CreateRawLeadForm() {
     setSaving(true);
     try {
       const created = await leadsApi.createRawLead(form);
+      await afterRecordSave({ campaignId: form.campaign_id, memberType: 'lead', recordId: created?.id });
       showToast('Raw lead created', 'success');
       navigateToRecord(created?.id ? `/raw-leads/${created.id}` : '/raw-leads');
     } catch (err) {
@@ -202,6 +206,7 @@ export default function CreateRawLeadForm() {
             <FormField label="Lead Source" name="source">
               {noneSelect(form.source, set('source'), LEAD_SOURCES)}
             </FormField>
+            <CampaignSelect value={form.campaign_id} onChange={(v) => setForm((f) => ({ ...f, campaign_id: v }))} />
             <FormField label="Industry" name="industry">
               {noneSelect(form.industry, set('industry'), INDUSTRIES)}
             </FormField>

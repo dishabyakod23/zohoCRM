@@ -10,6 +10,11 @@ import {
   applyLeadRecordFilters,
   hasLeadClientFilters,
 } from '../listRecordFilters.js';
+import {
+  assignRecordsToCampaign,
+  fetchCampaignLookups,
+  resolveCampaignId,
+} from '../campaignRecordHelpers.js';
 import { LEAD_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
@@ -63,13 +68,13 @@ async function fetchAllLeadPages(params, statusOptions) {
 }
 
 export async function listAllLeads(params = {}, statusOptions) {
-  const { pipeline_stage, filters, ...apiParams } = params;
+  const { pipeline_stage, filters, campaignMemberIds, ...apiParams } = params;
   let data = await fetchAllLeadPages(apiParams, statusOptions);
   if (pipeline_stage) {
     data = filterLeadsByPipelineStage(data, pipeline_stage);
   }
   if (filters && hasLeadClientFilters(filters)) {
-    data = applyLeadRecordFilters(data, filters);
+    data = applyLeadRecordFilters(data, filters, { campaignMemberIds });
   }
   return { data, total: data.length };
 }
@@ -85,6 +90,7 @@ export async function listLeads({
   pipeline_stage,
   statusOptions,
   filters = {},
+  campaignMemberIds,
 } = {}) {
   const params = {};
   if (search) params.search = search;
@@ -111,7 +117,7 @@ export async function listLeads({
     let filtered = pipeline_stage
       ? filterLeadsByPipelineStage(allLeads, pipeline_stage)
       : allLeads;
-    filtered = applyLeadRecordFilters(filtered, filters);
+    filtered = applyLeadRecordFilters(filtered, filters, { campaignMemberIds });
     const start = (page - 1) * page_size;
     return {
       data: filtered.slice(start, start + page_size),
@@ -143,6 +149,7 @@ export async function listWorkItems({
   sort_key,
   filters = {},
   statusOptions,
+  campaignMemberIds,
 } = {}) {
   if (!userId) return { data: [], total: 0 };
 
@@ -156,7 +163,7 @@ export async function listWorkItems({
   if (pipeline_stage) {
     items = filterLeadsByPipelineStage(items, pipeline_stage);
   }
-  items = applyLeadRecordFilters(items, { ...filters, owner_id: userId });
+  items = applyLeadRecordFilters(items, { ...filters, owner_id: userId }, { campaignMemberIds });
   items = sortRecords(items, sort_key || 'created_desc', 'leads');
 
   const start = (page - 1) * page_size;
@@ -266,7 +273,7 @@ export async function downloadLeadImportTemplate() {
   downloadBlob(new Blob([csv], { type: 'text/csv' }), 'raw-leads-import-template.csv');
 }
 
-export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus = PIPELINE_RAW } = {}) {
+export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus = PIPELINE_RAW, campaignId } = {}) {
   const rawCsv = await file.text();
   const csv = ensureCsvColumn(rawCsv, 'lead_status', defaultLeadStatus);
   if (dry_run) {
@@ -283,7 +290,42 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
   const payload = upload.data.data || {};
   const records = payload.readyRecords || [];
   const res = await api.post('/leads/bulk-import', { records });
-  return normalizeImportResult({ imported_count: res.data.data?.imported ?? records.length });
+  const result = res.data.data || {};
+  const importedIds = (result.records || result.created || result.imported_records || [])
+    .map((row) => row.id)
+    .filter(Boolean);
+
+  let campaignLookups = [];
+  try {
+    campaignLookups = await fetchCampaignLookups();
+  } catch {
+    campaignLookups = [];
+  }
+  const defaultCampaign = resolveCampaignId(campaignId, campaignLookups);
+  const campaignGroups = new Map();
+
+  records.forEach((record, index) => {
+    const leadId = importedIds[index] || importedIds.find((id, i) => records[i]?.email === record.email);
+    if (!leadId) return;
+    const rowCampaignId = resolveCampaignId(
+      record.campaign_name || record.campaign_id,
+      campaignLookups,
+    ) || defaultCampaign;
+    if (!rowCampaignId) return;
+    const list = campaignGroups.get(rowCampaignId) || [];
+    list.push(leadId);
+    campaignGroups.set(rowCampaignId, list);
+  });
+
+  if (!campaignGroups.size && defaultCampaign && importedIds.length) {
+    campaignGroups.set(defaultCampaign, importedIds);
+  }
+
+  for (const [cid, ids] of campaignGroups.entries()) {
+    await assignRecordsToCampaign(cid, 'lead', ids);
+  }
+
+  return normalizeImportResult({ imported_count: result.imported ?? records.length });
 }
 
 export async function advanceLeadStage(id, lead_status, { proposal = false, clearProposal = false } = {}) {

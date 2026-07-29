@@ -15,7 +15,9 @@ import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { fetchAccountLookups, fetchContactLookups, fetchUsers } from '../../lib/services/lookups.js';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
+import { afterRecordSave } from '../../lib/campaignRecordHelpers.js';
 
 const OWNERSHIP_OPTIONS = ['Public', 'Private', 'Subsidiary', 'Other'];
 
@@ -35,6 +37,7 @@ export function emptyAccountForm() {
     shipping_flat: '', shipping_street: '', shipping_city: '', shipping_state: '',
     shipping_country: '', shipping_zip: '', shipping_lat: '', shipping_lng: '',
     description: '',
+    campaign_id: '',
     proposal_amount: '',
     currency: DEFAULT_CURRENCY,
     contact_ids: [],
@@ -176,6 +179,7 @@ export default function CreateAccountForm() {
     setSaving(true);
     try {
       const created = await accountsApi.createAccountWithRelations(form);
+      await afterRecordSave({ campaignId: form.campaign_id, memberType: 'account', recordId: created?.id });
       showToast('Account saved', 'success');
       navigateToRecord(created?.id ? `/accounts/${created.id}` : '/accounts');
     } catch (err) {
@@ -246,6 +250,7 @@ export default function CreateAccountForm() {
                 {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
               </select>
             </FormField>
+            <CampaignSelect value={form.campaign_id} onChange={(v) => setForm((f) => ({ ...f, campaign_id: v }))} />
 
             <FormField label="Annual Revenue" name="annual_revenue">
               <CurrencyAmountInput

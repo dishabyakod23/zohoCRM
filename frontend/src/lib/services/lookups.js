@@ -4,6 +4,7 @@ import { dealStageLabel, FALLBACK_DEAL_STAGES } from '../dealHelpers.js';
 import { parseLookupOptions } from '../recordHelpers.js';
 import { INDUSTRIES, RATINGS } from '../constants.js';
 import { cachedLookup } from '../lookupCache.js';
+import { fetchCampaignLookups } from '../campaignRecordHelpers.js';
 
 /** Fallback when lookups API is unavailable */
 export const FALLBACK_LEAD_STATUSES = [
@@ -200,6 +201,10 @@ export async function fetchMassUpdateFieldOptions(fieldDef) {
 
   if (isConvertMassUpdateField(field)) {
     return fetchPipelineConvertTargets();
+  }
+
+  if (String(field.value || '').toLowerCase() === 'campaign') {
+    return fetchCampaignLookups();
   }
 
   if (Array.isArray(field.options) && field.options.length) {

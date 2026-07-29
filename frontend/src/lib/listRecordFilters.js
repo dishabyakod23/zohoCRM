@@ -42,7 +42,7 @@ export function matchLeadStatus(lead, status) {
   return raw === apiStatus || raw === status;
 }
 
-export function applyLeadRecordFilters(leads, filters = {}) {
+export function applyLeadRecordFilters(leads, filters = {}, { campaignMemberIds } = {}) {
   if (!filters || !Object.values(filters).some(Boolean)) return leads || [];
 
   return (leads || []).filter((lead) => {
@@ -50,6 +50,7 @@ export function applyLeadRecordFilters(leads, filters = {}) {
     if (!matchSource(lead, filters.source)) return false;
     if (!matchLeadStatus(lead, filters.status)) return false;
     if (!matchesOwner(lead, filters.owner_id)) return false;
+    if (filters.campaign_id && campaignMemberIds && !campaignMemberIds.has(String(lead.id))) return false;
     if (filters.deal_status && lead.deal_status !== filters.deal_status) return false;
     if (!matchesDateRange(lead.proposal_date, filters.proposal_date_from, filters.proposal_date_to)) return false;
     if (!matchesDateRange(lead.closure_date, filters.closure_date_from, filters.closure_date_to)) return false;
@@ -65,17 +66,18 @@ export function applyLeadRecordFilters(leads, filters = {}) {
   });
 }
 
-export function applyContactRecordFilters(contacts, filters = {}) {
+export function applyContactRecordFilters(contacts, filters = {}, { campaignMemberIds } = {}) {
   if (!filters || !Object.values(filters).some(Boolean)) return contacts || [];
 
   return (contacts || []).filter((contact) => {
     if (!includesText(contact.account_name, filters.company)) return false;
     if (!matchesOwner(contact, filters.owner_id)) return false;
+    if (filters.campaign_id && campaignMemberIds && !campaignMemberIds.has(String(contact.id))) return false;
     return true;
   });
 }
 
-export function applyAccountRecordFilters(accounts, filters = {}) {
+export function applyAccountRecordFilters(accounts, filters = {}, { campaignMemberIds } = {}) {
   if (!filters || !Object.values(filters).some(Boolean)) return accounts || [];
 
   return (accounts || []).filter((account) => {
@@ -85,13 +87,14 @@ export function applyAccountRecordFilters(accounts, filters = {}) {
     if (!includesText(account.city, filters.city)) return false;
     if (filters.status && String(account.account_type || '').toLowerCase() !== String(filters.status).toLowerCase()) return false;
     if (!matchesOwner(account, filters.owner_id)) return false;
+    if (filters.campaign_id && campaignMemberIds && !campaignMemberIds.has(String(account.id))) return false;
     return true;
   });
 }
 
 export function hasLeadClientFilters(filters = {}) {
   return Boolean(
-    filters.company || filters.source || filters.status || filters.deal_status
+    filters.company || filters.source || filters.status || filters.deal_status || filters.campaign_id
     || filters.proposal_date_from || filters.proposal_date_to
     || filters.closure_date_from || filters.closure_date_to
     || (filters.deal_size_min !== '' && filters.deal_size_min != null)
@@ -100,11 +103,11 @@ export function hasLeadClientFilters(filters = {}) {
 }
 
 export function hasContactClientFilters(filters = {}) {
-  return Boolean(filters.company);
+  return Boolean(filters.company || filters.campaign_id);
 }
 
 export function hasAccountClientFilters(filters = {}) {
-  return Boolean(filters.industry || filters.website || filters.email || filters.status || filters.city);
+  return Boolean(filters.industry || filters.website || filters.email || filters.status || filters.city || filters.campaign_id);
 }
 
 export function countActiveFilters(filters = {}) {
@@ -116,6 +119,7 @@ export const EMPTY_LEAD_FILTERS = {
   source: '',
   status: '',
   owner_id: '',
+  campaign_id: '',
   deal_status: '',
   proposal_date_from: '',
   proposal_date_to: '',
@@ -128,6 +132,7 @@ export const EMPTY_LEAD_FILTERS = {
 export const EMPTY_CONTACT_FILTERS = {
   company: '',
   owner_id: '',
+  campaign_id: '',
 };
 
 export const EMPTY_ACCOUNT_FILTERS = {
@@ -137,4 +142,5 @@ export const EMPTY_ACCOUNT_FILTERS = {
   status: '',
   city: '',
   owner_id: '',
+  campaign_id: '',
 };

@@ -196,5 +196,5 @@ export function resolveLeadPipelineStage(lead) {
 
 export const RAW_LEAD_CSV_HEADERS = [
   'first_name', 'last_name', 'company', 'email', 'phone', 'mobile',
-  'title', 'lead_source', 'industry', 'description',
+  'title', 'lead_source', 'industry', 'description', 'campaign_name',
 ];

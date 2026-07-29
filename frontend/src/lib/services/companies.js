@@ -22,6 +22,7 @@ export async function listCompanies({
   sort_by,
   sort_order,
   filters = {},
+  campaignMemberIds,
 } = {}) {
   const [context, contactCounts] = await Promise.all([
     buildAccountKindContext(),
@@ -42,7 +43,7 @@ export async function listCompanies({
       filterAccountsByKind(all.data, 'company', context),
       contactCounts,
     );
-    const filtered = applyAccountRecordFilters(companies, filters);
+    const filtered = applyAccountRecordFilters(companies, filters, { campaignMemberIds });
     const start = (page - 1) * page_size;
     return {
       data: filtered.slice(start, start + page_size),
@@ -56,7 +57,7 @@ export async function listCompanies({
     filterAccountsByKind(all.data, 'company', context),
     contactCounts,
   );
-  const filtered = applyAccountRecordFilters(companies, filters);
+  const filtered = applyAccountRecordFilters(companies, filters, { campaignMemberIds });
   const start = (page - 1) * page_size;
   return {
     data: filtered.slice(start, start + page_size),

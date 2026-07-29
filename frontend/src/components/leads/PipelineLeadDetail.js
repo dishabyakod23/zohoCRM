@@ -26,6 +26,7 @@ import { ownerFieldConfig } from '../forms/ownerField.js';
 import { trackRecentItem } from '../layout/BottomUtilityBar.js';
 import ReadOnlyRecordBanner from '../records/ReadOnlyRecordBanner.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
+import { useRecordCampaign } from '../../hooks/useRecordCampaign.js';
 import { LEAD_SOURCES } from '../../lib/constants.js';
 import { formatMoney, CURRENCIES } from '../../lib/currencies.js';
 import {
@@ -48,6 +49,7 @@ export default function PipelineLeadDetail({ stage }) {
   const [assignUserId, setAssignUserId] = useState('');
   const [saving, setSaving] = useState(false);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const { campaignField, saveCampaignFromDraft, campaignValues } = useRecordCampaign('lead', id);
 
   useEffect(() => {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
@@ -112,7 +114,11 @@ export default function PipelineLeadDetail({ stage }) {
     }
     setSaving(true);
     try {
-      await leadsApi.updateLead(id, payload);
+      const { campaign_id: draftCampaignId, ...leadPayload } = payload;
+      await leadsApi.updateLead(id, leadPayload);
+      if (draftCampaignId !== undefined) {
+        await saveCampaignFromDraft({ campaign_id: draftCampaignId });
+      }
       loadLead();
       showToast('Updated', 'success');
     } catch (err) {
@@ -205,7 +211,7 @@ export default function PipelineLeadDetail({ stage }) {
             title="Lead Information"
             canEdit={editable}
             saving={saving}
-            values={lead}
+            values={{ ...lead, ...campaignValues }}
             onSave={saveSection}
             fields={[
               { name: 'first_name', label: 'First Name', required: true },
@@ -215,6 +221,7 @@ export default function PipelineLeadDetail({ stage }) {
               { name: 'lead_status', label: 'Lead Status', format: () => lead.status, render: (d, set) => select(statusOptions)(d, set, 'lead_status') },
               { name: 'source', label: 'Lead Source', render: (d, set) => select(LEAD_SOURCES, null, null)(d, set, 'source') },
               { name: 'industry', label: 'Industry', render: (d, set) => select(INDUSTRIES, null, null)(d, set, 'industry') },
+              campaignField,
               ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: lead.owner_name }),
               { name: 'description', label: 'Description', colSpan: true, render: (d, set) => (
                 <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: e.target.value }))} />

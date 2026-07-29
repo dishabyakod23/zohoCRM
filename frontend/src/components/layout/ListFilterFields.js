@@ -98,3 +98,15 @@ export function OwnerFilter({ users = [], value, onChange }) {
     />
   );
 }
+
+export function CampaignFilter({ campaigns = [], value, onChange, loading = false }) {
+  return (
+    <SelectFilter
+      label="Campaign"
+      value={value}
+      onChange={onChange}
+      options={campaigns}
+      emptyLabel={loading ? 'Loading…' : 'All campaigns'}
+    />
+  );
+}

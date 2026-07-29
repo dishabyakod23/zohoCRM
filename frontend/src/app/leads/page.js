@@ -21,9 +21,11 @@ import { normalizeLead } from '../../lib/leadHelpers.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchPipelineConvertTargets, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
-import { TextFilter, SelectFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
+import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
+import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
+import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -45,6 +47,8 @@ export default function LeadsPage() {
   const [users, setUsers] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const fetchRequestId = useRef(0);
+  const { campaigns } = useCampaignLookups();
+  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'lead');
 
   useEffect(() => {
     fetchLeadStatuses().then((options) => {
@@ -82,6 +86,7 @@ export default function LeadsPage() {
       const result = await leadsApi.listLeads({
         ...params,
         statusOptions: statusOptionsRef.current,
+        campaignMemberIds,
       });
       if (requestId !== fetchRequestId.current) return;
       setLeads(result.data);
@@ -94,7 +99,7 @@ export default function LeadsPage() {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, filters, activeView, user?.id, showToast, sort]);
+  }, [page, limit, debouncedSearch, filters, activeView, user?.id, showToast, sort, campaignMemberIds]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
   useListRefresh(fetchLeads);
@@ -186,6 +191,7 @@ export default function LeadsPage() {
             options={statusOptions.filter((s) => !['raw_prospect', 'qualified_lead', 'deal_lost'].includes(s.value))}
             emptyLabel="Active leads"
           />
+          <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => { setFilters((f) => ({ ...f, campaign_id: v })); setPage(1); }} />
           <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => { setFilters((f) => ({ ...f, owner_id: v })); setPage(1); }} />
         </ListToolbar>
       </div>

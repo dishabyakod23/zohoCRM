@@ -11,6 +11,7 @@ export const LEAD_IMPORT_FIELDS = [
   { key: 'lead_status', label: 'Lead Status', aliases: ['status', 'lead_status', 'lead status'] },
   { key: 'title', label: 'Title / Designation', aliases: ['designation', 'jobtitle', 'job_title', 'role', 'position'] },
   { key: 'lead_source', label: 'Lead Source', aliases: ['source', 'leadsource'] },
+  { key: 'campaign_name', label: 'Campaign', aliases: ['campaign', 'campaign_id', 'campaign name'] },
   { key: 'industry', label: 'Industry', aliases: [] },
   { key: 'description', label: 'Description', aliases: ['notes', 'comment', 'comments'] },
 ];
@@ -31,6 +32,7 @@ export const CONTACT_IMPORT_FIELDS = [
   { key: 'assistant', label: 'Assistant', aliases: ['asst', 'pa'] },
   { key: 'asst_phone', label: 'Asst Phone', aliases: ['assistant_phone', 'asstphone'] },
   { key: 'lead_source', label: 'Lead Source', aliases: ['source', 'leadsource'] },
+  { key: 'campaign_name', label: 'Campaign', aliases: ['campaign', 'campaign_id', 'campaign name'] },
   { key: 'title', label: 'Designation', aliases: ['designation', 'jobtitle', 'job_title', 'role', 'position'] },
   { key: 'department', label: 'Department', aliases: ['dept'] },
   { key: 'date_of_birth', label: 'Date of Birth', aliases: ['dob', 'birthday', 'birth_date', 'dateofbirth'] },

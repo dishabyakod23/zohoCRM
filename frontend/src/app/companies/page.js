@@ -12,10 +12,13 @@ import { getApiError } from '../../lib/api.js';
 import * as companiesApi from '../../lib/services/companies.js';
 import { INDUSTRIES, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { tableLinkClass, tableEmailClass, avatarInitialClass } from '../../lib/tableStyles.js';
-import { TextFilter, SelectFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
+import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter } from '../../components/layout/ListFilterFields.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import { EMPTY_ACCOUNT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
+import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
+import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
+import { companyDetailHref } from '../../lib/recordNavigation.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -30,6 +33,8 @@ export default function CompaniesPage() {
   const [filters, setFilters] = useState(EMPTY_ACCOUNT_FILTERS);
   const [users, setUsers] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
+  const { campaigns } = useCampaignLookups();
+  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'account');
 
   useEffect(() => {
     fetchUsers().then(setUsers).catch(() => setUsers([]));
@@ -43,6 +48,7 @@ export default function CompaniesPage() {
         page_size: LIMIT,
         search: debouncedSearch || undefined,
         filters,
+        campaignMemberIds,
         ...getSortApiParams(sort, 'accounts'),
       });
       setCompanies(result.data);
@@ -52,7 +58,7 @@ export default function CompaniesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, filters, sort, showToast]);
+  }, [page, debouncedSearch, filters, sort, showToast, campaignMemberIds]);
 
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
   useListRefresh(fetchCompanies);
@@ -63,7 +69,7 @@ export default function CompaniesPage() {
     { id: 'name', header: 'Company', cell: (company) => (
       <div className="flex items-center gap-2.5">
         <div className={avatarInitialClass(company.name, 'md')}>{(company.name || '?')[0]}</div>
-        <RecordDetailLink href={`/companies/${company.id}`} className={tableLinkClass}>{company.name}</RecordDetailLink>
+        <RecordDetailLink href={companyDetailHref(company.id)} className={tableLinkClass}>{company.name}</RecordDetailLink>
       </div>
     ) },
     { id: 'contacts', header: 'Contacts', cell: (company) => company.contact_count || 0 },
@@ -111,6 +117,7 @@ export default function CompaniesPage() {
               <TextFilter label="Email" value={filters.email} onChange={(v) => updateFilter('email', v)} />
               <TextFilter label="City" value={filters.city} onChange={(v) => updateFilter('city', v)} />
               <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
+              <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => updateFilter('campaign_id', v)} />
             </>
           )}
           table={(

@@ -23,9 +23,11 @@ import {
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchLeadMassUpdateFields, fetchPipelineConvertTargets, FALLBACK_LEAD_STATUSES, fetchLeadSources } from '../../lib/services/lookups.js';
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
-import { TextFilter, SelectFilter } from '../../components/layout/ListFilterFields.js';
+import { TextFilter, SelectFilter, CampaignFilter } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
+import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
+import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 
 const STAGE_BY_VIEW = {
   'All Work Items': null,
@@ -52,6 +54,8 @@ export default function WorkItemsPage() {
   const [sourceOptions, setSourceOptions] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const fetchRequestId = useRef(0);
+  const { campaigns } = useCampaignLookups();
+  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'lead');
 
   useEffect(() => {
     fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
@@ -76,6 +80,7 @@ export default function WorkItemsPage() {
         pipeline_stage: STAGE_BY_VIEW[activeView] || undefined,
         filters,
         statusOptions,
+        campaignMemberIds,
         sort_key: sort,
         ...getSortApiParams(sort, 'leads'),
       });
@@ -90,7 +95,7 @@ export default function WorkItemsPage() {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [user?.id, page, limit, debouncedSearch, filters, activeView, showToast, statusOptions, sort]);
+  }, [user?.id, page, limit, debouncedSearch, filters, activeView, showToast, statusOptions, sort, campaignMemberIds]);
 
   useEffect(() => { fetchWorkItems(); }, [fetchWorkItems]);
 
@@ -185,6 +190,7 @@ export default function WorkItemsPage() {
             options={statusOptions}
             emptyLabel="All statuses"
           />
+          <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => { setFilters((f) => ({ ...f, campaign_id: v })); setPage(1); }} />
         </ListToolbar>
       </div>
     </CRMLayout>

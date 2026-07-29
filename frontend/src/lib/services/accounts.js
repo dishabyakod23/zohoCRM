@@ -78,6 +78,7 @@ export async function listAccounts({
   filters = {},
   recordKind,
   context,
+  campaignMemberIds,
 } = {}) {
   const params = { page, page_size };
   if (search) params.search = search;
@@ -99,7 +100,7 @@ export async function listAccounts({
     const scoped = recordKind
       ? filterAccountsByKind(allAccounts, recordKind, kindContext)
       : allAccounts;
-    const filtered = applyAccountRecordFilters(scoped, filters);
+    const filtered = applyAccountRecordFilters(scoped, filters, { campaignMemberIds });
     const start = (page - 1) * page_size;
     return {
       data: filtered.slice(start, start + page_size),

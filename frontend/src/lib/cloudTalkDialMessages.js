@@ -1,25 +1,22 @@
 import { CLOUDTALK_ORIGIN } from './cloudTalkHelpers.js';
 
-/** Payloads CloudTalk Phone may accept from the parent CRM (paste into dialpad). */
+/** Payloads sent parent → CloudTalk iframe (symmetric with their outbound events). */
 export function buildCloudTalkDialPayloads(number) {
-  const payloads = [
-    { event: 'dial', properties: { external_number: number } },
-    { event: 'paste', properties: { external_number: number } },
-    { event: 'set_number', properties: { external_number: number } },
+  const properties = { external_number: number };
+
+  const objects = [
+    { event: 'dial', properties },
+    { event: 'paste', properties },
+    { event: 'set_number', properties },
     { action: 'paste', number },
     { action: 'call', number, autocall: false },
     { action: 'call', number, autocall: true },
     { type: 'cloudtalk-paste', number },
     { type: 'cloudtalk-dial', number },
-    number,
   ];
 
-  const serialized = payloads.map((payload) => {
-    if (typeof payload === 'string') return payload;
-    return JSON.stringify(payload);
-  });
-
-  return [...payloads, ...serialized];
+  const serialized = objects.map((payload) => JSON.stringify(payload));
+  return [...serialized, ...objects, number];
 }
 
 export function postCloudTalkDialMessages(iframe, number) {
@@ -31,8 +28,8 @@ export function postCloudTalkDialMessages(iframe, number) {
       if (typeof payload === 'string') {
         target.postMessage(payload, CLOUDTALK_ORIGIN);
       } else {
-        target.postMessage(payload, CLOUDTALK_ORIGIN);
         target.postMessage(JSON.stringify(payload), CLOUDTALK_ORIGIN);
+        target.postMessage(payload, CLOUDTALK_ORIGIN);
       }
     } catch {
       // try next format
@@ -43,8 +40,8 @@ export function postCloudTalkDialMessages(iframe, number) {
 }
 
 export async function postCloudTalkDialWithRetries(iframeRef, number, {
-  attempts = 12,
-  intervalMs = 400,
+  attempts = 20,
+  intervalMs = 350,
 } = {}) {
   for (let i = 0; i < attempts; i += 1) {
     const iframe = typeof iframeRef === 'function' ? iframeRef() : iframeRef?.current;

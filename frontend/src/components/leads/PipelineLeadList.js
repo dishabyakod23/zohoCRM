@@ -21,12 +21,14 @@ import CsvImportModal from '../records/CsvImportModal.js';
 import PhoneCell from '../cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
 import { formatMoney } from '../../lib/currencies.js';
-import { TextFilter, SelectFilter, OwnerFilter, DateFilter } from '../layout/ListFilterFields.js';
+import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter } from '../layout/ListFilterFields.js';
 import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
 
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
+import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
+import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 
 const STAGE_MODULE_KEY = {
   [PIPELINE_RAW]: 'raw-leads',
@@ -68,6 +70,8 @@ export default function PipelineLeadList({ stage, description }) {
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const fetchRequestId = useRef(0);
   const moduleKey = STAGE_MODULE_KEY[stage] || 'raw-leads';
+  const { campaigns } = useCampaignLookups();
+  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'lead');
 
   useEffect(() => {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
@@ -90,6 +94,7 @@ export default function PipelineLeadList({ stage, description }) {
         lead_status: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PIPELINE_RAW].includes(stage) ? undefined : (config?.apiStatus || stage),
         filters,
         statusOptions,
+        campaignMemberIds,
         ...getSortApiParams(sort, moduleKey),
       });
       if (requestId !== fetchRequestId.current) return;
@@ -103,7 +108,7 @@ export default function PipelineLeadList({ stage, description }) {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, filters, stage, config?.apiStatus, showToast, statusOptions, sort, moduleKey]);
+  }, [page, limit, debouncedSearch, filters, stage, config?.apiStatus, showToast, statusOptions, sort, moduleKey, campaignMemberIds]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
   useListRefresh(fetchLeads);
@@ -213,6 +218,7 @@ export default function PipelineLeadList({ stage, description }) {
       {canAssignLeads && (
         <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
       )}
+      <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => updateFilter('campaign_id', v)} />
     </>
   );
 
@@ -236,6 +242,7 @@ export default function PipelineLeadList({ stage, description }) {
       {canAssignLeads && (
         <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
       )}
+      <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => updateFilter('campaign_id', v)} />
     </>
   );
 

@@ -5,6 +5,11 @@ import {
   applyContactRecordFilters,
   hasContactClientFilters,
 } from '../listRecordFilters.js';
+import {
+  assignRecordsToCampaign,
+  fetchCampaignLookups,
+  resolveCampaignId,
+} from '../campaignRecordHelpers.js';
 import { CONTACT_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { advanceLeadStage, convertLead } from './leads.js';
@@ -49,6 +54,7 @@ export async function listContacts({
   sort_by,
   sort_order,
   filters = {},
+  campaignMemberIds,
 } = {}, accountMap = {}) {
   const params = { page, page_size };
   if (search) params.search = search;
@@ -63,7 +69,7 @@ export async function listContacts({
       { search, owner_id: mergedOwnerId, sort_by, sort_order },
       accountMap,
     );
-    const filtered = applyContactRecordFilters(allContacts, filters);
+    const filtered = applyContactRecordFilters(allContacts, filters, { campaignMemberIds });
     const start = (page - 1) * page_size;
     return {
       data: filtered.slice(start, start + page_size),
@@ -111,7 +117,7 @@ function coerceImportBool(value) {
   return ['1', 'true', 'yes', 'y', 'on'].includes(v);
 }
 
-export async function importContactsFile(file, { dry_run = true } = {}) {
+export async function importContactsFile(file, { dry_run = true, campaignId } = {}) {
   const csv = await file.text();
   const upload = await api.post('/contacts/bulk-upload', { csv });
   const payload = upload.data.data || {};
@@ -126,14 +132,23 @@ export async function importContactsFile(file, { dry_run = true } = {}) {
   }
 
   let accounts = [];
+  let campaignLookups = [];
   try {
     const { fetchAccountLookups } = await import('./lookups.js');
     accounts = await fetchAccountLookups();
   } catch {
     accounts = [];
   }
+  try {
+    campaignLookups = await fetchCampaignLookups();
+  } catch {
+    campaignLookups = [];
+  }
 
   let imported = 0;
+  const defaultCampaignId = resolveCampaignId(campaignId, campaignLookups);
+  const campaignGroups = new Map();
+
   for (const record of readyRecords) {
     let accountId = record.account_id || null;
     if (!accountId && (record.account_name || record.account || record.company)) {
@@ -154,9 +169,25 @@ export async function importContactsFile(file, { dry_run = true } = {}) {
       email_opt_out: coerceImportBool(record.email_opt_out),
       skype_id: record.skype_id || record.linkedin || null,
     };
-    await api.post('/contacts', toContactPayload(form));
+    const created = await api.post('/contacts', toContactPayload(form));
+    const contactId = created.data?.data?.id;
     imported += 1;
+
+    const rowCampaignId = resolveCampaignId(
+      record.campaign_name || record.campaign_id,
+      campaignLookups,
+    ) || defaultCampaignId;
+    if (rowCampaignId && contactId) {
+      const list = campaignGroups.get(rowCampaignId) || [];
+      list.push(contactId);
+      campaignGroups.set(rowCampaignId, list);
+    }
   }
+
+  for (const [cid, ids] of campaignGroups.entries()) {
+    await assignRecordsToCampaign(cid, 'contact', ids);
+  }
+
   return normalizeImportResult({ imported_count: imported });
 }
 

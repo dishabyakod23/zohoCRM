@@ -17,8 +17,10 @@ import {
   LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES,
 } from '../../lib/constants.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
+import { afterRecordSave } from '../../lib/campaignRecordHelpers.js';
 
 const COUNTRIES = ['India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Singapore', 'UAE', 'Other'];
 const INDIAN_STATES = [
@@ -66,6 +68,7 @@ export function emptyPipelineLeadForm(ownerId = '', defaults = {}) {
     latitude: '',
     longitude: '',
     description: '',
+    campaign_id: '',
     currency: DEFAULT_CURRENCY,
     ...defaults,
   };
@@ -156,6 +159,7 @@ export default function CreatePipelineLeadForm({
     setSaving(true);
     try {
       const created = await createFn(form);
+      await afterRecordSave({ campaignId: form.campaign_id, memberType: 'lead', recordId: created?.id });
       showToast(successToast, 'success');
       navigateToRecord(created?.id ? `${listPath}/${created.id}` : listPath);
     } catch (err) {
@@ -220,6 +224,7 @@ export default function CreatePipelineLeadForm({
                 {noneSelect(form.source, set('source'), LEAD_SOURCES)}
               </FormField>
             )}
+            <CampaignSelect value={form.campaign_id} onChange={(v) => setForm((f) => ({ ...f, campaign_id: v }))} />
             <FormField label="Industry" name="industry">
               {noneSelect(form.industry, set('industry'), INDUSTRIES)}
             </FormField>

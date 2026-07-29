@@ -8,6 +8,7 @@ const MODULE_SLUGS = new Set([
   'leads',
   'contacts',
   'accounts',
+  'companies',
   'deals',
   'tasks',
   'calls',
@@ -59,6 +60,14 @@ export function useRecordId(paramName = 'id') {
   const params = useParams();
   const pathname = usePathname();
   const paramId = params?.[paramName];
+
+  if (typeof window !== 'undefined') {
+    const fromQuery = new URLSearchParams(window.location.search).get('id')
+      || new URLSearchParams(window.location.search).get('record_id');
+    if (fromQuery && isValidRecordId(fromQuery)) {
+      return String(fromQuery);
+    }
+  }
 
   // Prefer dynamic route param during client navigation (window may still be on list URL).
   if (paramId && paramId !== STATIC_EXPORT_PLACEHOLDER_ID && isValidRecordId(paramId)) {

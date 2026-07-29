@@ -15,6 +15,7 @@ import RecordNotesSidePanel from './RecordNotesSidePanel.js';
 import * as tasksApi from '../../lib/services/tasks.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
 import { fetchUsers, fetchMassUpdateFieldOptions, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
+import { fetchCampaignLookups, assignRecordsToCampaign } from '../../lib/campaignRecordHelpers.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
@@ -28,6 +29,8 @@ const CAMPAIGN_MEMBER_TYPES = {
   'qualified-leads': 'lead',
   proposals: 'lead',
   contacts: 'contact',
+  accounts: 'account',
+  companies: 'account',
 };
 
 const MODULE_PIPELINE_STAGE = {
@@ -87,6 +90,13 @@ function MassUpdatePanel({
           {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       );
+    } else if (field === 'campaign') {
+      valueInput = (
+        <select className="input flex-1" value={value} onChange={(e) => onValueChange(e.target.value)}>
+          <option value="">{loadingValueOptions ? 'Loading campaigns…' : 'Select campaign'}</option>
+          {(valueOptions || []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      );
     } else {
       valueInput = <input className="input flex-1" value={value} onChange={(e) => onValueChange(e.target.value)} placeholder="Enter value" />;
     }
@@ -106,6 +116,7 @@ function MassUpdatePanel({
               : <>
                   {staticFields.includes('status') && <option value="status">Status</option>}
                   {staticFields.includes('convert') && <option value="convert">Convert</option>}
+                  {staticFields.includes('campaign') && <option value="campaign">Campaign</option>}
                 </>
             }
           </select>
@@ -223,9 +234,13 @@ export default function RecordDataTable({
     setDynamicMassFields([]);
     massUpdateFieldsLoader()
       .then((fields) => {
-        const filtered = LEAD_MODULE_KEYS.has(moduleKey)
+        let filtered = LEAD_MODULE_KEYS.has(moduleKey)
           ? filterLeadMassUpdateFields(fields, { canChangeOwner: canAssignLeads })
           : fields;
+        const hasCampaign = filtered.some((f) => String(f.value).toLowerCase() === 'campaign');
+        if (!hasCampaign && (LEAD_MODULE_KEYS.has(moduleKey) || moduleKey === 'contacts')) {
+          filtered = [...filtered, { value: 'campaign', label: 'Campaign' }];
+        }
         setDynamicMassFields(filtered);
       })
       .catch(() => setDynamicMassFields([]))
@@ -269,6 +284,17 @@ export default function RecordDataTable({
 
     if (isConvert) {
       return undefined;
+    }
+
+    if (String(massField).toLowerCase() === 'campaign') {
+      let cancelled = false;
+      setLoadingMassValueOptions(true);
+      setMassValueOptions([]);
+      fetchCampaignLookups()
+        .then((options) => { if (!cancelled) setMassValueOptions(options); })
+        .catch(() => { if (!cancelled) setMassValueOptions([]); })
+        .finally(() => { if (!cancelled) setLoadingMassValueOptions(false); });
+      return () => { cancelled = true; };
     }
 
     if (!massUpdateFieldsLoader || !fieldDef) {
@@ -338,9 +364,14 @@ export default function RecordDataTable({
     ? dynamicMassFields.some(isConvertMassUpdateField)
     : config.massUpdateFields?.includes('convert');
 
+  const hasCampaignField = massUpdateFieldsLoader
+    ? dynamicMassFields.some((f) => String(f.value).toLowerCase() === 'campaign')
+    : config.massUpdateFields?.includes('campaign');
+
   const hasMassUpdate = massUpdateFieldsLoader
     || (config.massUpdateFields?.includes('status') && config.statusField)
-    || hasConvertField;
+    || hasConvertField
+    || hasCampaignField;
 
   const handleSendEmail = () => {
     if (!config.emailField) {
@@ -368,6 +399,18 @@ export default function RecordDataTable({
       onRefresh?.();
     };
     try {
+      if (String(massField).toLowerCase() === 'campaign') {
+        const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
+        if (!memberType) {
+          showToast('Campaign assignment is not supported for this module');
+          return;
+        }
+        await assignRecordsToCampaign(massValue, memberType, selected);
+        showToast(`Added ${selected.length} record(s) to campaign`, 'success');
+        finishMassUpdate();
+        return;
+      }
+
       if (massUpdateHandler) {
         const result = await massUpdateHandler(selected, massField, massValue, {
           lost_reason: showLostReasonField ? massLostReason : undefined,

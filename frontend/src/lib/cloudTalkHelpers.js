@@ -1,3 +1,5 @@
+import { postCloudTalkDialMessages } from './cloudTalkDialMessages.js';
+
 export const CLOUDTALK_ORIGIN = 'https://phone.cloudtalk.io';
 
 export const CLOUDTALK_PARTNER =
@@ -27,8 +29,25 @@ export function normalizePhoneForDial(raw) {
 export function cloudTalkPhoneUrl({ partner = CLOUDTALK_PARTNER, number } = {}) {
   const params = new URLSearchParams({ partner });
   const normalized = number ? normalizePhoneForDial(number) : '';
-  if (normalized) params.set('number', normalized);
+  if (normalized) {
+    params.set('number', normalized);
+    params.set('external_number', normalized);
+    params.set('phone', normalized);
+  }
   return `${CLOUDTALK_ORIGIN}?${params.toString()}`;
+}
+
+/** Push the clicked number into the embedded CloudTalk iframe (URL + postMessage). */
+export function applyNumberToCloudTalkIframe(iframe, number) {
+  if (!iframe || !number) return;
+  const url = cloudTalkPhoneUrl({ number });
+  try {
+    iframe.setAttribute('src', url);
+    iframe.src = url;
+  } catch {
+    iframe.setAttribute('src', url);
+  }
+  postCloudTalkDialMessages(iframe, number);
 }
 
 /** Deep link for CloudTalk Desktop app (ct+tel:). */

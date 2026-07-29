@@ -4,6 +4,7 @@ import Modal from '../ui/Modal.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { getImportFields } from '../../lib/importFieldConfig.js';
+import CampaignSelect from '../forms/CampaignSelect.js';
 import {
   parseCsvFile,
   suggestColumnMapping,
@@ -39,6 +40,7 @@ export default function CsvImportModal({
   const [validationMessage, setValidationMessage] = useState('');
   const [validating, setValidating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [defaultCampaignId, setDefaultCampaignId] = useState('');
 
   const reset = () => {
     setStep(STEPS.upload);
@@ -49,6 +51,7 @@ export default function CsvImportModal({
     setHideRecognized(false);
     setPreview(null);
     setValidationMessage('');
+    setDefaultCampaignId('');
   };
 
   useEffect(() => {
@@ -138,7 +141,10 @@ export default function CsvImportModal({
           return;
         }
       }
-      const result = await importFn(mappedFile, { dry_run: false });
+      const result = await importFn(mappedFile, {
+        dry_run: false,
+        campaignId: defaultCampaignId || undefined,
+      });
       showToast(`Imported ${result.imported_count ?? result.ready_count ?? readyCount} record(s)`, 'success');
       onDone?.();
       onClose();
@@ -166,6 +172,11 @@ export default function CsvImportModal({
               Download CSV template
             </button>
           )}
+          <CampaignSelect
+            value={defaultCampaignId}
+            onChange={setDefaultCampaignId}
+            label="Campaign (optional — applies to all imported rows)"
+          />
           <input type="file" accept=".csv" onChange={handleFile} className="text-sm w-full" />
         </div>
       )}

@@ -20,9 +20,11 @@ import { normalizeContact } from '../../lib/contactHelpers.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchUsers } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass, tableAvatarClass } from '../../lib/tableStyles.js';
-import { TextFilter, OwnerFilter } from '../../components/layout/ListFilterFields.js';
+import { TextFilter, OwnerFilter, CampaignFilter } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_CONTACT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
+import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
+import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -42,6 +44,8 @@ export default function ContactsPage() {
   const [filters, setFilters] = useState(EMPTY_CONTACT_FILTERS);
   const [users, setUsers] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
+  const { campaigns } = useCampaignLookups();
+  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'contact');
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
   const accountMapRef = useRef(accountMap);
@@ -75,6 +79,7 @@ export default function ContactsPage() {
       Object.assign(params, getSortApiParams(sort, 'contacts'));
       if (activeView !== 'My Contacts') {
         params.filters = filters;
+        params.campaignMemberIds = campaignMemberIds;
       }
       const result = await contactsApi.listContacts(params, accountMapRef.current);
       setContacts(result.data);
@@ -86,7 +91,7 @@ export default function ContactsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, showToast, activeView, user?.id, filters, sort]);
+  }, [page, debouncedSearch, showToast, activeView, user?.id, filters, sort, campaignMemberIds]);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
   useListRefresh(fetchContacts);
@@ -151,6 +156,7 @@ export default function ContactsPage() {
           )}
         >
           <TextFilter label="Company" value={filters.company} onChange={(v) => { setFilters((f) => ({ ...f, company: v })); setPage(1); }} />
+          <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => { setFilters((f) => ({ ...f, campaign_id: v })); setPage(1); }} />
           <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => { setFilters((f) => ({ ...f, owner_id: v })); setPage(1); }} />
         </ListToolbar>
       </div>
