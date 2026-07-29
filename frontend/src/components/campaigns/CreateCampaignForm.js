@@ -273,8 +273,6 @@ export default function CreateCampaignForm() {
         name: 'Campaign Name',
         type: 'Type',
         status: 'Status',
-        start_date: 'Start Date',
-        end_date: 'End Date',
       },
       form,
     );
@@ -400,7 +398,7 @@ export default function CreateCampaignForm() {
               </select>
             </FormField>
 
-            <FormField label="Start Date" required error={errors.start_date} name="start_date">
+            <FormField label="Start Date" error={errors.start_date} name="start_date">
               <input
                 className={inputClass(errors.start_date)}
                 type="date"
@@ -410,7 +408,7 @@ export default function CreateCampaignForm() {
               />
             </FormField>
 
-            <FormField label="End Date" required error={errors.end_date} name="end_date">
+            <FormField label="End Date" error={errors.end_date} name="end_date">
               <input
                 className={inputClass(errors.end_date)}
                 type="date"
