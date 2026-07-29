@@ -9,6 +9,7 @@ export default function ClickToCallButton({
   className = '',
   size = 'sm',
   openPanel = true,
+  autoCall = true,
 }) {
   const { dialNumber } = useCloudTalk();
   const normalized = normalizePhoneForDial(number);
@@ -29,7 +30,7 @@ export default function ClickToCallButton({
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        dialNumber(normalized, { openPanel });
+        dialNumber(normalized, { openPanel, autoCall });
       }}
       className={`inline-flex items-center justify-center rounded-lg text-brand-600 hover:bg-brand-50 hover:text-brand-700 transition-colors shrink-0 ${sizeClass} ${className}`}
     >

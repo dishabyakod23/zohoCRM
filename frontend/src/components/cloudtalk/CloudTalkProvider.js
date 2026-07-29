@@ -50,6 +50,7 @@ export function CloudTalkProvider({ children }) {
   const iframeRef = useRef(null);
   const activeCallRef = useRef(null);
   const pendingDialRef = useRef('');
+  const pendingAutoCallRef = useRef(true);
   const iframeHasLoadedRef = useRef(false);
   const loggedInRef = useRef(false);
   const [open, setOpen] = useState(false);
@@ -64,8 +65,9 @@ export function CloudTalkProvider({ children }) {
     if (!normalized) return;
     const iframe = iframeRef.current;
     if (!iframe) return;
-    postNumberToCloudTalkIframe(iframe, normalized);
-    await postCloudTalkDialWithRetries(iframeRef, normalized);
+    const autoCall = pendingAutoCallRef.current;
+    postNumberToCloudTalkIframe(iframe, normalized, { autoCall });
+    await postCloudTalkDialWithRetries(iframeRef, normalized, { autoCall });
   }, []);
 
   const ensureIframe = useCallback(() => {
@@ -212,7 +214,7 @@ export function CloudTalkProvider({ children }) {
     return iframeRef.current;
   }, []);
 
-  const dialNumber = useCallback(async (rawNumber, { openPanel = true } = {}) => {
+  const dialNumber = useCallback(async (rawNumber, { openPanel = true, autoCall = true } = {}) => {
     const number = normalizePhoneForDial(rawNumber);
     if (!number) {
       showToast('No valid phone number to dial');
@@ -225,6 +227,7 @@ export function CloudTalkProvider({ children }) {
     }
 
     pendingDialRef.current = number;
+    pendingAutoCallRef.current = autoCall;
 
     if (openPanel) {
       ensureIframe();
@@ -233,13 +236,18 @@ export function CloudTalkProvider({ children }) {
 
       const iframe = iframeRef.current;
       if (iframe && !iframeHasLoadedRef.current) {
-        const url = cloudTalkPhoneUrl({ number });
+        const url = cloudTalkPhoneUrl({ number, autoCall });
         setIframeSrc(url);
-        loadCloudTalkIframeWithNumber(iframe, number);
+        loadCloudTalkIframeWithNumber(iframe, number, { autoCall });
       } else if (iframe) {
-        postNumberToCloudTalkIframe(iframe, number);
-        await postCloudTalkDialWithRetries(iframeRef, number);
+        postNumberToCloudTalkIframe(iframe, number, { autoCall });
+        await postCloudTalkDialWithRetries(iframeRef, number, { autoCall });
       }
+      return;
+    }
+
+    if (autoCall) {
+      tryCloudTalkDesktopDial(number);
       return;
     }
 

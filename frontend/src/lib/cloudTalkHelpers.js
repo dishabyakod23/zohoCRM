@@ -1,4 +1,8 @@
-import { postCloudTalkDialMessages } from './cloudTalkDialMessages.js';
+import {
+  postCloudTalkAutocallMessages,
+  postCloudTalkDialMessages,
+  postCloudTalkPasteMessages,
+} from './cloudTalkDialMessages.js';
 
 export const CLOUDTALK_ORIGIN = 'https://phone.cloudtalk.io';
 
@@ -26,42 +30,55 @@ export function normalizePhoneForDial(raw) {
   return `+${digits}`;
 }
 
-export function cloudTalkPhoneUrl({ partner = CLOUDTALK_PARTNER, number } = {}) {
+export function cloudTalkPhoneUrl({ partner = CLOUDTALK_PARTNER, number, autoCall = false } = {}) {
   const params = new URLSearchParams({ partner });
   const normalized = number ? normalizePhoneForDial(number) : '';
   if (normalized) {
     params.set('number', normalized);
     params.set('external_number', normalized);
     params.set('phone', normalized);
+    if (autoCall) {
+      params.set('autocall', 'true');
+      params.set('auto_call', 'true');
+      params.set('dial', 'true');
+    }
   }
   return `${CLOUDTALK_ORIGIN}?${params.toString()}`;
 }
 
 /** Send the number into the embedded dialer without reloading the iframe. */
-export function postNumberToCloudTalkIframe(iframe, number) {
+export function postNumberToCloudTalkIframe(iframe, number, { autoCall = true } = {}) {
   if (!iframe || !number) return;
-  postCloudTalkDialMessages(iframe, number);
+  if (autoCall) {
+    postCloudTalkAutocallMessages(iframe, number);
+  } else {
+    postCloudTalkPasteMessages(iframe, number);
+  }
 }
 
 /**
  * Set iframe URL with number (first load only). CloudTalk docs require keeping
  * the iframe mounted — do not call this on every click-to-dial after login.
  */
-export function loadCloudTalkIframeWithNumber(iframe, number) {
+export function loadCloudTalkIframeWithNumber(iframe, number, { autoCall = true } = {}) {
   if (!iframe || !number) return;
-  const url = cloudTalkPhoneUrl({ number });
+  const url = cloudTalkPhoneUrl({ number, autoCall });
   try {
     iframe.setAttribute('src', url);
     iframe.src = url;
   } catch {
     iframe.setAttribute('src', url);
   }
-  postCloudTalkDialMessages(iframe, number);
+  if (autoCall) {
+    postCloudTalkAutocallMessages(iframe, number);
+  } else {
+    postCloudTalkPasteMessages(iframe, number);
+  }
 }
 
 /** @deprecated Use postNumberToCloudTalkIframe — reloading clears the dial pad. */
 export function applyNumberToCloudTalkIframe(iframe, number) {
-  postNumberToCloudTalkIframe(iframe, number);
+  postNumberToCloudTalkIframe(iframe, number, { autoCall: true });
 }
 
 /** Deep link for CloudTalk Desktop app (ct+tel:). */
@@ -77,7 +94,7 @@ export function buildCloudTalkDeepLink(number, fromNumber) {
 export function openCloudTalkWebPhone(number) {
   const normalized = normalizePhoneForDial(number);
   if (!normalized || typeof window === 'undefined') return;
-  window.open(cloudTalkPhoneUrl({ number: normalized }), '_blank', 'noopener,noreferrer');
+  window.open(cloudTalkPhoneUrl({ number: normalized, autoCall: true }), '_blank', 'noopener,noreferrer');
 }
 
 export function tryCloudTalkDesktopDial(number, fromNumber) {

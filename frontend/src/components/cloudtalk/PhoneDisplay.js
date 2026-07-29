@@ -14,7 +14,7 @@ export default function PhoneDisplay({ value, label = 'Call' }) {
     <span className="inline-flex items-center gap-2 min-w-0">
       <button
         type="button"
-        onClick={() => dialNumber(value)}
+        onClick={() => dialNumber(value, { autoCall: true })}
         className="text-brand-600 hover:text-brand-700 hover:underline"
         title={`Dial ${normalized}`}
       >

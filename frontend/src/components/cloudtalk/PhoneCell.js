@@ -13,7 +13,7 @@ export default function PhoneCell({ value, label = 'Call lead' }) {
   const handleDial = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    dialNumber(value);
+    dialNumber(value, { autoCall: true });
   };
 
   return (

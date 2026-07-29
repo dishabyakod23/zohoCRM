@@ -1,35 +1,41 @@
 import { CLOUDTALK_ORIGIN } from './cloudTalkHelpers.js';
 
-/**
- * Payloads parent → CloudTalk iframe (paste into dial pad).
- * Mirror outbound event shape: { event, properties: { external_number } }.
- */
-export function buildCloudTalkDialPayloads(number) {
-  const properties = { external_number: number };
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
+/** Paste number into the dial pad (no call yet). */
+export function buildCloudTalkPastePayloads(number) {
+  const properties = { external_number: number };
   const objects = [
     { event: 'paste', properties },
     { event: 'paste_number', properties },
     { event: 'set_number', properties },
-    { event: 'click_to_call', properties },
-    { event: 'dial', properties: { ...properties, autocall: false } },
-    { event: 'dial', properties: { ...properties, autocall: true } },
-    { event: 'call', properties },
     { action: 'paste', number, external_number: number },
-    { action: 'call', number, external_number: number, autocall: false },
     { type: 'cloudtalk-paste', number, external_number: number },
-    { type: 'cloudtalk-dial', number, external_number: number },
   ];
-
-  const serialized = objects.map((payload) => JSON.stringify(payload));
-  return [...serialized, ...objects];
+  return [...objects.map((p) => JSON.stringify(p)), ...objects];
 }
 
-export function postCloudTalkDialMessages(iframe, number) {
-  const target = iframe?.contentWindow;
-  if (!target || !number) return false;
+/** Trigger an outbound call (auto-dial when supported by CloudTalk). */
+export function buildCloudTalkDialPayloads(number, { autoCall = true } = {}) {
+  const properties = { external_number: number };
+  const objects = [
+    { event: 'dial', properties: { ...properties, autocall: autoCall, auto_call: autoCall } },
+    { event: 'click_to_call', properties: { ...properties, autocall: autoCall } },
+    { event: 'call', properties: { ...properties, autocall: autoCall } },
+    { action: 'call', number, external_number: number, autocall: autoCall },
+    { action: 'dial', number, external_number: number, autocall: autoCall },
+    { type: 'cloudtalk-dial', number, external_number: number, autocall: autoCall },
+  ];
+  return [...objects.map((p) => JSON.stringify(p)), ...objects];
+}
 
-  for (const payload of buildCloudTalkDialPayloads(number)) {
+function postPayloads(iframe, payloads) {
+  const target = iframe?.contentWindow;
+  if (!target || !payloads?.length) return false;
+
+  for (const payload of payloads) {
     try {
       if (typeof payload === 'string') {
         target.postMessage(payload, CLOUDTALK_ORIGIN);
@@ -41,19 +47,41 @@ export function postCloudTalkDialMessages(iframe, number) {
       // try next format
     }
   }
-
   return true;
 }
 
+export function postCloudTalkPasteMessages(iframe, number) {
+  return postPayloads(iframe, buildCloudTalkPastePayloads(number));
+}
+
+export function postCloudTalkDialMessages(iframe, number, { autoCall = true } = {}) {
+  return postPayloads(iframe, buildCloudTalkDialPayloads(number, { autoCall }));
+}
+
+/** Paste the number, then send dial/autocall commands. */
+export async function postCloudTalkAutocallMessages(iframe, number) {
+  if (!iframe || !number) return false;
+  postCloudTalkPasteMessages(iframe, number);
+  await sleep(180);
+  return postCloudTalkDialMessages(iframe, number, { autoCall: true });
+}
+
 export async function postCloudTalkDialWithRetries(iframeRef, number, {
-  attempts = 24,
-  intervalMs = 300,
+  autoCall = true,
+  attempts = 30,
+  intervalMs = 280,
 } = {}) {
   for (let i = 0; i < attempts; i += 1) {
     const iframe = typeof iframeRef === 'function' ? iframeRef() : iframeRef?.current;
-    if (iframe) postCloudTalkDialMessages(iframe, number);
+    if (iframe) {
+      if (autoCall) {
+        await postCloudTalkAutocallMessages(iframe, number);
+      } else {
+        postCloudTalkPasteMessages(iframe, number);
+      }
+    }
     if (i < attempts - 1) {
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      await sleep(intervalMs);
     }
   }
 }
