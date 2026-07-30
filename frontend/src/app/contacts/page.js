@@ -99,6 +99,28 @@ export default function ContactsPage() {
   const initials = (c) => `${c.first_name?.[0] || ''}${c.last_name?.[0] || ''}`.toUpperCase();
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
+  const contactListParams = useMemo(() => {
+    const params = {
+      search: debouncedSearch || undefined,
+      sort_by: getSortApiParams(sort, 'contacts').sort_by,
+      sort_order: getSortApiParams(sort, 'contacts').sort_order,
+      filters: activeView === 'My Contacts' ? {} : filters,
+      campaignMemberIds: activeView === 'My Contacts' ? undefined : campaignMemberIds,
+    };
+    if (activeView === 'My Contacts' && user?.id) params.owner_id = user.id;
+    return params;
+  }, [debouncedSearch, sort, activeView, user?.id, filters, campaignMemberIds]);
+
+  const selectionResetKey = useMemo(
+    () => JSON.stringify({ activeView, debouncedSearch, filters, sort }),
+    [activeView, debouncedSearch, filters, sort],
+  );
+
+  const fetchAllMatchingContactIds = useCallback(
+    () => contactsApi.listAllMatchingContactIds(contactListParams, accountMapRef.current),
+    [contactListParams],
+  );
+
   const columns = useMemo(() => [
     { id: 'contact', header: 'Contact', cell: (c) => (
       <div className="flex items-center gap-2.5">
@@ -151,6 +173,9 @@ export default function ContactsPage() {
               columns={columns}
               onRefresh={fetchContacts}
               emptyMessage="No contacts found"
+              totalMatching={total}
+              fetchAllMatchingIds={fetchAllMatchingContactIds}
+              selectionResetKey={selectionResetKey}
               pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
             />
           )}

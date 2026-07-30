@@ -118,7 +118,7 @@ export default function DashboardPage() {
       <div className="p-6">
         <div className="mb-6">
           <h1 className="text-lg font-semibold text-zoho-text">
-            Welcome back<span className="text-brand-500">.</span>
+            Welcome back
           </h1>
           <p className="text-xs text-zoho-muted mt-0.5">Your sales command center</p>
         </div>

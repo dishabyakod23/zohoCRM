@@ -161,6 +161,9 @@ export default function RecordDataTable({
   pagination,
   emptyMessage = 'No records found',
   getRowId = defaultGetRowId,
+  totalMatching,
+  fetchAllMatchingIds,
+  selectionResetKey,
   massUpdateFieldsLoader,
   convertTargetsLoader,
   massUpdateHandler,
@@ -172,6 +175,8 @@ export default function RecordDataTable({
   const showNotes = notesApiSupported(moduleKey);
 
   const [selected, setSelected] = useState([]);
+  const [allMatchingSelected, setAllMatchingSelected] = useState(false);
+  const [selectingAllMatching, setSelectingAllMatching] = useState(false);
   const [panelRecord, setPanelRecord] = useState(null);
   const [massUpdateOpen, setMassUpdateOpen] = useState(false);
   const [massField, setMassField] = useState('');
@@ -209,12 +214,9 @@ export default function RecordDataTable({
     && selectedRecords.every((record) => canDeleteRecord(record));
 
   useEffect(() => {
-    setSelected((prev) => {
-      const next = prev.filter((id) => records.some((r) => getRowId(r) === id));
-      if (next.length === prev.length && next.every((id, i) => id === prev[i])) return prev;
-      return next;
-    });
-  }, [records, getRowId]);
+    setSelected([]);
+    setAllMatchingSelected(false);
+  }, [selectionResetKey]);
 
   useEffect(() => {
     const onClickOutside = (e) => {
@@ -225,17 +227,54 @@ export default function RecordDataTable({
   }, []);
 
   const toggleSelect = useCallback((id) => {
+    setAllMatchingSelected(false);
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   }, []);
 
   const toggleSelectAll = useCallback(() => {
     const ids = records.map(getRowId);
-    setSelected((s) => (s.length === ids.length && ids.every((id) => s.includes(id)) ? [] : ids));
-  }, [records, getRowId]);
+    const allOnPageSelected = ids.length > 0 && ids.every((id) => selected.includes(id));
+    if (allOnPageSelected) {
+      setSelected([]);
+      setAllMatchingSelected(false);
+      return;
+    }
+    setAllMatchingSelected(false);
+    setSelected((s) => {
+      const merged = new Set(s);
+      ids.forEach((id) => merged.add(id));
+      return [...merged];
+    });
+  }, [records, getRowId, selected]);
 
-  const clearSelection = () => setSelected([]);
+  const clearSelection = () => {
+    setSelected([]);
+    setAllMatchingSelected(false);
+  };
+
+  const handleSelectAllMatching = async () => {
+    if (!fetchAllMatchingIds) return;
+    setSelectingAllMatching(true);
+    try {
+      const ids = await fetchAllMatchingIds();
+      setSelected(ids);
+      setAllMatchingSelected(true);
+      showToast(`Selected all ${ids.length} ${config.label.toLowerCase()}`, 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setSelectingAllMatching(false);
+    }
+  };
 
   const allSelected = records.length > 0 && records.every((r) => selected.includes(getRowId(r)));
+  const resolvedTotalMatching = totalMatching ?? records.length;
+  const showSelectAllMatchingBanner = Boolean(
+    fetchAllMatchingIds
+    && allSelected
+    && !allMatchingSelected
+    && resolvedTotalMatching > records.length,
+  );
 
   useEffect(() => {
     if (!massUpdateOpen || !massUpdateFieldsLoader) return;
@@ -619,7 +658,9 @@ export default function RecordDataTable({
         {selected.length > 0 && (
           <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 shrink-0 bg-brand-50/80 border-b border-brand-200 text-sm">
             <span className="font-medium text-brand-800">
-              {selected.length} {config.label} Selected.
+              {allMatchingSelected && resolvedTotalMatching > records.length
+                ? `All ${resolvedTotalMatching} ${config.label} selected.`
+                : `${selected.length} ${config.label} Selected.`}
             </span>
             <button type="button" onClick={clearSelection} className="text-brand-600 hover:underline text-xs font-medium">Clear</button>
             <div className="flex items-center gap-2 ml-auto flex-wrap">
@@ -645,6 +686,20 @@ export default function RecordDataTable({
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {showSelectAllMatchingBanner && (
+          <div className="flex flex-wrap items-center justify-center gap-1 px-4 py-2 shrink-0 bg-amber-50 border-b border-amber-200 text-sm text-amber-900">
+            <span>All {records.length} on this page are selected.</span>
+            <button
+              type="button"
+              onClick={handleSelectAllMatching}
+              disabled={selectingAllMatching}
+              className="font-semibold text-brand-600 hover:underline disabled:opacity-60"
+            >
+              {selectingAllMatching ? 'Selecting…' : `Select all ${resolvedTotalMatching} ${config.label.toLowerCase()}`}
+            </button>
           </div>
         )}
 

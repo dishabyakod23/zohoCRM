@@ -40,6 +40,49 @@ async function fetchAllContactPages(params, accountMap) {
   return all;
 }
 
+export async function listAllMatchingContactIds({
+  search,
+  owner_id,
+  sort_by,
+  sort_order,
+  filters = {},
+  campaignMemberIds,
+} = {}, accountMap = {}) {
+  if (hasContactClientFilters(filters)) {
+    const allContacts = await fetchAllContactPages(
+      { search, owner_id, sort_by, sort_order },
+      accountMap,
+    );
+    const filtered = applyContactRecordFilters(allContacts, filters, { campaignMemberIds });
+    return filtered.map((c) => c.id).filter(Boolean);
+  }
+
+  const pageSize = DEFAULT_PAGE_SIZE;
+  let page = 1;
+  const ids = [];
+  let serverTotal = 0;
+
+  while (page <= 50) {
+    const res = await api.get('/contacts', {
+      params: {
+        page,
+        page_size: pageSize,
+        ...(search ? { search } : {}),
+        ...(owner_id ? { owner_id } : {}),
+        ...(sort_by ? { sort_by } : {}),
+        ...(sort_order ? { sort_order } : {}),
+      },
+    });
+    const batch = res.data.data || [];
+    serverTotal = res.data.meta?.total ?? ids.length + batch.length;
+    ids.push(...batch.map((c) => c.id).filter(Boolean));
+    if (batch.length === 0 || ids.length >= serverTotal) break;
+    page += 1;
+  }
+
+  return ids;
+}
+
 export async function listAllContacts(params = {}, accountMap = {}) {
   const data = await fetchAllContactPages(params, accountMap);
   return { data, total: data.length };

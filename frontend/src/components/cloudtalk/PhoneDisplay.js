@@ -1,9 +1,8 @@
 'use client';
-import ClickToCallButton from './ClickToCallButton.js';
 import { useCloudTalk } from './CloudTalkProvider.js';
-import { normalizePhoneForDial } from '../../lib/cloudTalkHelpers.js';
+import { displayPhoneWithoutAutoDetect, normalizePhoneForDial } from '../../lib/cloudTalkHelpers.js';
 
-export default function PhoneDisplay({ value, label = 'Call' }) {
+export default function PhoneDisplay({ value }) {
   const { dialNumber } = useCloudTalk();
 
   if (!value) return null;
@@ -16,14 +15,10 @@ export default function PhoneDisplay({ value, label = 'Call' }) {
         type="button"
         onClick={() => dialNumber(value)}
         className="text-brand-600 hover:text-brand-700 hover:underline"
-        title={`Dial ${normalized}`}
+        title={`Dial ${displayPhoneWithoutAutoDetect(normalized)}`}
       >
-        {/* Visible text must be full E.164 (+countrycode…) — the CloudTalk Click to Call
-            browser extension pattern-matches page text for numbers in that exact format
-            and won't recognize locally-formatted numbers without a leading "+". */}
-        {normalized}
+        {displayPhoneWithoutAutoDetect(normalized)}
       </button>
-      <ClickToCallButton number={value} label={label} size="xs" />
     </span>
   );
 }

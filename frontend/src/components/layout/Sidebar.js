@@ -110,12 +110,6 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
         )}
         {modules.map(({ href, label, icon }) => navLink(href, label, icon))}
       </nav>
-
-      {!collapsed && (
-        <div className="p-3 border-t border-white/10 text-[10px] text-white/40 text-center">
-          <span className="text-brand-400 font-semibold">CRM Standard</span>
-        </div>
-      )}
     </aside>
   );
 }
