@@ -6,13 +6,11 @@ import {
   CLOUDTALK_ENABLED,
   CLOUDTALK_ORIGIN,
   cloudTalkPhoneUrl,
-  loadCloudTalkIframeWithNumber,
+  copyPhoneToClipboard,
   normalizePhoneForDial,
   openCloudTalkWebPhone,
-  postNumberToCloudTalkIframe,
   tryCloudTalkDesktopDial,
 } from '../../lib/cloudTalkHelpers.js';
-import { postCloudTalkDialWithRetries } from '../../lib/cloudTalkDialMessages.js';
 import { upsertStoredCloudTalkCall } from '../../lib/cloudTalkCallLog.js';
 import { normalizeIframeCloudTalkCall } from '../../lib/services/cloudTalkCalls.js';
 
@@ -28,10 +26,6 @@ const FALLBACK = {
   toggleDialer: () => {},
   iframeRef: { current: null },
 };
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function parseCloudTalkMessage(data) {
   if (!data) return null;
@@ -49,26 +43,13 @@ function parseCloudTalkMessage(data) {
 export function CloudTalkProvider({ children }) {
   const iframeRef = useRef(null);
   const activeCallRef = useRef(null);
-  const pendingDialRef = useRef('');
-  const pendingAutoCallRef = useRef(true);
-  const iframeHasLoadedRef = useRef(false);
   const loggedInRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [iframeMounted, setIframeMounted] = useState(false);
-  const [iframeSrc, setIframeSrc] = useState(() => cloudTalkPhoneUrl());
+  const [iframeSrc] = useState(() => cloudTalkPhoneUrl());
   const [ready, setReady] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const { showToast } = useToast();
-
-  const flushPendingDial = useCallback(async () => {
-    const normalized = normalizePhoneForDial(pendingDialRef.current);
-    if (!normalized) return;
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-    const autoCall = pendingAutoCallRef.current;
-    postNumberToCloudTalkIframe(iframe, normalized, { autoCall });
-    await postCloudTalkDialWithRetries(iframeRef, normalized, { autoCall });
-  }, []);
 
   const ensureIframe = useCallback(() => {
     setIframeMounted(true);
@@ -184,7 +165,6 @@ export function CloudTalkProvider({ children }) {
           loggedInRef.current = true;
           setLoggedIn(true);
           setReady(true);
-          flushPendingDial();
           break;
         case 'logout':
           loggedInRef.current = false;
@@ -216,18 +196,19 @@ export function CloudTalkProvider({ children }) {
 
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [ensureIframe, persistIframeCall, flushPendingDial]);
+  }, [ensureIframe, persistIframeCall]);
 
-  const waitForIframe = useCallback(async () => {
-    const started = Date.now();
-    while (Date.now() - started < 8000) {
-      if (iframeRef.current?.contentWindow) return iframeRef.current;
-      await sleep(120);
-    }
-    return iframeRef.current;
-  }, []);
-
-  const dialNumber = useCallback(async (rawNumber, { openPanel = true, autoCall = true } = {}) => {
+  /**
+   * CloudTalk's embedded Phone iframe has no documented way to receive a number or a
+   * dial command from the parent page — it only broadcasts call-status events outward.
+   * So there are exactly two real ways to get a number into a call:
+   *  1. The `ct+tel:` deep link, which the CloudTalk Click to Call browser extension (or
+   *     Desktop app) picks up and dials automatically — but only if that extension/app is
+   *     installed. There's no way to detect from JS whether it actually fired.
+   *  2. Copy the number to the clipboard and let the agent paste it into the dialer.
+   * We always do both, and open the panel so the agent can see/paste it either way.
+   */
+  const dialNumber = useCallback(async (rawNumber, { openPanel = true } = {}) => {
     const number = normalizePhoneForDial(rawNumber);
     if (!number) {
       showToast('No valid phone number to dial');
@@ -239,48 +220,20 @@ export function CloudTalkProvider({ children }) {
       return;
     }
 
-    pendingDialRef.current = number;
-    pendingAutoCallRef.current = autoCall;
+    const copied = await copyPhoneToClipboard(number);
+    tryCloudTalkDesktopDial(number);
 
     if (openPanel) {
       ensureIframe();
       setOpen(true);
-      await waitForIframe();
-
-      if (!loggedInRef.current) {
-        showToast(
-          autoCall
-            ? 'Log into CloudTalk in the dialer panel first. The number will be filled after sign-in — press the green call button if it does not dial automatically.'
-            : 'Log into CloudTalk in the dialer panel first.',
-        );
-      }
-
-      const iframe = iframeRef.current;
-      if (iframe && !iframeHasLoadedRef.current) {
-        const url = cloudTalkPhoneUrl({ number, autoCall });
-        setIframeSrc(url);
-        loadCloudTalkIframeWithNumber(iframe, number, { autoCall });
-      } else if (iframe) {
-        postNumberToCloudTalkIframe(iframe, number, { autoCall });
-        await postCloudTalkDialWithRetries(iframeRef, number, { autoCall });
-      }
-
-      if (autoCall) {
-        tryCloudTalkDesktopDial(number);
-      }
-      return;
     }
 
-    if (autoCall) {
-      tryCloudTalkDesktopDial(number);
-      return;
-    }
-
-    const openedDesktop = tryCloudTalkDesktopDial(number);
-    if (!openedDesktop) {
-      showToast('Open the CloudTalk dialer to place calls from the CRM');
-    }
-  }, [ensureIframe, showToast, waitForIframe]);
+    showToast(
+      copied
+        ? `${number} copied. Dialing via the CloudTalk Click to Call extension if it's installed — otherwise paste it into the dialer below.`
+        : `Dialing ${number} via the CloudTalk Click to Call extension if it's installed — otherwise type it into the dialer below.`,
+    );
+  }, [ensureIframe, showToast]);
 
   const toggleDialer = useCallback(() => {
     setOpen((v) => {
@@ -290,10 +243,8 @@ export function CloudTalkProvider({ children }) {
   }, [ensureIframe]);
 
   const onIframeLoad = useCallback(() => {
-    iframeHasLoadedRef.current = true;
     setReady(true);
-    flushPendingDial();
-  }, [flushPendingDial]);
+  }, []);
 
   const value = useMemo(() => ({
     enabled: CLOUDTALK_ENABLED,

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CRMLayout from '../layout/CRMLayout.js';
@@ -114,6 +114,7 @@ export default function CreatePipelineLeadForm({
   const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     if (user?.id) setForm((f) => ({ ...f, owner_id: f.owner_id || user.id }));
@@ -156,9 +157,13 @@ export default function CreatePipelineLeadForm({
   };
 
   const handleSave = async () => {
-    if (!(await validate())) return;
+    // Guard set synchronously (before any await) so a rapid double-click or a slow
+    // in-flight email-uniqueness check can't start a second, concurrent submission.
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
+      if (!(await validate())) return;
       const created = await createFn(form);
       const campaignId = await resolveOrCreateCampaignId({
         campaign_id: form.campaign_id,
@@ -170,6 +175,7 @@ export default function CreatePipelineLeadForm({
     } catch (err) {
       showToast(getApiError(err));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

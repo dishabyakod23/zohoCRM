@@ -46,10 +46,20 @@ export default function CloudTalkDialerPanel({ open, iframeMounted, onClose }) {
             <p className="text-[10px] text-zoho-muted truncate">
               {ready
                 ? (loggedIn
-                  ? 'Ready — click a phone icon in the CRM to dial'
+                  ? 'Number copied — paste it here, or install Click to Call to dial automatically'
                   : 'Log in to CloudTalk below to place calls')
                 : 'Loading dialer…'}
             </p>
+            {ready && (
+              <a
+                href="https://help.cloudtalk.io/en/articles/2964244-the-click-to-call-extension"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-brand-600 hover:underline"
+              >
+                Get the Click to Call extension →
+              </a>
+            )}
           </div>
           <button
             type="button"

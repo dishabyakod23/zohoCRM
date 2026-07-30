@@ -1,8 +1,9 @@
-import { ownerName } from './recordHelpers.js';
+import { ownerName, personDisplayName } from './recordHelpers.js';
 
 export function userBriefName(user) {
   if (!user) return '—';
-  return `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || '—';
+  const name = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+  return personDisplayName({ name, email: user.email }) || '—';
 }
 
 export function assigneeName(record) {

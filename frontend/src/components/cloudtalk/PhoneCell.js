@@ -13,7 +13,7 @@ export default function PhoneCell({ value, label = 'Call lead' }) {
   const handleDial = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    dialNumber(value, { autoCall: true });
+    dialNumber(value);
   };
 
   return (
@@ -24,7 +24,10 @@ export default function PhoneCell({ value, label = 'Call lead' }) {
         className="truncate text-left text-brand-600 hover:text-brand-700 hover:underline"
         title={`Dial ${normalized}`}
       >
-        {value}
+        {/* Visible text must be full E.164 (+countrycode…) — the CloudTalk Click to Call
+            browser extension pattern-matches page text for numbers in that exact format
+            and won't recognize locally-formatted numbers without a leading "+". */}
+        {normalized}
       </button>
       <ClickToCallButton number={value} label={label} size="xs" />
     </span>

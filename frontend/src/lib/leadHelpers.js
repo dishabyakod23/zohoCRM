@@ -1,6 +1,7 @@
 import { pipelineStageLabel, PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, toApiLeadStatus, proposalDealStatusLabel } from './pipelineHelpers.js';
 import { toDateOnly } from './activityHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
+import { ownerName } from './recordHelpers.js';
 
 /** Map API snake_case lead_status to display label (fallback when lookups unavailable) */
 const STATUS_LABELS = {
@@ -69,9 +70,6 @@ export function resolveLeadStatusForApi(status) {
 /** Normalize API lead for UI */
 export function normalizeLead(lead, statusOptions = []) {
   if (!lead) return lead;
-  const ownerName = lead.owner
-    ? `${lead.owner.first_name || ''} ${lead.owner.last_name || ''}`.trim()
-    : null;
   const rawStatus = lead.lead_status ?? lead.status;
   return {
     ...lead,
@@ -79,7 +77,7 @@ export function normalizeLead(lead, statusOptions = []) {
     lead_status: rawStatus,
     source: lead.lead_source || lead.source,
     lead_source: lead.lead_source || lead.source,
-    owner_name: ownerName || lead.owner_name,
+    owner_name: ownerName(lead),
     converted: lead.is_converted ?? lead.converted,
     is_converted: lead.is_converted ?? lead.converted,
     employees: lead.no_of_employees || lead.employees,

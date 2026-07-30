@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRecordId, isValidRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
@@ -41,6 +41,7 @@ export default function LeadDetailPage() {
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   useMarkRecordViewed('lead', id);
 
@@ -66,15 +67,16 @@ export default function LeadDetailPage() {
   }, [id, ready, loadLead]);
 
   const saveSection = async (payload) => {
-    if (payload.email) {
-      const uniqueErr = await validateEmailUnique(payload.email, { excludeLeadId: id });
-      if (uniqueErr) {
-        showToast(uniqueErr);
-        throw new Error(uniqueErr);
-      }
-    }
+    // Guard set synchronously (before any await) so a rapid double-click or a slow
+    // in-flight email-uniqueness check can't start a second, concurrent submission.
+    if (savingRef.current) throw new Error('Save already in progress');
+    savingRef.current = true;
     setSaving(true);
     try {
+      if (payload.email) {
+        const uniqueErr = await validateEmailUnique(payload.email, { excludeLeadId: id });
+        if (uniqueErr) throw new Error(uniqueErr);
+      }
       await leadsApi.updateLead(id, payload);
       loadLead();
       showToast('Lead updated', 'success');
@@ -82,6 +84,7 @@ export default function LeadDetailPage() {
       showToast(getApiError(err));
       throw err;
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

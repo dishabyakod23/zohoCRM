@@ -1,5 +1,6 @@
 import api, { API_BASE_URL } from '../api.js';
 import { formatEnumLabel, userBriefName } from '../activityHelpers.js';
+import { isGenericRoleName, personDisplayName } from '../recordHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import {
   listCloudTalkCallsLastDays,
@@ -13,8 +14,25 @@ import {
 const AUDIT_LOGS_BASE = `${API_BASE_URL}/audit-logs`;
 const HISTORY_BASE = `${API_BASE_URL}/history`;
 
+/**
+ * Some audit-log entries return a role label ("Super Admin") instead of the actor's real
+ * name in `user_name`. Prefer the nested `user` object (which carries first/last name and
+ * email) whenever the flat name is just a role placeholder.
+ */
+function resolveAuditLogUserName(log) {
+  const flatName = log.user_name;
+  if (flatName && !isGenericRoleName(flatName)) return flatName;
+  const nested = log.user
+    ? personDisplayName({
+      name: `${log.user.first_name || ''} ${log.user.last_name || ''}`.trim(),
+      email: log.user.email,
+    })
+    : null;
+  return nested || flatName || userBriefName(log.user);
+}
+
 export function normalizeAuditLog(log) {
-  const resolvedUserName = log.user_name || userBriefName(log.user);
+  const resolvedUserName = resolveAuditLogUserName(log);
   const entityType = log.entity_type || log.record_type;
   return {
     ...log,

@@ -1,9 +1,3 @@
-import {
-  postCloudTalkAutocallMessages,
-  postCloudTalkDialMessages,
-  postCloudTalkPasteMessages,
-} from './cloudTalkDialMessages.js';
-
 export const CLOUDTALK_ORIGIN = 'https://phone.cloudtalk.io';
 
 export const CLOUDTALK_PARTNER =
@@ -30,60 +24,20 @@ export function normalizePhoneForDial(raw) {
   return `+${digits}`;
 }
 
-export function cloudTalkPhoneUrl({ partner = CLOUDTALK_PARTNER, number, autoCall = false } = {}) {
-  const params = new URLSearchParams({ partner });
-  const normalized = number ? normalizePhoneForDial(number) : '';
-  if (normalized) {
-    params.set('number', normalized);
-    params.set('external_number', normalized);
-    params.set('phone', normalized);
-    if (autoCall) {
-      params.set('autocall', 'true');
-      params.set('auto_call', 'true');
-      params.set('dial', 'true');
-      params.set('click_to_call', 'true');
-    }
-  }
-  const path = normalized ? '/p/dialpad' : '';
-  return `${CLOUDTALK_ORIGIN}${path}?${params.toString()}`;
-}
-
-/** Send the number into the embedded dialer without reloading the iframe. */
-export function postNumberToCloudTalkIframe(iframe, number, { autoCall = true } = {}) {
-  if (!iframe || !number) return;
-  if (autoCall) {
-    postCloudTalkAutocallMessages(iframe, number);
-  } else {
-    postCloudTalkPasteMessages(iframe, number);
-  }
-}
-
 /**
- * Set iframe URL with number (first load only). CloudTalk docs require keeping
- * the iframe mounted — do not call this on every click-to-dial after login.
+ * The embedded CloudTalk Phone (phone.cloudtalk.io) only documents a `partner` query
+ * param for the iframe URL, and only broadcasts *outbound* events (login/ringing/dialing/
+ * ended/etc) via postMessage — there is no documented way to inject a number or trigger a
+ * call into it from the parent page. Don't add undocumented query params here; the agent
+ * dials manually inside the iframe (see `copyPhoneToClipboard` + `tryCloudTalkDesktopDial`
+ * for the two real ways to get a number into a call).
  */
-export function loadCloudTalkIframeWithNumber(iframe, number, { autoCall = true } = {}) {
-  if (!iframe || !number) return;
-  const url = cloudTalkPhoneUrl({ number, autoCall });
-  try {
-    iframe.setAttribute('src', url);
-    iframe.src = url;
-  } catch {
-    iframe.setAttribute('src', url);
-  }
-  if (autoCall) {
-    postCloudTalkAutocallMessages(iframe, number);
-  } else {
-    postCloudTalkPasteMessages(iframe, number);
-  }
+export function cloudTalkPhoneUrl({ partner = CLOUDTALK_PARTNER } = {}) {
+  const params = new URLSearchParams({ partner });
+  return `${CLOUDTALK_ORIGIN}?${params.toString()}`;
 }
 
-/** @deprecated Use postNumberToCloudTalkIframe — reloading clears the dial pad. */
-export function applyNumberToCloudTalkIframe(iframe, number) {
-  postNumberToCloudTalkIframe(iframe, number, { autoCall: true });
-}
-
-/** Deep link for CloudTalk Desktop app (ct+tel:). */
+/** Deep link for CloudTalk's Click to Call browser extension / Desktop app (ct+tel:). */
 export function buildCloudTalkDeepLink(number, fromNumber) {
   const normalized = normalizePhoneForDial(number);
   if (!normalized) return '';
@@ -96,9 +50,15 @@ export function buildCloudTalkDeepLink(number, fromNumber) {
 export function openCloudTalkWebPhone(number) {
   const normalized = normalizePhoneForDial(number);
   if (!normalized || typeof window === 'undefined') return;
-  window.open(cloudTalkPhoneUrl({ number: normalized, autoCall: true }), '_blank', 'noopener,noreferrer');
+  window.open(cloudTalkPhoneUrl(), '_blank', 'noopener,noreferrer');
 }
 
+/**
+ * Fire CloudTalk's documented ct+tel: deep link. Only actually dials if the CloudTalk
+ * Click to Call browser extension or Desktop app is installed and registered as the
+ * handler for that protocol — there is no way to detect success from JS, so callers
+ * should not assume this alone placed the call.
+ */
 export function tryCloudTalkDesktopDial(number, fromNumber) {
   const link = buildCloudTalkDeepLink(number, fromNumber);
   if (!link || typeof window === 'undefined') return false;
@@ -109,4 +69,15 @@ export function tryCloudTalkDesktopDial(number, fromNumber) {
   anchor.click();
   document.body.removeChild(anchor);
   return true;
+}
+
+/** Copy a number to the clipboard so it can be pasted into the CloudTalk dialer. */
+export async function copyPhoneToClipboard(number) {
+  if (!number || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return false;
+  try {
+    await navigator.clipboard.writeText(number);
+    return true;
+  } catch {
+    return false;
+  }
 }

@@ -34,6 +34,13 @@ export function formatCallDuration(seconds) {
   return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`;
 }
 
+/** "Name (+number)" when the number resolves to a CRM contact/lead/account; otherwise just the number. */
+export function cloudTalkCallTarget(phone, contactName) {
+  const phoneLabel = formatPhoneDisplay(phone);
+  if (contactName) return phoneLabel ? `${contactName} (${phoneLabel})` : contactName;
+  return phoneLabel || 'unknown number';
+}
+
 export function cloudTalkCallSummary({
   type,
   status,
@@ -46,7 +53,7 @@ export function cloudTalkCallSummary({
     : type === 'outgoing'
       ? 'Outgoing'
       : 'Internal';
-  const target = contactName || formatPhoneDisplay(phone) || 'unknown number';
+  const target = cloudTalkCallTarget(phone, contactName);
   const durationLabel = duration ? ` (${formatCallDuration(duration)})` : '';
   const missedLabel = status === 'missed' ? ' (missed)' : '';
   return `${direction} CloudTalk call with ${target}${durationLabel}${missedLabel}`;

@@ -22,7 +22,11 @@ export function validateRequired(fields, values) {
 
 export function validatePastDate(dateStr, label = 'Date') {
   if (!dateStr) return null;
-  const d = new Date(dateStr);
+  // Date-only strings ("YYYY-MM-DD") parse as UTC midnight per the ES spec, while `today`
+  // below is local midnight — comparing them directly flags "today" as past in any
+  // timezone behind UTC. Force local-midnight parsing so both sides use the same clock.
+  const datePart = String(dateStr).slice(0, 10);
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(datePart) ? new Date(`${datePart}T00:00:00`) : new Date(dateStr);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return d < today ? `${label} cannot be in the past.` : null;

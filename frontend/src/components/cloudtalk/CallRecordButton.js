@@ -12,7 +12,7 @@ export default function CallRecordButton({ phone, mobile, label = 'Call' }) {
   return (
     <button
       type="button"
-      onClick={() => dialNumber(number, { autoCall: true })}
+      onClick={() => dialNumber(number)}
       className="btn-primary text-xs flex items-center gap-1.5"
     >
       <PhoneIcon className="w-4 h-4" />

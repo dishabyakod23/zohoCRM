@@ -1,6 +1,25 @@
+import { ROLE_LABELS } from './roles.js';
+
+const GENERIC_PERSON_LABELS = new Set(
+  [...Object.values(ROLE_LABELS), 'Admin', 'System', 'Unknown'].map((s) => s.toLowerCase()),
+);
+
+/** True when a "name" is actually a role placeholder ("Super Admin") rather than a real person's name. */
+export function isGenericRoleName(name) {
+  return GENERIC_PERSON_LABELS.has(String(name || '').trim().toLowerCase());
+}
+
+/** Prefer a person's real name; fall back to their email when the stored name is just a role label. */
+export function personDisplayName({ name, email } = {}) {
+  const trimmed = String(name || '').trim();
+  if (trimmed && !isGenericRoleName(trimmed)) return trimmed;
+  return email || trimmed || null;
+}
+
 export function ownerName(record) {
-  if (!record?.owner) return null;
-  return `${record.owner.first_name || ''} ${record.owner.last_name || ''}`.trim() || record.owner.email;
+  if (!record?.owner) return record?.owner_name || null;
+  const name = `${record.owner.first_name || ''} ${record.owner.last_name || ''}`.trim();
+  return personDisplayName({ name, email: record.owner.email }) || record.owner_name || null;
 }
 
 export function parseLookupOptions(data, labelFn) {

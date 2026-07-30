@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRecordId, isValidRecordId, getRecordIdFromPathname } from '../../hooks/useRecordId.js';
 import CRMLayout from '../layout/CRMLayout.js';
@@ -48,6 +48,7 @@ export default function PipelineLeadDetail({ stage }) {
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignUserId, setAssignUserId] = useState('');
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const { campaignField, saveCampaignFromDraft, campaignValues } = useRecordCampaign('lead', id);
 
@@ -105,15 +106,16 @@ export default function PipelineLeadDetail({ stage }) {
   }, [loadLead, id]);
 
   const saveSection = async (payload) => {
-    if (payload.email) {
-      const uniqueErr = await validateEmailUnique(payload.email, { excludeLeadId: id });
-      if (uniqueErr) {
-        showToast(uniqueErr);
-        throw new Error(uniqueErr);
-      }
-    }
+    // Guard set synchronously (before any await) so a rapid double-click or a slow
+    // in-flight email-uniqueness check can't start a second, concurrent submission.
+    if (savingRef.current) throw new Error('Save already in progress');
+    savingRef.current = true;
     setSaving(true);
     try {
+      if (payload.email) {
+        const uniqueErr = await validateEmailUnique(payload.email, { excludeLeadId: id });
+        if (uniqueErr) throw new Error(uniqueErr);
+      }
       const { campaign_id: draftCampaignId, campaign_name: draftCampaignName, ...leadPayload } = payload;
       await leadsApi.updateLead(id, leadPayload);
       if (draftCampaignId !== undefined || draftCampaignName !== undefined) {
@@ -125,6 +127,7 @@ export default function PipelineLeadDetail({ stage }) {
       showToast(getApiError(err));
       throw err;
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

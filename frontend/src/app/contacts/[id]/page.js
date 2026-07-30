@@ -17,7 +17,7 @@ import api from '../../../lib/api.js';
 import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import * as dealsApi from '../../../lib/services/deals.js';
-import { fetchAccountLookups, accountMapFromLookups, fetchDealStages, fetchUsers } from '../../../lib/services/lookups.js';
+import { fetchCompanyLookups, accountMapFromLookups, fetchDealStages, fetchUsers } from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
 import { LEAD_SOURCES } from '../../../lib/constants.js';
 import {
@@ -28,6 +28,7 @@ import PhoneDisplay from '../../../components/cloudtalk/PhoneDisplay.js';
 import CallRecordButton from '../../../components/cloudtalk/CallRecordButton.js';
 import AccountNameCombobox from '../../../components/forms/AccountNameCombobox.js';
 import { resolveContactAccountId } from '../../../lib/resolveContactAccount.js';
+import { useRecordCampaign } from '../../../hooks/useRecordCampaign.js';
 import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
@@ -80,8 +81,10 @@ export default function ContactDetailPage() {
   const [convertOpen, setConvertOpen] = useState(false);
   const [converting, setConverting] = useState(false);
   const convertRef = useRef(null);
+  const savingRef = useRef(false);
 
   useMarkRecordViewed('contact', id);
+  const { campaignField, saveCampaignFromDraft, campaignValues } = useRecordCampaign('contact', id);
 
   const loadContact = useCallback(() => {
     if (!ready) return;
@@ -96,7 +99,7 @@ export default function ContactDetailPage() {
   }, [id, ready, accounts, router, showToast]);
 
   useEffect(() => {
-    fetchAccountLookups().then(setAccounts).catch(() => {});
+    fetchCompanyLookups().then(setAccounts).catch(() => {});
     fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
     if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, [canAssignLeads]);
@@ -111,16 +114,18 @@ export default function ContactDetailPage() {
   }, [id, accounts, stageOptions]);
 
   const saveSection = async (payload) => {
-    if (payload.email) {
-      const uniqueErr = await validateEmailUnique(payload.email, { excludeContactId: id });
-      if (uniqueErr) {
-        showToast(uniqueErr);
-        throw new Error(uniqueErr);
-      }
-    }
+    // Guard set synchronously (before any await) so a rapid double-click or a slow
+    // in-flight email-uniqueness check can't start a second, concurrent submission.
+    if (savingRef.current) throw new Error('Save already in progress');
+    savingRef.current = true;
     setSaving(true);
     try {
+      if (payload.email) {
+        const uniqueErr = await validateEmailUnique(payload.email, { excludeContactId: id });
+        if (uniqueErr) throw new Error(uniqueErr);
+      }
       const next = { ...payload };
+      const { campaign_id: draftCampaignId, campaign_name: draftCampaignName, ...contactPayload } = next;
       if (Object.prototype.hasOwnProperty.call(payload, 'account_id')
         || Object.prototype.hasOwnProperty.call(payload, 'account_name')) {
         const accountId = await resolveContactAccountId({
@@ -131,18 +136,22 @@ export default function ContactDetailPage() {
           mobile: contact?.mobile,
           owner_id: contact?.owner_id || user?.id,
         });
-        next.account_id = accountId;
-        delete next.account_name;
+        contactPayload.account_id = accountId;
+        delete contactPayload.account_name;
         // Refresh lookups so new accounts appear next edit
-        fetchAccountLookups().then(setAccounts).catch(() => {});
+        fetchCompanyLookups().then(setAccounts).catch(() => {});
       }
-      await contactsApi.updateContact(id, next);
+      await contactsApi.updateContact(id, contactPayload);
+      if (draftCampaignId !== undefined || draftCampaignName !== undefined) {
+        await saveCampaignFromDraft({ campaign_id: draftCampaignId, campaign_name: draftCampaignName });
+      }
       loadContact();
       showToast('Contact updated', 'success');
     } catch (err) {
       showToast(getApiError(err) || err.message);
       throw err;
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -233,13 +242,13 @@ export default function ContactDetailPage() {
             title="Contact Information"
             canEdit={editable}
             saving={saving}
-            values={contact}
+            values={{ ...contact, ...campaignValues }}
             onSave={saveSection}
             fields={[
               { name: 'salutation', label: 'Salutation' },
               { name: 'first_name', label: 'First Name', required: true },
               { name: 'last_name', label: 'Last Name', required: true },
-              { name: 'account_id', label: 'Account', format: () => contact.account_name, render: (d, set) => (
+              { name: 'account_id', label: 'Company', format: () => contact.account_name, render: (d, set) => (
                 <AccountNameCombobox
                   options={accounts}
                   valueId={d.account_id ?? ''}
@@ -249,6 +258,7 @@ export default function ContactDetailPage() {
                     || contact.account_name
                     || ''
                   }
+                  placeholder="Search or type company name"
                   onChange={({ account_id, account_name }) => {
                     set((p) => ({ ...p, account_id, account_name }));
                   }}
@@ -262,6 +272,7 @@ export default function ContactDetailPage() {
                   {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               ) },
+              campaignField,
               ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: contact.owner_name }),
             ]}
           />

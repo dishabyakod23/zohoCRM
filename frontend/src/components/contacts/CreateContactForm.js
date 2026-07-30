@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CRMLayout from '../layout/CRMLayout.js';
@@ -105,6 +105,7 @@ export default function CreateContactForm() {
   const [accounts, setAccounts] = useState([]);
   const [users, setUsers] = useState([]);
   const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     fetchCompanyLookups().then(setAccounts).catch(() => setAccounts([]));
@@ -132,30 +133,34 @@ export default function CreateContactForm() {
   };
 
   const handleSave = async () => {
-    const accountOk = !!(form.account_id || String(form.account_name || '').trim());
-    const errs = validateRequired({
-      first_name: 'First Name',
-      last_name: 'Last Name',
-      email: 'Email',
-    }, form);
-    if (!accountOk) errs.account_id = 'Company name is required';
-    const emailErr = validateEmail(form.email);
-    if (emailErr) errs.email = emailErr;
-    if (form.phone) {
-      const phoneErr = validatePhone(form.phone);
-      if (phoneErr) errs.phone = phoneErr;
-    }
-    if (!errs.email && form.email) {
-      const uniqueErr = emailError || await validateEmailUnique(form.email);
-      if (uniqueErr) errs.email = uniqueErr;
-    }
-    setErrors(errs);
-    if (Object.keys(errs).length) {
-      showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in all required fields before saving.');
-      return;
-    }
+    // Guard set synchronously (before any await) so a rapid double-click or a slow
+    // in-flight email-uniqueness check can't start a second, concurrent submission.
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
+      const accountOk = !!(form.account_id || String(form.account_name || '').trim());
+      const errs = validateRequired({
+        first_name: 'First Name',
+        last_name: 'Last Name',
+        email: 'Email',
+      }, form);
+      if (!accountOk) errs.account_id = 'Company name is required';
+      const emailErr = validateEmail(form.email);
+      if (emailErr) errs.email = emailErr;
+      if (form.phone) {
+        const phoneErr = validatePhone(form.phone);
+        if (phoneErr) errs.phone = phoneErr;
+      }
+      if (!errs.email && form.email) {
+        const uniqueErr = emailError || await validateEmailUnique(form.email);
+        if (uniqueErr) errs.email = uniqueErr;
+      }
+      setErrors(errs);
+      if (Object.keys(errs).length) {
+        showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in all required fields before saving.');
+        return;
+      }
       const accountId = await resolveContactAccountId({
         account_id: form.account_id,
         account_name: form.account_name,
@@ -175,6 +180,7 @@ export default function CreateContactForm() {
     } catch (err) {
       showToast(getApiError(err) || err.message);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -348,7 +354,7 @@ export default function CreateContactForm() {
 
         <div className="flex gap-2 justify-end pt-4">
           <Link href="/contacts" className="btn-secondary">Cancel</Link>
-          <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
+          <button type="button" onClick={handleSave} disabled={saving || checkingEmail || !!emailError} className="btn-primary">
             {saving ? 'Saving…' : 'Save Contact'}
           </button>
         </div>
