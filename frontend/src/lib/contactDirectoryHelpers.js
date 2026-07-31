@@ -42,6 +42,39 @@ export function statusPriorityForLabel(label) {
   return STATUS_PRIORITY[label] ?? 0;
 }
 
+export function isConvertedToAccount(record) {
+  return !!(record?.is_converted || record?.converted || record?.converted_to_account);
+}
+
+/**
+ * Pipeline status for the unified Contacts list.
+ * Company/prospect links (account_id) do NOT promote a contact to Account status.
+ */
+export function resolveDirectoryCurrentStatus(record) {
+  const entityType = String(
+    record?.entity_type || record?._entityType || record?.record_type || 'contact',
+  ).toLowerCase();
+
+  if (entityType === 'deal') return 'Deal';
+  if (entityType === 'account' && isConvertedToAccount(record)) return 'Account';
+
+  if (
+    entityType === 'lead'
+    || entityType === 'raw_lead'
+    || entityType === 'qualified_lead'
+    || entityType === 'proposal'
+  ) {
+    if (isConvertedToAccount(record)) return 'Account';
+    return record?.current_status || record?.status || 'Lead';
+  }
+
+  if (isConvertedToAccount(record)) return 'Account';
+
+  const fromApi = record?.current_status || record?.status;
+  if (fromApi && fromApi !== 'Account') return fromApi;
+  return 'Contact';
+}
+
 export function leadToDirectoryRow(lead, statusOptions = []) {
   const stage = resolveLeadPipelineStage(lead);
   const isConverted = !!(lead?.is_converted || lead?.converted);
@@ -74,15 +107,14 @@ export function leadToDirectoryRow(lead, statusOptions = []) {
 }
 
 export function contactToDirectoryRow(contact) {
-  let current_status = 'Contact';
-  if (contact.account_id) current_status = 'Account';
+  const current_status = resolveDirectoryCurrentStatus({ ...contact, entity_type: 'contact' });
 
   return {
     ...contact,
     _entityType: 'contact',
     _detailHref: `/contacts/${contact.id}`,
-    current_status: contact.current_status || current_status,
-    _statusPriority: statusPriorityForLabel(contact.current_status || current_status),
+    current_status,
+    _statusPriority: statusPriorityForLabel(current_status),
   };
 }
 

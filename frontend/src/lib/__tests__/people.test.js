@@ -44,6 +44,18 @@ describe('normalizePersonRow', () => {
     expect(personRowId({ id: 'c1' })).toBe('c1');
     expect(parsePersonRowId('c1')).toEqual({ entityType: 'contact', recordId: 'c1' });
   });
+
+  it('does not mark company-linked contacts as Account', () => {
+    const row = normalizePersonRow({
+      record_id: 'c1',
+      entity_type: 'contact',
+      account_id: 'co1',
+      account_name: 'Acme',
+      current_status: 'Account',
+    });
+    expect(row.current_status).toBe('Contact');
+    expect(row._entityType).toBe('contact');
+  });
 });
 
 describe('deletePersonRecord', () => {

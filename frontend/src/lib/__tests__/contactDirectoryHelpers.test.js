@@ -42,11 +42,12 @@ describe('buildDirectoryRows', () => {
     expect(rows[0]._entityType).toBe('lead');
   });
 
-  it('marks contacts linked to accounts as Account', () => {
+  it('keeps contacts linked to a company as Contact', () => {
     const rows = buildDirectoryRows({
-      contacts: [{ id: 'c1', first_name: 'Sarah', last_name: 'Wilson', email: 'sarah@example.com', account_id: 'a1' }],
+      contacts: [{ id: 'c1', first_name: 'Sarah', last_name: 'Wilson', email: 'sarah@example.com', account_id: 'a1', account_name: 'Acme' }],
     });
-    expect(rows[0].current_status).toBe('Account');
+    expect(rows[0].current_status).toBe('Contact');
+    expect(rows[0].account_name).toBe('Acme');
   });
 
   it('marks converted leads as Account', () => {
@@ -71,12 +72,12 @@ describe('applyContactDirectoryFilters', () => {
 });
 
 describe('dedupeDirectoryRows', () => {
-  it('prefers account status over lead status for the same email', () => {
+  it('prefers higher pipeline status when the same email appears as contact and lead', () => {
     const rows = dedupeDirectoryRows([
       leadToDirectoryRow({ id: 'l1', first_name: 'A', last_name: 'B', email: 'x@example.com', lead_status: PIPELINE_RAW }),
       contactToDirectoryRow({ id: 'c1', first_name: 'A', last_name: 'B', email: 'x@example.com', account_id: 'acct-1' }),
     ]);
     expect(rows).toHaveLength(1);
-    expect(rows[0].current_status).toBe('Account');
+    expect(rows[0].current_status).toBe('Raw Lead');
   });
 });

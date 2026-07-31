@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { ownerName } from '../recordHelpers.js';
 import { getLeadDetailPath } from '../pipelineHelpers.js';
-import { DIRECTORY_STATUS_OPTIONS } from '../contactDirectoryHelpers.js';
+import { DIRECTORY_STATUS_OPTIONS, resolveDirectoryCurrentStatus, isConvertedToAccount } from '../contactDirectoryHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { cachedLookup } from '../lookupCache.js';
 import * as contactsApi from './contacts.js';
@@ -20,9 +20,21 @@ function parseStatusOptions(data) {
 }
 
 export function personEntityType(person) {
-  return String(
-    person?.entity_type || person?._entityType || person?.record_type || person?.source_type || 'contact',
+  const raw = String(
+    person?.entity_type || person?._entityType || person?.record_type || person?.source_type || '',
   ).toLowerCase();
+
+  if (!raw || raw === 'contact') return 'contact';
+
+  // Company/prospect linkage is not the Accounts module — keep as a contact row.
+  if ((raw === 'account' || raw === 'company') && !isConvertedToAccount(person)) {
+    const status = String(person?.current_status || person?.status || '').toLowerCase();
+    if (!status || status === 'contact' || person?.account_id || person?.company_id) {
+      return 'contact';
+    }
+  }
+
+  return raw;
 }
 
 export function personRecordId(person) {
@@ -143,9 +155,14 @@ export function personDetailHref(person) {
 /** Normalize GET /people or /contacts/directory row for the Contacts list UI. */
 export function normalizePersonRow(person) {
   if (!person) return person;
-  const entityType = personEntityType(person);
+  let entityType = personEntityType(person);
   const recordId = personRecordId(person);
   const rowId = personRowId(person);
+  const current_status = resolveDirectoryCurrentStatus({ ...person, entity_type: entityType });
+
+  if (entityType === 'account' && current_status === 'Contact') {
+    entityType = 'contact';
+  }
 
   return {
     ...person,
@@ -153,12 +170,12 @@ export function normalizePersonRow(person) {
     record_id: recordId,
     entity_type: entityType,
     account_name: person.account_name || person.company || person.company_name || null,
-    current_status: person.current_status || person.status || 'Contact',
+    current_status,
     owner_name: ownerName(person) || person.owner_name || null,
     campaign_id: person.campaign_id || null,
     campaign_name: person.campaign_name || null,
     _entityType: entityType,
-    _detailHref: personDetailHref({ ...person, record_id: recordId, entity_type: entityType }),
+    _detailHref: personDetailHref({ ...person, record_id: recordId, entity_type: entityType, current_status }),
   };
 }
 
