@@ -71,6 +71,18 @@ export function tryCloudTalkDesktopDial(number, fromNumber) {
   return true;
 }
 
+/**
+ * Visually identical to `normalized`, but with a zero-width space after the leading "+".
+ * The CloudTalk Click to Call browser extension scans page text for E.164-looking numbers
+ * and wraps every match in its own styled badge (not something this app's CSS can override).
+ * Breaking up the digit run defeats that pattern match while leaving the number fully
+ * readable — dialing/copying always use the real `normalized` value, never this string.
+ */
+export function displayPhoneWithoutAutoDetect(normalized) {
+  if (!normalized) return normalized;
+  return `${normalized[0]}​${normalized.slice(1)}`;
+}
+
 /** Copy a number to the clipboard so it can be pasted into the CloudTalk dialer. */
 export async function copyPhoneToClipboard(number) {
   if (!number || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return false;

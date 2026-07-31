@@ -1,7 +1,7 @@
 'use client';
 import { PhoneIcon } from '@heroicons/react/24/outline';
 import { useCloudTalk } from './CloudTalkProvider.js';
-import { normalizePhoneForDial } from '../../lib/cloudTalkHelpers.js';
+import { displayPhoneWithoutAutoDetect, normalizePhoneForDial } from '../../lib/cloudTalkHelpers.js';
 
 export default function ClickToCallButton({
   number,
@@ -24,8 +24,8 @@ export default function ClickToCallButton({
   return (
     <button
       type="button"
-      title={`${label} ${normalized}`}
-      aria-label={`${label} ${normalized}`}
+      title={`${label} ${displayPhoneWithoutAutoDetect(normalized)}`}
+      aria-label={`${label} ${displayPhoneWithoutAutoDetect(normalized)}`}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();

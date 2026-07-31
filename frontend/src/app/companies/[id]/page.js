@@ -84,8 +84,8 @@ export default function CompanyDetailPage() {
         subtitle={company.industry || 'Company'}
         avatarLabel={company.name?.[0]}
         lastUpdated={company.updated_at ? new Date(company.updated_at).toLocaleString() : undefined}
-        recordNotes={{ relatedType: 'account', recordId: id, canEdit: editable }}
-        recordHistory={{ entityType: 'account', recordId: id }}
+        recordNotes={{ relatedType: 'company', recordId: id, canEdit: editable }}
+        recordHistory={{ entityType: 'company', recordId: id }}
         actions={deletable && (
           <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
             <TrashIcon className="w-4 h-4" /> Delete
@@ -100,7 +100,7 @@ export default function CompanyDetailPage() {
             values={company}
             onSave={saveSection}
             fields={[
-              { name: 'account_name', label: 'Company Name', required: true },
+              { name: 'company_name', label: 'Company Name', required: true },
               { name: 'phone', label: 'Phone' },
               { name: 'website', label: 'Website' },
               { name: 'industry', label: 'Industry', render: (d, set) => (

@@ -4,6 +4,7 @@ import {
   buildCloudTalkDeepLink,
   tryCloudTalkDesktopDial,
   copyPhoneToClipboard,
+  displayPhoneWithoutAutoDetect,
 } from '../cloudTalkHelpers.js';
 
 describe('normalizePhoneForDial', () => {
@@ -77,6 +78,26 @@ describe('tryCloudTalkDesktopDial', () => {
     expect(clickSpy).toHaveBeenCalledTimes(1);
     expect(result).toBe(true);
     clickSpy.mockRestore();
+  });
+});
+
+describe('displayPhoneWithoutAutoDetect', () => {
+  it('looks identical to the number but contains a zero-width space after the +', () => {
+    const result = displayPhoneWithoutAutoDetect('+16507736053');
+    expect(result).toBe('+​16507736053');
+    // Visually indistinguishable — stripping the invisible char reproduces the original.
+    expect(result.replace(/​/g, '')).toBe('+16507736053');
+  });
+
+  it('breaks a naive E.164 regex match (the browser extension\'s detection pattern)', () => {
+    const e164Pattern = /^\+\d{7,15}$/;
+    expect(e164Pattern.test('+16507736053')).toBe(true);
+    expect(e164Pattern.test(displayPhoneWithoutAutoDetect('+16507736053'))).toBe(false);
+  });
+
+  it('passes through falsy input unchanged', () => {
+    expect(displayPhoneWithoutAutoDetect('')).toBe('');
+    expect(displayPhoneWithoutAutoDetect(null)).toBeNull();
   });
 });
 
