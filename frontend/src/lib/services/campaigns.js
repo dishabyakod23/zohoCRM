@@ -2,6 +2,7 @@ import api from '../api.js';
 import { assigneeName, formatEnumLabel, listResult, omitEmpty, toDateOnly } from '../activityHelpers.js';
 import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { fetchAllIdsFromEndpoint } from '../listSelectionHelpers.js';
 
 export function normalizeCampaign(campaign) {
   const type = campaign.type ?? campaign.campaign_type;
@@ -45,6 +46,16 @@ export async function listCampaigns(params = {}) {
   const res = await api.get('/campaigns', { params: { ...rest, page, limit: limit ?? page_size ?? DEFAULT_PAGE_SIZE } });
   const result = listResult(res);
   return { ...result, data: result.data.map(normalizeCampaign) };
+}
+
+export async function listAllMatchingCampaignIds(params = {}) {
+  const { page_size, limit, search, sort_by, sort_order, ...rest } = params;
+  return fetchAllIdsFromEndpoint('/campaigns', {
+    ...rest,
+    ...(search ? { search } : {}),
+    ...(sort_by ? { sort_by } : {}),
+    ...(sort_order ? { sort_order } : {}),
+  }, { useLimit: true });
 }
 
 export async function getCampaign(id) {

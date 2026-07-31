@@ -15,6 +15,7 @@ import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams, sortRecords } from '../../lib/listSortHelpers.js';
 import ListSortSelect from '../../components/layout/ListSortSelect.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 export default function ActivitiesPage() {
   const { showToast } = useToast();
@@ -22,6 +23,9 @@ export default function ActivitiesPage() {
   const [tasks, setTasks] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [calls, setCalls] = useState([]);
+  const [tasksTotal, setTasksTotal] = useState(0);
+  const [meetingsTotal, setMeetingsTotal] = useState(0);
+  const [callsTotal, setCallsTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
@@ -32,12 +36,15 @@ export default function ActivitiesPage() {
       if (tab === 'tasks') {
         const t = await tasksApi.listTasks({ page: 1, page_size: DEFAULT_PAGE_SIZE, ...sortParams });
         setTasks(sortRecords(t.data, sort, 'tasks'));
+        setTasksTotal(t.total ?? t.data?.length ?? 0);
       } else if (tab === 'meetings') {
         const m = await meetingsApi.listMeetings({ page: 1, page_size: DEFAULT_PAGE_SIZE, ...sortParams });
         setMeetings(sortRecords(m.data, sort, 'meetings'));
+        setMeetingsTotal(m.total ?? m.data?.length ?? 0);
       } else {
         const c = await callsApi.listCalls({ page: 1, page_size: DEFAULT_PAGE_SIZE, ...sortParams });
         setCalls(sortRecords(c.data, sort, 'calls'));
+        setCallsTotal(c.total ?? c.data?.length ?? 0);
       }
     } catch (err) {
       showToast(getApiError(err));
@@ -47,6 +54,39 @@ export default function ActivitiesPage() {
   }, [showToast, sort, tab]);
 
   useEffect(() => { fetchActivities(); }, [fetchActivities]);
+
+  const taskListParams = useMemo(() => getSortApiParams(sort, 'tasks'), [sort]);
+  const meetingListParams = useMemo(() => getSortApiParams(sort, 'meetings'), [sort]);
+  const callListParams = useMemo(() => getSortApiParams(sort, 'calls'), [sort]);
+
+  const fetchAllMatchingTaskIds = useCallback(
+    () => tasksApi.listAllMatchingTaskIds(taskListParams),
+    [taskListParams],
+  );
+  const fetchAllMatchingMeetingIds = useCallback(
+    () => meetingsApi.listAllMatchingMeetingIds(meetingListParams),
+    [meetingListParams],
+  );
+  const fetchAllMatchingCallIds = useCallback(
+    () => callsApi.listAllMatchingCallIds(callListParams),
+    [callListParams],
+  );
+
+  const taskTableSelection = useTableSelection({
+    total: tasksTotal,
+    resetDeps: [tab, sort],
+    fetchAllIds: fetchAllMatchingTaskIds,
+  });
+  const meetingTableSelection = useTableSelection({
+    total: meetingsTotal,
+    resetDeps: [tab, sort],
+    fetchAllIds: fetchAllMatchingMeetingIds,
+  });
+  const callTableSelection = useTableSelection({
+    total: callsTotal,
+    resetDeps: [tab, sort],
+    fetchAllIds: fetchAllMatchingCallIds,
+  });
 
   const taskColumns = useMemo(() => [
     { id: 'subject', header: 'Subject', cell: (t) => <RecordDetailLink href={`/tasks/${t.id}`} className={tableLinkClass}>{t.title}</RecordDetailLink> },
@@ -114,6 +154,7 @@ export default function ActivitiesPage() {
               columns={taskColumns}
               onRefresh={fetchActivities}
               emptyMessage="No tasks found"
+              {...taskTableSelection}
             />
           )}
           {tab === 'meetings' && (
@@ -124,6 +165,7 @@ export default function ActivitiesPage() {
               columns={meetingColumns}
               onRefresh={fetchActivities}
               emptyMessage="No meetings found"
+              {...meetingTableSelection}
             />
           )}
           {tab === 'calls' && (
@@ -134,6 +176,7 @@ export default function ActivitiesPage() {
               columns={callColumns}
               onRefresh={fetchActivities}
               emptyMessage="No calls found"
+              {...callTableSelection}
             />
           )}
         </div>

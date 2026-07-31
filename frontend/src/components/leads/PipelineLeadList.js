@@ -29,6 +29,7 @@ import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const STAGE_MODULE_KEY = {
   [PIPELINE_RAW]: 'raw-leads',
@@ -147,6 +148,26 @@ export default function PipelineLeadList({ stage, description }) {
   );
 
   const totalPages = Math.ceil(total / limit) || 1;
+
+  const leadListParams = useMemo(() => ({
+    search: debouncedSearch || undefined,
+    pipeline_stage: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL].includes(stage) ? stage : stage === PIPELINE_RAW ? PIPELINE_RAW : undefined,
+    lead_status: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PIPELINE_RAW].includes(stage) ? undefined : (config?.apiStatus || stage),
+    filters,
+    campaignMemberIds,
+    ...getSortApiParams(sort, moduleKey),
+  }), [debouncedSearch, stage, config?.apiStatus, filters, sort, moduleKey, campaignMemberIds]);
+
+  const fetchAllMatchingLeadIds = useCallback(
+    () => leadsApi.listAllMatchingLeadIds(leadListParams, statusOptions),
+    [leadListParams, statusOptions],
+  );
+
+  const tableSelection = useTableSelection({
+    total,
+    resetDeps: [debouncedSearch, filters, sort, campaignMemberIds],
+    fetchAllIds: fetchAllMatchingLeadIds,
+  });
 
   const columns = useMemo(() => {
     if (stage === PIPELINE_PROPOSAL) {
@@ -283,6 +304,7 @@ export default function PipelineLeadList({ stage, description }) {
               columns={columns}
               statusOptions={statusOptions}
               onRefresh={fetchLeads}
+              {...tableSelection}
               massUpdateFieldsLoader={loadMassUpdateFields}
               convertTargetsLoader={fetchPipelineConvertTargets}
               massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}

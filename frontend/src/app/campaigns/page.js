@@ -16,6 +16,7 @@ import { fetchCampaignStatuses } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -57,6 +58,22 @@ export default function CampaignsPage() {
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
+  const campaignListParams = useMemo(() => ({
+    search: debouncedSearch || undefined,
+    ...getSortApiParams(sort, 'campaigns'),
+  }), [debouncedSearch, sort]);
+
+  const fetchAllMatchingCampaignIds = useCallback(
+    () => campaignsApi.listAllMatchingCampaignIds(campaignListParams),
+    [campaignListParams],
+  );
+
+  const tableSelection = useTableSelection({
+    total,
+    resetDeps: [debouncedSearch, sort],
+    fetchAllIds: fetchAllMatchingCampaignIds,
+  });
+
   const columns = useMemo(() => [
     { id: 'name', header: 'Name', cell: (c) => <RecordDetailLink href={`/campaigns/${c.id}`} className={tableLinkClass}>{c.name}</RecordDetailLink> },
     { id: 'type', header: 'Type', cell: (c) => c.type_label },
@@ -93,6 +110,7 @@ export default function CampaignsPage() {
               statusOptions={statusOptions}
               onRefresh={fetchItems}
               emptyMessage="No campaigns found"
+              {...tableSelection}
               pagination={{ page, totalPages, onPageChange: setPage, label: total ? `${((page - 1) * LIMIT) + 1}–${Math.min(page * LIMIT, total)} of ${total}` : '0 records' }}
             />
           )}

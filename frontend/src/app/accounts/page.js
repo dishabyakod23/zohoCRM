@@ -21,6 +21,7 @@ import { EMPTY_ACCOUNT_FILTERS, countActiveFilters } from '../../lib/listRecordF
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -70,6 +71,24 @@ export default function AccountsPage() {
   useListRefresh(fetchAccounts);
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
+
+  const accountListParams = useMemo(() => ({
+    search: debouncedSearch || undefined,
+    filters,
+    campaignMemberIds,
+    ...getSortApiParams(sort, 'accounts'),
+  }), [debouncedSearch, filters, sort, campaignMemberIds]);
+
+  const fetchAllMatchingAccountIds = useCallback(
+    () => accountsApi.listAllMatchingAccountIds(accountListParams),
+    [accountListParams],
+  );
+
+  const tableSelection = useTableSelection({
+    total,
+    resetDeps: [debouncedSearch, filters, sort, campaignMemberIds],
+    fetchAllIds: fetchAllMatchingAccountIds,
+  });
 
   const columns = useMemo(() => [
     { id: 'name', header: 'Company', cell: (a) => (
@@ -136,6 +155,7 @@ export default function AccountsPage() {
               statusOptions={ACCOUNT_STATUS_OPTIONS}
               onRefresh={fetchAccounts}
               emptyMessage="No accounts found"
+              {...tableSelection}
               pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
             />
           )}

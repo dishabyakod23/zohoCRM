@@ -1,5 +1,7 @@
 import api from '../api.js';
 import { assigneeName, formatEnumLabel, listResult, omitEmpty, toDateOnly } from '../activityHelpers.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 
 export function normalizeProject(project, accountMap = {}) {
   const account = accountMap[project.account_id];
@@ -33,6 +35,27 @@ export async function listProjects(params = {}, accountMap = {}) {
   const res = await api.get('/projects', { params });
   const result = listResult(res);
   return { ...result, data: result.data.map((p) => normalizeProject(p, accountMap)) };
+}
+
+function matchesProjectSearch(project, search) {
+  if (!search) return true;
+  const q = search.toLowerCase();
+  return (project.name || '').toLowerCase().includes(q)
+    || (project.account_name || '').toLowerCase().includes(q)
+    || (project.status_label || '').toLowerCase().includes(q);
+}
+
+export async function listAllMatchingProjectIds(params = {}, accountMap = {}, { search } = {}) {
+  const all = [];
+  let page = 1;
+  while (page <= 50) {
+    const result = await listProjects({ ...params, page, page_size: DEFAULT_PAGE_SIZE }, accountMap);
+    const batch = (result.data || []).filter((project) => matchesProjectSearch(project, search));
+    all.push(...batch);
+    if (!result.data?.length || page * DEFAULT_PAGE_SIZE >= (result.total ?? 0)) break;
+    page += 1;
+  }
+  return all.map((project) => project.id).filter(Boolean);
 }
 
 export async function getProject(id, accountMap = {}) {

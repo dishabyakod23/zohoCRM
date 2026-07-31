@@ -20,6 +20,7 @@ import { fetchTaskStatuses, fetchTaskPriorities, fetchUsers } from '../../lib/se
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const EMPTY = { title: '', due_date: '', assigned_to: '', status: 'not_started', priority: 'normal', description: '' };
 const REQUIRED = { title: 'Task Title', due_date: 'Due Date', assigned_to: 'Assigned To', status: 'Status' };
@@ -93,6 +94,22 @@ export default function TasksPage() {
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
+  const taskListParams = useMemo(() => ({
+    search: debouncedSearch || undefined,
+    ...getSortApiParams(sort, 'tasks'),
+  }), [debouncedSearch, sort]);
+
+  const fetchAllMatchingTaskIds = useCallback(
+    () => tasksApi.listAllMatchingTaskIds(taskListParams),
+    [taskListParams],
+  );
+
+  const tableSelection = useTableSelection({
+    total,
+    resetDeps: [debouncedSearch, sort],
+    fetchAllIds: fetchAllMatchingTaskIds,
+  });
+
   const columns = useMemo(() => [
     { id: 'title', header: 'Title', cell: (t) => <RecordDetailLink href={`/tasks/${t.id}`} className={tableLinkClass}>{t.title}</RecordDetailLink> },
     { id: 'due', header: 'Due Date', cell: (t) => <span className={new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-red-600 font-medium' : ''}>{new Date(t.due_date).toLocaleString()}</span> },
@@ -129,6 +146,7 @@ export default function TasksPage() {
               statusOptions={statusOptions}
               onRefresh={fetchTasks}
               emptyMessage="No tasks found"
+              {...tableSelection}
               pagination={{ page, totalPages, onPageChange: setPage, label: total ? `${((page - 1) * LIMIT) + 1}–${Math.min(page * LIMIT, total)} of ${total}` : '0 records' }}
             />
           )}

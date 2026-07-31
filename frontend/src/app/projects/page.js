@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
@@ -19,6 +19,7 @@ import { fetchAccountLookups, accountMapFromLookups, fetchProjectStatuses } from
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, sortRecords } from '../../lib/listSortHelpers.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const EMPTY = { name: '', account_id: '', status: 'planning', start_date: '', end_date: '', description: '' };
 
@@ -26,6 +27,7 @@ export default function ProjectsPage() {
   const { showToast } = useToast();
   const { canEdit } = usePermissions();
   const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
   const [accounts, setAccounts] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +40,8 @@ export default function ProjectsPage() {
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
+  const accountMapRef = useRef(accountMap);
+  accountMapRef.current = accountMap;
 
   const filteredItems = useMemo(() => {
     const base = !debouncedSearch ? items : items.filter((p) => {
@@ -62,6 +66,7 @@ export default function ProjectsPage() {
     try {
       const result = await projectsApi.listProjects({ page: 1, page_size: DEFAULT_PAGE_SIZE }, accountMap);
       setItems(result.data);
+      setTotal(result.total ?? result.data?.length ?? 0);
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -87,6 +92,19 @@ export default function ProjectsPage() {
       setSaving(false);
     }
   };
+
+  const projectListParams = useMemo(() => ({}), []);
+
+  const fetchAllMatchingProjectIds = useCallback(
+    () => projectsApi.listAllMatchingProjectIds(projectListParams, accountMapRef.current, { search: debouncedSearch }),
+    [projectListParams, debouncedSearch],
+  );
+
+  const tableSelection = useTableSelection({
+    total: debouncedSearch ? filteredItems.length : total,
+    resetDeps: [debouncedSearch, sort],
+    fetchAllIds: fetchAllMatchingProjectIds,
+  });
 
   const columns = useMemo(() => [
     { id: 'name', header: 'Name', cell: (p) => <RecordDetailLink href={`/projects/${p.id}`} className={tableLinkClass}>{p.name}</RecordDetailLink> },
@@ -121,6 +139,7 @@ export default function ProjectsPage() {
               statusOptions={statusOptions}
               onRefresh={fetchItems}
               emptyMessage="No projects found"
+              {...tableSelection}
             />
           )}
         />

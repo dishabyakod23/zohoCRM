@@ -26,6 +26,7 @@ import { tableLinkClass } from '../../lib/tableStyles.js';
 import CurrencyAmountInput from '../../components/forms/CurrencyAmountInput.js';
 import { formatMoney, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const EMPTY = { deal_name: '', amount: '', currency: DEFAULT_CURRENCY, stage_value: 'qualification', closing_date: '', probability: 10, account_id: '', contact_id: '', deal_type: '', lead_source: '', description: '', proposal_amount: '' };
 
@@ -94,6 +95,22 @@ export default function DealsPage() {
   useListRefresh(fetchDeals);
 
   const totalPages = Math.ceil(total / limit) || 1;
+
+  const dealListParams = useMemo(() => ({
+    search: debouncedSearch || undefined,
+    ...getSortApiParams(sort, 'deals'),
+  }), [debouncedSearch, sort]);
+
+  const fetchAllMatchingDealIds = useCallback(
+    () => dealsApi.listAllMatchingDealIds(dealListParams, accountMapRef.current, stageOptionsRef.current),
+    [dealListParams],
+  );
+
+  const tableSelection = useTableSelection({
+    total,
+    resetDeps: [debouncedSearch, sort, view],
+    fetchAllIds: view === 'table' ? fetchAllMatchingDealIds : undefined,
+  });
 
   const handleSave = async () => {
     const errs = validateRequired({ deal_name: 'Deal Name', account_id: 'Account Name', closing_date: 'Closing Date', stage_value: 'Stage', amount: 'Amount' }, form);
@@ -175,6 +192,7 @@ export default function DealsPage() {
                   statusOptions={stageOptions}
                   onRefresh={fetchDeals}
                   emptyMessage="No deals found"
+                  {...tableSelection}
                   pagination={{
                     page,
                     totalPages,

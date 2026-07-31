@@ -28,6 +28,7 @@ import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilt
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const STAGE_BY_VIEW = {
   'All Work Items': null,
@@ -101,6 +102,26 @@ export default function WorkItemsPage() {
 
   const totalPages = Math.ceil(total / limit) || 1;
 
+  const workItemListParams = useMemo(() => ({
+    userId: user?.id,
+    search: debouncedSearch || undefined,
+    pipeline_stage: STAGE_BY_VIEW[activeView] || undefined,
+    filters,
+    campaignMemberIds,
+    ...getSortApiParams(sort, 'leads'),
+  }), [user?.id, debouncedSearch, activeView, filters, sort, campaignMemberIds]);
+
+  const fetchAllMatchingWorkItemIds = useCallback(
+    () => (user?.id ? leadsApi.listAllMatchingWorkItemIds(workItemListParams, statusOptions) : Promise.resolve([])),
+    [workItemListParams, user?.id, statusOptions],
+  );
+
+  const tableSelection = useTableSelection({
+    total,
+    resetDeps: [activeView, debouncedSearch, filters, sort, campaignMemberIds],
+    fetchAllIds: fetchAllMatchingWorkItemIds,
+  });
+
   const loadMassUpdateFields = useCallback(
     () => fetchLeadMassUpdateFields({ canChangeOwner: canAssignLeads }),
     [canAssignLeads],
@@ -163,6 +184,7 @@ export default function WorkItemsPage() {
               statusOptions={statusOptions}
               onRefresh={fetchWorkItems}
               emptyMessage="No leads assigned to you"
+              {...tableSelection}
               massUpdateFieldsLoader={loadMassUpdateFields}
               convertTargetsLoader={fetchPipelineConvertTargets}
               massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}

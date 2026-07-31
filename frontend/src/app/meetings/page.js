@@ -19,6 +19,7 @@ import { fetchUsers } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const EMPTY = { title: '', from_datetime: '', to_datetime: '', host_id: '', location: '', description: '', participant_ids: [] };
 const REQUIRED = { title: 'Meeting Title', from_datetime: 'From Date & Time', to_datetime: 'To Date & Time', host_id: 'Host' };
@@ -92,6 +93,22 @@ export default function MeetingsPage() {
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
+  const meetingListParams = useMemo(() => ({
+    search: debouncedSearch || undefined,
+    ...getSortApiParams(sort, 'meetings'),
+  }), [debouncedSearch, sort]);
+
+  const fetchAllMatchingMeetingIds = useCallback(
+    () => meetingsApi.listAllMatchingMeetingIds(meetingListParams),
+    [meetingListParams],
+  );
+
+  const tableSelection = useTableSelection({
+    total,
+    resetDeps: [debouncedSearch, sort],
+    fetchAllIds: fetchAllMatchingMeetingIds,
+  });
+
   const columns = useMemo(() => [
     { id: 'title', header: 'Title', cell: (m) => <RecordDetailLink href={`/meetings/${m.id}`} className={tableLinkClass}>{m.title}</RecordDetailLink> },
     { id: 'from', header: 'From', cell: (m) => new Date(m.from_datetime).toLocaleString() },
@@ -132,6 +149,7 @@ export default function MeetingsPage() {
               columns={columns}
               onRefresh={fetchItems}
               emptyMessage="No meetings found"
+              {...tableSelection}
               pagination={{ page, totalPages, onPageChange: setPage, label: total ? `${((page - 1) * LIMIT) + 1}–${Math.min(page * LIMIT, total)} of ${total}` : '0 records' }}
             />
           )}

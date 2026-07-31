@@ -19,6 +19,7 @@ import { LEAD_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
 import { ensureCsvColumn } from '../csvHelpers.js';
+import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 
 const CONVERT_MASS_TARGETS = new Set(['account', 'contact', 'deal']);
 const PIPELINE_CONVERT_MASS_FIELD = 'pipeline_convert_target';
@@ -77,6 +78,20 @@ export async function listAllLeads(params = {}, statusOptions) {
     data = applyLeadRecordFilters(data, filters, { campaignMemberIds });
   }
   return { data, total: data.length };
+}
+
+export async function listAllMatchingLeadIds(params = {}, statusOptions) {
+  return listAllMatchingIdsFromListFn(
+    (listParams) => listLeads({ ...listParams, statusOptions }),
+    params,
+  );
+}
+
+export async function listAllMatchingWorkItemIds(params = {}, statusOptions) {
+  return listAllMatchingIdsFromListFn(
+    (listParams) => listWorkItems({ ...listParams, statusOptions }),
+    params,
+  );
 }
 
 export async function listLeads({

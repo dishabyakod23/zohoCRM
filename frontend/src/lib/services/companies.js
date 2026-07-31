@@ -2,6 +2,7 @@ import api from '../api.js';
 import { normalizeCompany, toCompanyPayload } from '../companyHelpers.js';
 import { applyAccountRecordFilters, hasAccountClientFilters } from '../listRecordFilters.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 
 async function fetchAllCompanyPages(params = {}) {
   const pageSize = DEFAULT_PAGE_SIZE;
@@ -19,6 +20,10 @@ async function fetchAllCompanyPages(params = {}) {
   }
 
   return all;
+}
+
+export async function listAllMatchingCompanyIds(params = {}) {
+  return listAllMatchingIdsFromListFn(listCompanies, params);
 }
 
 export async function listCompanies({

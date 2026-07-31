@@ -1,6 +1,7 @@
 import api from '../api.js';
 import { assigneeName, formatEnumLabel, listResult, omitEmpty, toIsoDatetime } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { fetchAllIdsFromEndpoint } from '../listSelectionHelpers.js';
 
 export function normalizeCall(call) {
   const start = call.start_time ?? call.call_start_at;
@@ -36,6 +37,16 @@ export async function listCalls(params = {}) {
   const res = await api.get('/calls', { params: { ...rest, limit: limit ?? page_size ?? DEFAULT_PAGE_SIZE } });
   const result = listResult(res);
   return { ...result, data: result.data.map(normalizeCall) };
+}
+
+export async function listAllMatchingCallIds(params = {}) {
+  const { page_size, limit, search, sort_by, sort_order, ...rest } = params;
+  return fetchAllIdsFromEndpoint('/calls', {
+    ...rest,
+    ...(search ? { search } : {}),
+    ...(sort_by ? { sort_by } : {}),
+    ...(sort_order ? { sort_order } : {}),
+  }, { useLimit: true });
 }
 
 export async function getCall(id) {

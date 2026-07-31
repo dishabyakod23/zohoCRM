@@ -1,5 +1,7 @@
 import api from '../api.js';
 import { assigneeName, formatEnumLabel, listResult, omitEmpty, toIsoDatetime } from '../activityHelpers.js';
+import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { fetchAllIdsFromEndpoint } from '../listSelectionHelpers.js';
 
 export function normalizeTask(task) {
   return {
@@ -31,6 +33,16 @@ export async function listTasks(params = {}) {
   const res = await api.get('/tasks', { params });
   const result = listResult(res);
   return { ...result, data: result.data.map(normalizeTask) };
+}
+
+export async function listAllMatchingTaskIds(params = {}) {
+  const { page_size, limit, search, sort_by, sort_order, ...rest } = params;
+  return fetchAllIdsFromEndpoint('/tasks', {
+    ...rest,
+    ...(search ? { search } : {}),
+    ...(sort_by ? { sort_by } : {}),
+    ...(sort_order ? { sort_order } : {}),
+  }, { useLimit: true });
 }
 
 export async function getTask(id) {

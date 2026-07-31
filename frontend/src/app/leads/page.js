@@ -26,6 +26,7 @@ import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilt
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -106,6 +107,31 @@ export default function LeadsPage() {
 
   const totalPages = Math.ceil(total / limit) || 1;
 
+  const leadListParams = useMemo(() => {
+    const params = {
+      search: debouncedSearch || undefined,
+      lead_status: filters.status || PIPELINE_LEAD,
+      filters,
+      campaignMemberIds,
+      ...(activeView === 'Recently Modified'
+        ? { sort_by: 'updated_at', sort_order: 'desc' }
+        : getSortApiParams(sort, 'leads')),
+    };
+    if (activeView === 'My Leads' && user?.id) params.owner_id = user.id;
+    return params;
+  }, [debouncedSearch, filters, activeView, user?.id, sort, campaignMemberIds]);
+
+  const fetchAllMatchingLeadIds = useCallback(
+    () => leadsApi.listAllMatchingLeadIds(leadListParams, statusOptionsRef.current),
+    [leadListParams],
+  );
+
+  const tableSelection = useTableSelection({
+    total,
+    resetDeps: [activeView, debouncedSearch, filters, sort, campaignMemberIds],
+    fetchAllIds: fetchAllMatchingLeadIds,
+  });
+
   const loadMassUpdateFields = useCallback(
     () => fetchLeadMassUpdateFields({ canChangeOwner: canAssignLeads }),
     [canAssignLeads],
@@ -164,6 +190,7 @@ export default function LeadsPage() {
               statusOptions={statusOptions}
               onRefresh={fetchLeads}
               emptyMessage="No leads found"
+              {...tableSelection}
               massUpdateFieldsLoader={loadMassUpdateFields}
               convertTargetsLoader={fetchPipelineConvertTargets}
               massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}

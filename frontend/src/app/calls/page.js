@@ -19,6 +19,7 @@ import { fetchCallTypes, fetchUsers } from '../../lib/services/lookups.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const EMPTY = { subject: '', call_type: 'outbound', start_time: '', assigned_to: '', duration_minutes: 15, description: '' };
 const LIMIT = DEFAULT_PAGE_SIZE;
@@ -86,6 +87,22 @@ export default function CallsPage() {
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
+  const callListParams = useMemo(() => ({
+    search: debouncedSearch || undefined,
+    ...getSortApiParams(sort, 'calls'),
+  }), [debouncedSearch, sort]);
+
+  const fetchAllMatchingCallIds = useCallback(
+    () => callsApi.listAllMatchingCallIds(callListParams),
+    [callListParams],
+  );
+
+  const tableSelection = useTableSelection({
+    total,
+    resetDeps: [debouncedSearch, sort],
+    fetchAllIds: fetchAllMatchingCallIds,
+  });
+
   const columns = useMemo(() => [
     { id: 'subject', header: 'Subject', cell: (c) => <RecordDetailLink href={`/calls/${c.id}`} className={tableLinkClass}>{c.subject}</RecordDetailLink> },
     { id: 'type', header: 'Type', cell: (c) => c.call_type_label },
@@ -121,6 +138,7 @@ export default function CallsPage() {
               columns={columns}
               onRefresh={fetchItems}
               emptyMessage="No calls found"
+              {...tableSelection}
               pagination={{ page, totalPages, onPageChange: setPage, label: total ? `${((page - 1) * LIMIT) + 1}–${Math.min(page * LIMIT, total)} of ${total}` : '0 records' }}
             />
           )}

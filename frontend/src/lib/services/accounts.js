@@ -8,6 +8,7 @@ import {
 } from '../listRecordFilters.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { cachedRequest } from '../requestCache.js';
+import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 
 const EMAIL_MAP_CACHE_MS = 5 * 60 * 1000;
 
@@ -62,6 +63,10 @@ async function fetchAllAccountPages(params) {
 export async function listAllAccounts(params = {}) {
   const data = await fetchAllAccountPages(params);
   return { data, total: data.length };
+}
+
+export async function listAllMatchingAccountIds(params = {}) {
+  return listAllMatchingIdsFromListFn(listAccounts, params);
 }
 
 export async function listAccounts({

@@ -25,6 +25,7 @@ import { EMPTY_CONTACT_FILTERS, countActiveFilters } from '../../lib/listRecordF
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -111,15 +112,16 @@ export default function ContactsPage() {
     return params;
   }, [debouncedSearch, sort, activeView, user?.id, filters, campaignMemberIds]);
 
-  const selectionResetKey = useMemo(
-    () => JSON.stringify({ activeView, debouncedSearch, filters, sort }),
-    [activeView, debouncedSearch, filters, sort],
-  );
-
   const fetchAllMatchingContactIds = useCallback(
     () => contactsApi.listAllMatchingContactIds(contactListParams, accountMapRef.current),
     [contactListParams],
   );
+
+  const tableSelection = useTableSelection({
+    total,
+    resetDeps: [activeView, debouncedSearch, filters, sort, campaignMemberIds],
+    fetchAllIds: fetchAllMatchingContactIds,
+  });
 
   const columns = useMemo(() => [
     { id: 'contact', header: 'Contact', cell: (c) => (
@@ -173,9 +175,7 @@ export default function ContactsPage() {
               columns={columns}
               onRefresh={fetchContacts}
               emptyMessage="No contacts found"
-              totalMatching={total}
-              fetchAllMatchingIds={fetchAllMatchingContactIds}
-              selectionResetKey={selectionResetKey}
+              {...tableSelection}
               pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
             />
           )}

@@ -20,6 +20,7 @@ import { fetchAccountLookups, accountMapFromLookups } from '../../lib/services/l
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const ENTITY_TYPES = [
   { value: 'account', label: 'Account' },
@@ -73,6 +74,22 @@ export default function DocumentsPage() {
 
   const defaultAccountId = useMemo(() => accounts[0]?.value || '', [accounts]);
   const totalPages = Math.ceil(total / limit) || 1;
+
+  const documentListParams = useMemo(() => ({
+    search: debouncedSearch || undefined,
+    ...getSortApiParams(sort, 'documents'),
+  }), [debouncedSearch, sort]);
+
+  const fetchAllMatchingDocumentIds = useCallback(
+    () => documentsApi.listAllMatchingDocumentIds(documentListParams),
+    [documentListParams],
+  );
+
+  const tableSelection = useTableSelection({
+    total,
+    resetDeps: [debouncedSearch, sort],
+    fetchAllIds: fetchAllMatchingDocumentIds,
+  });
 
   useEffect(() => {
     if (!uploadModal) return undefined;
@@ -185,6 +202,7 @@ export default function DocumentsPage() {
               columns={columns}
               onRefresh={fetchDocs}
               emptyMessage="No documents found"
+              {...tableSelection}
               pagination={{
                 page,
                 totalPages,

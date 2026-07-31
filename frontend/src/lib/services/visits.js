@@ -1,6 +1,7 @@
 import api from '../api.js';
 import { assigneeName, formatEnumLabel, listResult, omitEmpty, toIsoDatetime } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 
 export function normalizeVisit(visit) {
   return {
@@ -31,6 +32,27 @@ export async function listVisits(params = {}, accountMap = {}) {
   const res = await api.get('/visits', { params: { ...rest, limit: limit ?? page_size ?? DEFAULT_PAGE_SIZE } });
   const result = listResult(res);
   return { ...result, data: result.data.map((v) => normalizeVisit(v, accountMap)) };
+}
+
+function matchesVisitSearch(visit, search) {
+  if (!search) return true;
+  const q = search.toLowerCase();
+  return (visit.title || visit.visit_name || '').toLowerCase().includes(q)
+    || (visit.account_name || '').toLowerCase().includes(q)
+    || (visit.location || '').toLowerCase().includes(q);
+}
+
+export async function listAllMatchingVisitIds(params = {}, accountMap = {}, { search } = {}) {
+  const all = [];
+  let page = 1;
+  while (page <= 50) {
+    const result = await listVisits({ ...params, page, page_size: DEFAULT_PAGE_SIZE }, accountMap);
+    const batch = (result.data || []).filter((visit) => matchesVisitSearch(visit, search));
+    all.push(...batch);
+    if (!result.data?.length || page * DEFAULT_PAGE_SIZE >= (result.total ?? 0)) break;
+    page += 1;
+  }
+  return all.map((visit) => visit.id).filter(Boolean);
 }
 
 export async function getVisit(id, accountMap = {}) {

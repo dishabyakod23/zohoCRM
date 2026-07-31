@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
@@ -18,6 +18,7 @@ import { fetchAccountLookups, accountMapFromLookups, fetchVisitStatuses } from '
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, sortRecords } from '../../lib/listSortHelpers.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const EMPTY = { title: '', visit_date: '', location: '', status: 'planned', account_id: '' };
 
@@ -25,6 +26,7 @@ export default function VisitsPage() {
   const { showToast } = useToast();
   const { canEdit } = usePermissions();
   const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
   const [accounts, setAccounts] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +39,8 @@ export default function VisitsPage() {
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
+  const accountMapRef = useRef(accountMap);
+  accountMapRef.current = accountMap;
 
   const filteredItems = useMemo(() => {
     const base = !debouncedSearch ? items : items.filter((v) => {
@@ -61,6 +65,7 @@ export default function VisitsPage() {
     try {
       const result = await visitsApi.listVisits({ page: 1, page_size: DEFAULT_PAGE_SIZE }, accountMap);
       setItems(result.data);
+      setTotal(result.total ?? result.data?.length ?? 0);
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -86,6 +91,19 @@ export default function VisitsPage() {
       setSaving(false);
     }
   };
+
+  const visitListParams = useMemo(() => ({}), []);
+
+  const fetchAllMatchingVisitIds = useCallback(
+    () => visitsApi.listAllMatchingVisitIds(visitListParams, accountMapRef.current, { search: debouncedSearch }),
+    [visitListParams, debouncedSearch],
+  );
+
+  const tableSelection = useTableSelection({
+    total: debouncedSearch ? filteredItems.length : total,
+    resetDeps: [debouncedSearch, sort],
+    fetchAllIds: fetchAllMatchingVisitIds,
+  });
 
   const columns = useMemo(() => [
     { id: 'title', header: 'Title', cell: (v) => <RecordDetailLink href={`/visits/${v.id}`} className={tableLinkClass}>{v.title}</RecordDetailLink> },
@@ -121,6 +139,7 @@ export default function VisitsPage() {
               statusOptions={statusOptions}
               onRefresh={fetchItems}
               emptyMessage="No visits found"
+              {...tableSelection}
             />
           )}
         />

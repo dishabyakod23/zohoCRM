@@ -1,6 +1,7 @@
 import api from '../api.js';
 import { assigneeName } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { fetchAllIdsFromEndpoint } from '../listSelectionHelpers.js';
 
 export function normalizeDocument(doc) {
   return {
@@ -22,6 +23,16 @@ export async function listDocuments(params = {}) {
     total,
     meta: res.data.meta || { total, page: res.data.page, limit: res.data.limit },
   };
+}
+
+export async function listAllMatchingDocumentIds(params = {}) {
+  const { page_size, limit, search, sort_by, sort_order, ...rest } = params;
+  return fetchAllIdsFromEndpoint('/documents', {
+    ...rest,
+    ...(search ? { search } : {}),
+    ...(sort_by ? { sort_by } : {}),
+    ...(sort_order ? { sort_order } : {}),
+  }, { useLimit: true });
 }
 
 export async function getDocument(id) {

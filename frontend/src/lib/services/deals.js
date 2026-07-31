@@ -1,6 +1,7 @@
 import api from '../api.js';
 import { normalizeDeal, toDealPayload } from '../dealHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 
 const LIST_PAGE_SIZE_MAX = DEFAULT_PAGE_SIZE;
 
@@ -38,6 +39,13 @@ export async function listAllDeals(params = {}, accountMap = {}, stageOptions = 
   }
 
   return { data: all, total };
+}
+
+export async function listAllMatchingDealIds(params = {}, accountMap = {}, stageOptions = []) {
+  return listAllMatchingIdsFromListFn(
+    (listParams) => listDeals(listParams, accountMap, stageOptions),
+    params,
+  );
 }
 
 export async function getDeal(id, accountMap = {}, stageOptions = []) {

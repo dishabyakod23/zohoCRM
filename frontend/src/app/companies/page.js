@@ -18,6 +18,7 @@ import { EMPTY_ACCOUNT_FILTERS, countActiveFilters } from '../../lib/listRecordF
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
+import { useTableSelection } from '../../hooks/useTableSelection.js';
 import { companyDetailHref } from '../../lib/recordNavigation.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
@@ -64,6 +65,24 @@ export default function CompaniesPage() {
   useListRefresh(fetchCompanies);
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
+
+  const companyListParams = useMemo(() => ({
+    search: debouncedSearch || undefined,
+    filters,
+    campaignMemberIds,
+    ...getSortApiParams(sort, 'companies'),
+  }), [debouncedSearch, filters, sort, campaignMemberIds]);
+
+  const fetchAllMatchingCompanyIds = useCallback(
+    () => companiesApi.listAllMatchingCompanyIds(companyListParams),
+    [companyListParams],
+  );
+
+  const tableSelection = useTableSelection({
+    total,
+    resetDeps: [debouncedSearch, filters, sort, campaignMemberIds],
+    fetchAllIds: fetchAllMatchingCompanyIds,
+  });
 
   const columns = useMemo(() => [
     { id: 'name', header: 'Company', cell: (company) => (
@@ -128,6 +147,7 @@ export default function CompaniesPage() {
               columns={columns}
               onRefresh={fetchCompanies}
               emptyMessage="No companies found. Companies appear when you add contacts with a company name."
+              {...tableSelection}
               pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
             />
           )}

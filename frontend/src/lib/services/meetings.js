@@ -1,6 +1,7 @@
 import api from '../api.js';
 import { userBriefName, listResult, omitEmpty, toIsoDatetime } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { fetchAllIdsFromEndpoint } from '../listSelectionHelpers.js';
 
 export function normalizeMeeting(meeting) {
   const from = meeting.start_at ?? meeting.from_datetime;
@@ -64,6 +65,16 @@ export async function listMeetings(params = {}) {
   const res = await api.get('/meetings', { params: { ...rest, limit: limit ?? page_size ?? DEFAULT_PAGE_SIZE } });
   const result = listResult(res);
   return { ...result, data: result.data.map(normalizeMeeting) };
+}
+
+export async function listAllMatchingMeetingIds(params = {}) {
+  const { page_size, limit, search, sort_by, sort_order, ...rest } = params;
+  return fetchAllIdsFromEndpoint('/meetings', {
+    ...rest,
+    ...(search ? { search } : {}),
+    ...(sort_by ? { sort_by } : {}),
+    ...(sort_order ? { sort_order } : {}),
+  }, { useLimit: true });
 }
 
 export async function getMeeting(id) {
