@@ -1,8 +1,8 @@
 import { defaultOwnerFilterId, withDefaultOwnerFilters, countActiveFilters, EMPTY_CONTACT_FILTERS } from '../listRecordFilters.js';
 
 describe('defaultOwnerFilterId', () => {
-  it('returns empty string for super admin', () => {
-    expect(defaultOwnerFilterId({ id: '1', role: 'super_admin' })).toBe('');
+  it('returns user id for super admin', () => {
+    expect(defaultOwnerFilterId({ id: '1', role: 'super_admin' })).toBe('1');
   });
 
   it('returns user id for sales manager', () => {

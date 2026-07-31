@@ -1,10 +1,8 @@
 import { toApiLeadStatus } from './pipelineHelpers.js';
-import { isStrictSuperAdmin } from './roles.js';
 
-/** Default owner filter: logged-in user, except strict super admins see all owners. */
+/** Default owner filter: logged-in user on every list page. */
 export function defaultOwnerFilterId(user) {
   if (!user?.id) return '';
-  if (isStrictSuperAdmin(user.role)) return '';
   return String(user.id);
 }
 

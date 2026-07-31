@@ -1,7 +1,9 @@
 'use client';
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import CampaignCombobox from '../forms/CampaignCombobox.js';
 import { resolveCampaignId } from '../../lib/campaignRecordHelpers.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { userDisplayName } from '../../lib/userHelpers.js';
 
 const FilterLayoutContext = createContext('inline');
 
@@ -87,15 +89,29 @@ export function DateFilter({ label, value, onChange, className = '' }) {
 }
 
 export function OwnerFilter({ users = [], value, onChange }) {
+  const { user } = useAuth();
+  const options = useMemo(() => {
+    const byId = new Map();
+    users.forEach((u) => {
+      const id = String(u.id || u.value || '');
+      if (!id) return;
+      byId.set(id, u.name || u.label || id);
+    });
+    if (user?.id) {
+      const currentId = String(user.id);
+      if (!byId.has(currentId)) {
+        byId.set(currentId, userDisplayName(user));
+      }
+    }
+    return Array.from(byId.entries()).map(([optionValue, label]) => ({ value: optionValue, label }));
+  }, [users, user]);
+
   return (
     <SelectFilter
       label="Owner"
-      value={value}
+      value={value ? String(value) : ''}
       onChange={onChange}
-      options={users.map((u) => ({
-        value: u.id || u.value,
-        label: u.name || u.label,
-      }))}
+      options={options}
       emptyLabel="All owners"
     />
   );

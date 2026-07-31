@@ -25,6 +25,18 @@ export function parseAuthUserResponse(body) {
   return nested?.id ? nested : null;
 }
 
+/** Sync-read cached session user for instant filter defaults on list pages. */
+export function readStoredAuthUser() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem('crm_user');
+    if (!stored) return null;
+    return parseAuthUserResponse(JSON.parse(stored));
+  } catch {
+    return null;
+  }
+}
+
 /** True when the browser is on an unauthenticated route. */
 export function isPublicAuthPath(pathname = '') {
   const path = String(pathname || '').replace(/\/$/, '') || '/';
