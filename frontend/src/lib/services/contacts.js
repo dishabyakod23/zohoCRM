@@ -6,9 +6,9 @@ import {
   hasContactClientFilters,
 } from '../listRecordFilters.js';
 import {
-  assignRecordsToCampaign,
   fetchCampaignLookups,
-  resolveCampaignId,
+  resolveImportCampaignId,
+  attachCampaignIdsToImportRecords,
 } from '../campaignRecordHelpers.js';
 import { CONTACT_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
@@ -153,9 +153,8 @@ export async function importContactsFile(file, { dry_run = true, campaignId } = 
     campaignLookups = [];
   }
 
-  let imported = 0;
-  const defaultCampaignId = resolveCampaignId(campaignId, campaignLookups);
-  const campaignGroups = new Map();
+  const defaultCampaignId = await resolveImportCampaignId(campaignId);
+  const processedRecords = [];
 
   for (const record of readyRecords) {
     let accountId = record.account_id || null;
@@ -171,32 +170,32 @@ export async function importContactsFile(file, { dry_run = true, campaignId } = 
       });
     }
 
-    const form = {
+    processedRecords.push({
       ...record,
       account_id: accountId,
       email_opt_out: coerceImportBool(record.email_opt_out),
       skype_id: record.skype_id || record.linkedin || null,
-    };
-    const created = await api.post('/contacts', toContactPayload(form));
-    const contactId = created.data?.data?.id;
-    imported += 1;
-
-    const rowCampaignId = resolveCampaignId(
-      record.campaign_name || record.campaign_id,
-      campaignLookups,
-    ) || defaultCampaignId;
-    if (rowCampaignId && contactId) {
-      const list = campaignGroups.get(rowCampaignId) || [];
-      list.push(contactId);
-      campaignGroups.set(rowCampaignId, list);
-    }
+    });
   }
 
-  for (const [cid, ids] of campaignGroups.entries()) {
-    await assignRecordsToCampaign(cid, 'contact', ids);
+  const records = attachCampaignIdsToImportRecords(processedRecords, {
+    defaultCampaignId,
+    campaignLookups,
+  });
+
+  const importBody = { records };
+  if (defaultCampaignId) {
+    importBody.campaign_id = defaultCampaignId;
   }
 
-  return normalizeImportResult({ imported_count: imported });
+  const res = await api.post('/contacts/bulk-import', importBody);
+  const result = res.data.data || res.data || {};
+
+  return normalizeImportResult({
+    imported_count: result.imported ?? result.imported_count ?? records.length,
+    error_count: result.errors ?? result.error_count,
+    errorRecords: result.errorRecords || result.errors,
+  });
 }
 
 /** Only contact conversion endpoint exposed by the API. */

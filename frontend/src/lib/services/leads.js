@@ -11,9 +11,9 @@ import {
   hasLeadClientFilters,
 } from '../listRecordFilters.js';
 import {
-  assignRecordsToCampaign,
   fetchCampaignLookups,
-  resolveCampaignId,
+  resolveImportCampaignId,
+  attachCampaignIdsToImportRecords,
 } from '../campaignRecordHelpers.js';
 import { LEAD_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
@@ -303,12 +303,7 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
   }
   const upload = await api.post('/leads/bulk-upload', { csv });
   const payload = upload.data.data || {};
-  const records = payload.readyRecords || [];
-  const res = await api.post('/leads/bulk-import', { records });
-  const result = res.data.data || {};
-  const importedIds = (result.records || result.created || result.imported_records || [])
-    .map((row) => row.id)
-    .filter(Boolean);
+  const readyRecords = payload.readyRecords || [];
 
   let campaignLookups = [];
   try {
@@ -316,31 +311,25 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
   } catch {
     campaignLookups = [];
   }
-  const defaultCampaign = resolveCampaignId(campaignId, campaignLookups);
-  const campaignGroups = new Map();
-
-  records.forEach((record, index) => {
-    const leadId = importedIds[index] || importedIds.find((id, i) => records[i]?.email === record.email);
-    if (!leadId) return;
-    const rowCampaignId = resolveCampaignId(
-      record.campaign_name || record.campaign_id,
-      campaignLookups,
-    ) || defaultCampaign;
-    if (!rowCampaignId) return;
-    const list = campaignGroups.get(rowCampaignId) || [];
-    list.push(leadId);
-    campaignGroups.set(rowCampaignId, list);
+  const defaultCampaignId = await resolveImportCampaignId(campaignId);
+  const records = attachCampaignIdsToImportRecords(readyRecords, {
+    defaultCampaignId,
+    campaignLookups,
   });
 
-  if (!campaignGroups.size && defaultCampaign && importedIds.length) {
-    campaignGroups.set(defaultCampaign, importedIds);
+  const importBody = { records };
+  if (defaultCampaignId) {
+    importBody.campaign_id = defaultCampaignId;
   }
 
-  for (const [cid, ids] of campaignGroups.entries()) {
-    await assignRecordsToCampaign(cid, 'lead', ids);
-  }
+  const res = await api.post('/leads/bulk-import', importBody);
+  const result = res.data.data || res.data || {};
 
-  return normalizeImportResult({ imported_count: result.imported ?? records.length });
+  return normalizeImportResult({
+    imported_count: result.imported ?? result.imported_count ?? records.length,
+    error_count: result.errors ?? result.error_count,
+    errorRecords: result.errorRecords || result.errors,
+  });
 }
 
 export async function advanceLeadStage(id, lead_status, { proposal = false, clearProposal = false } = {}) {

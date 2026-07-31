@@ -67,6 +67,23 @@ export async function assignRecordsToCampaign(campaignId, memberType, memberIds)
   await campaignsApi.addCampaignMembers(campaignId, members);
 }
 
+export async function resolveImportCampaignId(campaignId) {
+  if (!campaignId) return '';
+  const lookups = await fetchCampaignLookups().catch(() => []);
+  return resolveCampaignId(campaignId, lookups) || String(campaignId).trim();
+}
+
+export function attachCampaignIdsToImportRecords(records, { defaultCampaignId, campaignLookups = [] } = {}) {
+  return (records || []).map((record) => {
+    const rowCampaignId = resolveCampaignId(
+      record.campaign_id || record.campaign_name,
+      campaignLookups,
+    ) || defaultCampaignId;
+    if (!rowCampaignId) return record;
+    return { ...record, campaign_id: rowCampaignId };
+  });
+}
+
 export async function afterRecordSave({ campaignId, memberType, recordId }) {
   if (campaignId && recordId) {
     await assignRecordToCampaign(campaignId, memberType, recordId);
