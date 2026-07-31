@@ -1,6 +1,7 @@
 import * as contactsApi from './contacts.js';
 import * as leadsApi from './leads.js';
 import * as dealsApi from './deals.js';
+import * as peopleApi from './people.js';
 import {
   buildDirectoryRows,
   applyContactDirectoryFilters,
@@ -24,18 +25,14 @@ function buildSourceParams({
     filters: {
       owner_id: mergedOwnerId,
       campaign_id: filters.campaign_id || '',
-      company: '',
-      designation: '',
-      current_status: '',
+      company: filters.company || '',
+      designation: filters.designation || '',
+      current_status: filters.current_status || '',
     },
   };
 }
 
-/**
- * Unified CRM contact pool: contacts, pipeline leads, and deal-linked contacts.
- * Deduplicates by email/phone/name and keeps the highest pipeline status per person.
- */
-export async function listContactDirectory({
+async function listContactDirectoryClientSide({
   page = 1,
   page_size = DEFAULT_PAGE_SIZE,
   search,
@@ -80,8 +77,57 @@ export async function listContactDirectory({
   };
 }
 
+/**
+ * Unified CRM people pool — prefers GET /people (or /contacts/directory), falls back to client merge.
+ */
+export async function listContactDirectory({
+  page = 1,
+  page_size = DEFAULT_PAGE_SIZE,
+  search,
+  owner_id,
+  sort_by,
+  sort_order,
+  sort_key,
+  filters = {},
+  campaignMemberIds,
+  statusOptions,
+} = {}, accountMap = {}) {
+  try {
+    return await peopleApi.listPeople({
+      page,
+      page_size,
+      search,
+      owner_id,
+      sort_by,
+      sort_order,
+      filters,
+    });
+  } catch (err) {
+    if (err.response?.status !== 404) throw err;
+  }
+
+  return listContactDirectoryClientSide({
+    page,
+    page_size,
+    search,
+    owner_id,
+    sort_by,
+    sort_order,
+    sort_key,
+    filters,
+    campaignMemberIds,
+    statusOptions,
+  }, accountMap);
+}
+
 export async function listAllMatchingContactDirectoryIds(params = {}, accountMap = {}, statusOptions = []) {
-  const result = await listContactDirectory({
+  try {
+    return await peopleApi.listAllMatchingPeopleIds(params);
+  } catch (err) {
+    if (err.response?.status !== 404) throw err;
+  }
+
+  const result = await listContactDirectoryClientSide({
     ...params,
     page: 1,
     page_size: 100000,

@@ -16,6 +16,7 @@ import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { LIST_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import * as contactDirectoryApi from '../../lib/services/contactDirectory.js';
+import { fetchPeopleStatusOptions } from '../../lib/services/people.js';
 import { normalizeContact } from '../../lib/contactHelpers.js';
 import { fetchCompanyLookups, accountMapFromLookups, fetchUsers } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
@@ -26,7 +27,6 @@ import { DIRECTORY_STATUS_OPTIONS } from '../../lib/contactDirectoryHelpers.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
-import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
@@ -47,8 +47,8 @@ export default function ContactsPage() {
   const { filters, setFilters, clearFilters } = useDefaultOwnerFilters(EMPTY_CONTACT_FILTERS);
   const [users, setUsers] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
+  const [statusOptions, setStatusOptions] = useState(DIRECTORY_STATUS_OPTIONS);
   const { campaigns } = useCampaignLookups();
-  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'contact');
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
   const accountMapRef = useRef(accountMap);
@@ -61,6 +61,7 @@ export default function ContactsPage() {
       setContacts((prev) => prev.map((contact) => normalizeContact(contact, map)));
     }).catch(() => setAccounts([]));
     fetchUsers().then(setUsers).catch(() => setUsers([]));
+    fetchPeopleStatusOptions().then(setStatusOptions).catch(() => setStatusOptions(DIRECTORY_STATUS_OPTIONS));
   }, []);
 
   useEffect(() => {
@@ -81,7 +82,6 @@ export default function ContactsPage() {
         page_size: LIMIT,
         search: debouncedSearch || undefined,
         filters: directoryFilters,
-        campaignMemberIds,
         sort_key: sort,
         ...getSortApiParams(sort, 'contacts'),
       }, accountMapRef.current);
@@ -94,7 +94,7 @@ export default function ContactsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, showToast, activeView, user?.id, filters, sort, campaignMemberIds]);
+  }, [page, debouncedSearch, showToast, activeView, user?.id, filters, sort]);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
   useListRefresh(fetchContacts);
@@ -110,11 +110,10 @@ export default function ContactsPage() {
       filters: activeView === 'My Contacts' && user?.id
         ? { ...filters, owner_id: user.id }
         : filters,
-      campaignMemberIds,
     };
     if (activeView === 'My Contacts' && user?.id) params.owner_id = user.id;
     return params;
-  }, [debouncedSearch, sort, activeView, user?.id, filters, campaignMemberIds]);
+  }, [debouncedSearch, sort, activeView, user?.id, filters]);
 
   const fetchAllMatchingContactIds = useCallback(
     () => contactDirectoryApi.listAllMatchingContactDirectoryIds(contactListParams, accountMapRef.current),
@@ -123,7 +122,7 @@ export default function ContactsPage() {
 
   const tableSelection = useTableSelection({
     total,
-    resetDeps: [activeView, debouncedSearch, filters, sort, campaignMemberIds],
+    resetDeps: [activeView, debouncedSearch, filters, sort],
     fetchAllIds: fetchAllMatchingContactIds,
   });
 
@@ -192,7 +191,7 @@ export default function ContactsPage() {
             label="Current Status"
             value={filters.current_status}
             onChange={(v) => { setFilters((f) => ({ ...f, current_status: v })); setPage(1); }}
-            options={DIRECTORY_STATUS_OPTIONS}
+            options={statusOptions}
             emptyLabel="All statuses"
           />
           <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => { setFilters((f) => ({ ...f, campaign_id: v })); setPage(1); }} />

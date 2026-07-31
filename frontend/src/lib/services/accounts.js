@@ -84,6 +84,7 @@ export async function listAccounts({
   if (search) params.search = search;
   const mergedOwnerId = filters.owner_id || owner_id;
   if (mergedOwnerId) params.owner_id = mergedOwnerId;
+  if (filters.campaign_id) params.campaign_id = filters.campaign_id;
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
 
@@ -93,12 +94,11 @@ export async function listAccounts({
     emailMap ? attachContactEmails(rows, emailMap) : (rows || []).map(normalizeAccount)
   );
 
-  const needsCampaignFilter = Boolean(filters.campaign_id && campaignMemberIds);
-
-  if (hasAccountClientFilters(filters) || needsCampaignFilter) {
+  if (hasAccountClientFilters(filters)) {
     const allAccounts = withEmails(await fetchAllAccountPages({
       search,
       owner_id: mergedOwnerId,
+      campaign_id: filters.campaign_id || undefined,
       sort_by,
       sort_order,
     }));

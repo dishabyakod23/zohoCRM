@@ -61,9 +61,18 @@ export async function finalizeLeadBulkImport({
   syncContacts = true,
 }) {
   const leadIds = extractImportedIds(importResult);
-  let contactIds = [];
+  const backendContactIds = Array.isArray(importResult.contact_ids)
+    ? importResult.contact_ids
+    : extractImportedIds({ records: importResult.contacts || importResult.synced_contacts || [] });
+  const campaignLinked = Boolean(
+    importResult.campaign_linked
+    || importResult.campaign_members_created
+    || importResult.campaign_member_count,
+  );
 
-  if (syncContacts && readyRecords?.length) {
+  let contactIds = backendContactIds;
+
+  if (syncContacts && !contactIds.length && readyRecords?.length) {
     try {
       const contactImport = await syncImportedLeadsAsContacts(readyRecords, { campaignId, campaignLookups });
       contactIds = contactImport.contactIds || [];
@@ -72,7 +81,9 @@ export async function finalizeLeadBulkImport({
     }
   }
 
-  await linkImportedRecordsToCampaign(campaignId, { leadIds, contactIds });
+  if (campaignId && !campaignLinked) {
+    await linkImportedRecordsToCampaign(campaignId, { leadIds, contactIds });
+  }
   invalidateCachedRequestPrefix('lookup:account-contact-emails');
   return { leadIds, contactIds };
 }
