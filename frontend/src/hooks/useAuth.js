@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api.js';
 import { setAuthSessionCookie, clearAuthSessionCookie } from '../lib/authCookie.js';
@@ -9,6 +9,7 @@ import {
   parseAuthUserResponse,
   isPublicAuthPath,
 } from '../lib/authHelpers.js';
+import { mergeStoredProfileImage } from '../lib/profileImageHelpers.js';
 import { postLogin } from '../lib/authClient.js';
 
 const AuthContext = createContext(null);
@@ -72,8 +73,25 @@ export function AuthProvider({ children }) {
     router.push(loginHref());
   };
 
+  const updateUser = useCallback((patch) => {
+    setUser((prev) => {
+      const next = mergeStoredProfileImage({ ...prev, ...patch });
+      localStorage.setItem('crm_user', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    const res = await api.get('/auth/me');
+    const me = parseAuthUserResponse(res.data);
+    if (!me?.id) throw new Error('Invalid session');
+    setUser(me);
+    localStorage.setItem('crm_user', JSON.stringify(me));
+    return me;
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

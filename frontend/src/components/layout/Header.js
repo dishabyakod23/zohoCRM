@@ -13,7 +13,8 @@ import ConfirmDialog from '../ui/ConfirmDialog.js';
 import { getApiError } from '../../lib/api.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { QUICK_CREATE } from '../../lib/constants.js';
-import { userDisplayName, userInitial } from '../../lib/userHelpers.js';
+import { userDisplayName } from '../../lib/userHelpers.js';
+import UserAvatar from '../users/UserAvatar.js';
 import { getLeadDetailPath } from '../../lib/pipelineHelpers.js';
 
 function formatNotifWhen(iso) {
@@ -286,15 +287,18 @@ export default function Header({ onMenuClick }) {
 
           <div className="relative" ref={profileRef} data-tour="header-profile">
             <button onClick={() => setShowProfile(!showProfile)} aria-label="User profile menu" aria-expanded={showProfile}
-              className="w-9 h-9 rounded-xl bg-brand-500 text-white text-xs font-bold hover:bg-brand-600 transition-colors">
-              {userInitial(user)}
+              className="rounded-xl hover:opacity-90 transition-opacity">
+              <UserAvatar user={user} size="md" />
             </button>
             {showProfile && (
-              <div className="absolute right-0 top-full mt-2 bg-white border border-zoho-border rounded-xl shadow-card-hover py-1 w-48 z-50 animate-scaleIn origin-top-right">
-                <div className="px-3 py-2.5 border-b border-gray-100">
+              <div className="absolute right-0 top-full mt-2 bg-white border border-zoho-border rounded-xl shadow-card-hover py-1 w-56 z-50 animate-scaleIn origin-top-right">
+                <div className="px-3 py-2.5 border-b border-gray-100 flex items-center gap-3">
+                  <UserAvatar user={user} size="md" />
+                  <div className="min-w-0">
                   <p className="text-sm font-semibold text-zoho-text">{userDisplayName(user)}</p>
                   <p className="text-xs text-zoho-muted">{user?.email}</p>
                   <p className="text-[10px] text-brand-600 capitalize mt-0.5 font-medium">{user?.role?.replace('_', ' ')}</p>
+                  </div>
                 </div>
                 <Link href="/settings" onClick={() => setShowProfile(false)} className="block px-3 py-2 text-sm hover:bg-brand-50 hover:text-brand-600 transition-colors">View Profile</Link>
                 <button onClick={() => { setShowProfile(false); setLogoutConfirm(true); }}

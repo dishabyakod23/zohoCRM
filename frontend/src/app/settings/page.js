@@ -9,7 +9,10 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
+import ProfileImageManager from '../../components/users/ProfileImageManager.js';
+import UserAvatar from '../../components/users/UserAvatar.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
+import { mergeStoredProfileImage } from '../../lib/profileImageHelpers.js';
 import { USER_ROLES, ROLE_LABELS, ROLE_ACCESS, roleLabel, normalizeRole } from '../../lib/roles.js';
 import * as adminApi from '../../lib/services/admin.js';
 import { triggerWeeklyReport } from '../../lib/services/reports.js';
@@ -337,14 +340,7 @@ export default function SettingsPage() {
 
         {tab === 'profile' && (
           <div className="space-y-6">
-            <div className="card p-5">
-              <h2 className="text-sm font-semibold mb-3">My Profile</h2>
-              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                <div><dt className="text-zoho-muted text-xs">Name</dt><dd className="font-medium">{userDisplayName(user)}</dd></div>
-                <div><dt className="text-zoho-muted text-xs">Email</dt><dd>{user?.email}</dd></div>
-                <div><dt className="text-zoho-muted text-xs">Role</dt><dd className="text-brand-600">{myRoleLabel}</dd></div>
-              </dl>
-            </div>
+            <ProfileImageManager roleLabel={myRoleLabel} />
             <div className="card p-5">
               <h2 className="text-sm font-semibold mb-1">Product tour</h2>
               <p className="text-sm text-zoho-muted mb-4">
@@ -470,6 +466,7 @@ export default function SettingsPage() {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="table-th w-12" />
                     <th className="table-th">Name</th>
                     <th className="table-th">Email</th>
                     <th className="table-th">Role</th>
@@ -479,11 +476,14 @@ export default function SettingsPage() {
                 </thead>
                 <tbody className="divide-y">
                   {usersLoading ? (
-                    <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">Loading users...</td></tr>
+                    <tr><td colSpan={6} className="table-td text-center py-8 text-gray-400">Loading users...</td></tr>
                   ) : users.length === 0 ? (
-                    <tr><td colSpan={5} className="table-td text-center py-8 text-gray-400">No users found</td></tr>
+                    <tr><td colSpan={6} className="table-td text-center py-8 text-gray-400">No users found</td></tr>
                   ) : users.map(u => (
                     <tr key={u.id} className={!u.is_active ? 'opacity-60' : ''}>
+                      <td className="table-td">
+                        <UserAvatar user={mergeStoredProfileImage(u)} size="sm" />
+                      </td>
                       <td className="table-td font-medium">{userDisplayName(u)}</td>
                       <td className="table-td text-blue-600">{u.email}</td>
                       <td className="table-td"><span className="badge bg-brand-50 text-brand-700">{roleLabel(u.role)}</span></td>

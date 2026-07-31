@@ -16,6 +16,7 @@ import { QUICK_CREATE, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { pluralizeLeadStatusLabel } from '../../lib/leadHelpers.js';
 import { formatCompactMoney, formatIndianRupees, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { avatarInitialClass } from '../../lib/tableStyles.js';
+import UserAvatar from '../../components/users/UserAvatar.js';
 import {
   UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
@@ -186,8 +187,8 @@ export default function DashboardPage() {
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {auditLogs.length > 0 ? auditLogs.map((log) => (
                   <div key={log.id} className="flex gap-3 text-sm py-2 px-2 -mx-2 rounded-lg hover:bg-brand-50/60 transition-colors">
-                    <span className="w-2 h-2 rounded-full bg-brand-gradient mt-1.5 shrink-0 ring-4 ring-brand-100" />
-                    <div>
+                    <UserAvatar user={log.user} name={log.user_name || 'System'} size="sm" className="mt-0.5" />
+                    <div className="min-w-0 flex-1">
                       <p className="text-zoho-text font-medium">{log.summary}</p>
                       <p className="text-[11px] text-zoho-muted">
                         {log.user_name || 'System'} · {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}

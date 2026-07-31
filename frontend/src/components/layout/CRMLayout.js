@@ -10,6 +10,7 @@ import BottomUtilityBar from './BottomUtilityBar';
 import MeetingInvitePopup from '../meetings/MeetingInvitePopup.js';
 import OnboardingTour from '../onboarding/OnboardingTour.js';
 import { CloudTalkProvider } from '../cloudtalk/CloudTalkProvider.js';
+import { UserAvatarsProvider } from '../../hooks/useUserAvatars.js';
 import { loginHref } from '../../lib/safeRedirect.js';
 
 export default function CRMLayout({ children }) {
@@ -36,6 +37,7 @@ export default function CRMLayout({ children }) {
   return (
     <CloudTalkProvider>
       <MeetingRemindersProvider>
+        <UserAvatarsProvider>
         <div className="flex h-screen">
           {mobileNavOpen && (
             <button
@@ -55,6 +57,7 @@ export default function CRMLayout({ children }) {
         <MeetingInvitePopup />
         <WeeklyReportScheduler />
         <OnboardingTour userId={user?.id} />
+        </UserAvatarsProvider>
       </MeetingRemindersProvider>
     </CloudTalkProvider>
   );

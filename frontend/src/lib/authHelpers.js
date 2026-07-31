@@ -16,13 +16,19 @@ export function parseAuthTokenResponse(body) {
   return null;
 }
 
+import { mergeStoredProfileImage } from './profileImageHelpers.js';
+
 /** `/auth/me` may return the user flat or wrapped in `{ data }`. */
 export function parseAuthUserResponse(body) {
   if (!body) return null;
-  if (body.id) return body;
-  if (body.data?.id) return body.data;
-  const nested = body?.data;
-  return nested?.id ? nested : null;
+  let user = null;
+  if (body.id) user = body;
+  else if (body.data?.id) user = body.data;
+  else {
+    const nested = body?.data;
+    user = nested?.id ? nested : null;
+  }
+  return user ? mergeStoredProfileImage(user) : null;
 }
 
 /** Sync-read cached session user for instant filter defaults on list pages. */

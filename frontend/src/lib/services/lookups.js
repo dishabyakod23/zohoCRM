@@ -5,6 +5,7 @@ import { parseLookupOptions } from '../recordHelpers.js';
 import { INDUSTRIES, RATINGS } from '../constants.js';
 import { cachedLookup } from '../lookupCache.js';
 import { fetchCampaignLookups } from '../campaignRecordHelpers.js';
+import { mergeStoredProfileImage } from '../profileImageHelpers.js';
 
 /** Fallback when lookups API is unavailable */
 export const FALLBACK_LEAD_STATUSES = [
@@ -49,7 +50,7 @@ export async function fetchLeadStatuses() {
 export async function fetchUsers() {
   return cachedLookup('users', async () => {
     const res = await api.get('/lookups/users');
-    return (res.data.data || []).map(u => ({
+    return (res.data.data || []).map((u) => mergeStoredProfileImage({
       ...u,
       name: u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
     }));

@@ -4,6 +4,7 @@ import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { getEntityHistory } from '../../lib/services/auditLogs.js';
 import { TabPanelSkeleton } from './RecordDetailSkeleton.js';
+import UserAvatar from '../users/UserAvatar.js';
 
 const ACTION_COLORS = {
   create: 'bg-green-100 text-green-700',
@@ -71,7 +72,10 @@ export default function RecordHistoryTab({ entityType, recordId }) {
                   </p>
                 )}
 
-                <p className="text-xs text-zoho-muted mt-1.5">{entry.user_name || 'System'}</p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <UserAvatar user={entry.user} name={entry.user_name || 'System'} size="xs" />
+                  <p className="text-xs text-zoho-muted">{entry.user_name || 'System'}</p>
+                </div>
               </div>
               <span className="text-xs text-zoho-muted shrink-0 whitespace-nowrap">
                 {entry.created_at ? new Date(entry.created_at).toLocaleString() : '—'}

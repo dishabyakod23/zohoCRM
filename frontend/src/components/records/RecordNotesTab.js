@@ -4,6 +4,7 @@ import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import * as notesApi from '../../lib/services/notes.js';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import UserAvatarById from '../users/UserAvatarById.js';
 
 export default function RecordNotesTab({ relatedType, recordId, canEdit = false }) {
   const { showToast } = useToast();
@@ -142,9 +143,12 @@ export default function RecordNotesTab({ relatedType, recordId, canEdit = false 
                       )}
                     </div>
                     {(n.owner_name || n.created_at) && (
-                      <p className="text-[11px] text-zoho-muted mt-2">
-                        {n.owner_name}{n.owner_name && n.created_at ? ' · ' : ''}{n.created_at ? new Date(n.created_at).toLocaleString() : ''}
-                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <UserAvatarById userId={n.owner_id || n.created_by} name={n.owner_name} size="xs" />
+                        <p className="text-[11px] text-zoho-muted">
+                          {n.owner_name}{n.owner_name && n.created_at ? ' · ' : ''}{n.created_at ? new Date(n.created_at).toLocaleString() : ''}
+                        </p>
+                      </div>
                     )}
                   </>
                 )}
