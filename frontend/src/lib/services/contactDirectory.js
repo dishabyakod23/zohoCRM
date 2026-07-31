@@ -9,11 +9,7 @@ import {
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
 
-function peopleResultHasRows(result) {
-  return (result?.total ?? 0) > 0 || (result?.data?.length ?? 0) > 0;
-}
-
-function shouldFallbackFromPeopleApi(error) {
+function shouldFallbackFromDirectoryApi(error) {
   const status = error?.response?.status;
   if (!status) return true;
   if (status === 404) return true;
@@ -91,8 +87,8 @@ async function listContactDirectoryClientSide({
 }
 
 /**
- * Unified CRM people pool — prefers GET /people (or /contacts/directory).
- * Falls back to client merge when the unified API is empty or unavailable.
+ * Unified CRM people pool — uses GET /contacts/directory (or /people).
+ * Falls back to client merge only when the directory API is unavailable.
  */
 export async function listContactDirectory({
   page = 1,
@@ -106,21 +102,18 @@ export async function listContactDirectory({
   campaignMemberIds,
   statusOptions,
 } = {}, accountMap = {}) {
-  const peopleParams = {
-    page,
-    page_size,
-    search,
-    owner_id,
-    sort_by,
-    sort_order,
-    filters,
-  };
-
   try {
-    const apiResult = await peopleApi.listPeople(peopleParams);
-    if (peopleResultHasRows(apiResult)) return apiResult;
+    return await peopleApi.listPeople({
+      page,
+      page_size,
+      search,
+      owner_id,
+      sort_by,
+      sort_order,
+      filters,
+    });
   } catch (err) {
-    if (!shouldFallbackFromPeopleApi(err)) throw err;
+    if (!shouldFallbackFromDirectoryApi(err)) throw err;
   }
 
   return listContactDirectoryClientSide({
@@ -139,10 +132,9 @@ export async function listContactDirectory({
 
 export async function listAllMatchingContactDirectoryIds(params = {}, accountMap = {}, statusOptions = []) {
   try {
-    const ids = await peopleApi.listAllMatchingPeopleIds(params);
-    if (ids.length > 0) return ids;
+    return await peopleApi.listAllMatchingPeopleIds(params);
   } catch (err) {
-    if (!shouldFallbackFromPeopleApi(err)) throw err;
+    if (!shouldFallbackFromDirectoryApi(err)) throw err;
   }
 
   const result = await listContactDirectoryClientSide({

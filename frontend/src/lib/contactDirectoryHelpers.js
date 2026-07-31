@@ -55,6 +55,14 @@ export function resolveDirectoryCurrentStatus(record) {
     record?.entity_type || record?._entityType || record?.record_type || 'contact',
   ).toLowerCase();
 
+  const fromApi = record?.current_status || record?.status;
+  if (fromApi) {
+    if (entityType === 'contact' && fromApi === 'Account' && !isConvertedToAccount(record)) {
+      return 'Contact';
+    }
+    return fromApi;
+  }
+
   if (entityType === 'deal') return 'Deal';
   if (entityType === 'account' && isConvertedToAccount(record)) return 'Account';
 
@@ -65,13 +73,10 @@ export function resolveDirectoryCurrentStatus(record) {
     || entityType === 'proposal'
   ) {
     if (isConvertedToAccount(record)) return 'Account';
-    return record?.current_status || record?.status || 'Lead';
+    return 'Lead';
   }
 
   if (isConvertedToAccount(record)) return 'Account';
-
-  const fromApi = record?.current_status || record?.status;
-  if (fromApi && fromApi !== 'Account') return fromApi;
   return 'Contact';
 }
 

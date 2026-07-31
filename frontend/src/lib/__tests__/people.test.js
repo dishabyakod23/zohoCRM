@@ -38,11 +38,29 @@ describe('normalizePersonRow', () => {
 
   it('uses API-provided detail href when present', () => {
     expect(personDetailHref({ detail_href: '/contacts/abc' })).toBe('/contacts/abc');
+    expect(personDetailHref({ detail_path: 'leads/uuid-here' })).toBe('/leads/uuid-here');
   });
 
   it('keeps plain contact ids for legacy rows', () => {
     expect(personRowId({ id: 'c1' })).toBe('c1');
     expect(parsePersonRowId('c1')).toEqual({ entityType: 'contact', recordId: 'c1' });
+  });
+
+  it('maps production directory row shape', () => {
+    const row = normalizePersonRow({
+      id: 'c1',
+      entity_type: 'contact',
+      detail_path: '/contacts/c1',
+      first_name: 'Ann',
+      last_name: 'Lee',
+      company_name: 'Acme',
+      current_status: 'Contact',
+    });
+
+    expect(row.id).toBe('contact:c1');
+    expect(row.account_name).toBe('Acme');
+    expect(row.current_status).toBe('Contact');
+    expect(row._detailHref).toBe('/contacts/c1');
   });
 
   it('does not mark company-linked contacts as Account', () => {

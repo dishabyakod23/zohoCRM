@@ -26,8 +26,17 @@ describe('listContactDirectory', () => {
     jest.clearAllMocks();
   });
 
-  it('falls back to client merge when the people API returns no rows', async () => {
+  it('uses directory API result even when empty', async () => {
     peopleApi.listPeople.mockResolvedValue({ data: [], total: 0 });
+
+    const result = await listContactDirectory({ page: 1, page_size: 25, filters: {} });
+
+    expect(result.total).toBe(0);
+    expect(contactsApi.listAllContacts).not.toHaveBeenCalled();
+  });
+
+  it('falls back to client merge when the directory API fails', async () => {
+    peopleApi.listPeople.mockRejectedValue({ response: { status: 500 } });
     contactsApi.listAllContacts.mockResolvedValue({
       data: [{ id: 'c1', first_name: 'Ann', last_name: 'Lee', email: 'ann@example.com' }],
       total: 1,
@@ -42,7 +51,7 @@ describe('listContactDirectory', () => {
     expect(contactsApi.listAllContacts).toHaveBeenCalled();
   });
 
-  it('uses people API when it returns rows', async () => {
+  it('uses directory API when it returns rows', async () => {
     peopleApi.listPeople.mockResolvedValue({
       data: [{ id: 'contact:p1', first_name: 'Bob', last_name: 'Ray', entity_type: 'contact', record_id: 'p1' }],
       total: 1,

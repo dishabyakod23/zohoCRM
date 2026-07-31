@@ -127,7 +127,12 @@ export function personCampaignMemberType(person) {
 
 export function personDetailHref(person) {
   if (!person) return '/contacts';
-  if (person.detail_href || person.detail_url) return person.detail_href || person.detail_url;
+
+  const detailPath = person.detail_path || person.detail_href || person.detail_url;
+  if (detailPath) {
+    const path = String(detailPath).trim();
+    return path.startsWith('/') ? path : `/${path}`;
+  }
 
   const entityType = String(
     person.entity_type || person.record_type || person.source_type || '',
@@ -201,7 +206,10 @@ function buildPeopleParams({
   return params;
 }
 
-async function fetchPeoplePage(endpoint, params) {
+const DIRECTORY_ENDPOINTS = ['/contacts/directory', '/people'];
+const DIRECTORY_STATUS_ENDPOINTS = ['/contacts/directory/status-options', '/people/status-options'];
+
+async function fetchDirectoryPage(endpoint, params) {
   const res = await api.get(endpoint, { params });
   const raw = res.data?.data ?? res.data?.items ?? res.data?.results ?? [];
   const list = Array.isArray(raw) ? raw : [];
@@ -213,13 +221,17 @@ async function fetchPeoplePage(endpoint, params) {
   };
 }
 
-async function requestPeopleList(params) {
-  try {
-    return await fetchPeoplePage('/people', params);
-  } catch (err) {
-    if (err.response?.status !== 404) throw err;
-    return fetchPeoplePage('/contacts/directory', params);
+async function requestDirectoryList(params) {
+  let lastError;
+  for (const endpoint of DIRECTORY_ENDPOINTS) {
+    try {
+      return await fetchDirectoryPage(endpoint, params);
+    } catch (err) {
+      lastError = err;
+      if (err.response?.status !== 404) throw err;
+    }
   }
+  throw lastError || new Error('Contact directory API is unavailable');
 }
 
 export async function listPeople({
@@ -240,7 +252,7 @@ export async function listPeople({
     sort_order,
     filters,
   });
-  return requestPeopleList(params);
+  return requestDirectoryList(params);
 }
 
 export async function listAllMatchingPeopleIds(params = {}) {
@@ -250,13 +262,7 @@ export async function listAllMatchingPeopleIds(params = {}) {
   let total = 0;
 
   while (page <= 50) {
-    let result;
-    try {
-      result = await fetchPeoplePage('/people', { ...baseParams, page });
-    } catch (err) {
-      if (err.response?.status !== 404) throw err;
-      result = await fetchPeoplePage('/contacts/directory', { ...baseParams, page });
-    }
+    const result = await requestDirectoryList({ ...baseParams, page });
 
     ids.push(...result.data.map((row) => row.id).filter(Boolean));
     total = result.total;
@@ -269,20 +275,14 @@ export async function listAllMatchingPeopleIds(params = {}) {
 
 export async function fetchPeopleStatusOptions() {
   return cachedLookup('people-status-options', async () => {
-    try {
-      const res = await api.get('/people/status-options');
-      const options = parseStatusOptions(res.data.data ?? res.data);
-      if (options.length) return options;
-    } catch (err) {
-      if (err.response?.status !== 404) throw err;
-    }
-
-    try {
-      const res = await api.get('/contacts/directory/status-options');
-      const options = parseStatusOptions(res.data.data ?? res.data);
-      if (options.length) return options;
-    } catch (err) {
-      if (err.response?.status !== 404) throw err;
+    for (const endpoint of DIRECTORY_STATUS_ENDPOINTS) {
+      try {
+        const res = await api.get(endpoint);
+        const options = parseStatusOptions(res.data.data ?? res.data);
+        if (options.length) return options;
+      } catch (err) {
+        if (err.response?.status !== 404) throw err;
+      }
     }
 
     return DIRECTORY_STATUS_OPTIONS;
