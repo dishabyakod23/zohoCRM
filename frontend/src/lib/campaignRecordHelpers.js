@@ -1,4 +1,5 @@
 import { cachedLookup } from './lookupCache.js';
+import { invalidateCachedRequest, invalidateCachedRequestPrefix } from './requestCache.js';
 import * as campaignsApi from './services/campaigns.js';
 
 export async function fetchCampaignLookups() {
@@ -124,4 +125,9 @@ export async function saveRecordCampaignChange({
 }) {
   if (!recordId || campaignId === previousCampaignId) return;
   if (campaignId) await assignRecordToCampaign(campaignId, memberType, recordId);
+}
+
+export function invalidateCampaignCaches() {
+  invalidateCachedRequest('lookup:campaigns-list');
+  invalidateCachedRequestPrefix('lookup:campaign-members:');
 }

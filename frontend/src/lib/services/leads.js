@@ -15,8 +15,9 @@ import {
   resolveImportCampaignId,
   attachCampaignIdsToImportRecords,
 } from '../campaignRecordHelpers.js';
+import { finalizeLeadBulkImport } from '../importSyncHelpers.js';
 import { LEAD_IMPORT_FIELDS } from '../importFieldConfig.js';
-import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
 import { ensureCsvColumn } from '../csvHelpers.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
@@ -50,8 +51,7 @@ async function convertPipelineTargets(ids, value, extras = {}) {
   return result;
 }
 
-async function fetchAllLeadPages(params, statusOptions) {
-  const pageSize = DEFAULT_PAGE_SIZE;
+async function fetchAllLeadPages(params, statusOptions, pageSize = BULK_FETCH_PAGE_SIZE) {
   let page = 1;
   let all = [];
   let serverTotal = 0;
@@ -68,11 +68,62 @@ async function fetchAllLeadPages(params, statusOptions) {
   return all;
 }
 
+/** Map UI pipeline stage / filters to API query params supported by GET /leads. */
+function buildLeadListApiParams({
+  pipeline_stage,
+  filters = {},
+  search,
+  owner_id,
+  lead_status,
+  sort_by,
+  sort_order,
+} = {}) {
+  const params = {};
+  if (search) params.search = search;
+
+  const mergedOwnerId = filters.owner_id || owner_id;
+  const mergedStatus = filters.status || lead_status;
+
+  if (mergedOwnerId) params.owner_id = mergedOwnerId;
+  if (sort_by) params.sort_by = sort_by;
+  if (sort_order) params.sort_order = sort_order;
+  if (filters.campaign_id) params.campaign_id = filters.campaign_id;
+
+  if (pipeline_stage) {
+    params.is_converted = false;
+    if (pipeline_stage === PIPELINE_PROPOSAL) {
+      params.pipeline_stage = PIPELINE_PROPOSAL;
+      params.lead_status = 'qualified_lead';
+    } else if (pipeline_stage === PIPELINE_QUALIFIED) {
+      params.pipeline_stage = PIPELINE_QUALIFIED;
+      params.lead_status = 'qualified_lead';
+    } else if (pipeline_stage === PIPELINE_RAW) {
+      params.pipeline_stage = PIPELINE_RAW;
+      params.lead_status = 'raw_prospect';
+    } else {
+      params.pipeline_stage = pipeline_stage;
+      const apiStatus = toApiLeadStatus(pipeline_stage) || resolveLeadStatusForApi(pipeline_stage);
+      if (apiStatus) params.lead_status = apiStatus;
+    }
+  } else {
+    const apiStatus = toApiLeadStatus(mergedStatus) || (mergedStatus ? resolveLeadStatusForApi(mergedStatus) : null);
+    if (apiStatus) params.lead_status = apiStatus;
+  }
+
+  return params;
+}
+
+function refineLeadPageByPipelineStage(data, pipeline_stage) {
+  if (!pipeline_stage || !data?.length) return data || [];
+  return filterLeadsByPipelineStage(data, pipeline_stage);
+}
+
 export async function listAllLeads(params = {}, statusOptions) {
-  const { pipeline_stage, filters, campaignMemberIds, ...apiParams } = params;
+  const { pipeline_stage, filters, campaignMemberIds, ...rest } = params;
+  const apiParams = buildLeadListApiParams({ pipeline_stage, filters, ...rest });
   let data = await fetchAllLeadPages(apiParams, statusOptions);
   if (pipeline_stage) {
-    data = filterLeadsByPipelineStage(data, pipeline_stage);
+    data = refineLeadPageByPipelineStage(data, pipeline_stage);
   }
   if (filters && hasLeadClientFilters(filters)) {
     data = applyLeadRecordFilters(data, filters, { campaignMemberIds });
@@ -107,31 +158,21 @@ export async function listLeads({
   filters = {},
   campaignMemberIds,
 } = {}) {
-  const params = {};
-  if (search) params.search = search;
+  const params = buildLeadListApiParams({
+    pipeline_stage,
+    filters,
+    search,
+    owner_id,
+    lead_status,
+    sort_by,
+    sort_order,
+  });
 
-  const mergedOwnerId = filters.owner_id || owner_id;
-  const mergedStatus = filters.status || lead_status;
-
-  const apiStatus = pipeline_stage === PIPELINE_PROPOSAL || pipeline_stage === PIPELINE_QUALIFIED
-    ? 'qualified_lead'
-    : pipeline_stage === PIPELINE_RAW
-      ? null
-      : toApiLeadStatus(mergedStatus) || (mergedStatus ? resolveLeadStatusForApi(mergedStatus) : null);
-  if (apiStatus) params.lead_status = apiStatus;
-  if (mergedOwnerId) params.owner_id = mergedOwnerId;
-  if (sort_by) params.sort_by = sort_by;
-  if (sort_order) params.sort_order = sort_order;
-
-  const needsClientPipeline = Boolean(pipeline_stage);
   const needsClientFilter = hasLeadClientFilters(filters);
-  const fetchAll = needsClientPipeline || needsClientFilter;
 
-  if (fetchAll) {
+  if (needsClientFilter) {
     const allLeads = await fetchAllLeadPages(params, statusOptions);
-    let filtered = pipeline_stage
-      ? filterLeadsByPipelineStage(allLeads, pipeline_stage)
-      : allLeads;
+    let filtered = refineLeadPageByPipelineStage(allLeads, pipeline_stage);
     filtered = applyLeadRecordFilters(filtered, filters, { campaignMemberIds });
     const start = (page - 1) * page_size;
     return {
@@ -143,9 +184,7 @@ export async function listLeads({
 
   const res = await api.get('/leads', { params: { ...params, page, page_size } });
   let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
-  if (mergedStatus && toApiLeadStatus(mergedStatus) === 'qualified_lead' && mergedStatus !== PIPELINE_PROPOSAL) {
-    data = filterLeadsByPipelineStage(data, 'qualified_lead');
-  }
+  data = refineLeadPageByPipelineStage(data, pipeline_stage);
   return {
     data,
     total: res.data.meta?.total ?? 0,
@@ -168,23 +207,40 @@ export async function listWorkItems({
 } = {}) {
   if (!userId) return { data: [], total: 0 };
 
-  const params = { owner_id: userId };
-  if (search) params.search = search;
-  if (sort_by) params.sort_by = sort_by;
-  if (sort_order) params.sort_order = sort_order;
+  const params = buildLeadListApiParams({
+    pipeline_stage,
+    filters,
+    search,
+    owner_id: userId,
+    sort_by,
+    sort_order,
+  });
+  params.is_converted = false;
 
-  const allLeads = await fetchAllLeadPages(params, statusOptions);
-  let items = allLeads.filter((l) => !(l?.is_converted || l?.converted));
-  if (pipeline_stage) {
-    items = filterLeadsByPipelineStage(items, pipeline_stage);
+  const needsClientFilter = hasLeadClientFilters(filters);
+
+  if (needsClientFilter) {
+    const allLeads = await fetchAllLeadPages(params, statusOptions);
+    let items = refineLeadPageByPipelineStage(allLeads, pipeline_stage);
+    items = applyLeadRecordFilters(items, { ...filters, owner_id: userId }, { campaignMemberIds });
+    items = sortRecords(items, sort_key || 'created_desc', 'leads');
+    const start = (page - 1) * page_size;
+    return {
+      data: items.slice(start, start + page_size),
+      total: items.length,
+    };
   }
-  items = applyLeadRecordFilters(items, { ...filters, owner_id: userId }, { campaignMemberIds });
-  items = sortRecords(items, sort_key || 'created_desc', 'leads');
 
-  const start = (page - 1) * page_size;
+  const res = await api.get('/leads', { params: { ...params, page, page_size } });
+  let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
+  data = refineLeadPageByPipelineStage(data, pipeline_stage);
+  if (sort_key) {
+    data = sortRecords(data, sort_key, 'leads');
+  }
   return {
-    data: items.slice(start, start + page_size),
-    total: items.length,
+    data,
+    total: res.data.meta?.total ?? 0,
+    meta: res.data.meta,
   };
 }
 
@@ -325,10 +381,19 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
   const res = await api.post('/leads/bulk-import', importBody);
   const result = res.data.data || res.data || {};
 
+  await finalizeLeadBulkImport({
+    campaignId: defaultCampaignId,
+    importResult: result,
+    readyRecords,
+    campaignLookups,
+    syncContacts: defaultLeadStatus === PIPELINE_RAW,
+  });
+
   return normalizeImportResult({
     imported_count: result.imported ?? result.imported_count ?? records.length,
     error_count: result.errors ?? result.error_count,
     errorRecords: result.errorRecords || result.errors,
+    created_ids: (result.records || []).map((row) => row?.id).filter(Boolean),
   });
 }
 

@@ -1,4 +1,6 @@
 export const DEFAULT_PAGE_SIZE = 25;
+/** Larger page size when a full-dataset fetch is still required (fewer round trips). */
+export const BULK_FETCH_PAGE_SIZE = 250;
 
 export const LEAD_STATUSES = [
   'None', 'Attempted to Contact', 'Contact in Future', 'Contacted', 'Junk Lead',

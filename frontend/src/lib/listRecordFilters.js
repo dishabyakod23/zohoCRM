@@ -1,4 +1,16 @@
 import { toApiLeadStatus } from './pipelineHelpers.js';
+import { isStrictSuperAdmin } from './roles.js';
+
+/** Default owner filter: logged-in user, except strict super admins see all owners. */
+export function defaultOwnerFilterId(user) {
+  if (!user?.id) return '';
+  if (isStrictSuperAdmin(user.role)) return '';
+  return String(user.id);
+}
+
+export function withDefaultOwnerFilters(emptyFilters, user) {
+  return { ...emptyFilters, owner_id: defaultOwnerFilterId(user) };
+}
 
 export function includesText(haystack, needle) {
   if (!needle) return true;
@@ -94,7 +106,7 @@ export function applyAccountRecordFilters(accounts, filters = {}, { campaignMemb
 
 export function hasLeadClientFilters(filters = {}) {
   return Boolean(
-    filters.company || filters.source || filters.status || filters.deal_status || filters.campaign_id
+    filters.company || filters.source || filters.status || filters.deal_status
     || filters.proposal_date_from || filters.proposal_date_to
     || filters.closure_date_from || filters.closure_date_to
     || (filters.deal_size_min !== '' && filters.deal_size_min != null)
@@ -103,15 +115,25 @@ export function hasLeadClientFilters(filters = {}) {
 }
 
 export function hasContactClientFilters(filters = {}) {
-  return Boolean(filters.company || filters.campaign_id);
+  return Boolean(filters.company || filters.designation || filters.current_status);
+}
+
+/** Company list API supports industry/city/website server-side. */
+export function hasCompanyClientFilters(filters = {}) {
+  return Boolean(filters.status || filters.campaign_id || filters.email);
 }
 
 export function hasAccountClientFilters(filters = {}) {
   return Boolean(filters.industry || filters.website || filters.email || filters.status || filters.city || filters.campaign_id);
 }
 
-export function countActiveFilters(filters = {}) {
-  return Object.values(filters).filter((value) => value !== '' && value != null).length;
+export function countActiveFilters(filters = {}, user = null) {
+  const defaultOwnerId = defaultOwnerFilterId(user);
+  return Object.entries(filters).filter(([key, value]) => {
+    if (value === '' || value == null) return false;
+    if (key === 'owner_id' && defaultOwnerId && String(value) === String(defaultOwnerId)) return false;
+    return true;
+  }).length;
 }
 
 export const EMPTY_LEAD_FILTERS = {
@@ -133,6 +155,8 @@ export const EMPTY_CONTACT_FILTERS = {
   company: '',
   owner_id: '',
   campaign_id: '',
+  designation: '',
+  current_status: '',
 };
 
 export const EMPTY_ACCOUNT_FILTERS = {

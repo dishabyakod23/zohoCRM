@@ -1,15 +1,17 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useToast } from '../ui/Toast.js';
+import { useAuth } from '../../hooks/useAuth.js';
 import { getApiError } from '../../lib/api.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
-import { roleLabel } from '../../lib/roles.js';
+import { roleLabel, isStrictSuperAdmin } from '../../lib/roles.js';
 import { leadStatusLabel } from '../../lib/leadHelpers.js';
 import * as performanceApi from '../../lib/services/performanceReports.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 
 export default function PerformanceReportsPanel() {
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [managementRecipients, setManagementRecipients] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -29,13 +31,14 @@ export default function PerformanceReportsPanel() {
       setManagementRecipients(managers);
       setSelectedUserId((current) => {
         if (current) return current;
+        if (user?.id && !isStrictSuperAdmin(user.role)) return String(user.id);
         const firstRep = list.find((u) => u.role !== 'super_admin') || list[0];
         return firstRep ? String(firstRep.id) : '';
       });
     } catch (err) {
       showToast(getApiError(err));
     }
-  }, [showToast]);
+  }, [showToast, user?.id, user?.role]);
 
   const loadPreview = useCallback(async () => {
     if (!selectedUserId) return;
@@ -67,6 +70,10 @@ export default function PerformanceReportsPanel() {
   }, [logsPage]);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
+  useEffect(() => {
+    if (!user?.id || isStrictSuperAdmin(user.role)) return;
+    setSelectedUserId(String(user.id));
+  }, [user?.id, user?.role]);
   useEffect(() => { loadLogs(); }, [loadLogs]);
   useEffect(() => {
     if (selectedUserId) loadPreview();

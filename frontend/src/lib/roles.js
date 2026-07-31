@@ -31,6 +31,11 @@ export function isSuperAdmin(role) {
   return hasAdminAccess(role);
 }
 
+/** True only for the super_admin role (not sales managers). */
+export function isStrictSuperAdmin(role) {
+  return normalizeRole(role) === 'super_admin';
+}
+
 /** Map legacy / display / API role names to canonical UserRole values */
 export function normalizeRole(role) {
   if (!role) return role;

@@ -22,6 +22,7 @@ import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
+import { syncSingleLeadAsContact } from '../../lib/importSyncHelpers.js';
 
 const COUNTRIES = ['India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Singapore', 'UAE', 'Other'];
 const INDIAN_STATES = [
@@ -154,6 +155,9 @@ export default function CreateRawLeadForm() {
         campaign_name: form.campaign_name,
       });
       await afterRecordSave({ campaignId, memberType: 'lead', recordId: created?.id });
+      if (created?.id) {
+        await syncSingleLeadAsContact(created, campaignId);
+      }
       showToast('Raw lead created', 'success');
       navigateToRecord(created?.id ? `/raw-leads/${created.id}` : '/raw-leads');
     } catch (err) {

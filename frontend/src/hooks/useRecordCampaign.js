@@ -8,30 +8,43 @@ import {
 } from '../lib/campaignRecordHelpers.js';
 import { useCampaignLookups } from './useCampaignLookups.js';
 
-export function useRecordCampaign(memberType, recordId) {
+export function useRecordCampaign(memberType, recordId, recordCampaign = null) {
   const { campaigns } = useCampaignLookups();
   const [campaignId, setCampaignId] = useState('');
   const [campaignName, setCampaignName] = useState('');
   const previousCampaignIdRef = useRef('');
 
+  const recordCampaignId = recordCampaign?.campaign_id || '';
+  const recordCampaignName = recordCampaign?.campaign_name || '';
+
   useEffect(() => {
     if (!recordId) return undefined;
     let active = true;
+
+    const applyCampaign = (nextId, nextName) => {
+      if (!active) return;
+      setCampaignId(nextId || '');
+      setCampaignName(nextName || '');
+      previousCampaignIdRef.current = nextId || '';
+    };
+
+    if (recordCampaignId || recordCampaignName) {
+      const resolvedName = recordCampaignName
+        || campaigns.find((c) => String(c.value) === String(recordCampaignId))?.label
+        || '';
+      applyCampaign(recordCampaignId, resolvedName);
+      return () => { active = false; };
+    }
+
     findRecordCampaign(memberType, recordId)
       .then(({ campaign_id, campaign_name }) => {
-        if (!active) return;
-        setCampaignId(campaign_id || '');
-        setCampaignName(campaign_name || '');
-        previousCampaignIdRef.current = campaign_id || '';
+        applyCampaign(campaign_id, campaign_name);
       })
       .catch(() => {
-        if (!active) return;
-        setCampaignId('');
-        setCampaignName('');
-        previousCampaignIdRef.current = '';
+        applyCampaign('', '');
       });
     return () => { active = false; };
-  }, [memberType, recordId]);
+  }, [memberType, recordId, recordCampaignId, recordCampaignName, campaigns]);
 
   const campaignField = useMemo(() => ({
     name: 'campaign_id',

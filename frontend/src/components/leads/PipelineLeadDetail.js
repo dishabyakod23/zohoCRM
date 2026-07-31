@@ -51,7 +51,11 @@ export default function PipelineLeadDetail({ stage }) {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
-  const { campaignField, saveCampaignFromDraft, campaignValues } = useRecordCampaign('lead', id);
+  const { campaignField, saveCampaignFromDraft, campaignValues } = useRecordCampaign(
+    'lead',
+    id,
+    lead ? { campaign_id: lead.campaign_id, campaign_name: lead.campaign_name } : null,
+  );
 
   useEffect(() => {
     fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));

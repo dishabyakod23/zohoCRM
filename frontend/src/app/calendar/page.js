@@ -25,6 +25,7 @@ import {
   resolveCalendarAssigneeIds,
   ASSIGN_TO_ME,
 } from '../../lib/calendarHelpers.js';
+import { defaultOwnerFilterId } from '../../lib/listRecordFilters.js';
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -139,6 +140,11 @@ export default function CalendarPage() {
   const [togglingId, setTogglingId] = useState(null);
   const [users, setUsers] = useState([]);
   const [ownerFilter, setOwnerFilter] = useState('');
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setOwnerFilter(defaultOwnerFilterId(user));
+  }, [user?.id, user?.role]);
 
   const range = useMemo(() => {
     if (view === 'week') {

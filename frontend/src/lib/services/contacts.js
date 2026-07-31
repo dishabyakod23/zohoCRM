@@ -11,7 +11,7 @@ import {
   attachCampaignIdsToImportRecords,
 } from '../campaignRecordHelpers.js';
 import { CONTACT_IMPORT_FIELDS } from '../importFieldConfig.js';
-import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from '../constants.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 import { advanceLeadStage, convertLead } from './leads.js';
 import * as accountsApi from './accounts.js';
@@ -24,7 +24,7 @@ import {
 } from '../pipelineHelpers.js';
 
 async function fetchAllContactPages(params, accountMap) {
-  const pageSize = DEFAULT_PAGE_SIZE;
+  const pageSize = BULK_FETCH_PAGE_SIZE;
   let page = 1;
   let all = [];
   let serverTotal = 0;
@@ -69,12 +69,19 @@ export async function listContacts({
   if (account_id) params.account_id = account_id;
   const mergedOwnerId = filters.owner_id || owner_id;
   if (mergedOwnerId) params.owner_id = mergedOwnerId;
+  if (filters.campaign_id) params.campaign_id = filters.campaign_id;
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
 
   if (hasContactClientFilters(filters)) {
     const allContacts = await fetchAllContactPages(
-      { search, owner_id: mergedOwnerId, sort_by, sort_order },
+      {
+        search,
+        owner_id: mergedOwnerId,
+        campaign_id: filters.campaign_id || undefined,
+        sort_by,
+        sort_order,
+      },
       accountMap,
     );
     const filtered = applyContactRecordFilters(allContacts, filters, { campaignMemberIds });

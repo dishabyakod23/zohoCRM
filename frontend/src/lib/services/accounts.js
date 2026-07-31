@@ -6,7 +6,7 @@ import {
   applyAccountRecordFilters,
   hasAccountClientFilters,
 } from '../listRecordFilters.js';
-import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from '../constants.js';
 import { cachedRequest } from '../requestCache.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 
@@ -14,7 +14,7 @@ const EMAIL_MAP_CACHE_MS = 5 * 60 * 1000;
 
 async function fetchAccountContactEmailMap() {
   return cachedRequest('account-contact-emails', async () => {
-    const pageSize = DEFAULT_PAGE_SIZE;
+    const pageSize = BULK_FETCH_PAGE_SIZE;
     let page = 1;
     const map = new Map();
 
@@ -43,7 +43,7 @@ function attachContactEmails(accounts, emailMap) {
 }
 
 async function fetchAllAccountPages(params) {
-  const pageSize = DEFAULT_PAGE_SIZE;
+  const pageSize = BULK_FETCH_PAGE_SIZE;
   let page = 1;
   let all = [];
   let serverTotal = 0;
@@ -93,7 +93,9 @@ export async function listAccounts({
     emailMap ? attachContactEmails(rows, emailMap) : (rows || []).map(normalizeAccount)
   );
 
-  if (hasAccountClientFilters(filters) || campaignMemberIds) {
+  const needsCampaignFilter = Boolean(filters.campaign_id && campaignMemberIds);
+
+  if (hasAccountClientFilters(filters) || needsCampaignFilter) {
     const allAccounts = withEmails(await fetchAllAccountPages({
       search,
       owner_id: mergedOwnerId,

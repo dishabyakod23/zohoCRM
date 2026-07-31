@@ -88,6 +88,8 @@ export function normalizeLead(lead, statusOptions = []) {
     deal_status: lead.deal_status || null,
     deal_status_label: proposalDealStatusLabel(lead.deal_status),
     currency: lead.currency || DEFAULT_CURRENCY,
+    campaign_id: lead.campaign_id || null,
+    campaign_name: lead.campaign_name || null,
   };
 }
 

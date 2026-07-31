@@ -1,0 +1,82 @@
+import {
+  buildDirectoryRows,
+  dedupeDirectoryRows,
+  contactToDirectoryRow,
+  leadToDirectoryRow,
+  applyContactDirectoryFilters,
+} from '../contactDirectoryHelpers.js';
+import { PIPELINE_RAW } from '../pipelineHelpers.js';
+
+describe('buildDirectoryRows', () => {
+  it('includes leads that are not already represented as contacts', () => {
+    const contacts = [{
+      id: 'c1',
+      first_name: 'Ann',
+      last_name: 'Lee',
+      email: 'ann@example.com',
+      campaign_name: 'Spring',
+    }];
+    const leads = [{
+      id: 'l1',
+      first_name: 'Bob',
+      last_name: 'Ray',
+      email: 'bob@example.com',
+      lead_status: PIPELINE_RAW,
+      company: 'Acme',
+      campaign_name: 'Spring',
+    }];
+
+    const rows = buildDirectoryRows({ contacts, leads });
+    expect(rows).toHaveLength(2);
+    expect(rows.find((row) => row.email === 'bob@example.com')?.current_status).toBe('Raw Lead');
+    expect(rows.find((row) => row.email === 'ann@example.com')?.current_status).toBe('Contact');
+  });
+
+  it('dedupes by email and keeps the higher pipeline status', () => {
+    const contacts = [{ id: 'c1', first_name: 'Ann', last_name: 'Lee', email: 'ann@example.com' }];
+    const leads = [{ id: 'l1', first_name: 'Ann', last_name: 'Lee', email: 'ann@example.com', lead_status: PIPELINE_RAW }];
+
+    const rows = buildDirectoryRows({ contacts, leads });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].current_status).toBe('Raw Lead');
+    expect(rows[0]._entityType).toBe('lead');
+  });
+
+  it('marks contacts linked to accounts as Account', () => {
+    const rows = buildDirectoryRows({
+      contacts: [{ id: 'c1', first_name: 'Sarah', last_name: 'Wilson', email: 'sarah@example.com', account_id: 'a1' }],
+    });
+    expect(rows[0].current_status).toBe('Account');
+  });
+
+  it('marks converted leads as Account', () => {
+    const rows = buildDirectoryRows({
+      leads: [{ id: 'l1', first_name: 'David', last_name: 'Brown', email: 'david@example.com', is_converted: true }],
+    });
+    expect(rows[0].current_status).toBe('Account');
+  });
+});
+
+describe('applyContactDirectoryFilters', () => {
+  it('filters by designation and current status', () => {
+    const rows = [
+      contactToDirectoryRow({ id: '1', first_name: 'John', last_name: 'Smith', title: 'CTO', email: 'john@example.com' }),
+      leadToDirectoryRow({ id: '2', first_name: 'Mary', last_name: 'Jones', title: 'IT Head', email: 'mary@example.com', lead_status: PIPELINE_RAW }),
+    ];
+
+    const filtered = applyContactDirectoryFilters(rows, { designation: 'CTO', current_status: 'Contact' });
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].email).toBe('john@example.com');
+  });
+});
+
+describe('dedupeDirectoryRows', () => {
+  it('prefers account status over lead status for the same email', () => {
+    const rows = dedupeDirectoryRows([
+      leadToDirectoryRow({ id: 'l1', first_name: 'A', last_name: 'B', email: 'x@example.com', lead_status: PIPELINE_RAW }),
+      contactToDirectoryRow({ id: 'c1', first_name: 'A', last_name: 'B', email: 'x@example.com', account_id: 'acct-1' }),
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].current_status).toBe('Account');
+  });
+});

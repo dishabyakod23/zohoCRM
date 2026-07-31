@@ -8,6 +8,7 @@ import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
 import RecordDetailLink from '../../components/records/RecordDetailLink.js';
 import { useToast } from '../../components/ui/Toast.js';
+import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { useListRefresh } from '../../hooks/useListRefresh.js';
@@ -18,6 +19,7 @@ import { tableLinkClass, tableEmailClass, avatarInitialClass } from '../../lib/t
 import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter } from '../../components/layout/ListFilterFields.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import { EMPTY_ACCOUNT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
+import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
@@ -29,6 +31,7 @@ const ACCOUNT_STATUS_OPTIONS = ACCOUNT_TYPES.map((t) => ({ value: t, label: t })
 
 export default function AccountsPage() {
   const { showToast } = useToast();
+  const { user } = useAuth();
   const { canEdit } = usePermissions();
   const [accounts, setAccounts] = useState([]);
   const [total, setTotal] = useState(0);
@@ -36,7 +39,7 @@ export default function AccountsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState(EMPTY_ACCOUNT_FILTERS);
+  const { filters, setFilters, clearFilters } = useDefaultOwnerFilters(EMPTY_ACCOUNT_FILTERS);
   const [users, setUsers] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const { campaigns } = useCampaignLookups();
@@ -55,7 +58,6 @@ export default function AccountsPage() {
         search: debouncedSearch || undefined,
         filters,
         campaignMemberIds,
-        includeContactEmails: true,
         ...getSortApiParams(sort, 'accounts'),
       });
       setAccounts(result.data);
@@ -133,8 +135,8 @@ export default function AccountsPage() {
           sort={sort}
           onSortChange={(v) => { setSort(v); setPage(1); }}
           filterTitle="Filter Accounts by"
-          hasActiveFilters={countActiveFilters(filters) > 0}
-          onClearFilters={() => { setFilters(EMPTY_ACCOUNT_FILTERS); setPage(1); }}
+          hasActiveFilters={countActiveFilters(filters, user) > 0}
+          onClearFilters={() => { clearFilters(); setPage(1); }}
           filterFields={(
             <>
               <SelectFilter label="Industry" value={filters.industry} onChange={(v) => updateFilter('industry', v)} options={industryOptions} emptyLabel="All industries" />

@@ -25,6 +25,7 @@ import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter } fro
 import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
 
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
+import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
@@ -59,7 +60,7 @@ export default function PipelineLeadList({ stage, description }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
-  const [filters, setFilters] = useState(EMPTY_LEAD_FILTERS);
+  const { filters, setFilters, clearFilters } = useDefaultOwnerFilters(EMPTY_LEAD_FILTERS);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -293,8 +294,8 @@ export default function PipelineLeadList({ stage, description }) {
           sort={sort}
           onSortChange={(v) => { setSort(v); setPage(1); }}
           filterTitle={`Filter ${config?.listTitle || 'records'} by`}
-          hasActiveFilters={countActiveFilters(filters) > 0}
-          onClearFilters={() => { setFilters(EMPTY_LEAD_FILTERS); setPage(1); }}
+          hasActiveFilters={countActiveFilters(filters, user) > 0}
+          onClearFilters={() => { clearFilters(); setPage(1); }}
           filterFields={stage === PIPELINE_PROPOSAL ? proposalFilters : leadFilters}
           table={(
             <RecordDataTable

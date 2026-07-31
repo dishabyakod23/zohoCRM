@@ -23,6 +23,7 @@ import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
+import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
@@ -38,7 +39,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
-  const [filters, setFilters] = useState(EMPTY_LEAD_FILTERS);
+  const { filters, setFilters, clearFilters } = useDefaultOwnerFilters(EMPTY_LEAD_FILTERS);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [activeView, setActiveView] = useState('All Leads');
@@ -174,8 +175,8 @@ export default function LeadsPage() {
           onSearch={(v) => { setSearch(v); setPage(1); }}
           sort={sort}
           onSortChange={(v) => { setSort(v); setPage(1); }}
-          hasActiveFilters={countActiveFilters(filters) > 0}
-          onClearFilters={() => { setFilters(EMPTY_LEAD_FILTERS); setPage(1); }}
+          hasActiveFilters={countActiveFilters(filters, user) > 0}
+          onClearFilters={() => { clearFilters(); setPage(1); }}
           extraActions={(
             <select className="input w-28 text-xs" value={limit} onChange={(e) => { setLimit(+e.target.value); setPage(1); }}>
               {[10, 15, 25, 50].map((n) => <option key={n} value={n}>{n} per page</option>)}
