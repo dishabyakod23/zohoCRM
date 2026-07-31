@@ -9,6 +9,19 @@ import {
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
 
+function peopleResultHasRows(result) {
+  return (result?.total ?? 0) > 0 || (result?.data?.length ?? 0) > 0;
+}
+
+function shouldFallbackFromPeopleApi(error) {
+  const status = error?.response?.status;
+  if (!status) return true;
+  if (status === 404) return true;
+  if (status === 400 || status === 422) return true;
+  if (status >= 500) return true;
+  return false;
+}
+
 function buildSourceParams({
   search,
   owner_id,
@@ -78,7 +91,8 @@ async function listContactDirectoryClientSide({
 }
 
 /**
- * Unified CRM people pool — prefers GET /people (or /contacts/directory), falls back to client merge.
+ * Unified CRM people pool — prefers GET /people (or /contacts/directory).
+ * Falls back to client merge when the unified API is empty or unavailable.
  */
 export async function listContactDirectory({
   page = 1,
@@ -92,18 +106,21 @@ export async function listContactDirectory({
   campaignMemberIds,
   statusOptions,
 } = {}, accountMap = {}) {
+  const peopleParams = {
+    page,
+    page_size,
+    search,
+    owner_id,
+    sort_by,
+    sort_order,
+    filters,
+  };
+
   try {
-    return await peopleApi.listPeople({
-      page,
-      page_size,
-      search,
-      owner_id,
-      sort_by,
-      sort_order,
-      filters,
-    });
+    const apiResult = await peopleApi.listPeople(peopleParams);
+    if (peopleResultHasRows(apiResult)) return apiResult;
   } catch (err) {
-    if (err.response?.status !== 404) throw err;
+    if (!shouldFallbackFromPeopleApi(err)) throw err;
   }
 
   return listContactDirectoryClientSide({
@@ -122,9 +139,10 @@ export async function listContactDirectory({
 
 export async function listAllMatchingContactDirectoryIds(params = {}, accountMap = {}, statusOptions = []) {
   try {
-    return await peopleApi.listAllMatchingPeopleIds(params);
+    const ids = await peopleApi.listAllMatchingPeopleIds(params);
+    if (ids.length > 0) return ids;
   } catch (err) {
-    if (err.response?.status !== 404) throw err;
+    if (!shouldFallbackFromPeopleApi(err)) throw err;
   }
 
   const result = await listContactDirectoryClientSide({

@@ -203,11 +203,13 @@ function buildPeopleParams({
 
 async function fetchPeoplePage(endpoint, params) {
   const res = await api.get(endpoint, { params });
-  const rows = (res.data.data || []).map(normalizePersonRow);
+  const raw = res.data?.data ?? res.data?.items ?? res.data?.results ?? [];
+  const list = Array.isArray(raw) ? raw : [];
+  const rows = list.map(normalizePersonRow).filter(Boolean);
   return {
     data: rows,
-    total: res.data.meta?.total ?? res.data.total ?? rows.length,
-    meta: res.data.meta || { total: res.data.meta?.total ?? rows.length },
+    total: res.data?.meta?.total ?? res.data?.total ?? rows.length,
+    meta: res.data?.meta || { total: res.data?.meta?.total ?? rows.length },
   };
 }
 

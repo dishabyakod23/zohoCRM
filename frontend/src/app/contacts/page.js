@@ -27,6 +27,7 @@ import { DIRECTORY_STATUS_OPTIONS } from '../../lib/contactDirectoryHelpers.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
+import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
@@ -49,6 +50,7 @@ export default function ContactsPage() {
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const [statusOptions, setStatusOptions] = useState(DIRECTORY_STATUS_OPTIONS);
   const { campaigns } = useCampaignLookups();
+  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'contact');
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
   const accountMapRef = useRef(accountMap);
@@ -82,6 +84,7 @@ export default function ContactsPage() {
         page_size: LIMIT,
         search: debouncedSearch || undefined,
         filters: directoryFilters,
+        campaignMemberIds,
         sort_key: sort,
         ...getSortApiParams(sort, 'contacts'),
       }, accountMapRef.current);
@@ -94,7 +97,7 @@ export default function ContactsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, showToast, activeView, user?.id, filters, sort]);
+  }, [page, debouncedSearch, showToast, activeView, user?.id, filters, sort, campaignMemberIds]);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
   useListRefresh(fetchContacts);
@@ -110,10 +113,11 @@ export default function ContactsPage() {
       filters: activeView === 'My Contacts' && user?.id
         ? { ...filters, owner_id: user.id }
         : filters,
+      campaignMemberIds,
     };
     if (activeView === 'My Contacts' && user?.id) params.owner_id = user.id;
     return params;
-  }, [debouncedSearch, sort, activeView, user?.id, filters]);
+  }, [debouncedSearch, sort, activeView, user?.id, filters, campaignMemberIds]);
 
   const fetchAllMatchingContactIds = useCallback(
     () => contactDirectoryApi.listAllMatchingContactDirectoryIds(contactListParams, accountMapRef.current),
@@ -122,7 +126,7 @@ export default function ContactsPage() {
 
   const tableSelection = useTableSelection({
     total,
-    resetDeps: [activeView, debouncedSearch, filters, sort],
+    resetDeps: [activeView, debouncedSearch, filters, sort, campaignMemberIds],
     fetchAllIds: fetchAllMatchingContactIds,
   });
 
