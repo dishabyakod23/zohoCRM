@@ -17,6 +17,7 @@ import * as tasksApi from '../../lib/services/tasks.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
 import { fetchUsers, fetchMassUpdateFieldOptions, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
 import { fetchCampaignLookups, assignRecordsToCampaign, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
+import { personRecordId, personCampaignMemberType, parsePersonRowId } from '../../lib/services/people.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
 
 const defaultGetRowId = (r) => r.id;
@@ -453,11 +454,6 @@ export default function RecordDataTable({
     };
     try {
       if (isCampaignField) {
-        const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
-        if (!memberType) {
-          showToast('Campaign assignment is not supported for this module');
-          return;
-        }
         const campaignId = await resolveOrCreateCampaignId({
           campaign_id: massValue,
           campaign_name: massCampaignName,
@@ -467,7 +463,24 @@ export default function RecordDataTable({
           showToast('Select or enter a campaign name');
           return;
         }
-        await assignRecordsToCampaign(campaignId, memberType, selected);
+        if (moduleKey === 'contacts') {
+          const members = selectedRecords.map((record) => ({
+            member_type: personCampaignMemberType(record),
+            member_id: personRecordId(record) || parsePersonRowId(getRowId(record)).recordId,
+          })).filter((member) => member.member_id);
+          if (!members.length) {
+            showToast('No valid records selected');
+            return;
+          }
+          await campaignsApi.addCampaignMembers(campaignId, members);
+        } else {
+          const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
+          if (!memberType) {
+            showToast('Campaign assignment is not supported for this module');
+            return;
+          }
+          await assignRecordsToCampaign(campaignId, memberType, selected);
+        }
         showToast(`Added ${selected.length} record(s) to campaign`, 'success');
         finishMassUpdate();
         return;
@@ -494,11 +507,14 @@ export default function RecordDataTable({
         let failed = 0;
         for (const recordId of selected) {
           try {
+            const targetId = moduleKey === 'contacts'
+              ? parsePersonRowId(recordId).recordId
+              : recordId;
             if (massField === 'status' && config.statusField && config.update) {
-              await config.update(recordId, { [config.statusField]: massValue });
+              await config.update(targetId, { [config.statusField]: massValue });
               success += 1;
             } else if (massField === 'convert' && config.convert) {
-              await config.convert(recordId, massValue);
+              await config.convert(targetId, massValue);
               success += 1;
             }
           } catch {
@@ -590,11 +606,6 @@ export default function RecordDataTable({
   const addToCampaign = async () => {
     const hasCampaign = !!(selectedCampaign.campaign_id || String(selectedCampaign.campaign_name || '').trim());
     if (!hasCampaign) return;
-    const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
-    if (!memberType) {
-      showToast('Add to Campaign is only supported for Leads and Contacts lists');
-      return;
-    }
     setSavingCampaign(true);
     try {
       const campaignId = await resolveOrCreateCampaignId({
@@ -605,10 +616,24 @@ export default function RecordDataTable({
         showToast('Select or enter a campaign name');
         return;
       }
-      await Promise.all(selected.map((id) => campaignsApi.addCampaignMember(campaignId, {
-        member_type: memberType,
-        member_id: id,
-      })));
+
+      if (moduleKey === 'contacts') {
+        await Promise.all(selectedRecords.map((record) => campaignsApi.addCampaignMember(campaignId, {
+          member_type: personCampaignMemberType(record),
+          member_id: personRecordId(record) || parsePersonRowId(getRowId(record)).recordId,
+        })));
+      } else {
+        const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
+        if (!memberType) {
+          showToast('Add to Campaign is only supported for Leads and Contacts lists');
+          return;
+        }
+        await Promise.all(selected.map((id) => campaignsApi.addCampaignMember(campaignId, {
+          member_type: memberType,
+          member_id: id,
+        })));
+      }
+
       showToast(`Added ${selected.length} record(s) to campaign`, 'success');
       setCampaignModal(false);
       setSelectedCampaign({ campaign_id: '', campaign_name: '' });

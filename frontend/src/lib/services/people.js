@@ -4,7 +4,10 @@ import { getLeadDetailPath } from '../pipelineHelpers.js';
 import { DIRECTORY_STATUS_OPTIONS } from '../contactDirectoryHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { cachedLookup } from '../lookupCache.js';
-import { fetchAllIdsFromEndpoint } from '../listSelectionHelpers.js';
+import * as contactsApi from './contacts.js';
+import * as leadsApi from './leads.js';
+import * as dealsApi from './deals.js';
+import * as accountsApi from './accounts.js';
 
 function parseStatusOptions(data) {
   const rows = Array.isArray(data) ? data : (data?.data || data?.options || []);
@@ -14,6 +17,100 @@ function parseStatusOptions(data) {
     const label = item.label ?? item.name ?? item.display_name ?? value;
     return { value, label };
   }).filter((item) => item.value);
+}
+
+export function personEntityType(person) {
+  return String(
+    person?.entity_type || person?._entityType || person?.record_type || person?.source_type || 'contact',
+  ).toLowerCase();
+}
+
+export function personRecordId(person) {
+  return person?.record_id || person?.entity_id || person?.id || null;
+}
+
+/** Stable list-row id that encodes entity type for bulk actions (delete, campaign). */
+export function personRowId(person) {
+  const entityType = personEntityType(person);
+  const recordId = personRecordId(person);
+  if (!recordId) return '';
+  if (person?.record_id || person?.entity_type || person?.record_type || person?.source_type) {
+    return `${entityType}:${recordId}`;
+  }
+  return String(person.id || recordId);
+}
+
+export function parsePersonRowId(rowId) {
+  const raw = String(rowId || '');
+  const splitAt = raw.indexOf(':');
+  if (splitAt > 0) {
+    return {
+      entityType: raw.slice(0, splitAt).toLowerCase(),
+      recordId: raw.slice(splitAt + 1),
+    };
+  }
+  return { entityType: 'contact', recordId: raw };
+}
+
+export async function deletePersonRecord(person) {
+  const entityType = personEntityType(person);
+  const recordId = personRecordId(person);
+  if (!recordId) throw new Error('Missing record id');
+
+  switch (entityType) {
+    case 'lead':
+    case 'raw_lead':
+    case 'qualified_lead':
+    case 'proposal':
+      return leadsApi.deleteLead(recordId);
+    case 'deal':
+      return dealsApi.deleteDeal(recordId);
+    case 'account':
+      return accountsApi.deleteAccount(recordId);
+    case 'contact':
+    default:
+      return contactsApi.deleteContact(recordId);
+  }
+}
+
+export async function deletePersonByRowId(rowId) {
+  const { entityType, recordId } = parsePersonRowId(rowId);
+  return deletePersonRecord({ entity_type: entityType, record_id: recordId, id: recordId });
+}
+
+export async function bulkDeletePersonRecords(records = []) {
+  const results = await Promise.allSettled(
+    (records || []).map((record) => deletePersonRecord(record)),
+  );
+  const success_count = results.filter((result) => result.status === 'fulfilled').length;
+  const failed_count = results.length - success_count;
+  if (!success_count) {
+    const firstError = results.find((result) => result.status === 'rejected');
+    throw firstError?.reason || new Error('Delete failed');
+  }
+  return { success_count, failed_count };
+}
+
+export async function bulkDeletePersonRowIds(ids = []) {
+  const results = await Promise.allSettled(
+    (ids || []).map((rowId) => deletePersonByRowId(rowId)),
+  );
+  const success_count = results.filter((result) => result.status === 'fulfilled').length;
+  const failed_count = results.length - success_count;
+  if (!success_count) {
+    const firstError = results.find((result) => result.status === 'rejected');
+    throw firstError?.reason || new Error('Delete failed');
+  }
+  return { success_count, failed_count };
+}
+
+export function personCampaignMemberType(person) {
+  const entityType = personEntityType(person);
+  if (entityType === 'lead' || entityType === 'raw_lead' || entityType === 'qualified_lead' || entityType === 'proposal') {
+    return 'lead';
+  }
+  if (entityType === 'account') return 'account';
+  return 'contact';
 }
 
 export function personDetailHref(person) {
@@ -46,18 +143,22 @@ export function personDetailHref(person) {
 /** Normalize GET /people or /contacts/directory row for the Contacts list UI. */
 export function normalizePersonRow(person) {
   if (!person) return person;
-  const entityType = person.entity_type || person.record_type || person.source_type || 'contact';
+  const entityType = personEntityType(person);
+  const recordId = personRecordId(person);
+  const rowId = personRowId(person);
 
   return {
     ...person,
-    id: person.id || person.record_id || person.entity_id,
+    id: rowId,
+    record_id: recordId,
+    entity_type: entityType,
     account_name: person.account_name || person.company || person.company_name || null,
     current_status: person.current_status || person.status || 'Contact',
     owner_name: ownerName(person) || person.owner_name || null,
     campaign_id: person.campaign_id || null,
     campaign_name: person.campaign_name || null,
-    _entityType: String(entityType).toLowerCase(),
-    _detailHref: personDetailHref(person),
+    _entityType: entityType,
+    _detailHref: personDetailHref({ ...person, record_id: recordId, entity_type: entityType }),
   };
 }
 
@@ -124,15 +225,27 @@ export async function listPeople({
 }
 
 export async function listAllMatchingPeopleIds(params = {}) {
-  try {
-    return fetchAllIdsFromEndpoint('/people', buildPeopleParams({ ...params, page: 1, page_size: DEFAULT_PAGE_SIZE }));
-  } catch (err) {
-    if (err.response?.status !== 404) throw err;
-    return fetchAllIdsFromEndpoint(
-      '/contacts/directory',
-      buildPeopleParams({ ...params, page: 1, page_size: DEFAULT_PAGE_SIZE }),
-    );
+  const baseParams = buildPeopleParams({ ...params, page_size: 250 });
+  let page = 1;
+  const ids = [];
+  let total = 0;
+
+  while (page <= 50) {
+    let result;
+    try {
+      result = await fetchPeoplePage('/people', { ...baseParams, page });
+    } catch (err) {
+      if (err.response?.status !== 404) throw err;
+      result = await fetchPeoplePage('/contacts/directory', { ...baseParams, page });
+    }
+
+    ids.push(...result.data.map((row) => row.id).filter(Boolean));
+    total = result.total;
+    if (!result.data.length || ids.length >= total) break;
+    page += 1;
   }
+
+  return ids;
 }
 
 export async function fetchPeopleStatusOptions() {

@@ -10,6 +10,7 @@ import * as campaignsApi from './services/campaigns.js';
 import * as documentsApi from './services/documents.js';
 import * as visitsApi from './services/visits.js';
 import * as projectsApi from './services/projects.js';
+import { bulkDeletePersonRowIds } from './services/people.js';
 import {
   PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL,
 } from './pipelineHelpers.js';
@@ -98,6 +99,7 @@ export const BULK_MODULE_CONFIG = {
     update: (id, payload) => contactsApi.updateContact(id, payload),
     convert: (id, target = PIPELINE_RAW) => contactsApi.convertContact(id, target),
     deleteOne: (id) => contactsApi.deleteContact(id),
+    bulkDelete: (ids) => bulkDeletePersonRowIds(ids),
     exportRow: (r) => ({
       first_name: r.first_name, last_name: r.last_name, email: r.email, phone: r.phone, account: r.account_name,
     }),
