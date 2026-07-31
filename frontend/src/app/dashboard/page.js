@@ -166,11 +166,47 @@ export default function DashboardPage() {
 
             <Widget title="Leads by Pipeline" className="col-span-12 lg:col-span-6">
               {stats.leadsByStatus?.length > 0 ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart><Pie data={stats.leadsByStatus} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} label={({ status, count }) => `${pluralizeLeadStatusLabel(status, count)}: ${count}`}>
-                    {stats.leadsByStatus.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="white" strokeWidth={2} />)}
-                  </Pie><Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e7e5fb' }} formatter={(value, _name, item) => [value, `${pluralizeLeadStatusLabel(item.payload.status, item.payload.count)}: ${item.payload.count}`]} /></PieChart>
-                </ResponsiveContainer>
+                <>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={stats.leadsByStatus}
+                        dataKey="count"
+                        nameKey="status"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={78}
+                        paddingAngle={3}
+                        label={false}
+                      >
+                        {stats.leadsByStatus.map((_, i) => (
+                          <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="white" strokeWidth={2} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ borderRadius: 12, border: '1px solid #e7e5fb' }}
+                        formatter={(value, _name, item) => [
+                          value,
+                          `${pluralizeLeadStatusLabel(item.payload.status, item.payload.count)}: ${item.payload.count}`,
+                        ]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 mt-1 px-2">
+                    {stats.leadsByStatus.map((item, i) => (
+                      <div key={item.status} className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                        />
+                        <span className="text-xs text-zoho-text truncate">
+                          {pluralizeLeadStatusLabel(item.status, item.count)}: {item.count}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               ) : <p className="text-sm text-zoho-muted text-center py-8">No leads</p>}
             </Widget>
 
