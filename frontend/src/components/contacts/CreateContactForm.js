@@ -16,7 +16,7 @@ import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { fetchCompanyLookups, fetchUsers } from '../../lib/services/lookups.js';
 import AccountNameCombobox from '../forms/AccountNameCombobox.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
-import { resolveContactAccountId } from '../../lib/resolveContactAccount.js';
+import { resolveContactCompanyFields } from '../../lib/resolveContactAccount.js';
 import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 
 export function emptyContactForm() {
@@ -161,15 +161,21 @@ export default function CreateContactForm() {
         showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in all required fields before saving.');
         return;
       }
-      const accountId = await resolveContactAccountId({
+      const { company_id, company_name, account_id } = await resolveContactCompanyFields({
         account_id: form.account_id,
         account_name: form.account_name,
-        accounts,
+        companies: accounts,
         phone: form.phone,
         mobile: form.mobile,
         owner_id: form.owner_id || user?.id,
       });
-      const created = await contactsApi.createContact({ ...form, account_id: accountId });
+      const { account_id: _legacyAccountId, account_name: _legacyAccountName, ...contactFields } = form;
+      const created = await contactsApi.createContact({
+        ...contactFields,
+        company_id,
+        company_name,
+        account_id,
+      });
       const campaignId = await resolveOrCreateCampaignId({
         campaign_id: form.campaign_id,
         campaign_name: form.campaign_name,

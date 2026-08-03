@@ -58,6 +58,7 @@ export async function listContacts({
   page_size = DEFAULT_PAGE_SIZE,
   search,
   account_id,
+  company_id,
   owner_id,
   sort_by,
   sort_order,
@@ -67,6 +68,7 @@ export async function listContacts({
   const params = { page, page_size };
   if (search) params.search = search;
   if (account_id) params.account_id = account_id;
+  if (company_id) params.company_id = company_id;
   const mergedOwnerId = filters.owner_id || owner_id;
   if (mergedOwnerId) params.owner_id = mergedOwnerId;
   if (filters.campaign_id) params.campaign_id = filters.campaign_id;
@@ -164,22 +166,25 @@ export async function importContactsFile(file, { dry_run = true, campaignId } = 
   const processedRecords = [];
 
   for (const record of readyRecords) {
-    let accountId = record.account_id || null;
-    if (!accountId && (record.account_name || record.account || record.company)) {
-      const { resolveContactAccountId } = await import('../resolveContactAccount.js');
-      accountId = await resolveContactAccountId({
-        account_id: record.account_id,
-        account_name: record.account_name || record.account || record.company,
-        accounts,
+    let companyId = record.company_id || null;
+    if (!companyId && (record.account_name || record.account || record.company || record.company_name)) {
+      const { resolveContactCompanyFields } = await import('../resolveContactAccount.js');
+      const resolved = await resolveContactCompanyFields({
+        company_id: record.company_id || record.account_id,
+        company_name: record.company_name || record.account_name || record.account || record.company,
+        companies: accounts,
         phone: record.phone,
         mobile: record.mobile,
         owner_id: record.owner_id || null,
       });
+      companyId = resolved.company_id;
     }
 
     processedRecords.push({
       ...record,
-      account_id: accountId,
+      company_id: companyId,
+      company_name: record.company_name || record.account_name || record.account || record.company || null,
+      account_id: null,
       email_opt_out: coerceImportBool(record.email_opt_out),
       skype_id: record.skype_id || record.linkedin || null,
     });

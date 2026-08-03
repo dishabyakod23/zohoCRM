@@ -39,6 +39,7 @@ jest.mock('../../../lib/emailHelpers.js', () => ({
 }));
 
 jest.mock('../../../lib/resolveContactAccount.js', () => ({
+  resolveContactCompanyFields: jest.fn(),
   resolveContactAccountId: jest.fn(),
 }));
 
@@ -80,7 +81,11 @@ beforeEach(() => {
   campaignRecordHelpers.fetchCampaignLookups.mockResolvedValue([]);
   campaignRecordHelpers.afterRecordSave.mockResolvedValue();
   campaignRecordHelpers.resolveOrCreateCampaignId.mockResolvedValue(null);
-  resolveContactAccount.resolveContactAccountId.mockResolvedValue('account-1');
+  resolveContactAccount.resolveContactCompanyFields.mockResolvedValue({
+    company_id: 'company-1',
+    company_name: 'Acme Inc',
+    account_id: null,
+  });
   recordNavigation.navigateToRecord.mockImplementation(() => {});
 });
 

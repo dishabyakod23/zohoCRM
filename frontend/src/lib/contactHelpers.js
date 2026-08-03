@@ -1,12 +1,19 @@
 import { ownerName } from './recordHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
 
-export function normalizeContact(contact, accountMap = {}) {
+export function normalizeContact(contact, companyMap = {}) {
   if (!contact) return contact;
-  const account = accountMap[contact.account_id];
+  const companyId = contact.company_id || null;
+  const company = companyMap[companyId];
+  const companyName = contact.company_name
+    || company?.label
+    || company?.name
+    || contact.account_name;
   return {
     ...contact,
-    account_name: account?.label || account?.name || contact.account_name,
+    company_id: companyId,
+    company_name: companyName || null,
+    account_name: companyName || contact.account_name,
     owner_name: ownerName(contact) || contact.owner_name,
     currency: contact.currency || DEFAULT_CURRENCY,
   };
@@ -16,13 +23,27 @@ function formHas(form, key) {
   return Object.prototype.hasOwnProperty.call(form, key);
 }
 
+function applyCompanyLinkFields(payload, form) {
+  const hasCompanyField = formHas(form, 'company_id')
+    || formHas(form, 'company_name')
+    || formHas(form, 'account_id')
+    || formHas(form, 'account_name');
+  if (!hasCompanyField) return;
+
+  const companyId = form.company_id ?? form.account_id ?? null;
+  const companyName = form.company_name ?? form.account_name ?? null;
+  payload.company_id = companyId || null;
+  if (companyName) payload.company_name = companyName;
+  payload.account_id = null;
+}
+
 export function toContactPayload(form, { partial = false } = {}) {
   if (partial) {
     const payload = {};
     if (formHas(form, 'salutation')) payload.salutation = form.salutation || null;
     if (formHas(form, 'first_name')) payload.first_name = form.first_name || null;
     if (formHas(form, 'last_name')) payload.last_name = form.last_name;
-    if (formHas(form, 'account_id')) payload.account_id = form.account_id;
+    applyCompanyLinkFields(payload, form);
     if (formHas(form, 'email')) payload.email = form.email;
     if (formHas(form, 'phone')) payload.phone = form.phone || null;
     if (formHas(form, 'other_phone')) payload.other_phone = form.other_phone || null;
@@ -70,7 +91,9 @@ export function toContactPayload(form, { partial = false } = {}) {
     salutation: form.salutation || null,
     first_name: form.first_name,
     last_name: form.last_name,
-    account_id: form.account_id,
+    company_id: form.company_id || form.account_id || null,
+    company_name: form.company_name || form.account_name || null,
+    account_id: null,
     email: form.email,
     phone: form.phone || null,
     other_phone: form.other_phone || null,
