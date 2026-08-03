@@ -21,7 +21,7 @@ import {
   UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
-const COLORS = ['#6f5cf5', '#14c8b0', '#ff9f5a', '#ff5fa2', '#3aa0ff', '#ffc94d'];
+const PIPELINE_CHART_COLORS = ['#6f5cf5', '#0d9488', '#ea580c', '#db2777', '#2563eb', '#ca8a04'];
 
 function Widget({ title, children, className = '' }) {
   return (
@@ -167,7 +167,7 @@ export default function DashboardPage() {
             <Widget title="Leads by Pipeline" className="col-span-12 lg:col-span-6">
               {stats.leadsByStatus?.length > 0 ? (
                 <>
-                  <ResponsiveContainer width="100%" height={200}>
+                  <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
                       <Pie
                         data={stats.leadsByStatus}
@@ -175,13 +175,17 @@ export default function DashboardPage() {
                         nameKey="status"
                         cx="50%"
                         cy="50%"
-                        innerRadius={50}
-                        outerRadius={78}
-                        paddingAngle={3}
+                        innerRadius={52}
+                        outerRadius={82}
+                        minAngle={14}
+                        paddingAngle={5}
+                        cornerRadius={4}
                         label={false}
+                        stroke="#ffffff"
+                        strokeWidth={3}
                       >
                         {stats.leadsByStatus.map((_, i) => (
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="white" strokeWidth={2} />
+                          <Cell key={i} fill={PIPELINE_CHART_COLORS[i % PIPELINE_CHART_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip
