@@ -38,7 +38,7 @@ export default function CompanyDetailPage() {
     try {
       const [record, contactResult] = await Promise.all([
         companiesApi.getCompany(id),
-        contactsApi.listContacts({ account_id: id, page_size: DEFAULT_PAGE_SIZE }),
+        contactsApi.listContacts({ company_id: id, page_size: DEFAULT_PAGE_SIZE }),
       ]);
       setCompany({ ...record, account_name: record.name || record.account_name });
       setContacts(contactResult.data || []);

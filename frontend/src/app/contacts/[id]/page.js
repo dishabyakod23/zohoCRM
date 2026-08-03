@@ -27,7 +27,7 @@ import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js'
 import PhoneDisplay from '../../../components/cloudtalk/PhoneDisplay.js';
 import CallRecordButton from '../../../components/cloudtalk/CallRecordButton.js';
 import AccountNameCombobox from '../../../components/forms/AccountNameCombobox.js';
-import { resolveContactAccountId } from '../../../lib/resolveContactAccount.js';
+import { resolveContactCompanyFields } from '../../../lib/resolveContactAccount.js';
 import { useRecordCampaign } from '../../../hooks/useRecordCampaign.js';
 import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
@@ -127,18 +127,23 @@ export default function ContactDetailPage() {
       const next = { ...payload };
       const { campaign_id: draftCampaignId, campaign_name: draftCampaignName, ...contactPayload } = next;
       if (Object.prototype.hasOwnProperty.call(payload, 'account_id')
-        || Object.prototype.hasOwnProperty.call(payload, 'account_name')) {
-        const accountId = await resolveContactAccountId({
+        || Object.prototype.hasOwnProperty.call(payload, 'account_name')
+        || Object.prototype.hasOwnProperty.call(payload, 'company_id')
+        || Object.prototype.hasOwnProperty.call(payload, 'company_name')) {
+        const companyFields = await resolveContactCompanyFields({
+          company_id: payload.company_id || payload.account_id,
+          company_name: payload.company_name || payload.account_name || contact?.company_name || contact?.account_name,
           account_id: payload.account_id,
-          account_name: payload.account_name || contact?.account_name,
-          accounts,
+          account_name: payload.account_name,
+          companies: accounts,
           phone: contact?.phone,
           mobile: contact?.mobile,
           owner_id: contact?.owner_id || user?.id,
         });
-        contactPayload.account_id = accountId;
+        contactPayload.company_id = companyFields.company_id;
+        contactPayload.company_name = companyFields.company_name;
+        contactPayload.account_id = companyFields.account_id;
         delete contactPayload.account_name;
-        // Refresh lookups so new accounts appear next edit
         fetchCompanyLookups().then(setAccounts).catch(() => {});
       }
       await contactsApi.updateContact(id, contactPayload);
@@ -248,19 +253,27 @@ export default function ContactDetailPage() {
               { name: 'salutation', label: 'Salutation' },
               { name: 'first_name', label: 'First Name', required: true },
               { name: 'last_name', label: 'Last Name', required: true },
-              { name: 'account_id', label: 'Company', format: () => contact.account_name, render: (d, set) => (
+              { name: 'account_id', label: 'Company', format: () => contact.company_name || contact.account_name, render: (d, set) => (
                 <AccountNameCombobox
                   options={accounts}
-                  valueId={d.account_id ?? ''}
+                  valueId={d.company_id ?? d.account_id ?? ''}
                   valueLabel={
-                    d.account_name
-                    || accounts.find((a) => String(a.value) === String(d.account_id))?.label
+                    d.company_name
+                    || d.account_name
+                    || accounts.find((a) => String(a.value) === String(d.company_id || d.account_id))?.label
+                    || contact.company_name
                     || contact.account_name
                     || ''
                   }
                   placeholder="Search or type company name"
                   onChange={({ account_id, account_name }) => {
-                    set((p) => ({ ...p, account_id, account_name }));
+                    set((p) => ({
+                      ...p,
+                      company_id: account_id,
+                      company_name: account_name,
+                      account_id,
+                      account_name,
+                    }));
                   }}
                 />
               ) },
