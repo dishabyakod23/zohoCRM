@@ -1,5 +1,5 @@
 import api from '../api.js';
-import { applyPermissionDependencies } from '../permissionModules.js';
+import { applyPermissionDependencies, serializePermissionsForApi } from '../permissionModules.js';
 
 const ROLES_BASE = '/admin/roles';
 
@@ -31,7 +31,7 @@ export async function createCustomRole({ name, description = '', status = 'activ
     name: name?.trim(),
     description: description?.trim() || null,
     status,
-    permissions: applyPermissionDependencies(permissions || {}),
+    permissions: serializePermissionsForApi(permissions || {}),
   });
   return normalizeRoleResponse(res.data?.data);
 }
@@ -42,7 +42,7 @@ export async function updateCustomRole(roleId, { name, description, status, perm
   if (name != null) payload.name = name.trim();
   if (description != null) payload.description = description.trim() || null;
   if (status != null) payload.status = status;
-  if (permissions != null) payload.permissions = applyPermissionDependencies(permissions);
+  if (permissions != null) payload.permissions = serializePermissionsForApi(permissions);
   const res = await api.patch(`${ROLES_BASE}/${roleId}`, payload);
   return normalizeRoleResponse(res.data?.data);
 }

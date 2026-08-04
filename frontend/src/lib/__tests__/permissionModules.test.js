@@ -4,6 +4,7 @@ import {
   emptyModulePermissions,
   fullModulePermissions,
   applyPermissionDependencies,
+  serializePermissionsForApi,
   DEFAULT_ROLE_MODULE_PERMISSIONS,
   isProtectedRoleKey,
   countGrantedModules,
@@ -67,6 +68,38 @@ describe('applyPermissionDependencies', () => {
     const twice = applyPermissionDependencies(once);
     expect(twice).toEqual(once);
     expect(twice.contacts).toEqual({ view: false, create: false, edit: false, delete: false, import: false, export: false });
+  });
+});
+
+describe('serializePermissionsForApi', () => {
+  it('omits unsupported actions for modules with limited permissions', () => {
+    const matrix = fullModulePermissions();
+    const api = serializePermissionsForApi(matrix);
+
+    expect(api.home).toEqual({ view: true });
+    expect(api.reports).toEqual({ view: true, export: true });
+    expect(api.work_items).toEqual({
+      view: true,
+      create: true,
+      edit: true,
+      delete: true,
+      export: true,
+    });
+    expect(api.home.create).toBeUndefined();
+    expect(api.work_items.import).toBeUndefined();
+    expect(api.reports.create).toBeUndefined();
+  });
+
+  it('still applies dependency rules before serializing', () => {
+    const api = serializePermissionsForApi({ contacts: { import: true } });
+    expect(api.contacts).toEqual({
+      view: true,
+      create: true,
+      edit: false,
+      delete: false,
+      import: true,
+      export: false,
+    });
   });
 });
 

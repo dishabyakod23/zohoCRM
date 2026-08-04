@@ -89,6 +89,21 @@ export function applyPermissionDependencies(matrix) {
   return next;
 }
 
+/** Keep only actions each module supports before POST/PATCH /admin/roles. */
+export function serializePermissionsForApi(matrix) {
+  const normalized = applyPermissionDependencies(matrix || {});
+  const next = {};
+  for (const mod of PERMISSION_MODULES) {
+    const row = normalized[mod.key] || {};
+    const apiRow = {};
+    for (const action of mod.actions) {
+      apiRow[action] = Boolean(row[action]);
+    }
+    next[mod.key] = apiRow;
+  }
+  return next;
+}
+
 /** Default matrices for the 4 built-in system roles — kept in sync with legacy getRolePermissions(). */
 export const DEFAULT_ROLE_MODULE_PERMISSIONS = {
   super_admin: fullModulePermissions(),
