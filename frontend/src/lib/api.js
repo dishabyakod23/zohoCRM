@@ -69,6 +69,12 @@ export function getApiError(err) {
   const data = err.response?.data;
   if (!data) return err.message || 'Request failed';
 
+  if (err.response?.status === 403) {
+    return typeof data.detail === 'string'
+      ? data.detail
+      : 'You do not have permission to perform this action.';
+  }
+
   const detail = data.detail;
   if (typeof detail === 'string') return detail;
 

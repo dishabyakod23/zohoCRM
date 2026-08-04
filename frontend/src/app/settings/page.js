@@ -33,17 +33,17 @@ const EMPTY_USER = {
 };
 
 const TABS = [
-  { id: 'profile', label: 'My Profile' },
-  { id: 'users', label: 'Users & Roles', adminOnly: true },
+  { id: 'profile', label: 'My Profile', permission: ['settings_my_profile', 'view'] },
+  { id: 'users', label: 'Users & Roles', permission: ['settings_users_roles', 'view'] },
   { id: 'roles', label: 'Manage Roles', superAdminOnly: true },
-  { id: 'statuses', label: 'Lead Statuses', adminOnly: true },
-  { id: 'company', label: 'Company Settings', adminOnly: true },
-  { id: 'announcements', label: 'Announcements', adminOnly: true },
+  { id: 'statuses', label: 'Lead Statuses', permission: ['settings_lead_statuses', 'view'] },
+  { id: 'company', label: 'Company Settings', permission: ['settings_company_settings', 'view'] },
+  { id: 'announcements', label: 'Announcements', permission: ['settings_announcements', 'view'] },
 ];
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
-  const { canManageUsers, canManageSettings, canManageRoles, roleAccess, roleLabel: myRoleLabel } = usePermissions();
+  const { canManageUsers, canManageSettings, canManageRoles, roleAccess, roleLabel: myRoleLabel, can } = usePermissions();
   const { showToast } = useToast();
 
   const [tab, setTab] = useState('profile');
@@ -76,9 +76,9 @@ export default function SettingsPage() {
   const [sendingCode, setSendingCode] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
 
-  const visibleTabs = TABS.filter(t => {
+  const visibleTabs = TABS.filter((t) => {
     if (t.superAdminOnly) return canManageRoles;
-    if (t.adminOnly) return canManageUsers;
+    if (t.permission) return can(t.permission[0], t.permission[1]);
     return true;
   });
 

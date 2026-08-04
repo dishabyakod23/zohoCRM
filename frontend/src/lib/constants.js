@@ -26,28 +26,28 @@ export const CAMPAIGN_STATUSES = ['Planning', 'Active', 'Inactive', 'Completed']
 export const INDUSTRIES = ['IT Services', 'E-Commerce', 'EdTech', 'Automotive', 'Finance', 'Healthcare', 'Manufacturing', 'Other'];
 
 export const NAV_MODULES = [
-  { href: '/dashboard', label: 'Home', section: 'main', icon: 'Home' },
-  { href: '/work-items', label: 'Work Items', section: 'main', icon: 'Work Items' },
-  { href: '/reports', label: 'Reports', section: 'main', icon: 'Reports' },
-  { href: '/recycle-bin', label: 'Recycle Bin', section: 'main', icon: 'Recycle Bin' },
-  { href: '/contacts', label: 'Contacts', section: 'modules', icon: 'Contacts' },
-  { href: '/raw-leads', label: 'Raw Leads', section: 'modules', icon: 'Raw Leads' },
-  { href: '/leads', label: 'Leads', section: 'modules', icon: 'Leads' },
-  { href: '/qualified-leads', label: 'Qualified Leads', section: 'modules', icon: 'Qualified' },
-  { href: '/proposals', label: 'Proposals', section: 'modules', icon: 'Proposals' },
-  { href: '/companies', label: 'Companies', section: 'modules', icon: 'Companies' },
-  { href: '/accounts', label: 'Accounts', section: 'modules', icon: 'Accounts' },
-  { href: '/calendar', label: 'Calendar', section: 'modules', icon: 'Calendar' },
-  { href: '/campaigns', label: 'Campaigns', section: 'modules', icon: 'Campaigns' },
+  { href: '/dashboard', label: 'Home', section: 'main', icon: 'Home', permissionKey: 'home' },
+  { href: '/work-items', label: 'Work Items', section: 'main', icon: 'Work Items', permissionKey: 'work_items' },
+  { href: '/reports', label: 'Reports', section: 'main', icon: 'Reports', permissionKey: 'reports' },
+  { href: '/recycle-bin', label: 'Recycle Bin', section: 'main', icon: 'Recycle Bin', permissionKey: 'recycle_bin' },
+  { href: '/contacts', label: 'Contacts', section: 'modules', icon: 'Contacts', permissionKey: 'contacts' },
+  { href: '/raw-leads', label: 'Raw Leads', section: 'modules', icon: 'Raw Leads', permissionKey: 'raw_leads' },
+  { href: '/leads', label: 'Leads', section: 'modules', icon: 'Leads', permissionKey: 'leads' },
+  { href: '/qualified-leads', label: 'Qualified Leads', section: 'modules', icon: 'Qualified', permissionKey: 'qualified_leads' },
+  { href: '/proposals', label: 'Proposals', section: 'modules', icon: 'Proposals', permissionKey: 'proposals' },
+  { href: '/companies', label: 'Companies', section: 'modules', icon: 'Companies', permissionKey: 'companies' },
+  { href: '/accounts', label: 'Accounts', section: 'modules', icon: 'Accounts', permissionKey: 'accounts' },
+  { href: '/calendar', label: 'Calendar', section: 'modules', icon: 'Calendar', permissionKey: 'calendar' },
+  { href: '/campaigns', label: 'Campaigns', section: 'modules', icon: 'Campaigns', permissionKey: 'campaigns' },
 ];
 
 export const QUICK_CREATE = [
-  { label: 'Lead', href: '/leads/create', group: 'Sales' },
-  { label: 'Contact', href: '/contacts/create', group: 'Sales' },
-  { label: 'Account', href: '/accounts/create', group: 'Sales' },
-  { label: 'Proposal', href: '/proposals/create', group: 'Sales' },
-  { label: 'Calendar Event', href: '/calendar', group: 'Sales' },
-  { label: 'Campaign', href: '/campaigns/create', group: 'Marketing' },
+  { label: 'Lead', href: '/leads/create', group: 'Sales', permissionKey: 'leads' },
+  { label: 'Contact', href: '/contacts/create', group: 'Sales', permissionKey: 'contacts' },
+  { label: 'Account', href: '/accounts/create', group: 'Sales', permissionKey: 'accounts' },
+  { label: 'Proposal', href: '/proposals/create', group: 'Sales', permissionKey: 'proposals' },
+  { label: 'Calendar Event', href: '/calendar', group: 'Sales', permissionKey: 'calendar' },
+  { label: 'Campaign', href: '/campaigns/create', group: 'Marketing', permissionKey: 'campaigns' },
 ];
 
 export const WORK_ITEM_VIEWS = ['All Work Items', 'Raw Leads', 'Leads', 'Qualified Leads', 'Proposals'];

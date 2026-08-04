@@ -25,7 +25,10 @@ function formatDateTime(value) {
 
 export default function RecycleBinPage() {
   const { showToast } = useToast();
-  const { canDelete } = usePermissions();
+  const { can } = usePermissions();
+  const canViewRecycleBin = can('recycle_bin', 'view');
+  const canRestore = can('recycle_bin', 'edit');
+  const canPermanentDelete = can('recycle_bin', 'delete');
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -86,7 +89,7 @@ export default function RecycleBinPage() {
 
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
-  if (!canDelete) {
+  if (!canViewRecycleBin) {
     return (
       <CRMLayout>
         <div className="p-6">
@@ -149,6 +152,7 @@ export default function RecycleBinPage() {
                         <td className="table-td text-xs text-zoho-muted">{formatDateTime(item.deleted_at)}</td>
                         <td className="table-td text-xs text-zoho-muted">{formatDateTime(item.expires_at)}</td>
                         <td className="table-td text-right whitespace-nowrap">
+                          {canRestore && (
                           <button
                             type="button"
                             onClick={() => handleRestore(item)}
@@ -157,6 +161,8 @@ export default function RecycleBinPage() {
                           >
                             {restoringId === item.id ? 'Restoring…' : 'Restore'}
                           </button>
+                          )}
+                          {canPermanentDelete && (
                           <button
                             type="button"
                             onClick={() => setConfirmDelete(item)}
@@ -165,6 +171,7 @@ export default function RecycleBinPage() {
                           >
                             Delete forever
                           </button>
+                          )}
                         </td>
                       </tr>
                     ))}

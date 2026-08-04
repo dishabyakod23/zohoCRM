@@ -19,15 +19,17 @@ function formatWhen(iso) {
 export default function AuditLogsPage() {
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { role } = usePermissions();
+  const { role, can, isSuperAdmin, isSalesManager } = usePermissions();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const canViewAuditLogs = can('audit_logs', 'view');
+
   const loadLogs = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id || !canViewAuditLogs) return;
     setLoading(true);
     try {
-      const canSeeAllLogs = role === 'super_admin' || role === 'sales_manager';
+      const canSeeAllLogs = isSuperAdmin || isSalesManager;
       const allLogs = await auditLogsApi.listActivityLogsLastDays(AUDIT_LOG_DAYS, {
         user,
         canSeeAll: canSeeAllLogs,
@@ -40,11 +42,22 @@ export default function AuditLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [role, showToast, user?.id]);
+  }, [canViewAuditLogs, isSalesManager, isSuperAdmin, role, showToast, user?.id]);
 
   useEffect(() => {
     loadLogs();
   }, [loadLogs]);
+
+  if (!canViewAuditLogs) {
+    return (
+      <CRMLayout>
+        <div className="p-6">
+          <h1 className="text-xl font-bold mb-2">Audit Logs</h1>
+          <p className="text-gray-500 text-sm">Your role does not have access to audit logs.</p>
+        </div>
+      </CRMLayout>
+    );
+  }
 
   return (
     <CRMLayout>

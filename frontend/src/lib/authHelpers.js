@@ -17,6 +17,16 @@ export function parseAuthTokenResponse(body) {
 }
 
 import { mergeStoredProfileImage } from './profileImageHelpers.js';
+import { normalizePermissionsMatrix } from './permissionHelpers.js';
+
+function normalizeAuthUser(user) {
+  if (!user) return null;
+  const next = mergeStoredProfileImage(user);
+  if (next.permissions) {
+    next.permissions = normalizePermissionsMatrix(next.permissions) || next.permissions;
+  }
+  return next;
+}
 
 /** `/auth/me` may return the user flat or wrapped in `{ data }`. */
 export function parseAuthUserResponse(body) {
@@ -28,7 +38,7 @@ export function parseAuthUserResponse(body) {
     const nested = body?.data;
     user = nested?.id ? nested : null;
   }
-  return user ? mergeStoredProfileImage(user) : null;
+  return normalizeAuthUser(user);
 }
 
 /** Sync-read cached session user for instant filter defaults on list pages. */

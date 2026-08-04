@@ -34,7 +34,7 @@ function formatNotifWhen(iso) {
 export default function Header({ onMenuClick }) {
   const { user, logout } = useAuth();
   const { showToast } = useToast();
-  const { canQuickCreate } = usePermissions();
+  const { canQuickCreate, can } = usePermissions();
   const {
     reminders: meetingReminders,
     count: meetingNotifCount,
@@ -123,7 +123,7 @@ export default function Header({ onMenuClick }) {
     navigateToRecord(r.href || `/${r.type}s/${r.id}`, router);
   };
 
-  const groups = [...new Set(QUICK_CREATE.map(q => q.group))];
+  const groups = [...new Set(QUICK_CREATE.filter((q) => can(q.permissionKey, 'create')).map(q => q.group))];
 
   const toggleNotif = () => {
     const next = !showNotif;
@@ -189,7 +189,7 @@ export default function Header({ onMenuClick }) {
           )}
         </div>
 
-        {canQuickCreate && (
+        {canQuickCreate && groups.length > 0 && (
         <div className="relative" ref={quickRef} data-tour="header-quick-create">
           <button onClick={() => setShowQuick(!showQuick)} aria-label="Quick create" aria-expanded={showQuick}
             className="w-9 h-9 rounded-xl bg-brand-500 text-white font-bold text-lg leading-none shadow-soft hover:bg-brand-600 transition-all duration-150" title="Quick Create">+</button>
@@ -199,7 +199,7 @@ export default function Header({ onMenuClick }) {
               {groups.map(g => (
                 <div key={g}>
                   <p className="px-3 py-1 text-[10px] text-zoho-muted">{g}</p>
-                  {QUICK_CREATE.filter(q => q.group === g).map(q => (
+                  {QUICK_CREATE.filter(q => q.group === g && can(q.permissionKey, 'create')).map(q => (
                     <Link key={q.label} href={q.href} onClick={() => setShowQuick(false)}
                       className="block px-3 py-1.5 text-sm hover:bg-brand-50 hover:text-brand-600 text-zoho-text transition-colors rounded-lg mx-1">+ {q.label}</Link>
                   ))}

@@ -18,16 +18,16 @@ function SidebarToggleIcon({ className = 'w-4 h-4' }) {
 
 export default function Sidebar({ mobileOpen = false, onNavigate }) {
   const pathname = usePathname();
-  const { canAccessReports, canDelete } = usePermissions();
+  const { can } = usePermissions();
   const [collapsed, setCollapsed] = useState(false);
   const [moduleSearch, setModuleSearch] = useState('');
 
-  const mainNav = NAV_MODULES.filter(n => n.section === 'main' && (
-    (n.href !== '/reports' || canAccessReports)
-    && (n.href !== '/recycle-bin' || canDelete)
-  ));
-  const modules = NAV_MODULES.filter(n => n.section === 'modules' &&
-    n.label.toLowerCase().includes(moduleSearch.toLowerCase()));
+  const canViewNav = (item) => !item.permissionKey || can(item.permissionKey, 'view');
+
+  const mainNav = NAV_MODULES.filter((n) => n.section === 'main' && canViewNav(n));
+  const modules = NAV_MODULES.filter((n) => n.section === 'modules'
+    && canViewNav(n)
+    && n.label.toLowerCase().includes(moduleSearch.toLowerCase()));
 
   const isActive = (href) => pathname === href || pathname.startsWith(href + '/');
 

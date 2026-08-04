@@ -1,4 +1,4 @@
-import { hasAdminAccess, normalizeRole } from './roles.js';
+import { normalizeRole } from './roles.js';
 
 /** Resolve owner / assignee id from list or detail API shapes. */
 export function recordOwnerId(record) {
@@ -19,16 +19,16 @@ export function isRecordOwner(user, record) {
   return String(ownerId) === String(user.id);
 }
 
-/** Admins can change any record; business reps only their own. */
+/** Admins can change any record; others only their own. */
 export function canEditRecord(user, record, permissions) {
   if (!permissions?.canEdit || !record) return false;
-  if (hasAdminAccess(user?.role)) return true;
+  if (permissions.isSuperAdmin) return true;
   return isRecordOwner(user, record);
 }
 
 export function canDeleteRecord(user, record, permissions) {
   if (!permissions?.canDelete || !record) return false;
-  if (hasAdminAccess(user?.role)) return true;
+  if (permissions.isSuperAdmin) return true;
   return isRecordOwner(user, record);
 }
 

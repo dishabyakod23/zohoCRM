@@ -36,7 +36,9 @@ export default function ContactsPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit, canBulkUpload } = usePermissions();
+  const { can } = usePermissions();
+  const canCreateContact = can('contacts', 'create');
+  const canImportContacts = can('contacts', 'import');
   const [contacts, setContacts] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [total, setTotal] = useState(0);
@@ -67,11 +69,11 @@ export default function ContactsPage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !canEdit) return;
+    if (typeof window === 'undefined' || !canCreateContact) return;
     if (new URLSearchParams(window.location.search).get('create') === '1') {
       router.replace('/contacts/create');
     }
-  }, [canEdit, router]);
+  }, [canCreateContact, router]);
 
   const fetchContacts = useCallback(async () => {
     setLoading(true);
@@ -152,8 +154,8 @@ export default function ContactsPage() {
         <ListPageHeader
           title="Contacts"
           subtitle="Central pool of all people in the CRM — contacts, pipeline leads, deals, and accounts."
-          secondaryActions={canBulkUpload ? <BulkUpload onDone={fetchContacts} /> : null}
-          primaryAction={canEdit ? (
+          secondaryActions={canImportContacts ? <BulkUpload onDone={fetchContacts} /> : null}
+          primaryAction={canCreateContact ? (
             <button type="button" onClick={() => router.push('/contacts/create')} className="btn-primary-sm">
               Create Contact
             </button>

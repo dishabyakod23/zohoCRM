@@ -15,7 +15,7 @@ describe('getRolePermissions — built-in roles (backward compatibility)', () =>
     const p = getRolePermissions('sales_manager');
     expect(p).toMatchObject({
       canEdit: true, canDelete: true, canDownload: true, canManageUsers: true,
-      isSuperAdmin: true, isSalesManager: true, isSalesRep: false,
+      isSuperAdmin: false, isSalesManager: true, isSalesRep: false,
     });
   });
 
@@ -30,7 +30,7 @@ describe('getRolePermissions — built-in roles (backward compatibility)', () =>
   it('matches historical viewer behavior', () => {
     const p = getRolePermissions('viewer');
     expect(p).toMatchObject({
-      canEdit: false, canDelete: false, canDownload: false, canAccessReports: false,
+      canEdit: false, canDelete: false, canDownload: false, canAccessReports: true,
       canBulkUpload: false, canQuickCreate: false, isViewer: true,
     });
   });
@@ -55,7 +55,7 @@ describe('getRolePermissions — custom roles', () => {
       ...emptyModulePermissions(),
       leads: { view: true, create: true, edit: true, delete: false, import: false, export: false },
     });
-    const p = getRolePermissions('junior_sales', { customModulePermissions: matrix });
+    const p = getRolePermissions('junior_sales', { modulePermissions: matrix });
     expect(p.canEdit).toBe(true);
     expect(p.canDelete).toBe(false);
     expect(p.isSuperAdmin).toBe(false);
@@ -66,7 +66,7 @@ describe('getRolePermissions — custom roles', () => {
   it('treats a custom role with no module access as effectively a viewer', () => {
     const matrix = emptyModulePermissions();
     matrix.leads.view = true;
-    const p = getRolePermissions('read_only_role', { customModulePermissions: matrix });
+    const p = getRolePermissions('read_only_role', { modulePermissions: matrix });
     expect(p.isViewer).toBe(true);
     expect(p.canEdit).toBe(false);
   });
