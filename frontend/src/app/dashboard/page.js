@@ -202,7 +202,7 @@ export default function DashboardPage() {
                       <div key={item.status} className="flex items-center gap-2.5 min-w-0">
                         <span
                           className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                          style={{ backgroundColor: PIPELINE_CHART_COLORS[i % PIPELINE_CHART_COLORS.length] }}
                         />
                         <span className="text-xs text-zoho-text truncate">
                           {pluralizeLeadStatusLabel(item.status, item.count)}: {item.count}
