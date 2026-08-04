@@ -98,7 +98,7 @@ export default function HelpPage() {
 
         <div className="card p-5 mt-6 text-sm text-zoho-muted">
           <p className="font-medium text-zoho-text mb-1">Need more help?</p>
-          <p>Contact your CRM administrator or sales manager for account access, role changes, or reporting setup.</p>
+          <p>Contact your CRM administrator or Business Development Manager for account access, role changes, or reporting setup.</p>
         </div>
       </div>
     </CRMLayout>

@@ -9,8 +9,8 @@ describe('defaultOwnerFilterId', () => {
     expect(defaultOwnerFilterId({ id: 'mgr1', role: 'sales_manager' })).toBe('mgr1');
   });
 
-  it('returns empty for sales rep (view all records)', () => {
-    expect(defaultOwnerFilterId({ id: 'rep1', role: 'sales_rep' })).toBe('');
+  it('returns user id for sales rep', () => {
+    expect(defaultOwnerFilterId({ id: 'rep1', role: 'sales_rep' })).toBe('rep1');
   });
 
   it('returns empty for viewer (view all records)', () => {
@@ -23,10 +23,10 @@ describe('defaultOwnerFilterId', () => {
 });
 
 describe('withDefaultOwnerFilters', () => {
-  it('leaves owner empty for sales rep', () => {
+  it('merges default owner for sales rep', () => {
     expect(withDefaultOwnerFilters(EMPTY_CONTACT_FILTERS, { id: 'u1', role: 'sales_rep' })).toEqual({
       ...EMPTY_CONTACT_FILTERS,
-      owner_id: '',
+      owner_id: 'u1',
     });
   });
 
@@ -46,9 +46,14 @@ describe('withDefaultOwnerFilters', () => {
 });
 
 describe('countActiveFilters', () => {
-  it('counts owner filter as active for sales rep', () => {
+  it('does not count default owner as active for sales rep', () => {
     const user = { id: 'u1', role: 'sales_rep' };
-    expect(countActiveFilters({ ...EMPTY_CONTACT_FILTERS, owner_id: 'u1' }, user)).toBe(1);
+    expect(countActiveFilters({ ...EMPTY_CONTACT_FILTERS, owner_id: 'u1' }, user)).toBe(0);
+  });
+
+  it('counts non-default owner as active for sales rep', () => {
+    const user = { id: 'u1', role: 'sales_rep' };
+    expect(countActiveFilters({ ...EMPTY_CONTACT_FILTERS, owner_id: 'u2' }, user)).toBe(1);
   });
 
   it('counts owner filter as active for super admin', () => {

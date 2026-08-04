@@ -9,7 +9,7 @@ import { userDisplayName } from '../../lib/userHelpers.js';
 import { leadStatusLabel } from '../../lib/leadHelpers.js';
 import * as reportsApi from '../../lib/services/reports.js';
 import { formatWeeklyReportSchedule } from '../../lib/weeklyReportSchedule.js';
-import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { roleLabel } from '../../lib/roles.js';
 import PerformanceReportsPanel from '../../components/reports/PerformanceReportsPanel.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -330,7 +330,7 @@ export default function ReportsPage() {
                       </label>
                       <label className="flex items-center gap-2">
                         <input type="checkbox" checked={weeklySettings.sales_manager_enabled} onChange={e => setWeeklySettings(s => ({ ...s, sales_manager_enabled: e.target.checked }))} />
-                        Send to Sales Managers
+                        Send to Business Development Managers
                       </label>
                       <div>
                         <label className="text-xs text-gray-500 block mb-1">Day of week</label>
@@ -406,7 +406,7 @@ export default function ReportsPage() {
                               </td>
                               <td className="table-td">{userDisplayName(u)}</td>
                               <td className="table-td text-blue-600">{u.email}</td>
-                              <td className="table-td capitalize">{u.role?.replace('_', ' ')}</td>
+                              <td className="table-td">{roleLabel(u.role)}</td>
                             </tr>
                           );
                         })}
@@ -414,7 +414,7 @@ export default function ReportsPage() {
                     </table>
                   </div>
                   <p className="text-xs text-gray-400 mt-3">
-                    Super Admins and Sales Managers are eligible when their role toggle is enabled above. Uncheck a user to exclude them via saved settings.
+                    Super Admins and Business Development Managers are eligible when their role toggle is enabled above. Uncheck a user to exclude them via saved settings.
                   </p>
                 </div>
 
@@ -460,7 +460,7 @@ export default function ReportsPage() {
                 {weeklyPreview && (
                   <div className="card p-5">
                     <h3 className="font-semibold mb-2">Email preview — {weeklyPreview.company_name}</h3>
-                    <p className="text-xs text-gray-500 mb-4">Individual weekly performance reports sent to admins and sales managers · {weeklyPreview.period_start} to {weeklyPreview.period_end}</p>
+                    <p className="text-xs text-gray-500 mb-4">Individual weekly performance reports sent to admins and Business Development Managers · {weeklyPreview.period_start} to {weeklyPreview.period_end}</p>
                     <div className="border rounded-lg overflow-hidden bg-white max-h-[480px] overflow-y-auto">
                       <iframe title="Weekly report preview" srcDoc={weeklyPreview.html_body} className="w-full min-h-[400px] border-0" sandbox="" />
                     </div>

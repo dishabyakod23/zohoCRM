@@ -1,7 +1,8 @@
 import { ROLE_LABELS } from './roles.js';
 
+const LEGACY_ROLE_LABELS = ['Sales Manager', 'Business Rep'];
 const GENERIC_PERSON_LABELS = new Set(
-  [...Object.values(ROLE_LABELS), 'Admin', 'System', 'Unknown'].map((s) => s.toLowerCase()),
+  [...Object.values(ROLE_LABELS), ...LEGACY_ROLE_LABELS, 'Admin', 'System', 'Unknown'].map((s) => s.toLowerCase()),
 );
 
 /** True when a "name" is actually a role placeholder ("Super Admin") rather than a real person's name. */

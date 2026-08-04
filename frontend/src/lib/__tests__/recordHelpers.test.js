@@ -4,6 +4,8 @@ describe('isGenericRoleName', () => {
   it('flags known role labels, case-insensitively', () => {
     expect(isGenericRoleName('Super Admin')).toBe(true);
     expect(isGenericRoleName('super admin')).toBe(true);
+    expect(isGenericRoleName('Business Development Manager')).toBe(true);
+    expect(isGenericRoleName('Business Development Executive')).toBe(true);
     expect(isGenericRoleName('Sales Manager')).toBe(true);
     expect(isGenericRoleName('Business Rep')).toBe(true);
     expect(isGenericRoleName('Viewer')).toBe(true);

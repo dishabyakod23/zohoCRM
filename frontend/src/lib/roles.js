@@ -3,8 +3,8 @@ export const USER_ROLES = ['super_admin', 'sales_manager', 'sales_rep', 'viewer'
 
 export const ROLE_LABELS = {
   super_admin: 'Super Admin',
-  sales_manager: 'Sales Manager',
-  sales_rep: 'Business Rep',
+  sales_manager: 'Business Development Manager',
+  sales_rep: 'Business Development Executive',
   viewer: 'Viewer',
 };
 
@@ -41,8 +41,8 @@ export function normalizeRole(role) {
   if (!role) return role;
   const key = String(role).toLowerCase().trim().replace(/\s+/g, '_');
   if (key === 'admin' || key === 'superadmin' || key === 'super_admin') return 'super_admin';
-  if (key === 'manager' || key === 'sales_manager') return 'sales_manager';
-  if (key === 'business_rep' || key === 'rep' || key === 'sales_rep') return 'sales_rep';
+  if (key === 'manager' || key === 'sales_manager' || key === 'business_development_manager') return 'sales_manager';
+  if (key === 'business_rep' || key === 'rep' || key === 'sales_rep' || key === 'business_development_executive') return 'sales_rep';
   if (key === 'viewer') return 'viewer';
   return key;
 }

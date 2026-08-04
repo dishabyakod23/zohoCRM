@@ -1,11 +1,11 @@
 import { toApiLeadStatus } from './pipelineHelpers.js';
 import { normalizeRole } from './roles.js';
 
-/** Default owner filter: sales managers default to self; others see all owners. */
+/** Default owner filter: reps and managers default to self; super admin and viewer see all owners. */
 export function defaultOwnerFilterId(user) {
   if (!user?.id) return '';
   const role = normalizeRole(user.role);
-  if (role === 'sales_manager') return String(user.id);
+  if (role === 'sales_manager' || role === 'sales_rep') return String(user.id);
   return '';
 }
 

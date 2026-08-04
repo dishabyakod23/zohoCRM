@@ -92,7 +92,7 @@ export default function PerformanceReportsPanel() {
       return;
     }
     if (!managementRecipients.length) {
-      showToast('No admin or sales manager recipients found');
+      showToast('No admin or Business Development Manager recipients found');
       return;
     }
     setSending(true);
@@ -166,7 +166,7 @@ export default function PerformanceReportsPanel() {
       <div className="card p-5">
         <h3 className="font-semibold mb-1">Individual Performance Report</h3>
         <p className="text-xs text-gray-500 mb-4">
-          Preview a weekly sales status report for a team member. Sending delivers the report to all admins and sales managers, not to the selected person.
+          Preview a weekly sales status report for a team member. Sending delivers the report to all admins and Business Development Managers, not to the selected person.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div className="md:col-span-2">
