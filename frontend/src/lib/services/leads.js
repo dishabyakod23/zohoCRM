@@ -211,7 +211,6 @@ export async function listWorkItems({
     pipeline_stage,
     filters,
     search,
-    owner_id: userId,
     sort_by,
     sort_order,
   });
@@ -222,7 +221,7 @@ export async function listWorkItems({
   if (needsClientFilter) {
     const allLeads = await fetchAllLeadPages(params, statusOptions);
     let items = refineLeadPageByPipelineStage(allLeads, pipeline_stage);
-    items = applyLeadRecordFilters(items, { ...filters, owner_id: userId }, { campaignMemberIds });
+    items = applyLeadRecordFilters(items, filters, { campaignMemberIds });
     items = sortRecords(items, sort_key || 'created_desc', 'leads');
     const start = (page - 1) * page_size;
     return {
