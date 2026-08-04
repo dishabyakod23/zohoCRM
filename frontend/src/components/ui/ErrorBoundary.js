@@ -5,11 +5,18 @@ import { Component } from 'react';
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, resetKey: props.resetKey };
   }
 
   static getDerivedStateFromError() {
     return { hasError: true };
+  }
+
+  static getDerivedStateFromProps(nextProps, prevState) {
+    if (nextProps.resetKey && nextProps.resetKey !== prevState.resetKey) {
+      return { hasError: false, resetKey: nextProps.resetKey };
+    }
+    return null;
   }
 
   componentDidCatch(error, info) {

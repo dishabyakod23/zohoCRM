@@ -35,6 +35,17 @@ describe('cloudTalkCallTarget — "Name (number)" formatting', () => {
   });
 });
 
+describe('listCloudTalkCallsLastDays', () => {
+  it('returns stored calls when the CloudTalk API is unavailable', async () => {
+    const api = (await import('../../api.js')).default;
+    jest.spyOn(api, 'get').mockRejectedValue({ response: { status: 503 } });
+
+    const { listCloudTalkCallsLastDays } = await import('../cloudTalkCalls.js');
+    const calls = await listCloudTalkCallsLastDays(30, {}, { limit: 10 });
+    expect(Array.isArray(calls)).toBe(true);
+  });
+});
+
 describe('cloudTalkCallSummary', () => {
   it('builds an outgoing-call summary with "Name (number)" and duration', () => {
     const summary = cloudTalkCallSummary({

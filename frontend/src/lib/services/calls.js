@@ -34,9 +34,17 @@ function toCallPayload(form, { partial = false } = {}) {
 
 export async function listCalls(params = {}) {
   const { page_size, limit, ...rest } = params;
-  const res = await api.get('/calls', { params: { ...rest, limit: limit ?? page_size ?? DEFAULT_PAGE_SIZE } });
-  const result = listResult(res);
-  return { ...result, data: result.data.map(normalizeCall) };
+  try {
+    const res = await api.get('/calls', { params: { ...rest, limit: limit ?? page_size ?? DEFAULT_PAGE_SIZE } });
+    const result = listResult(res);
+    return { ...result, data: result.data.map(normalizeCall) };
+  } catch (err) {
+    const status = err?.response?.status;
+    if (status === 404 || status === 405 || status === 501 || status >= 500) {
+      return { data: [], total: 0, meta: { total: 0 } };
+    }
+    throw err;
+  }
 }
 
 export async function listAllMatchingCallIds(params = {}) {

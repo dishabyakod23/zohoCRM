@@ -174,6 +174,19 @@ export function scopeCloudTalkCalls(calls, { user, canSeeAll }) {
   });
 }
 
+function isSoftCloudTalkApiError(err) {
+  const status = err?.response?.status;
+  if (!status) return true;
+  if (status === 404 || status === 405 || status === 501) return true;
+  if (status >= 500) return true;
+  return false;
+}
+
+function parseCloudTalkPayload(body) {
+  const payload = body?.data ?? body?.responseData?.data ?? body?.responseData ?? body ?? [];
+  return Array.isArray(payload) ? payload : [];
+}
+
 export async function listCloudTalkCallsLastDays(days = 30, params = {}, { limit = 200 } = {}) {
   if (!CLOUDTALK_ENABLED) return [];
 
@@ -191,10 +204,9 @@ export async function listCloudTalkCallsLastDays(days = 30, params = {}, { limit
         page: 1,
       },
     });
-    const payload = res.data?.data ?? res.data?.responseData?.data ?? [];
-    remote = payload.map((record) => normalizeCloudTalkCall(record));
+    remote = parseCloudTalkPayload(res.data).map((record) => normalizeCloudTalkCall(record));
   } catch (err) {
-    if (err.response?.status !== 404) throw err;
+    if (!isSoftCloudTalkApiError(err)) throw err;
   }
 
   return dedupeCloudTalkCalls([...remote, ...stored.map((entry) => ({ ...entry }))]);

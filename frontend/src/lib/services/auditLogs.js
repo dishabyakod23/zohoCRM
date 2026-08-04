@@ -117,7 +117,7 @@ export async function listActivityLogsLastDays(
 ) {
   const scopedParams = canSeeAll ? params : { ...params, user_id: user?.id };
   const [auditLogs, cloudTalkCalls] = await Promise.all([
-    listAuditLogsLastDays(days, scopedParams),
+    listAuditLogsLastDays(days, scopedParams).catch(() => []),
     listCloudTalkCallsLastDays(days, scopedParams, { limit: 200 }).catch(() => []),
   ]);
 
@@ -158,7 +158,7 @@ export async function listRecentActivityLogs(
         start_at,
         end_at,
       },
-    }),
+    }).catch(() => ({ data: { data: [] } })),
     includeCloudTalk
       ? listCloudTalkCallsLastDays(days, scopedParams, { limit: cloudTalkLimit }).catch(() => [])
       : Promise.resolve([]),

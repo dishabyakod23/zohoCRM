@@ -2,7 +2,7 @@ import './globals.css';
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '../hooks/useAuth.js';
 import { ToastProvider } from '../components/ui/Toast.js';
-import ErrorBoundary from '../components/ui/ErrorBoundary.js';
+import RouteErrorBoundary from '../components/ui/RouteErrorBoundary.js';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -17,7 +17,7 @@ export default function RootLayout({ children }) {
       <body className={`${inter.variable} font-sans`}>
         <AuthProvider>
           <ToastProvider>
-            <ErrorBoundary>{children}</ErrorBoundary>
+            <RouteErrorBoundary>{children}</RouteErrorBoundary>
           </ToastProvider>
         </AuthProvider>
       </body>
