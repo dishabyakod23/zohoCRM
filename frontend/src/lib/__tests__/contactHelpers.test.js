@@ -1,4 +1,4 @@
-import { normalizeContact, toContactPayload, buildBulkImportContactRecord } from '../contactHelpers.js';
+import { normalizeContact, toContactPayload, normalizeBulkUploadContactRecords } from '../contactHelpers.js';
 
 describe('contactHelpers company linkage', () => {
   it('maps company_id to display name from company lookups', () => {
@@ -33,19 +33,30 @@ describe('contactHelpers company linkage', () => {
     expect(payload.account_id).toBeNull();
   });
 
-  it('omits account_id from bulk import payloads and uses company_id', () => {
-    const payload = buildBulkImportContactRecord(
+  it('preserves account_id from bulk-upload for bulk-import', () => {
+    const [payload] = normalizeBulkUploadContactRecords([
       {
         first_name: 'Ada',
         last_name: 'Lovelace',
         email: 'ada@example.com',
-        account_id: 'not-a-valid-uuid',
+        account_id: '550e8400-e29b-41d4-a716-446655440000',
         account_name: 'Acme Corp',
       },
-      { companyId: '550e8400-e29b-41d4-a716-446655440000', companyName: 'Acme Corp' },
-    );
-    expect(payload.company_id).toBe('550e8400-e29b-41d4-a716-446655440000');
-    expect(payload.company_name).toBe('Acme Corp');
-    expect(payload.account_id).toBeUndefined();
+    ]);
+    expect(payload.account_id).toBe('550e8400-e29b-41d4-a716-446655440000');
+    expect(payload.account_name).toBe('Acme Corp');
+    expect(payload.first_name).toBe('Ada');
+  });
+
+  it('uses company_id as account_id when bulk-upload only returns company_id', () => {
+    const [payload] = normalizeBulkUploadContactRecords([
+      {
+        first_name: 'Ada',
+        last_name: 'Lovelace',
+        email: 'ada@example.com',
+        company_id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    ]);
+    expect(payload.account_id).toBe('550e8400-e29b-41d4-a716-446655440001');
   });
 });

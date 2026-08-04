@@ -140,44 +140,32 @@ export function toContactPayload(form, { partial = false } = {}) {
   };
 }
 
-/** Build a bulk-import payload that links contacts to companies, never accounts. */
-export function buildBulkImportContactRecord(record, { companyId = null, companyName = null } = {}) {
-  const {
-    account_id: _accountId,
-    account: _account,
-    account_name: _accountName,
-    company: _company,
-    company_id: _companyId,
-    company_name: _companyName,
-    source,
-    linkedin,
-    ...rest
-  } = record || {};
-
-  const payload = toContactPayload({
-    ...rest,
-    company_id: companyId,
-    company_name: companyName,
-    lead_source: record.lead_source || source || null,
+/** Normalize bulk-upload rows before bulk-import while preserving API-resolved account_id. */
+export function normalizeBulkUploadContactRecords(readyRecords = []) {
+  return (readyRecords || []).map((record) => ({
+    ...record,
+    account_id: record.account_id || record.company_id || null,
     email_opt_out: coerceImportBool(record.email_opt_out),
-    skype_id: record.skype_id || record.linkedin || linkedin || null,
-  });
-  delete payload.account_id;
-  return payload;
+    skype_id: record.skype_id || record.linkedin || null,
+  }));
 }
 
+/** Fallback for lead-sync contact creation when bulk-upload did not resolve links. */
 export async function prepareContactImportRecords(readyRecords = [], { companies = [] } = {}) {
   const { resolveContactCompanyFields } = await import('./resolveContactAccount.js');
   const processed = [];
 
   for (const record of readyRecords) {
+    if (record.account_id && isImportUuid(record.account_id)) {
+      processed.push(normalizeBulkUploadContactRecords([record])[0]);
+      continue;
+    }
+
     const companyName = String(
       record.company_name || record.account_name || record.account || record.company || '',
     ).trim() || null;
 
     let companyId = record.company_id && isImportUuid(record.company_id) ? record.company_id : null;
-    const legacyAccountId = record.account_id && isImportUuid(record.account_id) ? record.account_id : null;
-    if (!companyId && legacyAccountId) companyId = legacyAccountId;
 
     if (!companyId && companyName) {
       const resolved = await resolveContactCompanyFields({
@@ -190,7 +178,12 @@ export async function prepareContactImportRecords(readyRecords = [], { companies
       companyId = resolved.company_id;
     }
 
-    processed.push(buildBulkImportContactRecord(record, { companyId, companyName }));
+    processed.push({
+      ...normalizeBulkUploadContactRecords([record])[0],
+      company_id: companyId,
+      company_name: companyName,
+      account_id: companyId || record.account_id || null,
+    });
   }
 
   return processed;

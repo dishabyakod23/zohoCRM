@@ -1,5 +1,5 @@
 import api from '../api.js';
-import { normalizeContact, toContactPayload, prepareContactImportRecords } from '../contactHelpers.js';
+import { normalizeContact, toContactPayload, normalizeBulkUploadContactRecords } from '../contactHelpers.js';
 import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
 import {
   applyContactRecordFilters,
@@ -142,14 +142,7 @@ export async function importContactsFile(file, { dry_run = true, campaignId } = 
     });
   }
 
-  let accounts = [];
   let campaignLookups = [];
-  try {
-    const { fetchCompanyLookups } = await import('./lookups.js');
-    accounts = await fetchCompanyLookups();
-  } catch {
-    accounts = [];
-  }
   try {
     campaignLookups = await fetchCampaignLookups();
   } catch {
@@ -157,7 +150,7 @@ export async function importContactsFile(file, { dry_run = true, campaignId } = 
   }
 
   const defaultCampaignId = await resolveImportCampaignId(campaignId);
-  const processedRecords = await prepareContactImportRecords(readyRecords, { companies: accounts });
+  const processedRecords = normalizeBulkUploadContactRecords(readyRecords);
 
   const records = attachCampaignIdsToImportRecords(processedRecords, {
     defaultCampaignId,
