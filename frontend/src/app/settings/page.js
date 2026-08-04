@@ -15,9 +15,11 @@ import { userDisplayName } from '../../lib/userHelpers.js';
 import { mergeStoredProfileImage } from '../../lib/profileImageHelpers.js';
 import { USER_ROLES, ROLE_LABELS, ROLE_ACCESS, roleLabel, normalizeRole } from '../../lib/roles.js';
 import * as adminApi from '../../lib/services/admin.js';
+import * as manageRolesApi from '../../lib/services/manageRoles.js';
 import { triggerWeeklyReport } from '../../lib/services/reports.js';
 import * as authApi from '../../lib/services/auth.js';
 import AnnouncementsPanel from '../../components/admin/AnnouncementsPanel.js';
+import ManageRolesPanel from '../../components/settings/ManageRolesPanel.js';
 import { slugifyStatusValue } from '../../lib/statusHelpers.js';
 import { normalizeLoginEmail } from '../../lib/authHelpers.js';
 import { ONBOARDING_RESTART_EVENT } from '../../lib/onboardingTour.js';
@@ -33,6 +35,7 @@ const EMPTY_USER = {
 const TABS = [
   { id: 'profile', label: 'My Profile' },
   { id: 'users', label: 'Users & Roles', adminOnly: true },
+  { id: 'roles', label: 'Manage Roles', superAdminOnly: true },
   { id: 'statuses', label: 'Lead Statuses', adminOnly: true },
   { id: 'company', label: 'Company Settings', adminOnly: true },
   { id: 'announcements', label: 'Announcements', adminOnly: true },
@@ -40,12 +43,13 @@ const TABS = [
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
-  const { canManageUsers, canManageSettings, roleAccess, roleLabel: myRoleLabel } = usePermissions();
+  const { canManageUsers, canManageSettings, canManageRoles, roleAccess, roleLabel: myRoleLabel } = usePermissions();
   const { showToast } = useToast();
 
   const [tab, setTab] = useState('profile');
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [assignableRoles, setAssignableRoles] = useState([]);
   const [userModal, setUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [userForm, setUserForm] = useState(EMPTY_USER);
@@ -72,13 +76,22 @@ export default function SettingsPage() {
   const [sendingCode, setSendingCode] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
 
-  const visibleTabs = TABS.filter(t => !t.adminOnly || canManageUsers);
+  const visibleTabs = TABS.filter(t => {
+    if (t.superAdminOnly) return canManageRoles;
+    if (t.adminOnly) return canManageUsers;
+    return true;
+  });
 
   const loadUsers = useCallback(async () => {
     if (!canManageUsers) return;
     setUsersLoading(true);
     try {
-      setUsers(await adminApi.listAdminUsers());
+      const [userList, roleList] = await Promise.all([
+        adminApi.listAdminUsers(),
+        manageRolesApi.listAssignableRoles().catch(() => []),
+      ]);
+      setUsers(userList);
+      setAssignableRoles(roleList);
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -503,6 +516,10 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {tab === 'roles' && canManageRoles && (
+          <ManageRolesPanel />
+        )}
+
         {tab === 'statuses' && canManageSettings && (
           <div className="space-y-4">
             <div className="card p-5">
@@ -665,10 +682,14 @@ export default function SettingsPage() {
             </div>
             <FormField label="Role" name="role">
               <select className="input" value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))}>
-                {USER_ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                {assignableRoles.length > 0
+                  ? assignableRoles.map(r => <option key={r.id} value={r.key}>{r.name}</option>)
+                  : USER_ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
               </select>
             </FormField>
-            <p className="text-xs text-zoho-muted bg-gray-50 rounded-lg p-2">{ROLE_ACCESS[userForm.role]}</p>
+            <p className="text-xs text-zoho-muted bg-gray-50 rounded-lg p-2">
+              {ROLE_ACCESS[userForm.role] || assignableRoles.find(r => r.key === userForm.role)?.description || ''}
+            </p>
             {editingUser && (
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={userForm.is_active !== false}
