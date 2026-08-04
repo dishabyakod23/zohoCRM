@@ -1,5 +1,5 @@
 import api from '../api.js';
-import { normalizeContact, toContactPayload } from '../contactHelpers.js';
+import { normalizeContact, toContactPayload, prepareContactImportRecords } from '../contactHelpers.js';
 import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
 import {
   applyContactRecordFilters,
@@ -128,12 +128,6 @@ export async function downloadContactImportTemplate() {
   downloadBlob(new Blob([csv], { type: 'text/csv' }), 'contacts-import-template.csv');
 }
 
-function coerceImportBool(value) {
-  if (value == null || value === '') return false;
-  const v = String(value).trim().toLowerCase();
-  return ['1', 'true', 'yes', 'y', 'on'].includes(v);
-}
-
 export async function importContactsFile(file, { dry_run = true, campaignId } = {}) {
   const csv = await file.text();
   const upload = await api.post('/contacts/bulk-upload', { csv });
@@ -163,32 +157,7 @@ export async function importContactsFile(file, { dry_run = true, campaignId } = 
   }
 
   const defaultCampaignId = await resolveImportCampaignId(campaignId);
-  const processedRecords = [];
-
-  for (const record of readyRecords) {
-    let companyId = record.company_id || null;
-    if (!companyId && (record.account_name || record.account || record.company || record.company_name)) {
-      const { resolveContactCompanyFields } = await import('../resolveContactAccount.js');
-      const resolved = await resolveContactCompanyFields({
-        company_id: record.company_id || record.account_id,
-        company_name: record.company_name || record.account_name || record.account || record.company,
-        companies: accounts,
-        phone: record.phone,
-        mobile: record.mobile,
-        owner_id: record.owner_id || null,
-      });
-      companyId = resolved.company_id;
-    }
-
-    processedRecords.push({
-      ...record,
-      company_id: companyId,
-      company_name: record.company_name || record.account_name || record.account || record.company || null,
-      account_id: null,
-      email_opt_out: coerceImportBool(record.email_opt_out),
-      skype_id: record.skype_id || record.linkedin || null,
-    });
-  }
+  const processedRecords = await prepareContactImportRecords(readyRecords, { companies: accounts });
 
   const records = attachCampaignIdsToImportRecords(processedRecords, {
     defaultCampaignId,

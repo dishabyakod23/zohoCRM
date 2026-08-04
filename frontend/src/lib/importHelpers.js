@@ -1,3 +1,10 @@
+/** Normalize boolean-ish CSV values for import payloads. */
+export function coerceImportBool(value) {
+  if (value == null || value === '') return false;
+  const v = String(value).trim().toLowerCase();
+  return ['1', 'true', 'yes', 'y', 'on'].includes(v);
+}
+
 /** Trigger browser download from a blob API response */
 export function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);

@@ -23,7 +23,7 @@ export const CONTACT_IMPORT_FIELDS = [
   { key: 'first_name', label: 'First Name', required: true, aliases: ['firstname', 'first', 'givenname', 'fname'] },
   { key: 'last_name', label: 'Last Name', required: true, aliases: ['lastname', 'last', 'surname', 'lname'] },
   { key: 'email', label: 'Email', required: true, aliases: ['emailaddress', 'email_address', 'mail'] },
-  { key: 'account_name', label: 'Account Name', required: true, aliases: ['account', 'company', 'organization', 'accountname', 'account_id'] },
+  { key: 'account_name', label: 'Company Name', required: true, aliases: ['account', 'company', 'organization', 'accountname', 'company_name', 'companyname'] },
   { key: 'phone', label: 'Phone', aliases: ['phonenumber', 'phone_number', 'telephone', 'tel'] },
   { key: 'other_phone', label: 'Other Phone', aliases: ['otherphone', 'alt_phone', 'alternate_phone'] },
   { key: 'mobile', label: 'Mobile', aliases: ['mobilephone', 'cell', 'cellphone', 'mobile_phone'] },

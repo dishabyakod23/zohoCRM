@@ -1,5 +1,10 @@
 import { ownerName } from './recordHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
+import { coerceImportBool } from './importHelpers.js';
+
+export function isImportUuid(value) {
+  return /^[0-9a-f-]{36}$/i.test(String(value || '').trim());
+}
 
 export function normalizeContact(contact, companyMap = {}) {
   if (!contact) return contact;
@@ -133,4 +138,60 @@ export function toContactPayload(form, { partial = false } = {}) {
     currency: form.currency || DEFAULT_CURRENCY,
     owner_id: form.owner_id || null,
   };
+}
+
+/** Build a bulk-import payload that links contacts to companies, never accounts. */
+export function buildBulkImportContactRecord(record, { companyId = null, companyName = null } = {}) {
+  const {
+    account_id: _accountId,
+    account: _account,
+    account_name: _accountName,
+    company: _company,
+    company_id: _companyId,
+    company_name: _companyName,
+    source,
+    linkedin,
+    ...rest
+  } = record || {};
+
+  const payload = toContactPayload({
+    ...rest,
+    company_id: companyId,
+    company_name: companyName,
+    lead_source: record.lead_source || source || null,
+    email_opt_out: coerceImportBool(record.email_opt_out),
+    skype_id: record.skype_id || record.linkedin || linkedin || null,
+  });
+  delete payload.account_id;
+  return payload;
+}
+
+export async function prepareContactImportRecords(readyRecords = [], { companies = [] } = {}) {
+  const { resolveContactCompanyFields } = await import('./resolveContactAccount.js');
+  const processed = [];
+
+  for (const record of readyRecords) {
+    const companyName = String(
+      record.company_name || record.account_name || record.account || record.company || '',
+    ).trim() || null;
+
+    let companyId = record.company_id && isImportUuid(record.company_id) ? record.company_id : null;
+    const legacyAccountId = record.account_id && isImportUuid(record.account_id) ? record.account_id : null;
+    if (!companyId && legacyAccountId) companyId = legacyAccountId;
+
+    if (!companyId && companyName) {
+      const resolved = await resolveContactCompanyFields({
+        company_name: companyName,
+        companies,
+        phone: record.phone,
+        mobile: record.mobile,
+        owner_id: record.owner_id || null,
+      });
+      companyId = resolved.company_id;
+    }
+
+    processed.push(buildBulkImportContactRecord(record, { companyId, companyName }));
+  }
+
+  return processed;
 }

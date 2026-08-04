@@ -5,6 +5,7 @@ import {
   fetchCampaignLookups,
   invalidateCampaignCaches,
 } from './campaignRecordHelpers.js';
+import { prepareContactImportRecords } from './contactHelpers.js';
 import { invalidateCachedRequestPrefix } from './requestCache.js';
 
 function extractImportedIds(result = {}) {
@@ -24,7 +25,7 @@ export async function linkImportedRecordsToCampaign(campaignId, { leadIds = [], 
 }
 
 /** Create contact records for imported leads so they appear in the Contacts module. */
-export async function syncImportedLeadsAsContacts(readyRecords, { campaignId, campaignLookups = [] } = {}) {
+export async function syncImportedLeadsAsContacts(readyRecords, { campaignId, campaignLookups = [], companies = [] } = {}) {
   if (!readyRecords?.length) return { imported: 0, contactIds: [] };
 
   const contactRecords = readyRecords.map((record) => ({
@@ -33,13 +34,15 @@ export async function syncImportedLeadsAsContacts(readyRecords, { campaignId, ca
     email: record.email,
     phone: record.phone || null,
     mobile: record.mobile || null,
-    company_name: record.company || record.company_name || null,
+    company_name: record.company || record.company_name || record.account_name || null,
+    account_name: record.account_name || record.company || record.company_name || null,
     lead_source: record.lead_source || record.source || null,
     owner_id: record.owner_id || null,
     title: record.title || null,
   }));
 
-  const records = attachCampaignIdsToImportRecords(contactRecords, {
+  const processedRecords = await prepareContactImportRecords(contactRecords, { companies });
+  const records = attachCampaignIdsToImportRecords(processedRecords, {
     defaultCampaignId: campaignId,
     campaignLookups,
   });
