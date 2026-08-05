@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
@@ -44,11 +45,12 @@ const TABS = [
 ];
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams();
   const { user, logout } = useAuth();
   const { canManageUsers, canManageSettings, canManageRoles, roleAccess, roleLabel: myRoleLabel, can } = usePermissions();
   const { showToast } = useToast();
 
-  const [tab, setTab] = useState('profile');
+  const [tab, setTab] = useState(() => (searchParams.get('sales_targets') ? 'sales_targets' : 'profile'));
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [assignableRoles, setAssignableRoles] = useState([]);
@@ -83,6 +85,12 @@ export default function SettingsPage() {
     if (t.permission) return can(t.permission[0], t.permission[1]);
     return true;
   });
+
+  useEffect(() => {
+    if (searchParams.get('sales_targets') && can('settings_sales_targets', 'view')) {
+      setTab('sales_targets');
+    }
+  }, [searchParams, can]);
 
   const loadUsers = useCallback(async () => {
     if (!canManageUsers) return;

@@ -1,15 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Modal from '../ui/Modal.js';
-import FormField, { inputClass } from '../forms/FormField.js';
+import Link from 'next/link';
+import FormField from '../forms/FormField.js';
 import { useToast } from '../ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
-import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
-import { roleLabel, normalizeRole } from '../../lib/roles.js';
+import { normalizeRole } from '../../lib/roles.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import * as salesTargetsApi from '../../lib/services/salesTargets.js';
 import {
@@ -19,28 +18,6 @@ import {
   formatTargetAmount,
   targetStatusLabel,
 } from '../../lib/salesTargetHelpers.js';
-
-const EMPTY_FORM = {
-  period_type: 'monthly',
-  period_name: '',
-  start_date: '',
-  end_date: '',
-  employee_id: '',
-  role: 'sales_rep',
-  reporting_manager_id: '',
-  currency: DEFAULT_CURRENCY,
-  pipeline_target: '',
-  revenue_target: '',
-  collection_target: '',
-  proposal_value_target: '',
-  proposal_count_target: '',
-  qualified_meetings_target: '',
-  deal_closure_count_target: '',
-  status: 'draft',
-  is_manual_override: false,
-  override_reason: '',
-  remarks: '',
-};
 
 function statusBadgeClass(status) {
   if (status === 'active') return 'bg-emerald-50 text-emerald-700';
@@ -62,11 +39,7 @@ export default function SalesTargetsPanel() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingTarget, setEditingTarget] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
   const [filters, setFilters] = useState({
     period_type: '',
     year: new Date().getFullYear(),
@@ -123,74 +96,6 @@ export default function SalesTargetsPanel() {
 
   useEffect(() => { loadUsers(); loadSettings(); }, [loadUsers, loadSettings]);
   useEffect(() => { loadTargets(); }, [loadTargets]);
-
-  const openCreate = () => {
-    setEditingTarget(null);
-    setForm({
-      ...EMPTY_FORM,
-      currency: settings?.default_currency || DEFAULT_CURRENCY,
-    });
-    setModalOpen(true);
-  };
-
-  const openEdit = (target) => {
-    setEditingTarget(target);
-    setForm({
-      period_type: target.period_type,
-      period_name: target.period_name,
-      start_date: target.start_date,
-      end_date: target.end_date,
-      employee_id: target.employee_id,
-      role: target.role,
-      reporting_manager_id: target.reporting_manager_id || '',
-      currency: target.currency,
-      pipeline_target: target.pipeline_target,
-      revenue_target: target.revenue_target,
-      collection_target: target.collection_target || '',
-      proposal_value_target: target.proposal_value_target || '',
-      proposal_count_target: target.proposal_count_target ?? '',
-      qualified_meetings_target: target.qualified_meetings_target ?? '',
-      deal_closure_count_target: target.deal_closure_count_target ?? '',
-      status: target.status,
-      is_manual_override: target.is_manual_override,
-      override_reason: target.override_reason || '',
-      remarks: target.remarks || '',
-    });
-    setModalOpen(true);
-  };
-
-  const handleEmployeeChange = (employeeId) => {
-    const employee = users.find((u) => String(u.id) === String(employeeId));
-    const role = normalizeRole(employee?.role) || 'sales_rep';
-    setForm((f) => ({
-      ...f,
-      employee_id: employeeId,
-      role: role === 'sales_manager' ? 'sales_manager' : 'sales_rep',
-    }));
-  };
-
-  const saveTarget = async () => {
-    if (!form.period_name?.trim() || !form.start_date || !form.end_date || !form.employee_id) {
-      showToast('Period name, dates, and employee are required');
-      return;
-    }
-    setSaving(true);
-    try {
-      if (editingTarget) {
-        await salesTargetsApi.updateSalesTarget(editingTarget.id, form);
-        showToast('Target updated', 'success');
-      } else {
-        await salesTargetsApi.createSalesTarget(form);
-        showToast('Target created', 'success');
-      }
-      setModalOpen(false);
-      loadTargets();
-    } catch (err) {
-      showToast(getApiError(err));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleLock = async (target, lock) => {
     try {
@@ -281,7 +186,7 @@ export default function SalesTargetsPanel() {
             <p className="text-xs text-zoho-muted">Configure weekly, monthly, quarterly, and yearly targets</p>
           </div>
           {canCreate && (
-            <button type="button" onClick={openCreate} className="btn-primary text-xs">+ Add Target</button>
+            <Link href="/settings/sales-targets/new" className="btn-primary text-xs">+ Add Target</Link>
           )}
         </div>
 
@@ -355,7 +260,7 @@ export default function SalesTargetsPanel() {
                   <td className="table-td">
                     <div className="flex flex-wrap gap-2">
                       {canEdit && target.status !== 'locked' && (
-                        <button type="button" onClick={() => openEdit(target)} className="text-xs text-blue-600 hover:underline">Edit</button>
+                        <Link href={`/settings/sales-targets/${target.id}/edit`} className="text-xs text-blue-600 hover:underline">Edit</Link>
                       )}
                       {canCreate && (
                         <button type="button" onClick={() => handleCopy(target)} className="text-xs text-blue-600 hover:underline">Copy</button>
@@ -387,87 +292,6 @@ export default function SalesTargetsPanel() {
           </div>
         )}
       </div>
-
-      {modalOpen && (
-        <Modal title={editingTarget ? 'Edit Target' : 'Add Target'} onClose={() => setModalOpen(false)}>
-          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Target Period" required name="period_type">
-                <select className="input" value={form.period_type} onChange={(e) => setForm((f) => ({ ...f, period_type: e.target.value }))} disabled={!!editingTarget}>
-                  {TARGET_PERIOD_TYPES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </FormField>
-              <FormField label="Status" name="status">
-                <select className="input" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
-                  {TARGET_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-              </FormField>
-            </div>
-            <FormField label="Period Name" required name="period_name">
-              <input className="input" value={form.period_name} onChange={(e) => setForm((f) => ({ ...f, period_name: e.target.value }))} placeholder="e.g. Aug-2026" />
-            </FormField>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Start Date" required name="start_date">
-                <input className="input" type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
-              </FormField>
-              <FormField label="End Date" required name="end_date">
-                <input className="input" type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} />
-              </FormField>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Employee" required name="employee_id">
-                <select className="input" value={form.employee_id} onChange={(e) => handleEmployeeChange(e.target.value)} disabled={!!editingTarget}>
-                  <option value="">Select employee</option>
-                  {users.filter((u) => u.is_active !== false).map((u) => (
-                    <option key={u.id} value={u.id}>{userDisplayName(u)} ({roleLabel(u.role)})</option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField label="Reporting Manager" name="reporting_manager_id">
-                <select className="input" value={form.reporting_manager_id} onChange={(e) => setForm((f) => ({ ...f, reporting_manager_id: e.target.value }))}>
-                  <option value="">Select manager</option>
-                  {managers.map((u) => <option key={u.id} value={u.id}>{userDisplayName(u)}</option>)}
-                </select>
-              </FormField>
-            </div>
-            <FormField label="Currency" name="currency">
-              <input className="input" value={form.currency} onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))} />
-            </FormField>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Pipeline Target" required name="pipeline_target">
-                <input className="input" type="number" min="0" value={form.pipeline_target} onChange={(e) => setForm((f) => ({ ...f, pipeline_target: e.target.value }))} />
-              </FormField>
-              <FormField label="Revenue Target" required name="revenue_target">
-                <input className="input" type="number" min="0" value={form.revenue_target} onChange={(e) => setForm((f) => ({ ...f, revenue_target: e.target.value }))} />
-              </FormField>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Collection Target" name="collection_target">
-                <input className="input" type="number" min="0" value={form.collection_target} onChange={(e) => setForm((f) => ({ ...f, collection_target: e.target.value }))} />
-              </FormField>
-              <FormField label="Qualified Meetings" name="qualified_meetings_target">
-                <input className="input" type="number" min="0" value={form.qualified_meetings_target} onChange={(e) => setForm((f) => ({ ...f, qualified_meetings_target: e.target.value }))} />
-              </FormField>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={form.is_manual_override} onChange={(e) => setForm((f) => ({ ...f, is_manual_override: e.target.checked }))} />
-              Manual override (use entered values instead of roll-up)
-            </label>
-            {form.is_manual_override && (
-              <FormField label="Override Reason" name="override_reason">
-                <input className={inputClass()} value={form.override_reason} onChange={(e) => setForm((f) => ({ ...f, override_reason: e.target.value }))} />
-              </FormField>
-            )}
-            <FormField label="Remarks" name="remarks">
-              <textarea className="input min-h-[72px]" value={form.remarks} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} />
-            </FormField>
-          </div>
-          <div className="flex gap-2 justify-end pt-4 mt-2 border-t border-gray-100">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>
-            <button type="button" onClick={saveTarget} disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Target'}</button>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }
