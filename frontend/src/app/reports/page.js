@@ -11,6 +11,8 @@ import * as reportsApi from '../../lib/services/reports.js';
 import { formatWeeklyReportSchedule } from '../../lib/weeklyReportSchedule.js';
 import { roleLabel } from '../../lib/roles.js';
 import PerformanceReportsPanel from '../../components/reports/PerformanceReportsPanel.js';
+import SalesTargetReportsPanel from '../../components/reports/SalesTargetReportsPanel.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const COLORS = ['#378ADD', '#639922', '#EF9F27', '#D85A30', '#1D9E75', '#E24B4A', '#7F77DD', '#888'];
@@ -22,7 +24,8 @@ const EXPORT_PATHS = {
 
 export default function ReportsPage() {
   const { showToast } = useToast();
-  const { user, canDownload, canManageWeeklyReports, canManagePerformanceReports, canAccessReports } = usePermissions();
+  const { user, canDownload, canManageWeeklyReports, canManagePerformanceReports, canAccessReports, can } = usePermissions();
+  const canSalesTargetReports = can('settings_sales_targets', 'view') || can('reports', 'view');
   const admin = canManageWeeklyReports;
   const canPerformance = canManagePerformanceReports;
   const [tab, setTab] = useState('leads');
@@ -45,7 +48,7 @@ export default function ReportsPage() {
   };
 
   const loadReportData = useCallback(async () => {
-    if (tab === 'weekly' || tab === 'performance') return;
+    if (tab === 'weekly' || tab === 'performance' || tab === 'sales_targets') return;
     setLoading(true);
     try {
       if (tab === 'leads') {
@@ -195,6 +198,7 @@ export default function ReportsPage() {
     { id: 'accounts', label: 'Account Reports' },
     { id: 'campaigns', label: 'Campaign Reports' },
     ...(canPerformance ? [{ id: 'performance', label: 'Individual Performance' }] : []),
+    ...(canSalesTargetReports ? [{ id: 'sales_targets', label: 'Pipeline & Revenue Targets' }] : []),
     ...(admin ? [{ id: 'weekly', label: 'Weekly Reports' }] : []),
   ];
 
@@ -224,7 +228,7 @@ export default function ReportsPage() {
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-bold">Reports</h1>
-          {tab !== 'weekly' && tab !== 'performance' && (
+          {tab !== 'weekly' && tab !== 'performance' && tab !== 'sales_targets' && (
             <div className="flex gap-2 items-center">
               <input className="input w-36 text-xs" type="date" value={dateRange.start} onChange={e => setDateRange(d => ({ ...d, start: e.target.value }))} />
               <span className="text-gray-400">to</span>
@@ -245,7 +249,7 @@ export default function ReportsPage() {
           ))}
         </div>
 
-        {loading && tab !== 'weekly' && tab !== 'performance' && (
+        {loading && tab !== 'weekly' && tab !== 'performance' && tab !== 'sales_targets' && (
           <p className="text-sm text-gray-400 py-8 text-center">Loading report data...</p>
         )}
 
@@ -308,6 +312,10 @@ export default function ReportsPage() {
 
         {tab === 'performance' && canPerformance && (
           <PerformanceReportsPanel />
+        )}
+
+        {tab === 'sales_targets' && canSalesTargetReports && (
+          <SalesTargetReportsPanel />
         )}
 
         {tab === 'weekly' && admin && (

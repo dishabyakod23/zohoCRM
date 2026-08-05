@@ -20,6 +20,7 @@ import { triggerWeeklyReport } from '../../lib/services/reports.js';
 import * as authApi from '../../lib/services/auth.js';
 import AnnouncementsPanel from '../../components/admin/AnnouncementsPanel.js';
 import ManageRolesPanel from '../../components/settings/ManageRolesPanel.js';
+import SalesTargetsPanel from '../../components/settings/SalesTargetsPanel.js';
 import { slugifyStatusValue } from '../../lib/statusHelpers.js';
 import { normalizeLoginEmail } from '../../lib/authHelpers.js';
 import { ONBOARDING_RESTART_EVENT } from '../../lib/onboardingTour.js';
@@ -38,6 +39,7 @@ const TABS = [
   { id: 'roles', label: 'Manage Roles', superAdminOnly: true },
   { id: 'statuses', label: 'Lead Statuses', permission: ['settings_lead_statuses', 'view'] },
   { id: 'company', label: 'Company Settings', permission: ['settings_company_settings', 'view'] },
+  { id: 'sales_targets', label: 'Pipeline & Revenue Targets', permission: ['settings_sales_targets', 'view'] },
   { id: 'announcements', label: 'Announcements', permission: ['settings_announcements', 'view'] },
 ];
 
@@ -639,6 +641,10 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+        )}
+
+        {tab === 'sales_targets' && can('settings_sales_targets', 'view') && (
+          <SalesTargetsPanel />
         )}
 
         {tab === 'announcements' && canManageSettings && (

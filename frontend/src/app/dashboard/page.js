@@ -17,6 +17,7 @@ import { pluralizeLeadStatusLabel } from '../../lib/leadHelpers.js';
 import { formatCompactMoney, formatIndianRupees, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { avatarInitialClass } from '../../lib/tableStyles.js';
 import UserAvatar from '../../components/users/UserAvatar.js';
+import SalesTargetWidgets from '../../components/dashboard/SalesTargetWidgets.js';
 import {
   UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
@@ -60,7 +61,8 @@ function formatProposalKpi({ dealSize = 0, total = 0 } = {}) {
 export default function DashboardPage() {
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { role } = usePermissions();
+  const { role, can } = usePermissions();
+  const showSalesTargetWidgets = can('settings_sales_targets', 'view') || can('reports', 'view');
   const [stats, setStats] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -163,6 +165,8 @@ export default function DashboardPage() {
                 gradient="bg-gradient-to-br from-accent-pink to-brand-600"
               />
             </Link>
+
+            {showSalesTargetWidgets && <SalesTargetWidgets />}
 
             <Widget title="Leads by Pipeline" className="col-span-12 lg:col-span-6">
               {stats.leadsByStatus?.length > 0 ? (
