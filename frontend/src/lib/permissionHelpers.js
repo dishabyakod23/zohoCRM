@@ -1,8 +1,10 @@
 import {
   DEFAULT_ROLE_MODULE_PERMISSIONS,
   applyPermissionDependencies,
+  normalizeApiPermissions,
   emptyModulePermissions,
   PERMISSION_MODULES,
+  ALL_MODULE_ACTIONS,
 } from './permissionModules.js';
 import { normalizeRole } from './roles.js';
 
@@ -14,7 +16,7 @@ export function canPermission(matrix, module, action) {
 /** Normalize API/stored permission objects to a full matrix with dependency rules applied. */
 export function normalizePermissionsMatrix(raw) {
   if (!raw || typeof raw !== 'object') return null;
-  return applyPermissionDependencies(raw);
+  return normalizeApiPermissions(raw);
 }
 
 /**
@@ -50,7 +52,7 @@ export function hasAnyCrmModuleAction(matrix, actions) {
 export function modulePermissionFlags(matrix, moduleKey) {
   const mod = PERMISSION_MODULES.find((m) => m.key === moduleKey);
   const row = matrix?.[moduleKey] || {};
-  const flags = { view: false, create: false, edit: false, delete: false, import: false, export: false };
+  const flags = Object.fromEntries(ALL_MODULE_ACTIONS.map((a) => [a, false]));
   if (!mod) return flags;
   for (const action of mod.actions) {
     flags[action] = Boolean(row[action]);

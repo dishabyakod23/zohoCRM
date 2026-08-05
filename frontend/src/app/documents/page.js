@@ -31,7 +31,8 @@ const ENTITY_TYPES = [
 
 export default function DocumentsPage() {
   const { showToast } = useToast();
-  const { canEdit } = usePermissions();
+  const { can } = usePermissions();
+  const canUpload = can('documents', 'upload');
   const [docs, setDocs] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [entityOptions, setEntityOptions] = useState([]);
@@ -181,7 +182,7 @@ export default function DocumentsPage() {
         <ListPageHeader
           title="Documents"
           subtitle="Files attached to accounts, leads, contacts, and deals."
-          primaryAction={canEdit ? (
+          primaryAction={canUpload ? (
             <button type="button" onClick={openUpload} className="btn-primary-sm">Upload Document</button>
           ) : null}
         />

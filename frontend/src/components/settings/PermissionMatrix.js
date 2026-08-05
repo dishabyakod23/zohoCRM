@@ -1,11 +1,10 @@
 'use client';
 import {
-  PERMISSION_ACTIONS,
+  ALL_MODULE_ACTIONS,
   PERMISSION_MODULES,
+  ACTION_LABELS,
   applyPermissionDependencies,
 } from '../../lib/permissionModules.js';
-
-const ACTION_LABELS = { view: 'View', create: 'Create', edit: 'Edit', delete: 'Delete', import: 'Import', export: 'Export' };
 
 function moduleRowState(mod, permissions) {
   const applicable = mod.actions;
@@ -37,8 +36,8 @@ export default function PermissionMatrix({ permissions, onChange, disabled }) {
   const toggleModuleAll = (mod, checked) => {
     if (disabled || mod.superAdminOnly) return;
     const next = { ...permissions, [mod.key]: { ...permissions[mod.key] } };
-    for (const action of PERMISSION_ACTIONS) {
-      if (mod.actions.includes(action)) next[mod.key][action] = checked;
+    for (const action of mod.actions) {
+      next[mod.key][action] = checked;
     }
     onChange(applyPermissionDependencies(next));
   };
@@ -49,8 +48,8 @@ export default function PermissionMatrix({ permissions, onChange, disabled }) {
     for (const mod of PERMISSION_MODULES) {
       if (mod.superAdminOnly) continue;
       next[mod.key] = { ...next[mod.key] };
-      for (const action of PERMISSION_ACTIONS) {
-        if (mod.actions.includes(action)) next[mod.key][action] = checked;
+      for (const action of mod.actions) {
+        next[mod.key][action] = checked;
       }
     }
     onChange(applyPermissionDependencies(next));
@@ -65,8 +64,8 @@ export default function PermissionMatrix({ permissions, onChange, disabled }) {
           <tr>
             <th className="table-th text-left">Module / Screen</th>
             <th className="table-th text-center w-16">All</th>
-            {PERMISSION_ACTIONS.map((action) => (
-              <th key={action} className="table-th text-center w-20">{ACTION_LABELS[action]}</th>
+            {ALL_MODULE_ACTIONS.map((action) => (
+              <th key={action} className="table-th text-center w-20">{ACTION_LABELS[action] || action}</th>
             ))}
           </tr>
         </thead>
@@ -91,10 +90,10 @@ export default function PermissionMatrix({ permissions, onChange, disabled }) {
                     />
                   )}
                 </td>
-                {PERMISSION_ACTIONS.map((action) => {
+                {ALL_MODULE_ACTIONS.map((action) => {
                   if (mod.superAdminOnly) {
                     return action === 'view' ? (
-                      <td key={action} colSpan={PERMISSION_ACTIONS.length} className="table-td text-center text-xs text-zoho-muted">
+                      <td key={action} colSpan={ALL_MODULE_ACTIONS.length} className="table-td text-center text-xs text-zoho-muted">
                         Super Admin only
                       </td>
                     ) : null;
@@ -107,7 +106,7 @@ export default function PermissionMatrix({ permissions, onChange, disabled }) {
                         checked={Boolean(permissions[mod.key]?.[action])}
                         disabled={disabled}
                         onChange={() => toggle(mod.key, action)}
-                        aria-label={`${mod.label} — ${mod.actionLabels?.[action] || ACTION_LABELS[action]}`}
+                        aria-label={`${mod.label} — ${ACTION_LABELS[action] || action}`}
                         className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50"
                       />
                     </td>
@@ -131,7 +130,7 @@ export default function PermissionMatrix({ permissions, onChange, disabled }) {
                 className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50"
               />
             </td>
-            <td colSpan={PERMISSION_ACTIONS.length} className="table-td text-xs text-zoho-muted">
+            <td colSpan={ALL_MODULE_ACTIONS.length} className="table-td text-xs text-zoho-muted">
               Grants every available permission across all modules (except Super Admin only settings).
             </td>
           </tr>

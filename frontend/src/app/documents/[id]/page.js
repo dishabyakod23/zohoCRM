@@ -20,7 +20,9 @@ export default function DocumentDetailPage() {
   const ready = useRecordIdGuard(id, { fallbackPath: '/documents', message: 'Document not found' });
   const router = useRouter();
   const { showToast } = useToast();
-  const { canDelete, canDownload } = usePermissions();
+  const { can } = usePermissions();
+  const canDownloadDoc = can('documents', 'download');
+  const canDeleteDoc = can('documents', 'delete');
   const [doc, setDoc] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
@@ -49,8 +51,8 @@ export default function DocumentDetailPage() {
         recordHistory={{ entityType: 'document', recordId: id }}
         actions={
           <>
-            {canDownload && <button onClick={handleDownload} className="btn-secondary text-xs">Download</button>}
-            {canDelete && <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5"><TrashIcon className="w-4 h-4" /> Delete</button>}
+            {canDownloadDoc && <button onClick={handleDownload} className="btn-secondary text-xs">Download</button>}
+            {canDeleteDoc && <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5"><TrashIcon className="w-4 h-4" /> Delete</button>}
           </>
         }>
         <div className="space-y-4">

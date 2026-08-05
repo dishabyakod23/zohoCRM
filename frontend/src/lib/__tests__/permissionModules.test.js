@@ -67,7 +67,10 @@ describe('applyPermissionDependencies', () => {
     const once = applyPermissionDependencies({ leads: { create: true } });
     const twice = applyPermissionDependencies(once);
     expect(twice).toEqual(once);
-    expect(twice.contacts).toEqual({ view: false, create: false, edit: false, delete: false, import: false, export: false });
+    expect(twice.contacts).toEqual(Object.fromEntries(
+      ['view', 'create', 'edit', 'delete', 'import', 'export', 'restore', 'permanent_delete', 'upload', 'download']
+        .map((a) => [a, false]),
+    ));
   });
 });
 
@@ -78,16 +81,17 @@ describe('serializePermissionsForApi', () => {
 
     expect(api.home).toEqual({ view: true });
     expect(api.reports).toEqual({ view: true, export: true });
-    expect(api.work_items).toEqual({
+    expect(api.recycle_bin).toEqual({ view: true, restore: true, permanent_delete: true });
+    expect(api.documents).toEqual({
       view: true,
-      create: true,
+      upload: true,
       edit: true,
       delete: true,
-      export: true,
+      download: true,
     });
     expect(api.home.create).toBeUndefined();
-    expect(api.work_items.import).toBeUndefined();
-    expect(api.reports.create).toBeUndefined();
+    expect(api.recycle_bin.edit).toBeUndefined();
+    expect(api.documents.create).toBeUndefined();
   });
 
   it('still applies dependency rules before serializing', () => {
@@ -113,16 +117,18 @@ describe('DEFAULT_ROLE_MODULE_PERMISSIONS', () => {
     }
   });
 
-  it('gives Viewer no create/edit/delete/import/export on business/CRM modules', () => {
+  it('gives Viewer no create/edit/delete/import/export on standard CRM modules', () => {
     const matrix = DEFAULT_ROLE_MODULE_PERMISSIONS.viewer;
+    const standardActions = ['create', 'edit', 'delete', 'import', 'export'];
     for (const mod of PERMISSION_MODULES) {
-      if (mod.key === 'settings_my_profile') continue; // every role can manage their own profile
-      expect(matrix[mod.key].create).toBe(false);
-      expect(matrix[mod.key].edit).toBe(false);
-      expect(matrix[mod.key].delete).toBe(false);
-      expect(matrix[mod.key].import).toBe(false);
-      expect(matrix[mod.key].export).toBe(false);
+      if (mod.key === 'settings_my_profile') continue;
+      if (mod.key === 'recycle_bin' || mod.key === 'documents') continue;
+      for (const action of standardActions) {
+        expect(matrix[mod.key][action]).toBe(false);
+      }
     }
+    expect(matrix.recycle_bin.restore).toBe(false);
+    expect(matrix.documents.upload).toBe(false);
   });
 
   it('lets Viewer edit their own profile even though every other module is read-only', () => {

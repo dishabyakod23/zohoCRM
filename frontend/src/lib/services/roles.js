@@ -1,5 +1,5 @@
 import api from '../api.js';
-import { applyPermissionDependencies, serializePermissionsForApi } from '../permissionModules.js';
+import { applyPermissionDependencies, serializePermissionsForApi, normalizeApiPermissions } from '../permissionModules.js';
 
 const ROLES_BASE = '/admin/roles';
 
@@ -7,7 +7,7 @@ function normalizeRoleResponse(role) {
   if (!role) return null;
   return {
     ...role,
-    permissions: applyPermissionDependencies(role.permissions || {}),
+    permissions: normalizeApiPermissions(role.permissions || {}),
     is_system: false,
   };
 }

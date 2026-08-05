@@ -27,8 +27,8 @@ export default function RecycleBinPage() {
   const { showToast } = useToast();
   const { can } = usePermissions();
   const canViewRecycleBin = can('recycle_bin', 'view');
-  const canRestore = can('recycle_bin', 'edit');
-  const canPermanentDelete = can('recycle_bin', 'delete');
+  const canRestore = can('recycle_bin', 'restore');
+  const canPermanentDelete = can('recycle_bin', 'permanent_delete');
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
