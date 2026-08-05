@@ -37,6 +37,7 @@ import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBann
 import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { tableLinkClass } from '../../../lib/tableStyles.js';
 import { useAuth } from '../../../hooks/useAuth.js';
+import LinkedInFieldWithRequestToggle from '../../../components/contacts/LinkedInFieldWithRequestToggle.js';
 
 function toHref(raw, kind) {
   const value = String(raw || '').trim();
@@ -324,8 +325,20 @@ export default function ContactDetailPage() {
               { name: 'website', label: 'Website', format: (v) => formatExternalLink(v), render: (d, set) => (
                 <input className="input" type="url" placeholder="https://" value={d.website ?? ''} onChange={(e) => set((p) => ({ ...p, website: e.target.value }))} />
               ) },
-              { name: 'skype_id', label: 'LinkedIn', format: (v) => formatExternalLink(v, 'linkedin'), render: (d, set) => (
-                <input className="input" type="url" placeholder="https://linkedin.com/in/…" value={d.skype_id ?? ''} onChange={(e) => set((p) => ({ ...p, skype_id: e.target.value }))} />
+              { name: 'skype_id', label: 'LinkedIn', format: (v) => (
+                <LinkedInFieldWithRequestToggle
+                  contactId={id}
+                  readOnly
+                  disabled={!editable}
+                  linkPreview={formatExternalLink(v, 'linkedin') || '—'}
+                />
+              ), render: (d, set) => (
+                <LinkedInFieldWithRequestToggle
+                  contactId={id}
+                  value={d.skype_id ?? ''}
+                  onChange={(e) => set((p) => ({ ...p, skype_id: e.target.value }))}
+                  disabled={!editable}
+                />
               ) },
               { name: 'twitter', label: 'Twitter', format: (v) => formatExternalLink(v, 'twitter'), render: (d, set) => (
                 <div className="flex items-center gap-1">

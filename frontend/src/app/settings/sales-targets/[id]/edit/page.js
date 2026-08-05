@@ -1,8 +1,8 @@
 'use client';
-import { useParams } from 'next/navigation';
 import SalesTargetEditor from '../../../../../components/settings/SalesTargetEditor.js';
+import { useRecordId } from '../../../../../hooks/useRecordId.js';
 
 export default function EditSalesTargetPage() {
-  const params = useParams();
-  return <SalesTargetEditor targetId={params.id} />;
+  const targetId = useRecordId();
+  return <SalesTargetEditor targetId={targetId || null} />;
 }

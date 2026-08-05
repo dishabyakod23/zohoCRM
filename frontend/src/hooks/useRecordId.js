@@ -50,6 +50,11 @@ export function getRecordIdFromPathname(pathname) {
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length < 2) return '';
   const last = segments[segments.length - 1] || '';
+  if (last === 'edit' && segments.length >= 2) {
+    const id = segments[segments.length - 2];
+    if (id && id !== STATIC_EXPORT_PLACEHOLDER_ID && isValidRecordId(id)) return id;
+    return '';
+  }
   if (!last || last === STATIC_EXPORT_PLACEHOLDER_ID) return '';
   if (MODULE_SLUGS.has(last.toLowerCase())) return '';
   return last;
