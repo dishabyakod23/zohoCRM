@@ -7,8 +7,7 @@ import ConfirmDialog from '../ui/ConfirmDialog.js';
 import { useToast } from '../ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
-import {
-  getBulkConfig, bulkDeleteRecords, exportRecordsCsv, printMailingLabels, sendBulkEmail,
+import { getBulkConfig, bulkDeleteRecords, exportRecordsCsv, printMailingLabels, sendBulkEmail,
 } from '../../lib/bulkModuleConfig.js';
 import { getNoteMeta, notesApiSupported } from '../../lib/noteHelpers.js';
 import RecordNoteRowIcon from './RecordNoteRowIcon.js';
@@ -19,6 +18,9 @@ import { fetchUsers, fetchMassUpdateFieldOptions, fetchLostReasons, isConvertMas
 import { fetchCampaignLookups, assignRecordsToCampaign, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 import { personRecordId, personCampaignMemberType, parsePersonRowId } from '../../lib/services/people.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
+import { logEmailSent } from '../../lib/outreachActivity.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { userDisplayName } from '../../lib/userHelpers.js';
 
 const defaultGetRowId = (r) => r.id;
 
@@ -170,6 +172,7 @@ export default function RecordDataTable({
   massUpdateHandler,
 }) {
   const { showToast } = useToast();
+  const { user } = useAuth();
   const { canEdit, canDelete, canAssignLeads, canEditRecord, canDeleteRecord } = usePermissions();
   const config = useMemo(() => getBulkConfig(moduleKey), [moduleKey]);
   const noteMeta = useMemo(() => getNoteMeta(moduleKey), [moduleKey]);
@@ -427,7 +430,16 @@ export default function RecordDataTable({
       showToast('Email is not available for this module');
       return;
     }
-    const url = sendBulkEmail(selectedRecords, config.emailField);
+    const url = sendBulkEmail(selectedRecords, config.emailField, {
+      onSent: (record) => {
+        const contactId = personRecordId(record) || record.id;
+        if (contactId) {
+          logEmailSent(String(contactId).split(':').pop(), {
+            user: { id: user?.id, name: userDisplayName(user) },
+          });
+        }
+      },
+    });
     if (!url) {
       showToast('No email addresses found on selected records');
       return;

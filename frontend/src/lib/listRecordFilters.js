@@ -116,7 +116,14 @@ export function hasLeadClientFilters(filters = {}) {
 }
 
 export function hasContactClientFilters(filters = {}) {
-  return Boolean(filters.company || filters.designation || filters.current_status);
+  return Boolean(
+    filters.company
+    || filters.designation
+    || filters.current_status
+    || filters.lead_status
+    || filters.activity_from
+    || filters.activity_to,
+  );
 }
 
 /** Company list API supports industry/city/website server-side. */
@@ -158,6 +165,9 @@ export const EMPTY_CONTACT_FILTERS = {
   campaign_id: '',
   designation: '',
   current_status: '',
+  lead_status: '',
+  activity_from: '',
+  activity_to: '',
 };
 
 export const EMPTY_ACCOUNT_FILTERS = {

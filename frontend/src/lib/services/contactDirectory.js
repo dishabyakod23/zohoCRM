@@ -37,6 +37,7 @@ function buildSourceParams({
       company: filters.company || '',
       designation: filters.designation || '',
       current_status: filters.current_status || '',
+      lead_status: filters.lead_status || '',
     },
   };
 }

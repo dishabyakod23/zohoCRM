@@ -47,7 +47,19 @@ describe('listCloudTalkCallsLastDays', () => {
 });
 
 describe('cloudTalkCallSummary', () => {
-  it('builds an outgoing-call summary with "Name (number)" and duration', () => {
+  it('builds an outgoing-call summary as "caller called contact(phone)"', () => {
+    const summary = cloudTalkCallSummary({
+      type: 'outgoing',
+      status: 'answered',
+      phone: '919810556482',
+      contactName: 'Narayan Desai',
+      duration: 24,
+      callerName: 'John Smith',
+    });
+    expect(summary).toBe('John Smith called Narayan Desai(919810556482) (24s)');
+  });
+
+  it('falls back to legacy CloudTalk summary when caller name is missing', () => {
     const summary = cloudTalkCallSummary({
       type: 'outgoing',
       status: 'answered',

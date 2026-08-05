@@ -231,8 +231,13 @@ export function printMailingLabels(records, config) {
   w.print();
 }
 
-export function sendBulkEmail(records, emailField) {
+export function sendBulkEmail(records, emailField, { onSent } = {}) {
   const emails = records.map((r) => r[emailField]).filter(Boolean);
   if (!emails.length) return null;
+  if (typeof onSent === 'function') {
+    for (const record of records) {
+      if (record[emailField]) onSent(record);
+    }
+  }
   return `mailto:?bcc=${encodeURIComponent(emails.join(','))}`;
 }

@@ -176,6 +176,7 @@ export function normalizePersonRow(person) {
     entity_type: entityType,
     account_name: person.account_name || person.company || person.company_name || null,
     current_status,
+    lead_status: person.lead_status ?? person.status ?? null,
     owner_name: ownerName(person) || person.owner_name || null,
     campaign_id: person.campaign_id || null,
     campaign_name: person.campaign_name || null,
@@ -202,6 +203,7 @@ function buildPeopleParams({
   if (filters.company) params.company = filters.company;
   if (filters.designation) params.designation = filters.designation;
   if (filters.current_status) params.current_status = filters.current_status;
+  if (filters.lead_status) params.lead_status = filters.lead_status;
   if (filters.campaign_id) params.campaign_id = filters.campaign_id;
   return params;
 }

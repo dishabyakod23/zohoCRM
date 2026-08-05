@@ -2,13 +2,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
+import { DateFilter } from '../../components/layout/ListFilterFields.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as auditLogsApi from '../../lib/services/auditLogs.js';
+import { matchesDateRange } from '../../lib/listRecordFilters.js';
 
-const AUDIT_LOG_DAYS = 30;
+const DEFAULT_ACTIVITY_FROM = '';
+const DEFAULT_ACTIVITY_TO = '';
 
 function formatWhen(iso) {
   if (!iso) return '—';
@@ -16,12 +19,22 @@ function formatWhen(iso) {
   return Number.isNaN(date.getTime()) ? iso : date.toLocaleString();
 }
 
+function activityTypeLabel(log) {
+  if (log.source === 'cloudtalk') return 'Call';
+  const summary = String(log.summary || '').toLowerCase();
+  if (summary.includes('email')) return 'Email';
+  if (summary.includes('linkedin')) return 'LinkedIn';
+  return 'Activity';
+}
+
 export default function AuditLogsPage() {
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { role, can, isSuperAdmin, isSalesManager } = usePermissions();
+  const { can, isSuperAdmin, isSalesManager } = usePermissions();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activityFrom, setActivityFrom] = useState(DEFAULT_ACTIVITY_FROM);
+  const [activityTo, setActivityTo] = useState(DEFAULT_ACTIVITY_TO);
 
   const canViewAuditLogs = can('audit_logs', 'view');
 
@@ -30,19 +43,26 @@ export default function AuditLogsPage() {
     setLoading(true);
     try {
       const canSeeAllLogs = isSuperAdmin || isSalesManager;
-      const allLogs = await auditLogsApi.listActivityLogsLastDays(AUDIT_LOG_DAYS, {
+      const allLogs = await auditLogsApi.listActivityLogsLastDays(30, {
         user,
         canSeeAll: canSeeAllLogs,
+        activity_from: activityFrom || undefined,
+        activity_to: activityTo || undefined,
         ...(canSeeAllLogs ? {} : { user_id: user.id }),
       });
-      setLogs(allLogs);
+      const filtered = allLogs.filter((log) => matchesDateRange(
+        log.created_at,
+        activityFrom,
+        activityTo,
+      ));
+      setLogs(filtered);
     } catch (err) {
       showToast(getApiError(err));
       setLogs([]);
     } finally {
       setLoading(false);
     }
-  }, [canViewAuditLogs, isSalesManager, isSuperAdmin, role, showToast, user?.id]);
+  }, [activityFrom, activityTo, canViewAuditLogs, isSalesManager, isSuperAdmin, showToast, user]);
 
   useEffect(() => {
     loadLogs();
@@ -64,8 +84,13 @@ export default function AuditLogsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Audit Logs"
-          subtitle={`CRM activity and CloudTalk calls from the last ${AUDIT_LOG_DAYS} days (sign-in and system noise excluded)`}
+          subtitle="Calls, emails, LinkedIn outreach, and CRM activity"
         />
+
+        <div className="flex flex-wrap gap-3 mb-4">
+          <DateFilter label="Activity from" value={activityFrom} onChange={setActivityFrom} />
+          <DateFilter label="Activity to" value={activityTo} onChange={setActivityTo} />
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center h-48">
@@ -73,7 +98,7 @@ export default function AuditLogsPage() {
           </div>
         ) : logs.length === 0 ? (
           <div className="card p-8 text-center text-sm text-zoho-muted">
-            No audit logs found for the last {AUDIT_LOG_DAYS} days.
+            No activity found for the selected date range.
           </div>
         ) : (
           <div className="card divide-y divide-zoho-border">
@@ -81,6 +106,8 @@ export default function AuditLogsPage() {
               <div key={log.id} className="px-5 py-4 hover:bg-brand-50/40 transition-colors">
                 <p className="text-sm font-medium text-zoho-text">{log.summary}</p>
                 <p className="text-xs text-zoho-muted mt-1">
+                  {activityTypeLabel(log)}
+                  {' · '}
                   {log.user_name || 'System'}
                   {log.source === 'cloudtalk' ? ' · CloudTalk' : ''}
                   {' · '}

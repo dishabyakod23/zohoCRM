@@ -72,12 +72,20 @@ export function enrichActivityLogWithPhoneNames(log, lookup) {
     const { type, status, duration, phone } = cloudTalkLogMeta(log);
     const resolved = existingName ? null : lookup.resolve(phone);
     const contactName = existingName || resolved?.name || null;
+    const callerName = log.user_name || resolved?.owner_name || null;
 
-    if (contactName && contactName !== existingName) {
+    if (contactName || resolved) {
       return {
         ...log,
-        summary: cloudTalkCallSummary({ type, status, phone, contactName, duration }),
-        resolved_contact: resolved || { name: contactName },
+        summary: cloudTalkCallSummary({
+          type,
+          status,
+          phone,
+          contactName,
+          duration,
+          callerName,
+        }),
+        resolved_contact: resolved || (contactName ? { name: contactName, id: resolved?.id || null } : null),
       };
     }
 

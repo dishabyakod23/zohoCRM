@@ -104,6 +104,7 @@ export function leadToDirectoryRow(lead, statusOptions = []) {
     campaign_name: lead.campaign_name,
     owner_id: lead.owner_id,
     owner_name: lead.owner_name,
+    lead_status: lead.lead_status ?? lead.status ?? null,
     current_status,
     _statusPriority: statusPriorityForLabel(current_status),
     updated_at: lead.updated_at,
@@ -229,6 +230,7 @@ export function applyContactDirectoryFilters(rows = [], filters = {}) {
     if (!includesText(row.account_name, filters.company)) return false;
     if (!includesText(row.title, filters.designation)) return false;
     if (filters.current_status && row.current_status !== filters.current_status) return false;
+    if (filters.lead_status && !matchLeadStatus(row, filters.lead_status)) return false;
     return true;
   });
 }

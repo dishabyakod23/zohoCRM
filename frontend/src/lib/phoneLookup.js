@@ -1,3 +1,5 @@
+import { ownerName } from './recordHelpers.js';
+
 const PHONE_IN_TEXT_RE = /(\+?[\d][\d\s()./-]{6,}\d)/g;
 
 const ENTITY_PRIORITY = {
@@ -44,6 +46,9 @@ export function buildPhoneLookupIndex(records = []) {
       entityType,
       id: record.id,
       priority,
+      owner_id: record.owner_id || null,
+      owner_name: ownerName(record) || record.owner_name || null,
+      phone: null,
     };
 
     for (const field of phoneFields) {
@@ -51,8 +56,9 @@ export function buildPhoneLookupIndex(records = []) {
       if (!value) continue;
       for (const key of phoneMatchKeys(value)) {
         const existing = index.get(key);
+        const nextEntry = { ...entry, phone: value };
         if (!existing || priority > existing.priority) {
-          index.set(key, entry);
+          index.set(key, nextEntry);
         }
       }
     }

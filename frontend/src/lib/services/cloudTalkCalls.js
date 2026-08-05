@@ -18,6 +18,12 @@ export function cloudTalkDateRange(days = 30) {
   return { date_from: formatCloudTalkDate(start), date_to: formatCloudTalkDate(end) };
 }
 
+export function cloudTalkDateRangeFromIso({ start_at, end_at } = {}) {
+  const start = start_at ? new Date(start_at) : new Date();
+  const end = end_at ? new Date(end_at) : new Date();
+  return { date_from: formatCloudTalkDate(start), date_to: formatCloudTalkDate(end) };
+}
+
 export function formatPhoneDisplay(number) {
   if (number == null || number === '') return '';
   const raw = String(number).trim();
@@ -41,13 +47,42 @@ export function cloudTalkCallTarget(phone, contactName) {
   return phoneLabel || 'unknown number';
 }
 
+/** Display phone without + for compact call log labels: abc(1234567890) */
+export function formatPhoneCompact(number) {
+  const digits = String(number || '').replace(/\D/g, '');
+  return digits || String(number || '').trim();
+}
+
+/** "xyz called abc(1234567890)" when contact resolves; otherwise legacy CloudTalk summary. */
+export function ownerContactCallSummary({
+  callerName,
+  contactName,
+  phone,
+  duration,
+  status,
+}) {
+  const caller = callerName || 'User';
+  const phoneLabel = formatPhoneCompact(phone);
+  const target = contactName && phoneLabel
+    ? `${contactName}(${phoneLabel})`
+    : (contactName || formatPhoneDisplay(phone) || 'unknown number');
+  const missedLabel = status === 'missed' ? ' (missed)' : '';
+  const durationLabel = status !== 'missed' && duration ? ` (${formatCallDuration(duration)})` : '';
+  return `${caller} called ${target}${durationLabel}${missedLabel}`;
+}
+
 export function cloudTalkCallSummary({
   type,
   status,
   phone,
   contactName,
   duration,
+  callerName,
 }) {
+  if (type === 'outgoing' && callerName && (contactName || phone)) {
+    return ownerContactCallSummary({ callerName, contactName, phone, duration, status });
+  }
+
   const direction = type === 'incoming'
     ? 'Incoming'
     : type === 'outgoing'
@@ -76,6 +111,7 @@ export function normalizeCloudTalkCall(record = {}) {
   const phone = cdr.public_external ?? cdr.public_internal ?? record.external_number;
   const duration = Number(cdr.talking_time ?? cdr.billsec ?? record.duration) || 0;
   const createdAt = cdr.started_at || cdr.answered_at || cdr.ended_at || record.ended_at || record.started_at;
+  const callerName = agent.fullname || agent.name || record.agent_name || record.user_name || 'CloudTalk';
 
   return {
     id: `cloudtalk-${callId}`,
@@ -83,7 +119,7 @@ export function normalizeCloudTalkCall(record = {}) {
     action: 'call',
     entity_type: 'cloudtalk_call',
     user_id: record.crm_user_id || null,
-    user_name: agent.fullname || agent.name || record.agent_name || record.user_name || 'CloudTalk',
+    user_name: callerName,
     agent_email: agent.email || record.agent_email || null,
     cloudtalk_user_id: cdr.user_id || agent.id || null,
     created_at: createdAt,
@@ -93,6 +129,7 @@ export function normalizeCloudTalkCall(record = {}) {
       phone,
       contactName: contact.name || record.contact_name,
       duration,
+      callerName,
     }),
     meta: { cdr, contact, agent },
   };
@@ -133,6 +170,7 @@ export function normalizeIframeCloudTalkCall({
       phone: externalNumber,
       contactName,
       duration,
+      callerName: userName,
     }),
     meta: {
       call_uuid: callUuid,
@@ -188,18 +226,30 @@ function parseCloudTalkPayload(body) {
 }
 
 export async function listCloudTalkCallsLastDays(days = 30, params = {}, { limit = 200 } = {}) {
+  const range = cloudTalkDateRange(days);
+  return listCloudTalkCallsInRange(range, params, { limit, days });
+}
+
+export async function listCloudTalkCallsInRange(
+  { date_from, date_to, start_at, end_at } = {},
+  params = {},
+  { limit = 200 } = {},
+) {
   if (!CLOUDTALK_ENABLED) return [];
 
-  const { date_from, date_to } = cloudTalkDateRange(days);
-  const stored = getStoredCloudTalkCalls({ userId: params.user_id, days });
+  const range = date_from && date_to
+    ? { date_from, date_to }
+    : cloudTalkDateRangeFromIso({ start_at, end_at });
+
+  const stored = getStoredCloudTalkCalls({ userId: params.user_id, days: 365 });
   let remote = [];
 
   try {
     const res = await api.get('/integrations/cloudtalk/calls', {
       params: {
         ...params,
-        date_from,
-        date_to,
+        date_from: range.date_from,
+        date_to: range.date_to,
         limit,
         page: 1,
       },
@@ -209,5 +259,13 @@ export async function listCloudTalkCallsLastDays(days = 30, params = {}, { limit
     if (!isSoftCloudTalkApiError(err)) throw err;
   }
 
-  return dedupeCloudTalkCalls([...remote, ...stored.map((entry) => ({ ...entry }))]);
+  const filteredStored = stored.filter((entry) => {
+    if (!entry.created_at) return true;
+    const created = new Date(entry.created_at);
+    if (start_at && created < new Date(start_at)) return false;
+    if (end_at && created > new Date(end_at)) return false;
+    return true;
+  });
+
+  return dedupeCloudTalkCalls([...remote, ...filteredStored.map((entry) => ({ ...entry }))]);
 }

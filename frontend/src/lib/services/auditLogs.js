@@ -4,6 +4,7 @@ import { isGenericRoleName, personDisplayName } from '../recordHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import {
   listCloudTalkCallsLastDays,
+  listCloudTalkCallsInRange,
   scopeCloudTalkCalls,
 } from './cloudTalkCalls.js';
 import {
@@ -73,6 +74,22 @@ export function auditLogDateRange(days = 30) {
   return { start_at: start.toISOString(), end_at: end.toISOString() };
 }
 
+export function activityDateRange({ activity_from, activity_to } = {}) {
+  if (!activity_from && !activity_to) return auditLogDateRange(30);
+  const start = activity_from ? new Date(activity_from) : new Date(0);
+  const end = activity_to ? new Date(activity_to) : new Date();
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+  return { start_at: start.toISOString(), end_at: end.toISOString() };
+}
+
+export function daysBetween(startAt, endAt) {
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+  return Math.max(1, diff);
+}
+
 export async function listAuditLogs(params = {}) {
   const res = await api.get(AUDIT_LOGS_BASE, { params });
   return (res.data.data || []).map(normalizeAuditLog);
@@ -80,7 +97,10 @@ export async function listAuditLogs(params = {}) {
 
 /** Fetch all audit logs within the last N days (paginated). */
 export async function listAuditLogsLastDays(days = 30, params = {}) {
-  const { start_at, end_at } = auditLogDateRange(days);
+  return listAuditLogsInRange(auditLogDateRange(days), params);
+}
+
+export async function listAuditLogsInRange({ start_at, end_at }, params = {}) {
   const pageSize = 100;
   let page = 1;
   let all = [];
@@ -110,15 +130,20 @@ export function mergeActivityLogs(auditLogs = [], cloudTalkCalls = []) {
   return merged;
 }
 
-/** Audit logs plus CloudTalk call history for the last N days (full window). */
+/** Audit logs plus CloudTalk call history for a date window (full window). */
 export async function listActivityLogsLastDays(
   days = 30,
-  { user, canSeeAll = false, ...params } = {},
+  { user, canSeeAll = false, activity_from, activity_to, ...params } = {},
 ) {
   const scopedParams = canSeeAll ? params : { ...params, user_id: user?.id };
+  const range = activity_from || activity_to
+    ? activityDateRange({ activity_from, activity_to })
+    : auditLogDateRange(days);
+  const windowDays = daysBetween(range.start_at, range.end_at);
+
   const [auditLogs, cloudTalkCalls] = await Promise.all([
-    listAuditLogsLastDays(days, scopedParams).catch(() => []),
-    listCloudTalkCallsLastDays(days, scopedParams, { limit: 200 }).catch(() => []),
+    listAuditLogsInRange(range, scopedParams).catch(() => []),
+    listCloudTalkCallsInRange(range, scopedParams, { limit: 200, days: windowDays }).catch(() => []),
   ]);
 
   const scopedCloudTalk = scopeCloudTalkCalls(cloudTalkCalls, { user, canSeeAll });
