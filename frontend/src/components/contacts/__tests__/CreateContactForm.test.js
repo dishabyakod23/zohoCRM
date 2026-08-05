@@ -28,6 +28,11 @@ jest.mock('../../ui/Toast.js', () => ({
 jest.mock('../../../lib/services/lookups.js', () => ({
   fetchCompanyLookups: jest.fn(),
   fetchUsers: jest.fn(),
+  fetchLeadStatuses: jest.fn(),
+  FALLBACK_LEAD_STATUSES: [
+    { value: 'not_contacted', label: 'Not Contacted' },
+    { value: 'contacted', label: 'Contacted' },
+  ],
 }));
 
 jest.mock('../../../lib/services/contacts.js', () => ({
@@ -78,6 +83,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   lookups.fetchCompanyLookups.mockResolvedValue([]);
   lookups.fetchUsers.mockResolvedValue([]);
+  lookups.fetchLeadStatuses.mockResolvedValue([]);
   campaignRecordHelpers.fetchCampaignLookups.mockResolvedValue([]);
   campaignRecordHelpers.afterRecordSave.mockResolvedValue();
   campaignRecordHelpers.resolveOrCreateCampaignId.mockResolvedValue(null);

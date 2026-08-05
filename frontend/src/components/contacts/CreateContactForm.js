@@ -13,7 +13,7 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
-import { fetchCompanyLookups, fetchUsers } from '../../lib/services/lookups.js';
+import { fetchCompanyLookups, fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import AccountNameCombobox from '../forms/AccountNameCombobox.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { resolveContactCompanyFields } from '../../lib/resolveContactAccount.js';
@@ -22,7 +22,7 @@ import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRe
 export function emptyContactForm() {
   return {
     salutation: '', first_name: '', last_name: '', account_id: '', account_name: '',
-    title: '', department: '', lead_source: '', owner_id: '', campaign_id: '', campaign_name: '',
+    title: '', department: '', lead_source: '', lead_status: '', owner_id: '', campaign_id: '', campaign_name: '',
     assistant: '', asst_phone: '', date_of_birth: '',
     email_opt_out: false,
     email: '', secondary_email: '', phone: '', other_phone: '', mobile: '',
@@ -104,12 +104,14 @@ export default function CreateContactForm() {
   const [saving, setSaving] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [users, setUsers] = useState([]);
+  const [leadStatusOptions, setLeadStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
   const savingRef = useRef(false);
 
   useEffect(() => {
     fetchCompanyLookups().then(setAccounts).catch(() => setAccounts([]));
     fetchUsers().then(setUsers).catch(() => setUsers([]));
+    fetchLeadStatuses().then(setLeadStatusOptions).catch(() => setLeadStatusOptions(FALLBACK_LEAD_STATUSES));
   }, []);
 
   const set = (field) => (e) => {
@@ -282,6 +284,15 @@ export default function CreateContactForm() {
               <select className="input" value={form.lead_source} onChange={set('lead_source')}>
                 <option value="">—None—</option>
                 {LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </FormField>
+
+            <FormField label="Lead Status" name="lead_status">
+              <select className="input" value={form.lead_status} onChange={set('lead_status')}>
+                <option value="">—None—</option>
+                {leadStatusOptions.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
               </select>
             </FormField>
 

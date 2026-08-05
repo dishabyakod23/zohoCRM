@@ -32,6 +32,7 @@ export const CONTACT_IMPORT_FIELDS = [
   { key: 'assistant', label: 'Assistant', aliases: ['asst', 'pa'] },
   { key: 'asst_phone', label: 'Asst Phone', aliases: ['assistant_phone', 'asstphone'] },
   { key: 'lead_source', label: 'Lead Source', aliases: ['source', 'leadsource'] },
+  { key: 'lead_status', label: 'Lead Status', aliases: ['status', 'lead_status', 'lead status'] },
   { key: 'campaign_name', label: 'Campaign', aliases: ['campaign', 'campaign_id', 'campaign name'] },
   { key: 'title', label: 'Designation', aliases: ['designation', 'jobtitle', 'job_title', 'role', 'position'] },
   { key: 'department', label: 'Department', aliases: ['dept'] },

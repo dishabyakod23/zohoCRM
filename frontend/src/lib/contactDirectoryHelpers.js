@@ -119,6 +119,7 @@ export function contactToDirectoryRow(contact) {
     ...contact,
     _entityType: 'contact',
     _detailHref: `/contacts/${contact.id}`,
+    lead_status: contact.lead_status ?? contact.status ?? null,
     current_status,
     _statusPriority: statusPriorityForLabel(current_status),
   };

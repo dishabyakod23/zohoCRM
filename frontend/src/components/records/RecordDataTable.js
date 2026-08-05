@@ -58,6 +58,7 @@ function MassUpdatePanel({
   statusOptions, massUpdateFields, dynamicFields, loadingFields,
   valueOptions, loadingValueOptions, useDynamicFields, isConvertField,
   showLostReason, lostReason, lostReasonOptions, onLostReasonChange, loadingLostReasons,
+  statusMassUpdateLabel = 'Status',
 }) {
   if (!open) return null;
 
@@ -125,7 +126,7 @@ function MassUpdatePanel({
             {isDynamic
               ? dynamicFields.map(f => <option key={f.value} value={f.value}>{f.label}</option>)
               : <>
-                  {staticFields.includes('status') && <option value="status">Status</option>}
+                  {staticFields.includes('status') && <option value="status">{statusMassUpdateLabel}</option>}
                   {staticFields.includes('convert') && <option value="convert">Convert</option>}
                   {staticFields.includes('campaign') && <option value="campaign">Campaign</option>}
                 </>
@@ -678,6 +679,7 @@ export default function RecordDataTable({
         updating={massUpdating}
         statusOptions={statusOptions}
         massUpdateFields={config.massUpdateFields}
+        statusMassUpdateLabel={config.statusMassUpdateLabel}
         dynamicFields={dynamicMassFields}
         loadingFields={loadingMassFields}
         valueOptions={isConvertMassField ? convertTargets : massValueOptions}

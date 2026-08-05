@@ -17,7 +17,7 @@ import api from '../../../lib/api.js';
 import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import * as dealsApi from '../../../lib/services/deals.js';
-import { fetchCompanyLookups, accountMapFromLookups, fetchDealStages, fetchUsers } from '../../../lib/services/lookups.js';
+import { fetchCompanyLookups, accountMapFromLookups, fetchDealStages, fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
 import { LEAD_SOURCES } from '../../../lib/constants.js';
 import {
@@ -76,6 +76,7 @@ export default function ContactDetailPage() {
   const [accounts, setAccounts] = useState([]);
   const [deals, setDeals] = useState([]);
   const [stageOptions, setStageOptions] = useState(FALLBACK_DEAL_STAGES);
+  const [leadStatusOptions, setLeadStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
@@ -101,6 +102,7 @@ export default function ContactDetailPage() {
   useEffect(() => {
     fetchCompanyLookups().then(setAccounts).catch(() => {});
     fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
+    fetchLeadStatuses().then(setLeadStatusOptions).catch(() => setLeadStatusOptions(FALLBACK_LEAD_STATUSES));
     if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, [canAssignLeads]);
 
@@ -283,6 +285,14 @@ export default function ContactDetailPage() {
                 <select className="input" value={d.lead_source ?? ''} onChange={(e) => set((p) => ({ ...p, lead_source: e.target.value }))}>
                   <option value="">--None--</option>
                   {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              ) },
+              { name: 'lead_status', label: 'Lead Status', render: (d, set) => (
+                <select className="input" value={d.lead_status ?? ''} onChange={(e) => set((p) => ({ ...p, lead_status: e.target.value }))}>
+                  <option value="">--None--</option>
+                  {leadStatusOptions.map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
                 </select>
               ) },
               campaignField,

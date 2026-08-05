@@ -93,8 +93,9 @@ export const BULK_MODULE_CONFIG = {
   contacts: {
     label: 'Records',
     emailField: 'email',
-    statusField: null,
-    massUpdateFields: ['convert', 'campaign'],
+    statusField: 'lead_status',
+    statusMassUpdateLabel: 'Lead Status',
+    massUpdateFields: ['status', 'convert', 'campaign'],
     convertOptions: CONTACT_CONVERT_OPTIONS,
     update: (id, payload) => contactsApi.updateContact(id, payload),
     convert: (id, target = PIPELINE_RAW) => contactsApi.convertContact(id, target),

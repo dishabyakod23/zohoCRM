@@ -254,6 +254,7 @@ export default function ContactsPage() {
               records={contacts}
               loading={loading}
               columns={columns}
+              statusOptions={leadStatusOptions}
               onRefresh={fetchContacts}
               emptyMessage="No contacts found"
               {...tableSelection}

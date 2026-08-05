@@ -1,6 +1,7 @@
 import { ownerName } from './recordHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
 import { coerceImportBool } from './importHelpers.js';
+import { leadStatusLabel, resolveLeadStatusForApi } from './leadHelpers.js';
 
 export function isImportUuid(value) {
   return /^[0-9a-f-]{36}$/i.test(String(value || '').trim());
@@ -21,6 +22,8 @@ export function normalizeContact(contact, companyMap = {}) {
     account_name: companyName || contact.account_name,
     owner_name: ownerName(contact) || contact.owner_name,
     currency: contact.currency || DEFAULT_CURRENCY,
+    lead_status: contact.lead_status ?? contact.status ?? null,
+    lead_status_label: leadStatusLabel(contact.lead_status ?? contact.status),
   };
 }
 
@@ -63,6 +66,10 @@ export function toContactPayload(form, { partial = false } = {}) {
     if (formHas(form, 'department')) payload.department = form.department || null;
     if (formHas(form, 'lead_source') || formHas(form, 'source')) {
       payload.lead_source = form.lead_source || form.source || null;
+    }
+    if (formHas(form, 'lead_status') || formHas(form, 'status')) {
+      const rawStatus = form.lead_status || form.status;
+      payload.lead_status = rawStatus ? resolveLeadStatusForApi(rawStatus) : null;
     }
     if (formHas(form, 'reports_to_id')) payload.reports_to_id = form.reports_to_id || null;
     if (formHas(form, 'assistant')) payload.assistant = form.assistant || null;
@@ -112,6 +119,7 @@ export function toContactPayload(form, { partial = false } = {}) {
     title: form.title || null,
     department: form.department || null,
     lead_source: form.lead_source || form.source || null,
+    lead_status: form.lead_status ? resolveLeadStatusForApi(form.lead_status) : null,
     reports_to_id: form.reports_to_id || null,
     assistant: form.assistant || null,
     asst_phone: form.asst_phone || null,
