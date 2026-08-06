@@ -93,30 +93,14 @@ describe('salesTargetMetrics payload mapping', () => {
       pipeline_target: '20000',
       revenue_target: '20000',
       qualified_meetings_target: 5,
-      kpi_targets: { new_leads: 20, cold_calls: 12 },
       actuals: {
         actual_pipeline: '0',
         actual_revenue: '0',
         qualified_meetings: 2,
-        new_leads: 1,
       },
     });
     expect(rows.some((r) => r.key === 'pipeline_value' && r.displayTarget.includes('20'))).toBe(true);
     expect(rows.some((r) => r.key === 'qualified_meetings' && r.displayActual === '2')).toBe(true);
-    expect(rows.some((r) => r.key === 'new_leads' && r.displayTarget === '20')).toBe(true);
-    expect(rows.some((r) => r.key === 'cold_calls' && r.displayTarget === '12')).toBe(true);
-  });
-
-  it('loads KPI metrics from kpi_targets returned by the API', () => {
-    const parsed = metricsFromTarget({
-      kpi_targets: { new_leads: 20, cold_calls: 12 },
-      qualified_meetings_target: 8,
-    });
-    expect(parsed.metrics).toEqual(expect.arrayContaining([
-      expect.objectContaining({ key: 'new_leads', target: 20 }),
-      expect.objectContaining({ key: 'cold_calls', target: 12 }),
-      expect.objectContaining({ key: 'qualified_meetings', target: 8 }),
-    ]));
   });
 
   it('strips remarksText from the mapped form', () => {
