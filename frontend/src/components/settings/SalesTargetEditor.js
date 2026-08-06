@@ -27,6 +27,7 @@ import {
   defaultMetricRows,
   metricsFromTarget,
 } from '../../lib/salesTargetMetrics.js';
+import { fetchPreviewActualsForTargetForm } from '../../lib/salesTargetActuals.js';
 
 const EMPTY_FORM = {
   period_type: 'weekly',
@@ -62,6 +63,8 @@ export default function SalesTargetEditor({ targetId = null }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [metrics, setMetrics] = useState(defaultMetricRows());
   const [metricToAdd, setMetricToAdd] = useState('');
+  const [previewActuals, setPreviewActuals] = useState({});
+  const [loadingActuals, setLoadingActuals] = useState(false);
 
   const managers = useMemo(
     () => users.filter((u) => normalizeRole(u.role) === 'sales_manager'),
@@ -74,9 +77,51 @@ export default function SalesTargetEditor({ targetId = null }) {
   );
 
   const previewRows = useMemo(
-    () => buildPreviewRows(metrics, {}, form.currency),
-    [metrics, form.currency],
+    () => buildPreviewRows(metrics, previewActuals, form.currency),
+    [metrics, previewActuals, form.currency],
   );
+
+  useEffect(() => {
+    if (!form.employee_id || !form.start_date || !form.end_date) {
+      setPreviewActuals({});
+      return undefined;
+    }
+    let cancelled = false;
+    setLoadingActuals(true);
+    (async () => {
+      try {
+        let apiActuals = {};
+        try {
+          const report = await salesTargetsApi.getSalesTargetPerformanceReport({
+            period_type: form.period_type,
+            date_from: form.start_date,
+            date_to: form.end_date,
+            employee_id: form.employee_id,
+          });
+          const row = report.find((r) => (
+            String(r.employee_id) === String(form.employee_id)
+            && r.period_start === form.start_date
+            && r.period_end === form.end_date
+          )) || report[0];
+          apiActuals = row?.actuals || {};
+        } catch {
+          apiActuals = {};
+        }
+        const actuals = await fetchPreviewActualsForTargetForm({
+          employee_id: form.employee_id,
+          start_date: form.start_date,
+          end_date: form.end_date,
+          apiActuals,
+        });
+        if (!cancelled) setPreviewActuals(actuals);
+      } catch {
+        if (!cancelled) setPreviewActuals({});
+      } finally {
+        if (!cancelled) setLoadingActuals(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [form.employee_id, form.start_date, form.end_date, form.period_type]);
 
   const loadData = useCallback(async () => {
     try {
@@ -136,11 +181,6 @@ export default function SalesTargetEditor({ targetId = null }) {
   };
 
   const addMetric = () => {
-    if (metricToAdd === '__custom__') {
-      setMetrics((rows) => [...rows, createMetricRow({ label: 'Custom Metric', isCustom: true, key: `custom_${Date.now()}` })]);
-      setMetricToAdd('');
-      return;
-    }
     const def = availableMetricsToAdd(metrics).find((m) => m.key === metricToAdd);
     if (!def) return;
     setMetrics((rows) => [...rows, createMetricRow(def)]);
@@ -250,7 +290,6 @@ export default function SalesTargetEditor({ targetId = null }) {
               <select className="input text-xs" value={metricToAdd} onChange={(e) => setMetricToAdd(e.target.value)}>
                 <option value="">Add metric…</option>
                 {addOptions.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
-                <option value="__custom__">+ Custom metric</option>
               </select>
               <button type="button" onClick={addMetric} disabled={!metricToAdd} className="btn-secondary text-xs">Add</button>
             </div>
@@ -271,16 +310,7 @@ export default function SalesTargetEditor({ targetId = null }) {
                 ) : metrics.map((metric) => (
                   <tr key={metric.id}>
                     <td className="table-td">
-                      {metric.isCustom ? (
-                        <input
-                          className="input text-sm"
-                          value={metric.label}
-                          onChange={(e) => updateMetric(metric.id, { label: e.target.value })}
-                          placeholder="Metric name"
-                        />
-                      ) : (
-                        <span className="font-medium">{metric.label}</span>
-                      )}
+                      <span className="font-medium">{metric.label}</span>
                     </td>
                     <td className="table-td text-xs text-zoho-muted capitalize">{metric.type}</td>
                     <td className="table-td">
@@ -307,7 +337,11 @@ export default function SalesTargetEditor({ targetId = null }) {
 
         <div className="space-y-3">
           <h2 className="text-sm font-semibold">Live Preview</h2>
-          <p className="text-xs text-zoho-muted">Preview updates as you change metric targets. Actuals will populate from CRM data in the live report.</p>
+          <p className="text-xs text-zoho-muted">
+            {loadingActuals
+              ? 'Loading actuals from CRM activity…'
+              : 'Actuals combine backend report data (when available) with CRM activity for the selected employee and date range.'}
+          </p>
           <WeeklyKpiPreviewTable
             rows={previewRows}
             ownerName={selectedEmployee ? userDisplayName(selectedEmployee) : ''}

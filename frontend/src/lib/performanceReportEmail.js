@@ -193,6 +193,8 @@ export async function buildPerformanceSummaryClientSide(userId, periodStart, per
   deals = [],
   tasks = [],
   calls = [],
+  meetings = [],
+  outreachEvents = [],
 } = {}) {
   const ownedLeads = leads.filter((l) => String(l.owner_id) === String(userId));
   const periodLeads = ownedLeads.filter((l) => inDateRange(l.created_at, periodStart, periodEnd));
@@ -219,6 +221,26 @@ export async function buildPerformanceSummaryClientSide(userId, periodStart, per
     return (st.includes('contact') || st.includes('attempt')) && inDateRange(l.updated_at || l.created_at, periodStart, periodEnd);
   });
 
+  const userOutreach = (outreachEvents || []).filter((event) => {
+    if (String(event.user_id) !== String(userId)) return false;
+    return inDateRange(event.at, periodStart, periodEnd);
+  });
+  const emailsSent = userOutreach.filter((event) => event.type === 'email').length;
+  const linkedinOutreach = Math.max(
+    linkedinLeads.length,
+    userOutreach.filter((event) => event.type === 'linkedin').length,
+  );
+
+  const completedMeetings = (meetings || []).filter((meeting) => {
+    const hostId = meeting.host_id;
+    const participantIds = meeting.participant_ids || [];
+    const isOwner = String(hostId) === String(userId)
+      || participantIds.some((id) => String(id) === String(userId));
+    if (!isOwner) return false;
+    const when = meeting.end_at || meeting.to_datetime || meeting.start_at || meeting.from_datetime;
+    return inDateRange(when, periodStart, periodEnd);
+  });
+
   const tasksDone = tasks.filter((t) => {
     const assignee = t.assigned_to || t.owner_id;
     const status = String(t.status || '').toLowerCase();
@@ -238,12 +260,13 @@ export async function buildPerformanceSummaryClientSide(userId, periodStart, per
     new_leads: newLeads,
     prospects_contacted: contacted.length,
     cold_calls: outboundCalls.length,
-    emails_sent: 0,
-    linkedin_outreach: linkedinLeads.length,
+    emails_sent: emailsSent,
+    linkedin_outreach: linkedinOutreach,
     follow_ups: tasksDone.length,
     qualified_meetings: qualified.length,
-    meetings_completed: 0,
+    meetings_completed: completedMeetings.length,
     proposals_sent: proposals.length,
+    proposals_value: proposals.reduce((sum, l) => sum + (Number(l.amount || l.deal_amount || 0)), 0),
     pipeline_value: pipelineDeals.reduce((sum, d) => sum + (Number(d.amount) || 0), 0),
     deals_closed_amount: wonAmount,
     revenue_collected: wonAmount,

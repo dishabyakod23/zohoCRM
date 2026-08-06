@@ -17,6 +17,7 @@ import {
   formatTargetAmount,
 } from '../../lib/salesTargetHelpers.js';
 import { buildPreviewRowsFromReportRow } from '../../lib/salesTargetMetrics.js';
+import { fetchPreviewActualsForReportRow } from '../../lib/salesTargetActuals.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
 
 function achievementBadgeClass(status) {
@@ -61,6 +62,8 @@ export default function SalesTargetReportsPanel() {
   const [remarkText, setRemarkText] = useState('');
   const [savingRemark, setSavingRemark] = useState(false);
   const [previewRow, setPreviewRow] = useState(null);
+  const [previewRows, setPreviewRows] = useState([]);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   const scopedEmployeeId = canPickEmployee ? filters.employee_id : (user?.id || '');
   const reportFilters = useMemo(() => ({
@@ -68,10 +71,18 @@ export default function SalesTargetReportsPanel() {
     employee_id: scopedEmployeeId || undefined,
   }), [filters, scopedEmployeeId]);
 
-  const previewRows = useMemo(
-    () => (previewRow ? buildPreviewRowsFromReportRow(previewRow) : []),
-    [previewRow],
-  );
+  const openPreview = async (row) => {
+    setPreviewRow(row);
+    setLoadingPreview(true);
+    try {
+      const actuals = await fetchPreviewActualsForReportRow(row);
+      setPreviewRows(buildPreviewRowsFromReportRow(row, actuals));
+    } catch {
+      setPreviewRows(buildPreviewRowsFromReportRow(row));
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
 
   const loadUsers = useCallback(async () => {
     try {
@@ -169,7 +180,7 @@ export default function SalesTargetReportsPanel() {
     <div className="space-y-4">
       <div className="card p-5">
         <h3 className="font-semibold mb-1">{reportTitle}</h3>
-        <p className="text-xs text-zoho-muted mb-4">Target vs actual from <code className="text-brand-600">/sales-targets/reports/performance</code></p>
+        <p className="text-xs text-zoho-muted mb-4">Pipeline, revenue, and collection actuals come from the API; full KPI breakdown is in View preview.</p>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
           <FormField label="Period" name="period_type">
             <select className="input text-xs" value={filters.period_type} onChange={(e) => handlePeriodChange(e.target.value)}>
@@ -245,6 +256,9 @@ export default function SalesTargetReportsPanel() {
               <th className="table-th">Revenue Target</th>
               <th className="table-th">Actual Revenue</th>
               <th className="table-th">Revenue %</th>
+              <th className="table-th">Collection Target</th>
+              <th className="table-th">Actual Collection</th>
+              <th className="table-th">Collection %</th>
               <th className="table-th">Status</th>
               <th className="table-th">KPI Report</th>
               {canRemark && <th className="table-th">Remarks</th>}
@@ -252,9 +266,9 @@ export default function SalesTargetReportsPanel() {
           </thead>
           <tbody className="divide-y">
             {loading ? (
-              <tr><td colSpan={canRemark ? 11 : 10} className="table-td text-center py-8 text-gray-400">Loading report…</td></tr>
+              <tr><td colSpan={canRemark ? 14 : 13} className="table-td text-center py-8 text-gray-400">Loading report…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={canRemark ? 11 : 10} className="table-td text-center py-8 text-gray-400">No report data for this period</td></tr>
+              <tr><td colSpan={canRemark ? 14 : 13} className="table-td text-center py-8 text-gray-400">No report data for this period</td></tr>
             ) : rows.map((row) => (
               <tr key={`${row.employee_id}-${row.period_start}-${row.period_end}`}>
                 <td className="table-td">
@@ -271,13 +285,16 @@ export default function SalesTargetReportsPanel() {
                 <td className="table-td">{formatTargetAmount(row.revenue_target, row.currency)}</td>
                 <td className="table-td">{formatTargetAmount(row.actuals?.actual_revenue, row.currency)}</td>
                 <td className="table-td">{formatAchievementPct(row.achievement?.revenue_achievement_pct)}</td>
+                <td className="table-td">{formatTargetAmount(row.collection_target, row.currency)}</td>
+                <td className="table-td">{formatTargetAmount(row.actuals?.actual_collection, row.currency)}</td>
+                <td className="table-td">{formatAchievementPct(row.achievement?.collection_achievement_pct)}</td>
                 <td className="table-td">
                   <span className={`badge ${achievementBadgeClass(row.achievement?.status)}`}>{row.achievement?.status}</span>
                 </td>
                 <td className="table-td">
                   <button
                     type="button"
-                    onClick={() => setPreviewRow(row)}
+                    onClick={() => openPreview(row)}
                     className="text-xs text-blue-600 hover:underline"
                   >
                     View preview
@@ -304,6 +321,7 @@ export default function SalesTargetReportsPanel() {
         >
           <p className="text-sm text-zoho-muted mb-4">
             {previewRow.period_name} · {previewRow.period_start} – {previewRow.period_end}
+            {loadingPreview ? ' · Loading actuals…' : ''}
           </p>
           <WeeklyKpiPreviewTable
             rows={previewRows}

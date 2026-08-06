@@ -17,26 +17,14 @@ export const DEFAULT_KPI_METRICS = [
   { key: 'qualified_meetings', label: 'Qualified Meetings Booked', type: METRIC_TYPES.count, summaryKey: 'qualified_meetings', apiField: 'qualified_meetings_target' },
   { key: 'meetings_completed', label: 'Meetings Completed', type: METRIC_TYPES.count, summaryKey: 'meetings_completed' },
   { key: 'proposals_sent', label: 'Proposals Sent', type: METRIC_TYPES.count, summaryKey: 'proposals_sent', apiField: 'proposal_count_target' },
+  { key: 'proposals_value', label: 'Proposal Value', type: METRIC_TYPES.currency, summaryKey: 'proposals_value', apiField: 'proposal_value_target' },
+  { key: 'deals_won', label: 'Deals Won', type: METRIC_TYPES.count, summaryKey: 'deals_won', apiField: 'deal_closure_count_target' },
   { key: 'pipeline_value', label: 'Pipeline Value Added', type: METRIC_TYPES.currency, summaryKey: 'pipeline_value', apiField: 'pipeline_target' },
   { key: 'deals_closed', label: 'Deals Closed', type: METRIC_TYPES.currency, summaryKey: 'deals_closed_amount', apiField: 'revenue_target' },
   { key: 'revenue_collected', label: 'Revenue Collected', type: METRIC_TYPES.currency, summaryKey: 'revenue_collected', apiField: 'collection_target' },
 ];
 
 const METRICS_JSON_MARKER = '---SALES_TARGET_METRICS---';
-
-const API_FIELD_MAP = {
-  pipeline_target: 'pipeline_value',
-  revenue_target: 'deals_closed',
-  collection_target: 'revenue_collected',
-  proposal_count_target: 'proposals_sent',
-  qualified_meetings_target: 'qualified_meetings',
-  proposal_value_target: 'proposals_sent',
-  deal_closure_count_target: 'deals_closed',
-};
-
-function metricId(metric) {
-  return metric.id || metric.key;
-}
 
 export function createMetricRow(def = {}) {
   const base = DEFAULT_KPI_METRICS.find((m) => m.key === def.key) || {};
@@ -48,7 +36,7 @@ export function createMetricRow(def = {}) {
     summaryKey: def.summaryKey || def.key || '',
     target: def.target ?? '',
     enabled: def.enabled !== false,
-    isCustom: def.isCustom ?? !base.key,
+    isCustom: false,
   };
 }
 
@@ -102,12 +90,6 @@ export function metricsFromTarget(target) {
     }
     if (targetValue !== '') {
       rows.push(createMetricRow({ ...def, target: targetValue }));
-    }
-  }
-
-  for (const custom of customMetrics) {
-    if (!DEFAULT_KPI_METRICS.find((m) => m.key === custom.key)) {
-      rows.push(createMetricRow({ ...custom, isCustom: true }));
     }
   }
 
@@ -165,7 +147,8 @@ export function formatMetricTarget(metric, currency = DEFAULT_CURRENCY) {
 }
 
 export function formatMetricActual(metric, actuals = {}, currency = DEFAULT_CURRENCY) {
-  const value = actuals[metric.summaryKey] ?? actuals[metric.key] ?? 0;
+  const value = actuals[metric.summaryKey] ?? actuals[metric.key];
+  if (value == null || value === '') return '0';
   if (metric.type === METRIC_TYPES.currency) return formatTargetAmount(value, currency);
   return String(value ?? 0);
 }
@@ -199,7 +182,9 @@ export function mapReportActualsForPreview(actuals = {}) {
     revenue_collected: actuals.actual_collection,
     qualified_meetings: actuals.qualified_meetings,
     proposals_sent: actuals.proposals_sent,
-    meetings_completed: actuals.qualified_meetings,
+    proposals_value: actuals.proposals_value,
+    deals_won: actuals.deals_won,
+    meetings_completed: actuals.meetings_completed,
     new_leads: actuals.new_leads,
     prospects_contacted: actuals.prospects_contacted,
     cold_calls: actuals.cold_calls,
@@ -224,8 +209,8 @@ export function reportRowToMetrics(row) {
   return metrics;
 }
 
-export function buildPreviewRowsFromReportRow(row) {
+export function buildPreviewRowsFromReportRow(row, actuals = null) {
   const metrics = reportRowToMetrics(row);
-  const actuals = mapReportActualsForPreview(row.actuals || {});
-  return buildPreviewRows(metrics, actuals, row.currency);
+  const mergedActuals = actuals || mapReportActualsForPreview(row.actuals || {});
+  return buildPreviewRows(metrics, mergedActuals, row.currency);
 }
