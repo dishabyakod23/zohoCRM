@@ -190,3 +190,42 @@ export function availableMetricsToAdd(currentMetrics) {
   const usedKeys = new Set((currentMetrics || []).map((m) => m.key).filter(Boolean));
   return DEFAULT_KPI_METRICS.filter((m) => !usedKeys.has(m.key));
 }
+
+/** Map performance-report actuals to KPI summary keys used in preview tables. */
+export function mapReportActualsForPreview(actuals = {}) {
+  return {
+    pipeline_value: actuals.actual_pipeline,
+    deals_closed_amount: actuals.actual_revenue,
+    revenue_collected: actuals.actual_collection,
+    qualified_meetings: actuals.qualified_meetings,
+    proposals_sent: actuals.proposals_sent,
+    meetings_completed: actuals.qualified_meetings,
+    new_leads: actuals.new_leads,
+    prospects_contacted: actuals.prospects_contacted,
+    cold_calls: actuals.cold_calls,
+    emails_sent: actuals.emails_sent,
+    linkedin_outreach: actuals.linkedin_outreach,
+    follow_ups: actuals.follow_ups,
+  };
+}
+
+export function reportRowToMetrics(row) {
+  if (!row) return [];
+  const { metrics } = metricsFromTarget({
+    pipeline_target: row.pipeline_target,
+    revenue_target: row.revenue_target,
+    collection_target: row.collection_target,
+    proposal_count_target: row.proposal_count_target,
+    qualified_meetings_target: row.qualified_meetings_target,
+    deal_closure_count_target: row.deal_closure_count_target,
+    proposal_value_target: row.proposal_value_target,
+    remarks: row.remarks,
+  });
+  return metrics;
+}
+
+export function buildPreviewRowsFromReportRow(row) {
+  const metrics = reportRowToMetrics(row);
+  const actuals = mapReportActualsForPreview(row.actuals || {});
+  return buildPreviewRows(metrics, actuals, row.currency);
+}

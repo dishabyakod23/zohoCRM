@@ -1,11 +1,13 @@
 import {
   applyMetricsToForm,
+  buildPreviewRowsFromReportRow,
   buildSalesTargetSavePayload,
   createMetricRow,
   metricsFromTarget,
   parseRemarksData,
   serializeRemarksData,
 } from '../salesTargetMetrics.js';
+import { buildSalesTargetReportParams } from '../salesTargetHelpers.js';
 
 const BASE_FORM = {
   period_type: 'weekly',
@@ -85,9 +87,41 @@ describe('salesTargetMetrics payload mapping', () => {
     ]));
   });
 
+  it('builds KPI preview rows from a performance report row', () => {
+    const rows = buildPreviewRowsFromReportRow({
+      currency: 'INR',
+      pipeline_target: '20000',
+      revenue_target: '20000',
+      qualified_meetings_target: 5,
+      actuals: {
+        actual_pipeline: '0',
+        actual_revenue: '0',
+        qualified_meetings: 2,
+      },
+    });
+    expect(rows.some((r) => r.key === 'pipeline_value' && r.displayTarget.includes('20'))).toBe(true);
+    expect(rows.some((r) => r.key === 'qualified_meetings' && r.displayActual === '2')).toBe(true);
+  });
+
   it('strips remarksText from the mapped form', () => {
     const mapped = applyMetricsToForm(BASE_FORM, []);
     expect(mapped.remarksText).toBeUndefined();
     expect(mapped.remarks).toBe('Weekly focus');
+  });
+});
+
+describe('buildSalesTargetReportParams', () => {
+  it('omits date filters when all_time is enabled', () => {
+    const params = buildSalesTargetReportParams({
+      period_type: 'weekly',
+      all_time: true,
+      date_from: '2026-01-01',
+      date_to: '2026-08-01',
+      employee_id: 'emp-1',
+    });
+    expect(params.period_type).toBe('weekly');
+    expect(params.date_from).toBeUndefined();
+    expect(params.date_to).toBeUndefined();
+    expect(params.employee_id).toBe('emp-1');
   });
 });

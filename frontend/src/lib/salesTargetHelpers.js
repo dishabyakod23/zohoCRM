@@ -310,6 +310,7 @@ export function buildSalesTargetReportParams({
   period_type = 'weekly',
   date_from,
   date_to,
+  all_time = false,
   employee_id,
   reporting_manager_id,
   role,
@@ -318,8 +319,10 @@ export function buildSalesTargetReportParams({
   region,
 } = {}) {
   const params = { period_type };
-  if (date_from) params.date_from = date_from;
-  if (date_to) params.date_to = date_to;
+  if (!all_time) {
+    if (date_from) params.date_from = date_from;
+    if (date_to) params.date_to = date_to;
+  }
   if (employee_id) params.employee_id = employee_id;
   if (reporting_manager_id) params.reporting_manager_id = reporting_manager_id;
   if (role) params.role = role;

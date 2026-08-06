@@ -1,9 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import FormField from '../forms/FormField.js';
 import Modal from '../ui/Modal.js';
+import WeeklyKpiPreviewTable from '../settings/WeeklyKpiPreviewTable.js';
 import { useToast } from '../ui/Toast.js';
+import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
@@ -14,6 +16,7 @@ import {
   formatAchievementPct,
   formatTargetAmount,
 } from '../../lib/salesTargetHelpers.js';
+import { buildPreviewRowsFromReportRow } from '../../lib/salesTargetMetrics.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
 
 function achievementBadgeClass(status) {
@@ -36,17 +39,20 @@ function defaultDateRange(periodType) {
 
 export default function SalesTargetReportsPanel() {
   const { showToast } = useToast();
+  const { user } = useAuth();
   const { can } = usePermissions();
   const canExport = can('settings_sales_targets', 'export') || can('reports', 'export');
   const canRemark = can('settings_sales_targets', 'edit');
+  const canPickEmployee = can('settings_sales_targets', 'edit') || can('settings_sales_targets', 'create');
 
   const [users, setUsers] = useState([]);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [filters, setFilters] = useState({
-    period_type: 'monthly',
-    ...defaultDateRange('monthly'),
+    period_type: 'weekly',
+    all_time: false,
+    ...defaultDateRange('weekly'),
     employee_id: '',
     reporting_manager_id: '',
     role: '',
@@ -54,6 +60,18 @@ export default function SalesTargetReportsPanel() {
   const [remarkModal, setRemarkModal] = useState(null);
   const [remarkText, setRemarkText] = useState('');
   const [savingRemark, setSavingRemark] = useState(false);
+  const [previewRow, setPreviewRow] = useState(null);
+
+  const scopedEmployeeId = canPickEmployee ? filters.employee_id : (user?.id || '');
+  const reportFilters = useMemo(() => ({
+    ...filters,
+    employee_id: scopedEmployeeId || undefined,
+  }), [filters, scopedEmployeeId]);
+
+  const previewRows = useMemo(
+    () => (previewRow ? buildPreviewRowsFromReportRow(previewRow) : []),
+    [previewRow],
+  );
 
   const loadUsers = useCallback(async () => {
     try {
@@ -66,7 +84,7 @@ export default function SalesTargetReportsPanel() {
   const loadReport = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await salesTargetsApi.getSalesTargetPerformanceReport(filters);
+      const data = await salesTargetsApi.getSalesTargetPerformanceReport(reportFilters);
       setRows(data);
     } catch (err) {
       showToast(getApiError(err));
@@ -74,20 +92,33 @@ export default function SalesTargetReportsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [filters, showToast]);
+  }, [reportFilters, showToast]);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
   useEffect(() => { loadReport(); }, [loadReport]);
 
+  useEffect(() => {
+    if (!user?.id || canPickEmployee) return;
+    setFilters((f) => ({ ...f, employee_id: user.id }));
+  }, [user?.id, canPickEmployee]);
+
   const handlePeriodChange = (periodType) => {
     const range = defaultDateRange(periodType);
-    setFilters((f) => ({ ...f, period_type: periodType, ...range }));
+    setFilters((f) => ({ ...f, period_type: periodType, all_time: false, ...range }));
+  };
+
+  const handleAllTimeChange = (checked) => {
+    setFilters((f) => ({
+      ...f,
+      all_time: checked,
+      ...(checked ? { date_from: '', date_to: '' } : defaultDateRange(f.period_type)),
+    }));
   };
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const blob = await salesTargetsApi.exportSalesTargetPerformanceReport(filters);
+      const blob = await salesTargetsApi.exportSalesTargetPerformanceReport(reportFilters);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -145,18 +176,46 @@ export default function SalesTargetReportsPanel() {
               {TARGET_PERIOD_TYPES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           </FormField>
-          <FormField label="From" name="date_from">
-            <input className="input text-xs" type="date" value={filters.date_from} onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value }))} />
-          </FormField>
-          <FormField label="To" name="date_to">
-            <input className="input text-xs" type="date" value={filters.date_to} onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value }))} />
-          </FormField>
-          <FormField label="Employee" name="employee_id">
-            <select className="input text-xs" value={filters.employee_id} onChange={(e) => setFilters((f) => ({ ...f, employee_id: e.target.value }))}>
-              <option value="">All</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{userDisplayName(u)}</option>)}
+          <FormField label="Date range" name="all_time">
+            <select
+              className="input text-xs"
+              value={filters.all_time ? 'all_time' : 'custom'}
+              onChange={(e) => handleAllTimeChange(e.target.value === 'all_time')}
+            >
+              <option value="custom">Custom dates</option>
+              <option value="all_time">All time</option>
             </select>
           </FormField>
+          <FormField label="From" name="date_from">
+            <input
+              className="input text-xs"
+              type="date"
+              value={filters.date_from}
+              disabled={filters.all_time}
+              onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value, all_time: false }))}
+            />
+          </FormField>
+          <FormField label="To" name="date_to">
+            <input
+              className="input text-xs"
+              type="date"
+              value={filters.date_to}
+              disabled={filters.all_time}
+              onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value, all_time: false }))}
+            />
+          </FormField>
+          {canPickEmployee ? (
+            <FormField label="Employee" name="employee_id">
+              <select className="input text-xs" value={filters.employee_id} onChange={(e) => setFilters((f) => ({ ...f, employee_id: e.target.value }))}>
+                <option value="">All</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{userDisplayName(u)}</option>)}
+              </select>
+            </FormField>
+          ) : (
+            <FormField label="Employee" name="employee_id">
+              <input className="input text-xs bg-gray-50" value={userDisplayName(user)} disabled readOnly />
+            </FormField>
+          )}
           <FormField label="Role" name="role">
             <select className="input text-xs" value={filters.role} onChange={(e) => setFilters((f) => ({ ...f, role: e.target.value }))}>
               <option value="">All</option>
@@ -187,14 +246,15 @@ export default function SalesTargetReportsPanel() {
               <th className="table-th">Actual Revenue</th>
               <th className="table-th">Revenue %</th>
               <th className="table-th">Status</th>
+              <th className="table-th">KPI Report</th>
               {canRemark && <th className="table-th">Remarks</th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {loading ? (
-              <tr><td colSpan={canRemark ? 10 : 9} className="table-td text-center py-8 text-gray-400">Loading report…</td></tr>
+              <tr><td colSpan={canRemark ? 11 : 10} className="table-td text-center py-8 text-gray-400">Loading report…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={canRemark ? 10 : 9} className="table-td text-center py-8 text-gray-400">No report data for this period</td></tr>
+              <tr><td colSpan={canRemark ? 11 : 10} className="table-td text-center py-8 text-gray-400">No report data for this period</td></tr>
             ) : rows.map((row) => (
               <tr key={`${row.employee_id}-${row.period_start}-${row.period_end}`}>
                 <td className="table-td">
@@ -214,6 +274,15 @@ export default function SalesTargetReportsPanel() {
                 <td className="table-td">
                   <span className={`badge ${achievementBadgeClass(row.achievement?.status)}`}>{row.achievement?.status}</span>
                 </td>
+                <td className="table-td">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewRow(row)}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    View preview
+                  </button>
+                </td>
                 {canRemark && (
                   <td className="table-td">
                     <button type="button" onClick={() => openRemark(row)} className="text-xs text-blue-600 hover:underline">
@@ -226,6 +295,24 @@ export default function SalesTargetReportsPanel() {
           </tbody>
         </table>
       </div>
+
+      {previewRow && (
+        <Modal
+          title={`KPI Report — ${previewRow.employee_name}`}
+          onClose={() => setPreviewRow(null)}
+          wide
+        >
+          <p className="text-sm text-zoho-muted mb-4">
+            {previewRow.period_name} · {previewRow.period_start} – {previewRow.period_end}
+          </p>
+          <WeeklyKpiPreviewTable
+            rows={previewRows}
+            ownerName={previewRow.employee_name}
+            periodStart={previewRow.period_start}
+            periodEnd={previewRow.period_end}
+          />
+        </Modal>
+      )}
 
       {remarkModal && (
         <Modal title="Management Remarks" onClose={() => setRemarkModal(null)}>
