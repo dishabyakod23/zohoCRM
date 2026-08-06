@@ -1,5 +1,5 @@
 import { DEFAULT_CURRENCY } from './currencies.js';
-import { formatTargetAmount } from './salesTargetHelpers.js';
+import { formatTargetAmount, toSalesTargetPayload } from './salesTargetHelpers.js';
 
 export const METRIC_TYPES = {
   count: 'count',
@@ -71,9 +71,18 @@ export function parseRemarksData(remarks) {
 }
 
 export function serializeRemarksData(text, metrics) {
-  const customMetrics = (metrics || []).filter((m) => m.isCustom);
-  if (!customMetrics.length) return text || null;
-  const payload = JSON.stringify({ metrics: customMetrics });
+  const storedMetrics = (metrics || [])
+    .filter((m) => m && (m.key || m.label))
+    .map((m) => ({
+      key: m.key,
+      label: m.label,
+      type: m.type,
+      summaryKey: m.summaryKey || m.key,
+      target: m.target,
+      isCustom: Boolean(m.isCustom),
+    }));
+  if (!storedMetrics.length) return text || null;
+  const payload = JSON.stringify({ metrics: storedMetrics });
   return `${text || ''}${text ? '\n\n' : ''}${METRICS_JSON_MARKER}${payload}`;
 }
 
@@ -111,8 +120,12 @@ export function metricsFromTarget(target) {
 export function applyMetricsToForm(form, metrics) {
   const { remarksText, ...rest } = form;
   const next = { ...rest };
-  const custom = [];
 
+  for (const def of DEFAULT_KPI_METRICS) {
+    if (def.apiField) next[def.apiField] = '';
+  }
+
+  const storedInRemarks = [];
   for (const metric of metrics) {
     if (!metric.enabled) continue;
     const def = DEFAULT_KPI_METRICS.find((m) => m.key === metric.key);
@@ -120,11 +133,17 @@ export function applyMetricsToForm(form, metrics) {
       next[def.apiField] = metric.target === '' ? '' : metric.target;
       continue;
     }
-    custom.push(metric);
+    storedInRemarks.push(metric);
   }
 
-  next.remarks = serializeRemarksData(remarksText || '', custom);
+  next.remarks = serializeRemarksData(remarksText || '', storedInRemarks);
+  delete next.remarksText;
   return next;
+}
+
+export function buildSalesTargetSavePayload(form, metrics, { partial = false } = {}) {
+  const mappedForm = applyMetricsToForm(form, metrics);
+  return toSalesTargetPayload(mappedForm, { partial });
 }
 
 export function achievementForMetric(actual, target) {

@@ -22,6 +22,7 @@ import {
   applyMetricsToForm,
   availableMetricsToAdd,
   buildPreviewRows,
+  buildSalesTargetSavePayload,
   createMetricRow,
   defaultMetricRows,
   metricsFromTarget,
@@ -153,7 +154,7 @@ export default function SalesTargetEditor({ targetId = null }) {
     }
     setSaving(true);
     try {
-      const payload = applyMetricsToForm({ ...form, remarks: form.remarksText }, metrics);
+      const payload = buildSalesTargetSavePayload(form, metrics, { partial: !!targetId });
       if (targetId) {
         await salesTargetsApi.updateSalesTarget(targetId, payload);
         showToast('Target updated', 'success');
