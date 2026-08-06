@@ -90,6 +90,7 @@ export function metricsFromTarget(target) {
   if (!target) return { metrics: defaultMetricRows(), remarksText: '' };
 
   const { text, metrics: customMetrics } = parseRemarksData(target.remarks);
+  const kpiTargets = target.kpi_targets || {};
   const customByKey = Object.fromEntries(customMetrics.map((m) => [m.key, m]));
   const rows = [];
 
@@ -97,6 +98,8 @@ export function metricsFromTarget(target) {
     let targetValue = '';
     if (def.apiField && target[def.apiField] != null && target[def.apiField] !== '') {
       targetValue = target[def.apiField];
+    } else if (kpiTargets[def.key] != null && kpiTargets[def.key] !== '') {
+      targetValue = kpiTargets[def.key];
     } else if (customByKey[def.key]) {
       targetValue = customByKey[def.key].target ?? '';
     }
@@ -199,7 +202,7 @@ export function mapReportActualsForPreview(actuals = {}) {
     revenue_collected: actuals.actual_collection,
     qualified_meetings: actuals.qualified_meetings,
     proposals_sent: actuals.proposals_sent,
-    meetings_completed: actuals.qualified_meetings,
+    meetings_completed: actuals.meetings_completed ?? actuals.qualified_meetings,
     new_leads: actuals.new_leads,
     prospects_contacted: actuals.prospects_contacted,
     cold_calls: actuals.cold_calls,
@@ -219,6 +222,7 @@ export function reportRowToMetrics(row) {
     qualified_meetings_target: row.qualified_meetings_target,
     deal_closure_count_target: row.deal_closure_count_target,
     proposal_value_target: row.proposal_value_target,
+    kpi_targets: row.kpi_targets,
     remarks: row.remarks,
   });
   return metrics;
