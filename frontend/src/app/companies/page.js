@@ -101,7 +101,7 @@ export default function CompaniesPage() {
         {company.website.replace('https://', '')}
       </a>
     ) : '—' },
-    { id: 'email', header: 'Email', cell: (company) => <span className={tableEmailClass}>{company.email || '—'}</span> },
+    { id: 'email', header: 'Email', sortField: 'email', cell: (company) => <span className={tableEmailClass}>{company.email || '—'}</span> },
     { id: 'city', header: 'City', cell: (company) => company.billing_city || company.city || '—' },
     { id: 'owner', header: 'Owner', cell: (company) => company.owner_name || '—' },
   ], []);
@@ -150,6 +150,8 @@ export default function CompaniesPage() {
               columns={columns}
               onRefresh={fetchCompanies}
               emptyMessage="No companies found. Companies appear when you add contacts with a company name."
+              sort={sort}
+              onSortChange={(v) => { setSort(v); setPage(1); }}
               {...tableSelection}
               pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
             />

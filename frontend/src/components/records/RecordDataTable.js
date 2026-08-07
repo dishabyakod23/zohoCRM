@@ -12,6 +12,7 @@ import { getBulkConfig, bulkDeleteRecords, exportRecordsCsv, printMailingLabels,
 import { getNoteMeta, notesApiSupported } from '../../lib/noteHelpers.js';
 import RecordNoteRowIcon from './RecordNoteRowIcon.js';
 import RecordNotesSidePanel from './RecordNotesSidePanel.js';
+import SortableEmailHeader from './SortableEmailHeader.js';
 import * as tasksApi from '../../lib/services/tasks.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
 import { fetchUsers, fetchMassUpdateFieldOptions, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
@@ -171,6 +172,8 @@ export default function RecordDataTable({
   massUpdateFieldsLoader,
   convertTargetsLoader,
   massUpdateHandler,
+  sort,
+  onSortChange,
 }) {
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -753,7 +756,11 @@ export default function RecordDataTable({
                   </div>
                 </th>
                 {columns.map((col) => (
-                  <th key={col.id} className={`table-th ${col.className || ''}`}>{col.header}</th>
+                  <th key={col.id} className={`table-th ${col.className || ''}`}>
+                    {col.sortField === 'email' && onSortChange ? (
+                      <SortableEmailHeader label={col.header} sort={sort} onSortChange={onSortChange} />
+                    ) : col.header}
+                  </th>
                 ))}
               </tr>
             </thead>

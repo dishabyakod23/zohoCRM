@@ -187,7 +187,7 @@ export default function PipelineLeadList({ stage, description }) {
     const cols = [
       { id: 'name', header: 'Name', cell: (lead) => <RecordDetailLink href={config.detailPath(lead.id)} className={tableLinkClass}>{lead.first_name} {lead.last_name}</RecordDetailLink> },
       { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
-      { id: 'email', header: 'Email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
+      { id: 'email', header: 'Email', sortField: 'email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
       { id: 'phone', header: 'Phone', cell: (lead) => <PhoneCell value={lead.phone} label="Call lead" /> },
       { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
       { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || 'Unassigned' },
@@ -305,6 +305,8 @@ export default function PipelineLeadList({ stage, description }) {
               columns={columns}
               statusOptions={statusOptions}
               onRefresh={fetchLeads}
+              sort={sort}
+              onSortChange={(v) => { setSort(v); setPage(1); }}
               {...tableSelection}
               massUpdateFieldsLoader={loadMassUpdateFields}
               convertTargetsLoader={fetchPipelineConvertTargets}

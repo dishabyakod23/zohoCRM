@@ -141,7 +141,7 @@ export default function LeadsPage() {
   const columns = useMemo(() => [
     { id: 'name', header: 'Lead Name', cell: (lead) => <RecordDetailLink href={`/leads/${lead.id}`} className={tableLinkClass}>{lead.first_name} {lead.last_name}</RecordDetailLink> },
     { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
-    { id: 'email', header: 'Email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
+    { id: 'email', header: 'Email', sortField: 'email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
     { id: 'phone', header: 'Phone', cell: (lead) => <PhoneCell value={lead.phone} label="Call lead" /> },
     { id: 'source', header: 'Source', cell: (lead) => lead.source || '—' },
     { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
@@ -191,6 +191,8 @@ export default function LeadsPage() {
               statusOptions={statusOptions}
               onRefresh={fetchLeads}
               emptyMessage="No leads found"
+              sort={sort}
+              onSortChange={(v) => { setSort(v); setPage(1); }}
               {...tableSelection}
               massUpdateFieldsLoader={loadMassUpdateFields}
               convertTargetsLoader={fetchPipelineConvertTargets}

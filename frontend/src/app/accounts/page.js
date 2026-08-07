@@ -101,7 +101,7 @@ export default function AccountsPage() {
     ) },
     { id: 'industry', header: 'Industry', cell: (a) => a.industry || '—' },
     { id: 'website', header: 'Website', cell: (a) => a.website ? <a href={a.website} target="_blank" rel="noreferrer" className={`${tableEmailClass} text-xs hover:text-zoho-text hover:underline`}>{a.website.replace('https://', '')}</a> : '—' },
-    { id: 'email', header: 'Email', cell: (a) => <span className={tableEmailClass}>{a.email || '—'}</span> },
+    { id: 'email', header: 'Email', sortField: 'email', cell: (a) => <span className={tableEmailClass}>{a.email || '—'}</span> },
     { id: 'status', header: 'Status', cell: (a) => <Badge label={a.account_type || '—'} /> },
     { id: 'city', header: 'City', cell: (a) => a.billing_city || a.city || '—' },
     { id: 'owner', header: 'Owner', cell: (a) => a.owner_name || '—' },
@@ -157,6 +157,8 @@ export default function AccountsPage() {
               statusOptions={ACCOUNT_STATUS_OPTIONS}
               onRefresh={fetchAccounts}
               emptyMessage="No accounts found"
+              sort={sort}
+              onSortChange={(v) => { setSort(v); setPage(1); }}
               {...tableSelection}
               pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
             />

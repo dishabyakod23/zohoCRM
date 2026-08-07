@@ -138,7 +138,7 @@ export default function WorkItemsPage() {
       ),
     },
     { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
-    { id: 'email', header: 'Email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
+    { id: 'email', header: 'Email', sortField: 'email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
     { id: 'source', header: 'Source', cell: (lead) => lead.source || '—' },
     { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
     {
@@ -184,6 +184,8 @@ export default function WorkItemsPage() {
               statusOptions={statusOptions}
               onRefresh={fetchWorkItems}
               emptyMessage="No leads assigned to you"
+              sort={sort}
+              onSortChange={(v) => { setSort(v); setPage(1); }}
               {...tableSelection}
               massUpdateFieldsLoader={loadMassUpdateFields}
               convertTargetsLoader={fetchPipelineConvertTargets}

@@ -206,7 +206,7 @@ export default function ContactsPage() {
     { id: 'company', header: 'Company', cell: (c) => c.account_name || '—' },
     { id: 'status', header: 'Current Status', cell: (c) => c.current_status || '—' },
     { id: 'lead_status', header: 'Lead Status', cell: (c) => c.lead_status_label || '—' },
-    { id: 'email', header: 'Email', cell: (c) => <span className={tableEmailClass}>{c.email || '—'}</span> },
+    { id: 'email', header: 'Email', sortField: 'email', cell: (c) => <span className={tableEmailClass}>{c.email || '—'}</span> },
     { id: 'phone', header: 'Phone', cell: (c) => <PhoneCell value={c.phone || c.mobile} label="Call contact" /> },
     { id: 'last_call', header: 'Last Call', cell: (c) => (
       <span className="text-xs text-zoho-text whitespace-nowrap">{c.last_call_label || '—'}</span>
@@ -257,6 +257,8 @@ export default function ContactsPage() {
               statusOptions={leadStatusOptions}
               onRefresh={fetchContacts}
               emptyMessage="No contacts found"
+              sort={sort}
+              onSortChange={(v) => { setSort(v); setPage(1); }}
               {...tableSelection}
               pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
             />
