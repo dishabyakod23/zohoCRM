@@ -18,6 +18,7 @@ import {
   formatTargetAmount,
   targetStatusLabel,
 } from '../../lib/salesTargetHelpers.js';
+import { salesTargetEditHref } from '../../lib/recordNavigation.js';
 
 function statusBadgeClass(status) {
   if (status === 'active') return 'bg-emerald-50 text-emerald-700';
@@ -260,7 +261,7 @@ export default function SalesTargetsPanel() {
                   <td className="table-td">
                     <div className="flex flex-wrap gap-2">
                       {canEdit && target.status !== 'locked' && (
-                        <Link href={`/settings/sales-targets/${target.id}/edit`} className="text-xs text-blue-600 hover:underline">Edit</Link>
+                        <a href={salesTargetEditHref(target.id)} className="text-xs text-blue-600 hover:underline">Edit</a>
                       )}
                       {canCreate && (
                         <button type="button" onClick={() => handleCopy(target)} className="text-xs text-blue-600 hover:underline">Copy</button>

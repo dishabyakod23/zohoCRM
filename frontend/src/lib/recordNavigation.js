@@ -14,6 +14,15 @@ export function companyDetailHref(id) {
   return recordDetailHref(`/companies/${id}`);
 }
 
+/** Sales target edit URL — static export serves only /settings/sales-targets/_/edit/. */
+export function salesTargetEditHref(id) {
+  if (!id) return '/settings/sales-targets/';
+  if (isStaticExport) {
+    return `/settings/sales-targets/_/edit/?id=${encodeURIComponent(id)}`;
+  }
+  return recordDetailHref(`/settings/sales-targets/${id}/edit`);
+}
+
 /** Full page navigation — required for static-export detail routes on nginx. */
 export function navigateToRecord(href) {
   if (typeof window === 'undefined') return;

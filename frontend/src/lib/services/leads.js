@@ -100,7 +100,13 @@ function buildLeadListApiParams({
       params.lead_status = 'qualified_lead';
     } else if (pipeline_stage === PIPELINE_RAW) {
       params.pipeline_stage = PIPELINE_RAW;
-      params.lead_status = 'raw_prospect';
+      // Do not pin lead_status to raw_prospect — outreach statuses (e.g. not_contacted)
+      // are updated independently and records must stay in Raw Leads.
+      const statusFilter = filters.status || lead_status;
+      if (statusFilter) {
+        const apiStatus = toApiLeadStatus(statusFilter) || resolveLeadStatusForApi(statusFilter);
+        if (apiStatus) params.lead_status = apiStatus;
+      }
     } else {
       params.pipeline_stage = pipeline_stage;
       const apiStatus = toApiLeadStatus(pipeline_stage) || resolveLeadStatusForApi(pipeline_stage);

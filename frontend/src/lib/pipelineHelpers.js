@@ -99,6 +99,29 @@ function normalizedLeadStatus(lead) {
   return toApiLeadStatus(key) || key;
 }
 
+/** Outreach lead_status values that belong to the Raw Leads pipeline when pipeline_stage is unset. */
+export const RAW_LEAD_OUTREACH_STATUSES = new Set([
+  'not_contacted',
+  'attempted_to_contact',
+  'contact_in_future',
+  'none',
+  'junk_lead',
+  'lost_lead',
+  'pre_qualified',
+  'not_qualified',
+]);
+
+function resolvePipelineStageFromField(lead) {
+  const stage = lead?.pipeline_stage;
+  if (!stage) return null;
+  const normalized = toApiLeadStatus(stage) || String(stage).toLowerCase().trim();
+  if (normalized === PIPELINE_RAW || normalized === 'raw_prospect') return PIPELINE_RAW;
+  if (normalized === PIPELINE_QUALIFIED || normalized === 'qualified_lead') return PIPELINE_QUALIFIED;
+  if (normalized === PIPELINE_LEAD || normalized === 'contacted') return PIPELINE_LEAD;
+  if (normalized === PIPELINE_PROPOSAL || normalized === 'proposal') return PIPELINE_PROPOSAL;
+  return null;
+}
+
 export const PIPELINE_STAGE_CONFIG = {
   [PIPELINE_RAW]: {
     listPath: '/raw-leads',
@@ -201,10 +224,15 @@ export function getConvertOptions(stage, { isAdmin = false } = {}) {
 export function resolveLeadPipelineStage(lead) {
   if (!lead) return null;
   if (isProposalLead(lead)) return PIPELINE_PROPOSAL;
+
+  const fromPipelineField = resolvePipelineStageFromField(lead);
+  if (fromPipelineField) return fromPipelineField;
+
   const status = normalizedLeadStatus(lead);
   if (status === 'qualified_lead') return PIPELINE_QUALIFIED;
   if (status === 'raw_prospect') return PIPELINE_RAW;
   if (status === 'contacted') return PIPELINE_LEAD;
+  if (RAW_LEAD_OUTREACH_STATUSES.has(status)) return PIPELINE_RAW;
   return status || null;
 }
 
