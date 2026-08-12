@@ -16,7 +16,8 @@ import { getApiError } from '../../lib/api.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import { ACCOUNT_TYPES, INDUSTRIES, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { tableLinkClass, tableEmailClass, avatarInitialClass } from '../../lib/tableStyles.js';
-import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter } from '../../components/layout/ListFilterFields.js';
+import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../../components/layout/ListFilterFields.js';
+import { recordTimestampColumns } from '../../lib/listTimestampHelpers.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import { EMPTY_ACCOUNT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
@@ -105,6 +106,7 @@ export default function AccountsPage() {
     { id: 'status', header: 'Status', cell: (a) => <Badge label={a.account_type || '—'} /> },
     { id: 'city', header: 'City', cell: (a) => a.billing_city || a.city || '—' },
     { id: 'owner', header: 'Owner', cell: (a) => a.owner_name || '—' },
+    ...recordTimestampColumns(),
   ], []);
 
   const industryOptions = INDUSTRIES.map((value) => ({ value, label: value }));
@@ -146,6 +148,7 @@ export default function AccountsPage() {
               <TextFilter label="City" value={filters.city} onChange={(v) => updateFilter('city', v)} />
               <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
               <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => updateFilter('campaign_id', v)} />
+              <CreatedUpdatedDateFilters filters={filters} onChange={updateFilter} />
             </>
           )}
           table={(

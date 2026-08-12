@@ -88,6 +88,17 @@ export function DateFilter({ label, value, onChange, className = '' }) {
   );
 }
 
+export function CreatedUpdatedDateFilters({ filters, onChange }) {
+  return (
+    <>
+      <DateFilter label="Created from" value={filters.created_from} onChange={(v) => onChange('created_from', v)} />
+      <DateFilter label="Created to" value={filters.created_to} onChange={(v) => onChange('created_to', v)} />
+      <DateFilter label="Updated from" value={filters.updated_from} onChange={(v) => onChange('updated_from', v)} />
+      <DateFilter label="Updated to" value={filters.updated_to} onChange={(v) => onChange('updated_to', v)} />
+    </>
+  );
+}
+
 export function OwnerFilter({ users = [], value, onChange }) {
   const { user } = useAuth();
   const options = useMemo(() => {

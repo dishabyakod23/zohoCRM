@@ -13,7 +13,8 @@ import { getApiError } from '../../lib/api.js';
 import * as companiesApi from '../../lib/services/companies.js';
 import { INDUSTRIES, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { tableLinkClass, tableEmailClass, avatarInitialClass } from '../../lib/tableStyles.js';
-import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter } from '../../components/layout/ListFilterFields.js';
+import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../../components/layout/ListFilterFields.js';
+import { recordTimestampColumns } from '../../lib/listTimestampHelpers.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import { EMPTY_ACCOUNT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
@@ -104,6 +105,7 @@ export default function CompaniesPage() {
     { id: 'email', header: 'Email', sortField: 'email', cell: (company) => <span className={tableEmailClass}>{company.email || '—'}</span> },
     { id: 'city', header: 'City', cell: (company) => company.billing_city || company.city || '—' },
     { id: 'owner', header: 'Owner', cell: (company) => company.owner_name || '—' },
+    ...recordTimestampColumns(),
   ], []);
 
   const industryOptions = INDUSTRIES.map((value) => ({ value, label: value }));
@@ -140,6 +142,7 @@ export default function CompaniesPage() {
               <TextFilter label="City" value={filters.city} onChange={(v) => updateFilter('city', v)} />
               <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
               <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => updateFilter('campaign_id', v)} />
+              <CreatedUpdatedDateFilters filters={filters} onChange={updateFilter} />
             </>
           )}
           table={(

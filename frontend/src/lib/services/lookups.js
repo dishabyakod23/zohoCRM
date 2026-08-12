@@ -9,7 +9,7 @@ import { mergeStoredProfileImage } from '../profileImageHelpers.js';
 
 /** Fallback when lookups API is unavailable */
 export const FALLBACK_LEAD_STATUSES = [
-  { value: 'raw_prospect', label: 'Raw Prospect' },
+  { value: 'raw_prospect', label: 'Raw Lead' },
   { value: 'contacted', label: 'Contacted' },
   { value: 'qualified_lead', label: 'Qualified Lead' },
   { value: 'deal_lost', label: 'Deal Lost' },
@@ -30,7 +30,8 @@ export function parseLeadStatusLookups(data) {
       return { value: item, label: leadStatusLabel(item) };
     }
     const value = item.value ?? item.key ?? item.code ?? item.id ?? item.status;
-    const label = item.label ?? item.name ?? item.display_name ?? item.title ?? leadStatusLabel(value);
+    let label = item.label ?? item.name ?? item.display_name ?? item.title ?? leadStatusLabel(value);
+    if (value === 'raw_prospect' || value === 'raw_lead') label = 'Raw Lead';
     return { value, label };
   }).filter((item) => item.value);
 }

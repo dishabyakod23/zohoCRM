@@ -8,7 +8,7 @@ import {
   PIPELINE_RAW,
 } from './pipelineHelpers.js';
 import { leadStatusLabel } from './leadHelpers.js';
-import { includesText } from './listRecordFilters.js';
+import { includesText, matchLeadStatus, matchesRecordTimestampFilters } from './listRecordFilters.js';
 
 export const DIRECTORY_STATUS_OPTIONS = [
   { value: 'Contact', label: 'Contact' },
@@ -232,6 +232,7 @@ export function applyContactDirectoryFilters(rows = [], filters = {}) {
     if (!includesText(row.title, filters.designation)) return false;
     if (filters.current_status && row.current_status !== filters.current_status) return false;
     if (filters.lead_status && !matchLeadStatus(row, filters.lead_status)) return false;
+    if (!matchesRecordTimestampFilters(row, filters)) return false;
     return true;
   });
 }

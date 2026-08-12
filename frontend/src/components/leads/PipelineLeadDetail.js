@@ -158,6 +158,11 @@ export default function PipelineLeadDetail({ stage }) {
 
   const editable = canEditRecord(lead);
   const deletable = canDeleteRecord(lead);
+  const statusFieldLabel = stage === PIPELINE_RAW
+    ? 'Raw Lead Status'
+    : stage === PIPELINE_QUALIFIED
+      ? 'Qualified Lead Status'
+      : 'Lead Status';
   const select = (opts, key = 'value', labelKey = 'label') => (draft, setDraft, field) => (
     <select className="input" value={draft[field] ?? ''} onChange={(e) => setDraft((d) => ({ ...d, [field]: e.target.value }))}>
       <option value="">--None--</option>
@@ -175,7 +180,7 @@ export default function PipelineLeadDetail({ stage }) {
         backLabel={config.listTitle}
         title={`${lead.first_name} ${lead.last_name}`}
         subtitle={lead.company}
-        badges={<><Badge label={pipelineStageLabel(stage)} /><Badge label={lead.status} /></>}
+        badges={<><Badge label={pipelineStageLabel(stage)} />{lead.status !== pipelineStageLabel(stage) ? <Badge label={lead.status} /> : null}</>}
         lastUpdated={new Date(lead.updated_at).toLocaleString()}
         recordNotes={{ relatedType: 'lead', recordId: id, canEdit: editable }}
         recordHistory={{ entityType: 'lead', recordId: id }}
@@ -227,7 +232,7 @@ export default function PipelineLeadDetail({ stage }) {
               { name: 'last_name', label: 'Last Name', required: true },
               { name: 'company', label: 'Company', required: true },
               { name: 'title', label: 'Job Title' },
-              { name: 'lead_status', label: 'Lead Status', format: () => lead.status, render: (d, set) => select(statusOptions)(d, set, 'lead_status') },
+              { name: 'lead_status', label: statusFieldLabel, format: () => lead.status, render: (d, set) => select(statusOptions)(d, set, 'lead_status') },
               { name: 'source', label: 'Lead Source', render: (d, set) => select(LEAD_SOURCES, null, null)(d, set, 'source') },
               { name: 'industry', label: 'Industry', render: (d, set) => select(INDUSTRIES, null, null)(d, set, 'industry') },
               campaignField,

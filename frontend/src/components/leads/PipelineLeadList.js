@@ -21,7 +21,7 @@ import CsvImportModal from '../records/CsvImportModal.js';
 import PhoneCell from '../cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
 import { formatMoney } from '../../lib/currencies.js';
-import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter } from '../layout/ListFilterFields.js';
+import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../layout/ListFilterFields.js';
 import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
 
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
@@ -31,6 +31,7 @@ import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.j
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
+import { recordTimestampColumns } from '../../lib/listTimestampHelpers.js';
 
 const STAGE_MODULE_KEY = {
   [PIPELINE_RAW]: 'raw-leads',
@@ -182,6 +183,7 @@ export default function PipelineLeadList({ stage, description }) {
         { id: 'closure_date', header: 'Closure Date', cell: (lead) => formatDate(lead.closure_date) },
         { id: 'deal_status', header: 'Deal Status', cell: (lead) => <Badge label={lead.deal_status_label || proposalDealStatusLabel(lead.deal_status)} /> },
         { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || 'Unassigned' },
+        ...recordTimestampColumns(),
       ];
       return cols;
     }
@@ -193,6 +195,7 @@ export default function PipelineLeadList({ stage, description }) {
       { id: 'phone', header: 'Phone', cell: (lead) => <PhoneCell value={lead.phone} label="Call lead" /> },
       { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
       { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || 'Unassigned' },
+      ...recordTimestampColumns(),
     ];
     if (config?.allowAssign !== false && canAssignLeads) {
       cols.push({
@@ -243,6 +246,7 @@ export default function PipelineLeadList({ stage, description }) {
         <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
       )}
       <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => updateFilter('campaign_id', v)} />
+      <CreatedUpdatedDateFilters filters={filters} onChange={updateFilter} />
     </>
   );
 
@@ -267,6 +271,7 @@ export default function PipelineLeadList({ stage, description }) {
         <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
       )}
       <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => updateFilter('campaign_id', v)} />
+      <CreatedUpdatedDateFilters filters={filters} onChange={updateFilter} />
     </>
   );
 

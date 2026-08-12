@@ -30,10 +30,15 @@ const SNAKE_CASE_RE = /^[a-z][a-z0-9_]*$/;
 
 export function leadStatusLabel(status, options = []) {
   if (!status) return '—';
+  const normalized = status === 'raw_lead' ? 'raw_prospect' : status;
   const lookupOptions = Array.isArray(options) ? options : [];
-  const fromLookup = lookupOptions.find(o => o.value === status);
-  if (fromLookup) return fromLookup.label;
-  return STATUS_LABELS[status] || pipelineStageLabel(status) || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const fromLookup = lookupOptions.find(o => o.value === normalized || o.value === status);
+  if (fromLookup) {
+    if (fromLookup.value === 'raw_prospect' || fromLookup.value === 'raw_lead') return 'Raw Lead';
+    return fromLookup.label;
+  }
+  if (normalized === 'raw_prospect' || status === 'raw_prospect' || status === 'raw_lead') return 'Raw Lead';
+  return STATUS_LABELS[status] || STATUS_LABELS[normalized] || pipelineStageLabel(status) || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 const STATUS_PLURALS = {

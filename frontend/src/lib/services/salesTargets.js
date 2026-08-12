@@ -14,6 +14,7 @@ import {
   toSalesTargetSettingsPayload,
   toSalesTargetUpdatePayload,
 } from '../salesTargetHelpers.js';
+import { enrichSalesTargetDashboard } from '../salesTargetDashboardEnrichment.js';
 
 const BASE = '/sales-targets';
 
@@ -97,7 +98,8 @@ export async function exportSalesTargetPerformanceReport(params = {}) {
 
 export async function getSalesTargetDashboard() {
   const res = await api.get(`${BASE}/dashboard`);
-  return normalizeSalesTargetDashboard(res.data.data);
+  const summary = normalizeSalesTargetDashboard(res.data.data);
+  return enrichSalesTargetDashboard(summary);
 }
 
 export async function listAllSalesTargets(params = {}) {

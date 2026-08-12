@@ -22,8 +22,9 @@ import { normalizeContact } from '../../lib/contactHelpers.js';
 import { fetchCompanyLookups, accountMapFromLookups, fetchUsers } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass, tableAvatarClass } from '../../lib/tableStyles.js';
-import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter, DateFilter } from '../../components/layout/ListFilterFields.js';
-import { EMPTY_CONTACT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
+import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter, DateFilter, CreatedUpdatedDateFilters } from '../../components/layout/ListFilterFields.js';
+import { EMPTY_CONTACT_FILTERS, countActiveFilters, matchLeadStatus, hasTimestampFilters, matchesRecordTimestampFilters } from '../../lib/listRecordFilters.js';
+import { recordTimestampColumns } from '../../lib/listTimestampHelpers.js';
 import { DIRECTORY_STATUS_OPTIONS } from '../../lib/contactDirectoryHelpers.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
@@ -110,7 +111,7 @@ export default function ContactsPage() {
       const [result, calls] = await Promise.all([
         contactDirectoryApi.listContactDirectory({
           page: 1,
-          page_size: filters.activity_from || filters.activity_to ? 100000 : LIMIT,
+          page_size: filters.activity_from || filters.activity_to || hasTimestampFilters(filters) ? 100000 : LIMIT,
           search: debouncedSearch || undefined,
           filters: directoryFilters,
           campaignMemberIds,
@@ -135,8 +136,19 @@ export default function ContactsPage() {
         statusOptions: leadStatusOptions,
       });
 
-      if (filters.activity_from || filters.activity_to) {
-        rows = filterRowsByActivityDate(rows, filters, { outreachIndex, calls: enrichedCalls });
+      if (directoryFilters.lead_status) {
+        rows = rows.filter((row) => matchLeadStatus(row, directoryFilters.lead_status));
+      }
+
+      if (hasTimestampFilters(filters)) {
+        rows = rows.filter((row) => matchesRecordTimestampFilters(row, filters));
+      }
+
+      const needsClientPagination = filters.activity_from || filters.activity_to || hasTimestampFilters(filters);
+      if (needsClientPagination) {
+        if (filters.activity_from || filters.activity_to) {
+          rows = filterRowsByActivityDate(rows, filters, { outreachIndex, calls: enrichedCalls });
+        }
         const start = (page - 1) * LIMIT;
         setTotal(rows.length);
         setContacts(rows.slice(start, start + LIMIT));
@@ -216,6 +228,7 @@ export default function ContactsPage() {
     ) },
     { id: 'campaign', header: 'Campaign', cell: (c) => c.campaign_name || '—' },
     { id: 'owner', header: 'Owner', cell: (c) => c.owner_name || '—' },
+    ...recordTimestampColumns(),
   ], []);
 
   return (
@@ -282,6 +295,10 @@ export default function ContactsPage() {
           />
           <DateFilter label="Activity from" value={filters.activity_from} onChange={(v) => { setFilters((f) => ({ ...f, activity_from: v })); setPage(1); }} />
           <DateFilter label="Activity to" value={filters.activity_to} onChange={(v) => { setFilters((f) => ({ ...f, activity_to: v })); setPage(1); }} />
+          <CreatedUpdatedDateFilters
+            filters={filters}
+            onChange={(key, value) => { setFilters((f) => ({ ...f, [key]: value })); setPage(1); }}
+          />
           <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => { setFilters((f) => ({ ...f, campaign_id: v })); setPage(1); }} />
           <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => { setFilters((f) => ({ ...f, owner_id: v })); setPage(1); }} />
         </ListToolbar>

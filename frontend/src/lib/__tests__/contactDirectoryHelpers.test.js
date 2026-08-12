@@ -69,6 +69,17 @@ describe('applyContactDirectoryFilters', () => {
     expect(filtered).toHaveLength(1);
     expect(filtered[0].email).toBe('john@example.com');
   });
+
+  it('filters by lead_status without throwing', () => {
+    const rows = [
+      contactToDirectoryRow({ id: '1', first_name: 'Ann', last_name: 'Lee', email: 'ann@example.com', lead_status: 'follow_up_email_1' }),
+      contactToDirectoryRow({ id: '2', first_name: 'Bob', last_name: 'Ray', email: 'bob@example.com', lead_status: 'contacted' }),
+    ];
+
+    const filtered = applyContactDirectoryFilters(rows, { lead_status: 'follow_up_email_1' });
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].email).toBe('ann@example.com');
+  });
 });
 
 describe('dedupeDirectoryRows', () => {

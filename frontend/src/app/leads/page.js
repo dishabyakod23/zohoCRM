@@ -21,7 +21,8 @@ import { normalizeLead } from '../../lib/leadHelpers.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchPipelineConvertTargets, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
-import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter } from '../../components/layout/ListFilterFields.js';
+import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../../components/layout/ListFilterFields.js';
+import { recordTimestampColumns } from '../../lib/listTimestampHelpers.js';
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
@@ -146,6 +147,7 @@ export default function LeadsPage() {
     { id: 'source', header: 'Source', cell: (lead) => lead.source || '—' },
     { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
     { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || '—' },
+    ...recordTimestampColumns(),
   ], []);
 
   return (
@@ -223,6 +225,10 @@ export default function LeadsPage() {
           />
           <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => { setFilters((f) => ({ ...f, campaign_id: v })); setPage(1); }} />
           <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => { setFilters((f) => ({ ...f, owner_id: v })); setPage(1); }} />
+          <CreatedUpdatedDateFilters
+            filters={filters}
+            onChange={(key, value) => { setFilters((f) => ({ ...f, [key]: value })); setPage(1); }}
+          />
         </ListToolbar>
       </div>
     </CRMLayout>
