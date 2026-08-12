@@ -3,6 +3,29 @@ import { assigneeName } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { fetchAllIdsFromEndpoint } from '../listSelectionHelpers.js';
 
+/** Broad document/image/office types for record attachments. */
+export const DOCUMENT_FILE_ACCEPT = [
+  '.pdf', '.csv', '.txt', '.rtf',
+  '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx',
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp',
+  '.zip', '.rar', '.7z',
+  '*/*',
+].join(',');
+
+export function formatFileSize(bytes) {
+  const size = Number(bytes);
+  if (!size || Number.isNaN(size)) return '—';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function matchesRelatedRecord(doc, relatedType, relatedId) {
+  const type = String(doc?.related_type || doc?.related_entity_type || '').toLowerCase();
+  const id = String(doc?.related_id || doc?.related_entity_id || '');
+  return type === String(relatedType || '').toLowerCase() && id === String(relatedId || '');
+}
+
 export function normalizeDocument(doc) {
   return {
     ...doc,
@@ -23,6 +46,40 @@ export async function listDocuments(params = {}) {
     total,
     meta: res.data.meta || { total, page: res.data.page, limit: res.data.limit },
   };
+}
+
+export async function listDocumentsForRecord(relatedType, relatedId) {
+  if (!relatedType || !relatedId) return [];
+
+  const first = await listDocuments({
+    related_type: relatedType,
+    related_id: relatedId,
+    page: 1,
+    page_size: 100,
+  });
+  const filterBatch = (docs) => (docs || []).filter((doc) => matchesRelatedRecord(doc, relatedType, relatedId));
+  const firstMatches = filterBatch(first.data);
+  const apiHonorsFilter = first.data.length === 0 || firstMatches.length === first.data.length;
+
+  let page = 1;
+  let all = [...firstMatches];
+  let total = first.total ?? first.data.length;
+
+  while (page < 20) {
+    const reachedEnd = page * 100 >= total || (page === 1 && first.data.length < 100);
+    if (reachedEnd) break;
+    page += 1;
+    const next = await listDocuments(
+      apiHonorsFilter
+        ? { related_type: relatedType, related_id: relatedId, page, page_size: 100 }
+        : { page, page_size: 100 },
+    );
+    all = all.concat(filterBatch(next.data));
+    total = next.total ?? total;
+    if (!next.data.length) break;
+  }
+
+  return all;
 }
 
 export async function listAllMatchingDocumentIds(params = {}) {

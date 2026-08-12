@@ -238,7 +238,7 @@ export default function DocumentsPage() {
               </select>
             </FormField>
             <FormField label="File" required error={uploadErrors.file}>
-              <input type="file" className="input" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" onChange={e => setUploadForm(f => ({ ...f, file: e.target.files?.[0] || null, document_name: f.document_name || e.target.files?.[0]?.name || '' }))} />
+              <input type="file" className="input" accept={documentsApi.DOCUMENT_FILE_ACCEPT} onChange={e => setUploadForm(f => ({ ...f, file: e.target.files?.[0] || null, document_name: f.document_name || e.target.files?.[0]?.name || '' }))} />
             </FormField>
           </div>
           <div className="flex gap-2 justify-end mt-4">

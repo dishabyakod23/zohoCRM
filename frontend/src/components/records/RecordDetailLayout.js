@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import RecordNotesTab from './RecordNotesTab.js';
 import RecordHistoryTab from './RecordHistoryTab.js';
+import RecordDocumentsTab from './RecordDocumentsTab.js';
 import { notesSupportedRelatedType } from '../../lib/noteHelpers.js';
 /**
  * Zoho-style record detail page shell: gradient header with avatar,
@@ -28,10 +29,14 @@ export default function RecordDetailLayout({
   const showNotes = recordNotes?.relatedType
     && recordNotes?.recordId
     && notesSupportedRelatedType(recordNotes.relatedType);
+  const documentsRelatedType = recordNotes?.relatedType || recordHistory?.entityType;
+  const documentsRecordId = recordNotes?.recordId || recordHistory?.recordId;
+  const showDocuments = documentsRelatedType && documentsRecordId && documentsRelatedType !== 'document';
   const showHistory = recordHistory?.entityType && recordHistory?.recordId;
   const resolvedTabs = tabs ?? [
     'Overview',
     ...(showNotes ? ['Notes'] : []),
+    ...(showDocuments ? ['Files'] : []),
     ...(showHistory ? ['History'] : []),
   ];
   const [activeTab, setActiveTab] = useState(defaultTab);
@@ -42,6 +47,9 @@ export default function RecordDetailLayout({
     if (tabContent) return tabContent(tab);
     if (tab === 'Notes' && showNotes && recordNotes) {
       return <RecordNotesTab relatedType={recordNotes.relatedType} recordId={recordNotes.recordId} canEdit={recordNotes.canEdit} />;
+    }
+    if (tab === 'Files' && showDocuments) {
+      return <RecordDocumentsTab relatedType={documentsRelatedType} recordId={documentsRecordId} />;
     }
     if (tab === 'History' && showHistory) {
       return <RecordHistoryTab entityType={recordHistory.entityType} recordId={recordHistory.recordId} />;

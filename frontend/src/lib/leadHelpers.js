@@ -88,6 +88,8 @@ export function normalizeLead(lead, statusOptions = []) {
     deal_status: lead.deal_status || null,
     deal_status_label: proposalDealStatusLabel(lead.deal_status),
     currency: lead.currency || DEFAULT_CURRENCY,
+    amc_it_support: lead.amc_it_support ?? lead.amc_amount ?? null,
+    amc_currency: lead.amc_currency || lead.currency || DEFAULT_CURRENCY,
     campaign_id: lead.campaign_id || null,
     campaign_name: lead.campaign_name || null,
   };
@@ -95,6 +97,12 @@ export function normalizeLead(lead, statusOptions = []) {
 
 function formHas(form, key) {
   return Object.prototype.hasOwnProperty.call(form, key);
+}
+
+function optionalNumber(value) {
+  if (value == null || value === '') return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
 }
 
 /** Build LeadCreate / LeadUpdate payload — lead_status must be snake_case */
@@ -145,6 +153,10 @@ export function toLeadPayload(form, { partial = false } = {}) {
     if (formHas(form, 'closure_date')) payload.closure_date = form.closure_date ? toDateOnly(form.closure_date) : null;
     if (formHas(form, 'deal_status')) payload.deal_status = form.deal_status || null;
     if (formHas(form, 'currency')) payload.currency = form.currency || DEFAULT_CURRENCY;
+    if (formHas(form, 'amc_it_support') || formHas(form, 'amc_amount')) {
+      payload.amc_it_support = optionalNumber(form.amc_it_support ?? form.amc_amount);
+    }
+    if (formHas(form, 'amc_currency')) payload.amc_currency = form.amc_currency || DEFAULT_CURRENCY;
     if (formHas(form, 'owner_id')) payload.owner_id = form.owner_id || null;
     return payload;
   }
@@ -184,6 +196,8 @@ export function toLeadPayload(form, { partial = false } = {}) {
     closure_date: form.closure_date ? toDateOnly(form.closure_date) : null,
     deal_status: form.deal_status || null,
     currency: form.currency || DEFAULT_CURRENCY,
+    amc_it_support: optionalNumber(form.amc_it_support ?? form.amc_amount),
+    amc_currency: form.amc_currency || form.currency || DEFAULT_CURRENCY,
     owner_id: form.owner_id || null,
   };
 }

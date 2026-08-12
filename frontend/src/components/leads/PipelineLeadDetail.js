@@ -29,7 +29,8 @@ import ReadOnlyRecordBanner from '../records/ReadOnlyRecordBanner.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { useRecordCampaign } from '../../hooks/useRecordCampaign.js';
 import { LEAD_SOURCES } from '../../lib/constants.js';
-import { formatMoney, CURRENCIES } from '../../lib/currencies.js';
+import { formatMoney, CURRENCIES, DEFAULT_CURRENCY } from '../../lib/currencies.js';
+import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon, UserIcon,
 } from '@heroicons/react/24/outline';
@@ -257,6 +258,19 @@ export default function PipelineLeadDetail({ stage }) {
                   <input className="input" type="date" value={(d.closure_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, closure_date: e.target.value }))} />
                 ) },
                 { name: 'deal_status', label: 'Deal Status', format: () => lead.deal_status_label || proposalDealStatusLabel(lead.deal_status), render: (d, set) => select(PROPOSAL_DEAL_STATUSES)(d, set, 'deal_status') },
+                { name: 'amc_it_support', label: 'AMC / IT Support', format: (v) => formatMoney(v, lead.amc_currency || lead.currency), render: (d, set) => (
+                  <CurrencyAmountInput
+                    amount={d.amc_it_support ?? ''}
+                    currency={d.amc_currency || lead.amc_currency || lead.currency || DEFAULT_CURRENCY}
+                    onAmountChange={(e) => {
+                      const value = e.target.value;
+                      if (value !== '' && !/^\d*\.?\d*$/.test(value)) return;
+                      set((p) => ({ ...p, amc_it_support: value }));
+                    }}
+                    onCurrencyChange={(e) => set((p) => ({ ...p, amc_currency: e.target.value }))}
+                    placeholder="0"
+                  />
+                ) },
               ]}
             />
           )}

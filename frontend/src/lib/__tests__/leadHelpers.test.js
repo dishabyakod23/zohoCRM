@@ -1,0 +1,37 @@
+import { normalizeLead, toLeadPayload } from '../leadHelpers.js';
+
+describe('AMC / IT Support on leads', () => {
+  it('normalizes amc_it_support and amc_currency from the API', () => {
+    const lead = normalizeLead({
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      amc_it_support: 12000,
+      amc_currency: 'USD',
+    });
+    expect(lead.amc_it_support).toBe(12000);
+    expect(lead.amc_currency).toBe('USD');
+  });
+
+  it('defaults amc_currency to the proposal currency', () => {
+    const lead = normalizeLead({ amc_it_support: 500, currency: 'EUR' });
+    expect(lead.amc_currency).toBe('EUR');
+  });
+
+  it('sends numeric amc_it_support and currency on create', () => {
+    const payload = toLeadPayload({
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      company: 'Acme',
+      email: 'ada@example.com',
+      amc_it_support: '1500.50',
+      amc_currency: 'GBP',
+    });
+    expect(payload.amc_it_support).toBe(1500.5);
+    expect(payload.amc_currency).toBe('GBP');
+  });
+
+  it('clears amc_it_support when empty on patch', () => {
+    const payload = toLeadPayload({ amc_it_support: '' }, { partial: true });
+    expect(payload.amc_it_support).toBeNull();
+  });
+});

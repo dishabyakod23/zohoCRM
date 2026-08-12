@@ -177,6 +177,7 @@ export default function PipelineLeadList({ stage, description }) {
         { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
         { id: 'proposal_date', header: 'Proposal Date', cell: (lead) => formatDate(lead.proposal_date) },
         { id: 'deal_size', header: 'Deal Size', cell: (lead) => formatDealSize(lead.deal_size ?? lead.proposal_amount, lead.currency) },
+        { id: 'amc_it_support', header: 'AMC / IT Support', cell: (lead) => formatDealSize(lead.amc_it_support, lead.amc_currency || lead.currency) },
         { id: 'closure_date', header: 'Closure Date', cell: (lead) => formatDate(lead.closure_date) },
         { id: 'deal_status', header: 'Deal Status', cell: (lead) => <Badge label={lead.deal_status_label || proposalDealStatusLabel(lead.deal_status)} /> },
         { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || 'Unassigned' },

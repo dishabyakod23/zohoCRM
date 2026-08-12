@@ -21,6 +21,7 @@ import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
 import { ensureCsvColumn } from '../csvHelpers.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
+import { sumAmountsInInr } from '../fxRates.js';
 
 const CONVERT_MASS_TARGETS = new Set(['account', 'contact', 'deal']);
 const PIPELINE_CONVERT_MASS_FIELD = 'pipeline_convert_target';
@@ -466,10 +467,10 @@ export async function summarizePipelineDashboard(statusOptions = []) {
 
   const proposalLeads = filterLeadsByPipelineStage(data, PIPELINE_PROPOSAL);
   const qualifiedCount = filterLeadsByPipelineStage(data, PIPELINE_QUALIFIED).length;
-  const dealSize = proposalLeads.reduce((sum, lead) => {
-    const size = Number(lead.deal_size ?? lead.proposal_amount);
-    return sum + (Number.isFinite(size) ? size : 0);
-  }, 0);
+  const dealSize = await sumAmountsInInr(proposalLeads, {
+    amountOf: (lead) => Number(lead.deal_size ?? lead.proposal_amount),
+    currencyOf: (lead) => lead.currency || 'INR',
+  });
   const leadsThisMonth = data.filter((lead) => {
     if (!lead.created_at) return false;
     return new Date(lead.created_at) >= monthStart;
@@ -486,10 +487,10 @@ export async function summarizePipelineDashboard(statusOptions = []) {
 
 export async function summarizeProposals(statusOptions = []) {
   const { data } = await listAllLeads({ pipeline_stage: PIPELINE_PROPOSAL }, statusOptions);
-  const dealSize = data.reduce((sum, lead) => {
-    const size = Number(lead.deal_size ?? lead.proposal_amount);
-    return sum + (Number.isFinite(size) ? size : 0);
-  }, 0);
+  const dealSize = await sumAmountsInInr(data, {
+    amountOf: (lead) => Number(lead.deal_size ?? lead.proposal_amount),
+    currencyOf: (lead) => lead.currency || 'INR',
+  });
   return { total: data.length, dealSize };
 }
 

@@ -35,6 +35,7 @@ export default function CurrencyAmountInput({
       <input
         className={inputClassName}
         type="number"
+        inputMode="decimal"
         min={min}
         step={step}
         placeholder={placeholder}

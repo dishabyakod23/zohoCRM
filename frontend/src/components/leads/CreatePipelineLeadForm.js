@@ -47,6 +47,8 @@ export function emptyPipelineLeadForm(ownerId = '', defaults = {}) {
     deal_size: '',
     closure_date: '',
     deal_status: 'active_proposal',
+    amc_it_support: '',
+    amc_currency: DEFAULT_CURRENCY,
     email_opt_out: false,
     company: '',
     last_name: '',
@@ -324,6 +326,19 @@ export default function CreatePipelineLeadForm({
                 </FormField>
                 <FormField label="Deal Status" name="deal_status">
                   {noneSelect(form.deal_status, set('deal_status'), PROPOSAL_DEAL_STATUSES)}
+                </FormField>
+                <FormField label="AMC / IT Support" name="amc_it_support">
+                  <CurrencyAmountInput
+                    amount={form.amc_it_support}
+                    currency={form.amc_currency || form.currency}
+                    onAmountChange={(e) => {
+                      const value = e.target.value;
+                      if (value !== '' && !/^\d*\.?\d*$/.test(value)) return;
+                      setForm((f) => ({ ...f, amc_it_support: value }));
+                    }}
+                    onCurrencyChange={(e) => setForm((f) => ({ ...f, amc_currency: e.target.value }))}
+                    placeholder="0"
+                  />
                 </FormField>
               </div>
             </>
