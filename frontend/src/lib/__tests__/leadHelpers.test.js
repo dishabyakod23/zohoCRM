@@ -35,3 +35,24 @@ describe('AMC / IT Support on leads', () => {
     expect(payload.amc_it_support).toBeNull();
   });
 });
+
+describe('Proposal Type on leads', () => {
+  it('normalizes proposal_type and label from the API', () => {
+    const lead = normalizeLead({ proposal_type: 'fixed_cost' });
+    expect(lead.proposal_type).toBe('fixed_cost');
+    expect(lead.proposal_type_label).toBe('Fixed Cost');
+  });
+
+  it('sends proposal_type on create and patch', () => {
+    expect(toLeadPayload({
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      company: 'Acme',
+      email: 'ada@example.com',
+      proposal_type: 'time_and_material',
+    }).proposal_type).toBe('time_and_material');
+
+    expect(toLeadPayload({ proposal_type: 'fixed_cost' }, { partial: true }).proposal_type).toBe('fixed_cost');
+    expect(toLeadPayload({ proposal_type: '' }, { partial: true }).proposal_type).toBeNull();
+  });
+});

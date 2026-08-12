@@ -1,4 +1,4 @@
-import { pipelineStageLabel, PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, toApiLeadStatus, proposalDealStatusLabel } from './pipelineHelpers.js';
+import { pipelineStageLabel, PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, toApiLeadStatus, proposalDealStatusLabel, proposalTypeLabel } from './pipelineHelpers.js';
 import { toDateOnly } from './activityHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
 import { ownerName } from './recordHelpers.js';
@@ -87,6 +87,8 @@ export function normalizeLead(lead, statusOptions = []) {
     deal_size: lead.deal_size ?? lead.proposal_amount ?? null,
     deal_status: lead.deal_status || null,
     deal_status_label: proposalDealStatusLabel(lead.deal_status),
+    proposal_type: lead.proposal_type || null,
+    proposal_type_label: proposalTypeLabel(lead.proposal_type),
     currency: lead.currency || DEFAULT_CURRENCY,
     amc_it_support: lead.amc_it_support ?? lead.amc_amount ?? null,
     amc_currency: lead.amc_currency || lead.currency || DEFAULT_CURRENCY,
@@ -152,6 +154,7 @@ export function toLeadPayload(form, { partial = false } = {}) {
     if (formHas(form, 'proposal_date')) payload.proposal_date = form.proposal_date ? toDateOnly(form.proposal_date) : null;
     if (formHas(form, 'closure_date')) payload.closure_date = form.closure_date ? toDateOnly(form.closure_date) : null;
     if (formHas(form, 'deal_status')) payload.deal_status = form.deal_status || null;
+    if (formHas(form, 'proposal_type')) payload.proposal_type = form.proposal_type || null;
     if (formHas(form, 'currency')) payload.currency = form.currency || DEFAULT_CURRENCY;
     if (formHas(form, 'amc_it_support') || formHas(form, 'amc_amount')) {
       payload.amc_it_support = optionalNumber(form.amc_it_support ?? form.amc_amount);
@@ -195,6 +198,7 @@ export function toLeadPayload(form, { partial = false } = {}) {
     proposal_date: form.proposal_date ? toDateOnly(form.proposal_date) : null,
     closure_date: form.closure_date ? toDateOnly(form.closure_date) : null,
     deal_status: form.deal_status || null,
+    proposal_type: form.proposal_type || null,
     currency: form.currency || DEFAULT_CURRENCY,
     amc_it_support: optionalNumber(form.amc_it_support ?? form.amc_amount),
     amc_currency: form.amc_currency || form.currency || DEFAULT_CURRENCY,

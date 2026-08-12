@@ -12,7 +12,7 @@ import { validateRequired, validateEmail } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
-import { PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
+import { PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES } from '../../lib/pipelineHelpers.js';
 import {
   LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES,
 } from '../../lib/constants.js';
@@ -47,6 +47,7 @@ export function emptyPipelineLeadForm(ownerId = '', defaults = {}) {
     deal_size: '',
     closure_date: '',
     deal_status: 'active_proposal',
+    proposal_type: '',
     amc_it_support: '',
     amc_currency: DEFAULT_CURRENCY,
     email_opt_out: false,
@@ -326,6 +327,9 @@ export default function CreatePipelineLeadForm({
                 </FormField>
                 <FormField label="Deal Status" name="deal_status">
                   {noneSelect(form.deal_status, set('deal_status'), PROPOSAL_DEAL_STATUSES)}
+                </FormField>
+                <FormField label="Proposal Type" name="proposal_type">
+                  {noneSelect(form.proposal_type, set('proposal_type'), PROPOSAL_TYPES)}
                 </FormField>
                 <FormField label="AMC / IT Support" name="amc_it_support">
                   <CurrencyAmountInput

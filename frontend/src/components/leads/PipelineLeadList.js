@@ -22,7 +22,7 @@ import PhoneCell from '../cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
 import { formatMoney } from '../../lib/currencies.js';
 import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter } from '../layout/ListFilterFields.js';
-import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
 
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
@@ -177,6 +177,7 @@ export default function PipelineLeadList({ stage, description }) {
         { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
         { id: 'proposal_date', header: 'Proposal Date', cell: (lead) => formatDate(lead.proposal_date) },
         { id: 'deal_size', header: 'Deal Size', cell: (lead) => formatDealSize(lead.deal_size ?? lead.proposal_amount, lead.currency) },
+        { id: 'proposal_type', header: 'Proposal Type', cell: (lead) => lead.proposal_type_label || proposalTypeLabel(lead.proposal_type) },
         { id: 'amc_it_support', header: 'AMC / IT Support', cell: (lead) => formatDealSize(lead.amc_it_support, lead.amc_currency || lead.currency) },
         { id: 'closure_date', header: 'Closure Date', cell: (lead) => formatDate(lead.closure_date) },
         { id: 'deal_status', header: 'Deal Status', cell: (lead) => <Badge label={lead.deal_status_label || proposalDealStatusLabel(lead.deal_status)} /> },

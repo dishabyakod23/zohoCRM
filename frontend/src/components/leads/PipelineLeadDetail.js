@@ -22,7 +22,7 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
-import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, proposalDealStatusLabel, resolveLeadPipelineStage, getLeadDetailPath } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, proposalDealStatusLabel, proposalTypeLabel, resolveLeadPipelineStage, getLeadDetailPath } from '../../lib/pipelineHelpers.js';
 import { ownerFieldConfig } from '../forms/ownerField.js';
 import { trackRecentItem } from '../layout/BottomUtilityBar.js';
 import ReadOnlyRecordBanner from '../records/ReadOnlyRecordBanner.js';
@@ -258,6 +258,7 @@ export default function PipelineLeadDetail({ stage }) {
                   <input className="input" type="date" value={(d.closure_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, closure_date: e.target.value }))} />
                 ) },
                 { name: 'deal_status', label: 'Deal Status', format: () => lead.deal_status_label || proposalDealStatusLabel(lead.deal_status), render: (d, set) => select(PROPOSAL_DEAL_STATUSES)(d, set, 'deal_status') },
+                { name: 'proposal_type', label: 'Proposal Type', format: () => lead.proposal_type_label || proposalTypeLabel(lead.proposal_type), render: (d, set) => select(PROPOSAL_TYPES)(d, set, 'proposal_type') },
                 { name: 'amc_it_support', label: 'AMC / IT Support', format: (v) => formatMoney(v, lead.amc_currency || lead.currency), render: (d, set) => (
                   <CurrencyAmountInput
                     amount={d.amc_it_support ?? ''}

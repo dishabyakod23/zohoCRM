@@ -13,10 +13,24 @@ export const PROPOSAL_DEAL_STATUSES = [
   { value: 'deal_lost', label: 'Deal Lost' },
 ];
 
+/** Proposal type values on proposal records */
+export const PROPOSAL_TYPES = [
+  { value: 'fixed_cost', label: 'Fixed Cost' },
+  { value: 'time_and_material', label: 'Time & Material' },
+];
+
 export function proposalDealStatusLabel(status) {
   if (!status) return '—';
   const match = PROPOSAL_DEAL_STATUSES.find((s) => s.value === status);
   return match?.label || pipelineStageLabel(status);
+}
+
+export function proposalTypeLabel(type) {
+  if (!type) return '—';
+  const match = PROPOSAL_TYPES.find((t) => t.value === type);
+  if (match) return match.label;
+  if (type === 'time_&_material') return 'Time & Material';
+  return String(type).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export const PIPELINE_STAGE_ORDER = [
