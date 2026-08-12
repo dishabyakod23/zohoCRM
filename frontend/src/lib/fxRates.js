@@ -1,31 +1,33 @@
-/** Fallback USD→INR and other majors when live FX cannot be fetched. */
+/** Fallback USD→INR and other majors when live FX cannot be fetched (Aug 2026 levels). */
 export const FALLBACK_RATES_TO_INR = {
   INR: 1,
-  USD: 83.5,
-  EUR: 90,
-  GBP: 105,
-  AUD: 55,
-  CAD: 61,
-  SGD: 62,
-  AED: 22.7,
-  SAR: 22.3,
-  JPY: 0.56,
-  CNY: 11.6,
-  CHF: 95,
-  HKD: 10.7,
-  NZD: 50,
-  MYR: 19,
-  ZAR: 4.6,
-  THB: 2.4,
-  KWD: 270,
-  QAR: 22.9,
-  BHD: 221,
-  OMR: 217,
-  NPR: 0.62,
-  LKR: 0.28,
-  BDT: 0.7,
-  PKR: 0.3,
+  USD: 95.41,
+  EUR: 103,
+  GBP: 120,
+  AUD: 63,
+  CAD: 70,
+  SGD: 71,
+  AED: 26,
+  SAR: 25.5,
+  JPY: 0.64,
+  CNY: 13.3,
+  CHF: 109,
+  HKD: 12.2,
+  NZD: 57,
+  MYR: 22,
+  ZAR: 5.3,
+  THB: 2.7,
+  KWD: 308,
+  QAR: 26.2,
+  BHD: 253,
+  OMR: 248,
+  NPR: 0.71,
+  LKR: 0.32,
+  BDT: 0.8,
+  PKR: 0.34,
 };
+
+const FX_API_URL = 'https://api.frankfurter.dev/v1/latest?from=USD';
 
 const CACHE_MS = 60 * 60 * 1000;
 let cachedRates = null;
@@ -58,7 +60,7 @@ export async function fetchRatesToInr({ fetcher = fetch } = {}) {
   if (cachedRates && Date.now() - cachedAt < CACHE_MS) return cachedRates;
 
   try {
-    const res = await fetcher('https://api.frankfurter.app/latest?from=USD');
+    const res = await fetcher(FX_API_URL);
     if (!res?.ok) throw new Error('fx request failed');
     const data = await res.json();
     const rates = ratesFromUsdBase(data.rates);
