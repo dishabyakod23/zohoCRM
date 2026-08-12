@@ -25,6 +25,14 @@ describe('resolveLeadPipelineStage', () => {
     expect(resolveLeadPipelineStage({ lead_status: 'not_contacted' })).toBe(PIPELINE_RAW);
   });
 
+  it('keeps custom lead statuses in the raw leads pipeline', () => {
+    expect(resolveLeadPipelineStage({ lead_status: 'follow_up_email_1' })).toBe(PIPELINE_RAW);
+    expect(resolveLeadPipelineStage({
+      pipeline_stage: 'raw_prospect',
+      lead_status: 'follow_up_email_1',
+    })).toBe(PIPELINE_RAW);
+  });
+
   it('maps contacted outreach status to leads pipeline when pipeline_stage is unset', () => {
     expect(resolveLeadPipelineStage({ lead_status: 'contacted' })).toBe('contacted');
   });
@@ -39,6 +47,14 @@ describe('filterLeadsByPipelineStage — raw leads', () => {
     ];
     const filtered = filterLeadsByPipelineStage(leads, PIPELINE_RAW);
     expect(filtered.map((l) => l.id)).toEqual(['1', '2', '3']);
+  });
+
+  it('includes custom status records in the raw leads list', () => {
+    const leads = [
+      { id: '1', pipeline_stage: 'raw_prospect', lead_status: 'follow_up_email_1' },
+      { id: '2', lead_status: 'custom_status_value' },
+    ];
+    expect(filterLeadsByPipelineStage(leads, PIPELINE_RAW).map((l) => l.id)).toEqual(['1', '2']);
   });
 
   it('excludes converted leads', () => {

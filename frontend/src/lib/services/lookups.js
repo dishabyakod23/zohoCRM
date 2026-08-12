@@ -207,6 +207,11 @@ export async function fetchLostReasons() {
 
 export const fetchCampaignMemberStatuses = () => fetchLookup('/lookups/campaign-member-statuses', formatLookupLabel);
 
+function isLeadStatusMassUpdateField(field) {
+  const value = String(field?.value || '').toLowerCase();
+  return value === 'lead_status' || value === 'status';
+}
+
 /** Load dropdown options for a mass-update field from its lookup API (or embedded options). */
 export async function fetchMassUpdateFieldOptions(fieldDef) {
   const field = normalizeMassUpdateField(fieldDef);
@@ -219,8 +224,13 @@ export async function fetchMassUpdateFieldOptions(fieldDef) {
     return fetchCampaignLookups();
   }
 
+  // Always load full lead status list (includes admin custom statuses).
+  if (isLeadStatusMassUpdateField(field)) {
+    return fetchLeadStatuses();
+  }
+
   if (Array.isArray(field.options) && field.options.length) {
-    return parseLookupOptions(field.options, field.value === 'lead_status' || field.value === 'status' ? leadStatusLabel : undefined);
+    return parseLookupOptions(field.options);
   }
 
   let lookupPath = field.lookup || MASS_UPDATE_FIELD_LOOKUPS[field.value];

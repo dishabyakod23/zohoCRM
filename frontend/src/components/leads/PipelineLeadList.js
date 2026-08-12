@@ -317,7 +317,7 @@ export default function PipelineLeadList({ stage, description }) {
               {...tableSelection}
               massUpdateFieldsLoader={loadMassUpdateFields}
               convertTargetsLoader={fetchPipelineConvertTargets}
-              massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
+              massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, { ...extras, statusOptions })}
               pagination={{
                 page,
                 totalPages,

@@ -111,6 +111,18 @@ export const RAW_LEAD_OUTREACH_STATUSES = new Set([
   'not_qualified',
 ]);
 
+/** Statuses that move a record out of the Raw Leads pipeline module. */
+export const LEAD_PIPELINE_PROMOTION_STATUSES = new Set([
+  'contacted',
+  'qualified_lead',
+  'deal_lost',
+]);
+
+export function isLeadPipelinePromotionStatus(status) {
+  if (!status) return false;
+  return LEAD_PIPELINE_PROMOTION_STATUSES.has(String(status).toLowerCase());
+}
+
 function resolvePipelineStageFromField(lead) {
   const stage = lead?.pipeline_stage;
   if (!stage) return null;
@@ -233,6 +245,7 @@ export function resolveLeadPipelineStage(lead) {
   if (status === 'raw_prospect') return PIPELINE_RAW;
   if (status === 'contacted') return PIPELINE_LEAD;
   if (RAW_LEAD_OUTREACH_STATUSES.has(status)) return PIPELINE_RAW;
+  if (status && !isLeadPipelinePromotionStatus(status)) return PIPELINE_RAW;
   return status || null;
 }
 

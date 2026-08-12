@@ -198,7 +198,7 @@ export default function LeadsPage() {
               {...tableSelection}
               massUpdateFieldsLoader={loadMassUpdateFields}
               convertTargetsLoader={fetchPipelineConvertTargets}
-              massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, extras)}
+              massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, { ...extras, statusOptions: statusOptionsRef.current })}
               pagination={{
                 page,
                 totalPages,

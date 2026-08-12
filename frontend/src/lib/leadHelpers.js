@@ -61,15 +61,25 @@ export function pluralizeLeadStatusLabel(label, count) {
 }
 
 /** Ensure API receives valid LeadStatus enum value */
-export function resolveLeadStatusForApi(status) {
+export function resolveLeadStatusForApi(status, statusOptions = []) {
   if (!status) return 'raw_prospect';
+  const raw = String(status).trim();
+  if (!raw) return 'raw_prospect';
+
+  const fromOption = (statusOptions || []).find(
+    (option) => option.value === raw
+      || option.label === raw
+      || String(option.value || '').toLowerCase() === raw.toLowerCase(),
+  );
+  if (fromOption?.value) return fromOption.value;
+
   if (status === PIPELINE_PROPOSAL) return 'qualified_lead';
-  const mapped = toApiLeadStatus(status);
-  if (mapped) return mapped;
-  if (SNAKE_CASE_RE.test(status)) return status;
-  const fromLabel = Object.entries(STATUS_LABELS).find(([, label]) => label === status);
+  const mapped = toApiLeadStatus(raw);
+  if (mapped && mapped !== raw) return mapped;
+  if (SNAKE_CASE_RE.test(raw)) return raw;
+  const fromLabel = Object.entries(STATUS_LABELS).find(([, label]) => label === raw);
   if (fromLabel) return toApiLeadStatus(fromLabel[0]) || fromLabel[0];
-  return status.toLowerCase().replace(/ /g, '_').replace(/-/g, '_');
+  return raw.toLowerCase().replace(/ /g, '_').replace(/-/g, '_');
 }
 
 /** Normalize API lead for UI */

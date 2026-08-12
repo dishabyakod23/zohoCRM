@@ -1,4 +1,4 @@
-import { normalizeLead, toLeadPayload } from '../leadHelpers.js';
+import { normalizeLead, toLeadPayload, resolveLeadStatusForApi } from '../leadHelpers.js';
 
 describe('AMC / IT Support on leads', () => {
   it('normalizes amc_it_support and amc_currency from the API', () => {
@@ -54,5 +54,21 @@ describe('Proposal Type on leads', () => {
 
     expect(toLeadPayload({ proposal_type: 'fixed_cost' }, { partial: true }).proposal_type).toBe('fixed_cost');
     expect(toLeadPayload({ proposal_type: '' }, { partial: true }).proposal_type).toBeNull();
+  });
+});
+
+describe('resolveLeadStatusForApi', () => {
+  const statusOptions = [
+    { value: 'follow_up_email_1', label: 'Follow Up Email 1' },
+    { value: 'not_contacted', label: 'Not Contacted' },
+  ];
+
+  it('resolves custom status values from lookup options', () => {
+    expect(resolveLeadStatusForApi('follow_up_email_1', statusOptions)).toBe('follow_up_email_1');
+    expect(resolveLeadStatusForApi('Follow Up Email 1', statusOptions)).toBe('follow_up_email_1');
+  });
+
+  it('passes through snake_case custom values', () => {
+    expect(resolveLeadStatusForApi('custom_status_value')).toBe('custom_status_value');
   });
 });

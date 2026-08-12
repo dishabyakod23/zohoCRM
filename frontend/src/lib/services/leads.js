@@ -312,7 +312,11 @@ export async function applyLeadMassUpdate(ids, field, value, extras = {}) {
 
   const fieldKey = String(field || '').toLowerCase();
   const apiField = fieldKey === 'status' ? 'lead_status' : field;
-  const result = await massUpdateLeads(ids, apiField, value, extras);
+  let apiValue = value;
+  if (fieldKey === 'status' || fieldKey === 'lead_status') {
+    apiValue = resolveLeadStatusForApi(value, extras.statusOptions || []);
+  }
+  const result = await massUpdateLeads(ids, apiField, apiValue, extras);
   if (result?.failed_count > 0) {
     const err = new Error((result.errors || []).join('; ') || 'Mass update failed');
     err.massUpdateResult = result;
