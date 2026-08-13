@@ -18,8 +18,8 @@ import { PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } fr
 
 const RECIPIENT_MODULES = [
   { key: 'contacts', label: 'Contacts' },
-  { key: 'raw_leads', label: 'Raw Leads' },
-  { key: 'leads', label: 'Leads' },
+  { key: 'raw_leads', label: 'Cold Leads' },
+  { key: 'leads', label: 'Warm Leads' },
   { key: 'qualified_leads', label: 'Qualified Leads' },
   { key: 'proposals', label: 'Proposals' },
   { key: 'accounts', label: 'Accounts' },

@@ -23,7 +23,7 @@ describe('normalizePersonRow', () => {
       first_name: 'Ann',
       last_name: 'Lee',
       company: 'Acme',
-      current_status: 'Raw Lead',
+      current_status: 'Cold Lead',
       campaign_id: 'c1',
       campaign_name: 'Spring',
     });
@@ -31,7 +31,7 @@ describe('normalizePersonRow', () => {
     expect(row.id).toBe('lead:l1');
     expect(row.record_id).toBe('l1');
     expect(row.account_name).toBe('Acme');
-    expect(row.current_status).toBe('Raw Lead');
+    expect(row.current_status).toBe('Cold Lead');
     expect(row.campaign_name).toBe('Spring');
     expect(row._detailHref).toBe('/leads/l1');
   });

@@ -41,8 +41,8 @@ export const PIPELINE_STAGE_ORDER = [
 ];
 
 export const PIPELINE_STAGE_LABELS = {
-  [PIPELINE_RAW]: 'Raw Lead',
-  [PIPELINE_LEAD]: 'Lead',
+  [PIPELINE_RAW]: 'Cold Lead',
+  [PIPELINE_LEAD]: 'Warm Lead',
   [PIPELINE_QUALIFIED]: 'Qualified Lead',
   [PIPELINE_PROPOSAL]: 'Proposal',
   deal_lost: 'Deal Lost',
@@ -52,8 +52,10 @@ export const PIPELINE_STAGE_LABELS = {
 export const STATUS_TO_API = {
   raw_lead: 'raw_prospect',
   raw_prospect: 'raw_prospect',
+  cold_lead: 'raw_prospect',
   lead: 'contacted',
   contacted: 'contacted',
+  warm_lead: 'contacted',
   qualified_lead: 'qualified_lead',
   proposal: 'qualified_lead',
   deal_lost: 'deal_lost',
@@ -138,9 +140,9 @@ export const PIPELINE_STAGE_CONFIG = {
   [PIPELINE_RAW]: {
     listPath: '/raw-leads',
     detailPath: (id) => `/raw-leads/${id}`,
-    listTitle: 'Raw Leads',
+    listTitle: 'Cold Leads',
     apiStatus: PIPELINE_RAW,
-    convertTo: { status: PIPELINE_LEAD, label: 'Lead', redirectPath: '/leads' },
+    convertTo: { status: PIPELINE_LEAD, label: 'Warm Lead', redirectPath: '/leads' },
     allowAssign: true,
     allowUpload: true,
   },
@@ -222,9 +224,9 @@ export function getConvertOptions(stage, { isAdmin = false } = {}) {
     add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT });
   } else if (stage === PIPELINE_PROPOSAL) {
     add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT });
-    add({ id: 'lead', label: 'Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD, clearProposal: true, adminOnly: true });
+    add({ id: 'lead', label: 'Warm Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD, clearProposal: true, adminOnly: true });
   } else if (stage === PIPELINE_RAW) {
-    add({ id: 'lead', label: 'Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD });
+    add({ id: 'lead', label: 'Warm Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD });
     add({ id: 'qualified_lead', label: 'Qualified Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_QUALIFIED });
     add({ id: 'proposal', label: 'Proposal', type: CONVERT_TYPE.STAGE, target: PIPELINE_PROPOSAL, proposal: true });
     add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT });

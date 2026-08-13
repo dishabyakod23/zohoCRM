@@ -16,13 +16,13 @@ import {
 } from './pipelineHelpers.js';
 
 const CONVERT_OPTIONS = [
-  { value: PIPELINE_LEAD, label: 'Lead' },
+  { value: PIPELINE_LEAD, label: 'Warm Lead' },
   { value: PIPELINE_QUALIFIED, label: 'Qualified Lead' },
   { value: PIPELINE_PROPOSAL, label: 'Proposal' },
 ];
 const CONTACT_CONVERT_OPTIONS = [
-  { value: PIPELINE_RAW, label: 'Raw Lead' },
-  { value: PIPELINE_LEAD, label: 'Lead' },
+  { value: PIPELINE_RAW, label: 'Cold Lead' },
+  { value: PIPELINE_LEAD, label: 'Warm Lead' },
   { value: PIPELINE_QUALIFIED, label: 'Qualified Lead' },
   { value: PIPELINE_PROPOSAL, label: 'Proposal' },
 ];

@@ -108,10 +108,10 @@ export default function CreateLeadForm() {
       <div className="p-6 max-w-5xl mx-auto w-full">
         <Link href="/leads" className="inline-flex items-center gap-1.5 text-xs font-medium text-zoho-muted hover:text-brand-600 transition-colors mb-4">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          Leads
+          Warm Leads
         </Link>
 
-        <h1 className="text-lg font-semibold text-zoho-text mb-6">Create Lead</h1>
+        <h1 className="text-lg font-semibold text-zoho-text mb-6">Create Warm Lead</h1>
 
         <div className="card p-6">
           <SectionTitle>Lead Information</SectionTitle>
@@ -235,7 +235,7 @@ export default function CreateLeadForm() {
           <div className="flex gap-2 justify-end pt-6 mt-4 border-t border-zoho-border">
             <Link href="/leads" className="btn-secondary">Cancel</Link>
             <button type="button" onClick={handleSave} disabled={saving || checkingEmail || !!emailError} className="btn-primary">
-              {saving ? 'Saving...' : 'Save Lead'}
+              {saving ? 'Saving...' : 'Save Warm Lead'}
             </button>
           </div>
         </div>

@@ -8,20 +8,22 @@ const STATUS_LABELS = {
   none: 'None',
   attempted_to_contact: 'Attempted to Contact',
   contact_in_future: 'Contact in Future',
-  contacted: 'Contacted',
+  contacted: 'Warm Lead',
   junk_lead: 'Junk Lead',
   lost_lead: 'Lost Lead',
   not_contacted: 'Not Contacted',
   pre_qualified: 'Pre-Qualified',
   not_qualified: 'Not Qualified',
-  raw_prospect: 'Raw Lead',
-  raw_lead: 'Raw Lead',
-  lead: 'Lead',
+  raw_prospect: 'Cold Lead',
+  raw_lead: 'Cold Lead',
+  cold_lead: 'Cold Lead',
+  lead: 'Warm Lead',
+  warm_lead: 'Warm Lead',
   qualified_lead: 'Qualified Lead',
   proposal: 'Proposal',
   deal_lost: 'Deal Lost',
-  [PIPELINE_RAW]: 'Raw Lead',
-  [PIPELINE_LEAD]: 'Lead',
+  [PIPELINE_RAW]: 'Cold Lead',
+  [PIPELINE_LEAD]: 'Warm Lead',
   [PIPELINE_QUALIFIED]: 'Qualified Lead',
   [PIPELINE_PROPOSAL]: 'Proposal',
 };
@@ -34,18 +36,27 @@ export function leadStatusLabel(status, options = []) {
   const lookupOptions = Array.isArray(options) ? options : [];
   const fromLookup = lookupOptions.find(o => o.value === normalized || o.value === status);
   if (fromLookup) {
-    if (fromLookup.value === 'raw_prospect' || fromLookup.value === 'raw_lead') return 'Raw Lead';
+    if (fromLookup.value === 'raw_prospect' || fromLookup.value === 'raw_lead') return 'Cold Lead';
+    if (fromLookup.value === 'contacted' || fromLookup.value === 'lead') return 'Warm Lead';
+    // Override stale API labels for renamed pipeline stages
+    if (fromLookup.label === 'Raw Lead' || fromLookup.label === 'Raw Prospect') return 'Cold Lead';
+    if (fromLookup.label === 'Lead' && (fromLookup.value === 'contacted' || fromLookup.value === 'lead')) {
+      return 'Warm Lead';
+    }
     return fromLookup.label;
   }
-  if (normalized === 'raw_prospect' || status === 'raw_prospect' || status === 'raw_lead') return 'Raw Lead';
+  if (normalized === 'raw_prospect' || status === 'raw_prospect' || status === 'raw_lead') return 'Cold Lead';
+  if (normalized === 'contacted' || status === 'lead') return 'Warm Lead';
   return STATUS_LABELS[status] || STATUS_LABELS[normalized] || pipelineStageLabel(status) || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 const STATUS_PLURALS = {
   'Contact in Future': 'Contacts in Future',
-  Lead: 'Leads',
+  'Warm Lead': 'Warm Leads',
+  Lead: 'Warm Leads',
   'Qualified Lead': 'Qualified Leads',
-  'Raw Lead': 'Raw Leads',
+  'Cold Lead': 'Cold Leads',
+  'Raw Lead': 'Cold Leads',
   'Junk Lead': 'Junk Leads',
   'Lost Lead': 'Lost Leads',
   Proposal: 'Proposals',

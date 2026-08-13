@@ -42,10 +42,10 @@ export function notesSupportedRelatedType(relatedType) {
 const LEAD_LABEL = (r) => `${r.first_name || ''} ${r.last_name || ''}`.trim() || r.company || 'Lead';
 
 export const MODULE_NOTE_META = {
-  leads: { relatedType: 'lead', moduleLabel: 'Lead', getLabel: LEAD_LABEL },
-  'raw-leads': { relatedType: 'lead', moduleLabel: 'Lead', getLabel: LEAD_LABEL },
-  'qualified-leads': { relatedType: 'lead', moduleLabel: 'Lead', getLabel: LEAD_LABEL },
-  proposals: { relatedType: 'lead', moduleLabel: 'Lead', getLabel: LEAD_LABEL },
+  leads: { relatedType: 'lead', moduleLabel: 'Warm Lead', getLabel: LEAD_LABEL },
+  'raw-leads': { relatedType: 'lead', moduleLabel: 'Cold Lead', getLabel: LEAD_LABEL },
+  'qualified-leads': { relatedType: 'lead', moduleLabel: 'Qualified Lead', getLabel: LEAD_LABEL },
+  proposals: { relatedType: 'lead', moduleLabel: 'Proposal', getLabel: LEAD_LABEL },
   contacts: { relatedType: 'contact', moduleLabel: 'Contact', getLabel: (r) => `${r.first_name || ''} ${r.last_name || ''}`.trim() || 'Contact' },
   accounts: { relatedType: 'account', moduleLabel: 'Account', getLabel: (r) => r.name || r.account_name || 'Account' },
   deals: { relatedType: 'deal', moduleLabel: 'Deal', getLabel: (r) => r.deal_name || r.name || 'Deal' },

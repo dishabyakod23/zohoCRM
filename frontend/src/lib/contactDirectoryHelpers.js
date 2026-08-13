@@ -12,8 +12,8 @@ import { includesText, matchLeadStatus, matchesRecordTimestampFilters } from './
 
 export const DIRECTORY_STATUS_OPTIONS = [
   { value: 'Contact', label: 'Contact' },
-  { value: 'Raw Lead', label: 'Raw Lead' },
-  { value: 'Lead', label: 'Lead' },
+  { value: 'Cold Lead', label: 'Cold Lead' },
+  { value: 'Warm Lead', label: 'Warm Lead' },
   { value: 'Qualified Lead', label: 'Qualified Lead' },
   { value: 'Proposal', label: 'Proposal' },
   { value: 'Deal', label: 'Deal' },
@@ -25,10 +25,22 @@ const STATUS_PRIORITY = {
   Deal: 650,
   Proposal: 500,
   'Qualified Lead': 400,
+  'Warm Lead': 300,
   Lead: 300,
+  'Cold Lead': 200,
   'Raw Lead': 200,
   Contact: 100,
 };
+
+const LEGACY_DIRECTORY_STATUS = {
+  'Raw Lead': 'Cold Lead',
+  Lead: 'Warm Lead',
+};
+
+export function normalizeDirectoryStatusLabel(label) {
+  if (!label) return label;
+  return LEGACY_DIRECTORY_STATUS[label] || label;
+}
 
 function normEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -60,7 +72,7 @@ export function resolveDirectoryCurrentStatus(record) {
     if (entityType === 'contact' && fromApi === 'Account' && !isConvertedToAccount(record)) {
       return 'Contact';
     }
-    return fromApi;
+    return normalizeDirectoryStatusLabel(fromApi);
   }
 
   if (entityType === 'deal') return 'Deal';
@@ -73,7 +85,10 @@ export function resolveDirectoryCurrentStatus(record) {
     || entityType === 'proposal'
   ) {
     if (isConvertedToAccount(record)) return 'Account';
-    return 'Lead';
+    if (entityType === 'raw_lead') return 'Cold Lead';
+    if (entityType === 'qualified_lead') return 'Qualified Lead';
+    if (entityType === 'proposal') return 'Proposal';
+    return 'Warm Lead';
   }
 
   if (isConvertedToAccount(record)) return 'Account';
@@ -85,9 +100,11 @@ export function leadToDirectoryRow(lead, statusOptions = []) {
   const isConverted = !!(lead?.is_converted || lead?.converted);
   const current_status = isConverted
     ? 'Account'
-    : (leadStatusLabel(lead.lead_status ?? lead.status, statusOptions)
+    : normalizeDirectoryStatusLabel(
+      leadStatusLabel(lead.lead_status ?? lead.status, statusOptions)
       || pipelineStageLabel(stage)
-      || 'Lead');
+      || 'Warm Lead',
+    );
 
   return {
     id: lead.id,
@@ -239,10 +256,10 @@ export function applyContactDirectoryFilters(rows = [], filters = {}) {
 
 export function inferLeadStatusLabel(stage) {
   switch (stage) {
-    case PIPELINE_RAW: return 'Raw Lead';
-    case PIPELINE_LEAD: return 'Lead';
+    case PIPELINE_RAW: return 'Cold Lead';
+    case PIPELINE_LEAD: return 'Warm Lead';
     case PIPELINE_QUALIFIED: return 'Qualified Lead';
     case PIPELINE_PROPOSAL: return 'Proposal';
-    default: return pipelineStageLabel(stage) || 'Lead';
+    default: return pipelineStageLabel(stage) || 'Warm Lead';
   }
 }

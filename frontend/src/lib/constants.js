@@ -31,8 +31,8 @@ export const NAV_MODULES = [
   { href: '/reports', label: 'Reports', section: 'main', icon: 'Reports', permissionKey: 'reports' },
   { href: '/recycle-bin', label: 'Recycle Bin', section: 'main', icon: 'Recycle Bin', permissionKey: 'recycle_bin' },
   { href: '/contacts', label: 'Contacts', section: 'modules', icon: 'Contacts', permissionKey: 'contacts' },
-  { href: '/raw-leads', label: 'Raw Leads', section: 'modules', icon: 'Raw Leads', permissionKey: 'raw_leads' },
-  { href: '/leads', label: 'Leads', section: 'modules', icon: 'Leads', permissionKey: 'leads' },
+  { href: '/raw-leads', label: 'Cold Leads', section: 'modules', icon: 'Cold Leads', permissionKey: 'raw_leads' },
+  { href: '/leads', label: 'Warm Leads', section: 'modules', icon: 'Warm Leads', permissionKey: 'leads' },
   { href: '/qualified-leads', label: 'Qualified Leads', section: 'modules', icon: 'Qualified', permissionKey: 'qualified_leads' },
   { href: '/proposals', label: 'Proposals', section: 'modules', icon: 'Proposals', permissionKey: 'proposals' },
   { href: '/companies', label: 'Companies', section: 'modules', icon: 'Companies', permissionKey: 'companies' },
@@ -42,7 +42,8 @@ export const NAV_MODULES = [
 ];
 
 export const QUICK_CREATE = [
-  { label: 'Lead', href: '/leads/create', group: 'Sales', permissionKey: 'leads' },
+  { label: 'Warm Lead', href: '/leads/create', group: 'Sales', permissionKey: 'leads' },
+  { label: 'Cold Lead', href: '/raw-leads/create', group: 'Sales', permissionKey: 'raw_leads' },
   { label: 'Contact', href: '/contacts/create', group: 'Sales', permissionKey: 'contacts' },
   { label: 'Account', href: '/accounts/create', group: 'Sales', permissionKey: 'accounts' },
   { label: 'Proposal', href: '/proposals/create', group: 'Sales', permissionKey: 'proposals' },
@@ -50,10 +51,10 @@ export const QUICK_CREATE = [
   { label: 'Campaign', href: '/campaigns/create', group: 'Marketing', permissionKey: 'campaigns' },
 ];
 
-export const WORK_ITEM_VIEWS = ['All Work Items', 'Raw Leads', 'Leads', 'Qualified Leads', 'Proposals'];
+export const WORK_ITEM_VIEWS = ['All Work Items', 'Cold Leads', 'Warm Leads', 'Qualified Leads', 'Proposals'];
 
 export const LIST_VIEWS = {
-  leads: ['All Leads', 'My Leads', 'Recently Created', 'Recently Modified'],
+  leads: ['All Warm Leads', 'My Warm Leads', 'Recently Created', 'Recently Modified'],
   contacts: ['All Contacts', 'My Contacts', 'Recently Created'],
   accounts: ['All Accounts', 'My Accounts', 'Recently Created'],
 };

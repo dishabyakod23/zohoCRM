@@ -6,7 +6,7 @@ export default function RawLeadsPage() {
   return (
     <PipelineLeadList
       stage={PIPELINE_RAW}
-      description="Uploaded leads that have not been contacted yet. Admins can assign them to team members."
+      description="Cold leads that have not been contacted yet. Admins can assign them to team members."
     />
   );
 }

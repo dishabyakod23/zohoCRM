@@ -32,8 +32,8 @@ import { useTableSelection } from '../../hooks/useTableSelection.js';
 
 const STAGE_BY_VIEW = {
   'All Work Items': null,
-  'Raw Leads': PIPELINE_RAW,
-  Leads: PIPELINE_LEAD,
+  'Cold Leads': PIPELINE_RAW,
+  'Warm Leads': PIPELINE_LEAD,
   'Qualified Leads': PIPELINE_QUALIFIED,
   Proposals: PIPELINE_PROPOSAL,
 };
@@ -123,7 +123,7 @@ export default function WorkItemsPage() {
   });
 
   const loadMassUpdateFields = useCallback(
-    () => fetchLeadMassUpdateFields({ canChangeOwner: canAssignLeads }),
+    () => fetchLeadMassUpdateFields({ canChangeOwner: canAssignLeads, moduleKey: 'leads' }),
     [canAssignLeads],
   );
 
@@ -155,7 +155,7 @@ export default function WorkItemsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Work Items"
-          subtitle={`Leads assigned to ${userName} across every pipeline stage.`}
+          subtitle={`Warm and cold leads assigned to ${userName} across every pipeline stage.`}
         />
 
         <ListToolbar

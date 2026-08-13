@@ -21,6 +21,9 @@ const ICONS = {
   Reports: ChartBarIcon,
   'Recycle Bin': TrashIcon,
   Contacts: UserGroupIcon,
+  'Cold Leads': InboxArrowDownIcon,
+  'Warm Leads': FunnelIcon,
+  // Legacy icon keys (pre-rename)
   'Raw Leads': InboxArrowDownIcon,
   Leads: FunnelIcon,
   Qualified: CheckBadgeIcon,

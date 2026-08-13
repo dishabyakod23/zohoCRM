@@ -28,7 +28,7 @@ describe('buildDirectoryRows', () => {
 
     const rows = buildDirectoryRows({ contacts, leads });
     expect(rows).toHaveLength(2);
-    expect(rows.find((row) => row.email === 'bob@example.com')?.current_status).toBe('Raw Lead');
+    expect(rows.find((row) => row.email === 'bob@example.com')?.current_status).toBe('Cold Lead');
     expect(rows.find((row) => row.email === 'ann@example.com')?.current_status).toBe('Contact');
   });
 
@@ -38,7 +38,7 @@ describe('buildDirectoryRows', () => {
 
     const rows = buildDirectoryRows({ contacts, leads });
     expect(rows).toHaveLength(1);
-    expect(rows[0].current_status).toBe('Raw Lead');
+    expect(rows[0].current_status).toBe('Cold Lead');
     expect(rows[0]._entityType).toBe('lead');
   });
 
@@ -89,6 +89,6 @@ describe('dedupeDirectoryRows', () => {
       contactToDirectoryRow({ id: 'c1', first_name: 'A', last_name: 'B', email: 'x@example.com', account_id: 'acct-1' }),
     ]);
     expect(rows).toHaveLength(1);
-    expect(rows[0].current_status).toBe('Raw Lead');
+    expect(rows[0].current_status).toBe('Cold Lead');
   });
 });

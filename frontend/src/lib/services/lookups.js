@@ -9,8 +9,8 @@ import { mergeStoredProfileImage } from '../profileImageHelpers.js';
 
 /** Fallback when lookups API is unavailable */
 export const FALLBACK_LEAD_STATUSES = [
-  { value: 'raw_prospect', label: 'Raw Lead' },
-  { value: 'contacted', label: 'Contacted' },
+  { value: 'raw_prospect', label: 'Cold Lead' },
+  { value: 'contacted', label: 'Warm Lead' },
   { value: 'qualified_lead', label: 'Qualified Lead' },
   { value: 'deal_lost', label: 'Deal Lost' },
   { value: 'not_contacted', label: 'Not Contacted' },
@@ -31,7 +31,10 @@ export function parseLeadStatusLookups(data) {
     }
     const value = item.value ?? item.key ?? item.code ?? item.id ?? item.status;
     let label = item.label ?? item.name ?? item.display_name ?? item.title ?? leadStatusLabel(value);
-    if (value === 'raw_prospect' || value === 'raw_lead') label = 'Raw Lead';
+    if (value === 'raw_prospect' || value === 'raw_lead') label = 'Cold Lead';
+    if (value === 'contacted' || value === 'lead') label = 'Warm Lead';
+    if (label === 'Raw Lead' || label === 'Raw Prospect') label = 'Cold Lead';
+    if (label === 'Lead' && (value === 'contacted' || value === 'lead')) label = 'Warm Lead';
     return { value, label };
   }).filter((item) => item.value);
 }
@@ -136,10 +139,37 @@ export function isLeadOwnerMassUpdateField(fieldDef) {
     || label.includes('lead owner');
 }
 
-/** Remove owner field from mass-update list when user cannot reassign leads. */
-export function filterLeadMassUpdateFields(fields, { canChangeOwner = false } = {}) {
-  if (canChangeOwner) return fields || [];
-  return (fields || []).filter((f) => !isLeadOwnerMassUpdateField(f));
+/** Proposal-only mass-update fields — hide on Raw Leads, Leads, and Qualified Leads. */
+export const PROPOSAL_ONLY_MASS_UPDATE_FIELDS = new Set([
+  'proposal_type',
+  'amc_it_support',
+  'amc_currency',
+]);
+
+export function isProposalOnlyMassUpdateField(fieldDef) {
+  if (!fieldDef) return false;
+  const value = String(normalizeMassUpdateField(fieldDef).value || '').toLowerCase();
+  return PROPOSAL_ONLY_MASS_UPDATE_FIELDS.has(value);
+}
+
+export function isProposalMassUpdateModule({ moduleKey, pipelineStage } = {}) {
+  const module = String(moduleKey || '').toLowerCase();
+  const stage = String(pipelineStage || '').toLowerCase();
+  return module === 'proposals' || stage === 'proposal';
+}
+
+/** Filter mass-update fields by permission and module/stage. */
+export function filterLeadMassUpdateFields(fields, {
+  canChangeOwner = false,
+  moduleKey,
+  pipelineStage,
+} = {}) {
+  const showProposalFields = isProposalMassUpdateModule({ moduleKey, pipelineStage });
+  return (fields || []).filter((f) => {
+    if (!canChangeOwner && isLeadOwnerMassUpdateField(f)) return false;
+    if (!showProposalFields && isProposalOnlyMassUpdateField(f)) return false;
+    return true;
+  });
 }
 
 export function isConvertMassUpdateField(fieldDef) {
@@ -176,10 +206,14 @@ export async function fetchLeadSources() {
   });
 }
 
-export async function fetchLeadMassUpdateFields({ canChangeOwner = false } = {}) {
+export async function fetchLeadMassUpdateFields({
+  canChangeOwner = false,
+  moduleKey,
+  pipelineStage,
+} = {}) {
   const res = await api.get('/lookups/lead-mass-update-fields');
   const fields = (res.data.data || []).map(normalizeMassUpdateField);
-  return filterLeadMassUpdateFields(fields, { canChangeOwner });
+  return filterLeadMassUpdateFields(fields, { canChangeOwner, moduleKey, pipelineStage });
 }
 
 /** Hide Deal from mass-update convert target dropdowns. */

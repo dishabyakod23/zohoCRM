@@ -159,7 +159,7 @@ export default function PipelineLeadDetail({ stage }) {
   const editable = canEditRecord(lead);
   const deletable = canDeleteRecord(lead);
   const statusFieldLabel = stage === PIPELINE_RAW
-    ? 'Raw Lead Status'
+    ? 'Cold Lead Status'
     : stage === PIPELINE_QUALIFIED
       ? 'Qualified Lead Status'
       : 'Lead Status';

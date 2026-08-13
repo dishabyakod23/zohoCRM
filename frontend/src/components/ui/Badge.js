@@ -6,6 +6,8 @@ const COLORS = {
   'Hot':         'bg-red-50 text-red-700 ring-red-200',
   'Warm':        'bg-orange-50 text-orange-700 ring-orange-200',
   'Cold':        'bg-gray-100 text-gray-600 ring-gray-200',
+  'Cold Lead':   'bg-slate-100 text-slate-700 ring-slate-200',
+  'Warm Lead':   'bg-orange-50 text-orange-700 ring-orange-200',
   'Prospecting': 'bg-blue-50 text-blue-700 ring-blue-200',
   'Qualification':'bg-indigo-50 text-indigo-700 ring-indigo-200',
   'Proposal Sent':'bg-yellow-50 text-yellow-700 ring-yellow-200',

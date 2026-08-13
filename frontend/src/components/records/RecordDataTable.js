@@ -291,7 +291,7 @@ export default function RecordDataTable({
     massUpdateFieldsLoader()
       .then((fields) => {
         let filtered = LEAD_MODULE_KEYS.has(moduleKey)
-          ? filterLeadMassUpdateFields(fields, { canChangeOwner: canAssignLeads })
+          ? filterLeadMassUpdateFields(fields, { canChangeOwner: canAssignLeads, moduleKey })
           : fields;
         const hasCampaign = filtered.some((f) => String(f.value).toLowerCase() === 'campaign');
         if (!hasCampaign && (LEAD_MODULE_KEYS.has(moduleKey) || moduleKey === 'contacts')) {

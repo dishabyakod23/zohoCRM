@@ -43,7 +43,7 @@ export default function LeadsPage() {
   const { filters, setFilters, clearFilters } = useDefaultOwnerFilters(EMPTY_LEAD_FILTERS);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
-  const [activeView, setActiveView] = useState('All Leads');
+  const [activeView, setActiveView] = useState('All Warm Leads');
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const statusOptionsRef = useRef(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
@@ -81,7 +81,7 @@ export default function LeadsPage() {
         lead_status: filters.status || PIPELINE_LEAD,
         filters,
       };
-      if (activeView === 'My Leads' && user?.id) params.owner_id = user.id;
+      if (activeView === 'My Warm Leads' && user?.id) params.owner_id = user.id;
       const sortParams = activeView === 'Recently Modified'
         ? { sort_by: 'updated_at', sort_order: 'desc' }
         : getSortApiParams(sort, 'leads');
@@ -119,7 +119,7 @@ export default function LeadsPage() {
         ? { sort_by: 'updated_at', sort_order: 'desc' }
         : getSortApiParams(sort, 'leads')),
     };
-    if (activeView === 'My Leads' && user?.id) params.owner_id = user.id;
+    if (activeView === 'My Warm Leads' && user?.id) params.owner_id = user.id;
     return params;
   }, [debouncedSearch, filters, activeView, user?.id, sort, campaignMemberIds]);
 
@@ -135,7 +135,7 @@ export default function LeadsPage() {
   });
 
   const loadMassUpdateFields = useCallback(
-    () => fetchLeadMassUpdateFields({ canChangeOwner: canAssignLeads }),
+    () => fetchLeadMassUpdateFields({ canChangeOwner: canAssignLeads, moduleKey: 'leads' }),
     [canAssignLeads],
   );
 
@@ -154,17 +154,17 @@ export default function LeadsPage() {
     <CRMLayout>
       <div className="p-6">
         <ListPageHeader
-          title="Leads"
-          subtitle="Manage and track sales leads through the pipeline."
+          title="Warm Leads"
+          subtitle="Manage and track warm leads through the pipeline."
           primaryAction={canEdit ? (
             <button type="button" onClick={() => router.push('/leads/create')} className="btn-primary-sm">
-              Create Lead
+              Create Warm Lead
             </button>
           ) : null}
         />
 
         <ListToolbar
-          moduleName="Leads"
+          moduleName="Warm Leads"
           total={total}
           views={LIST_VIEWS.leads}
           activeView={activeView}

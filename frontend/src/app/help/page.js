@@ -6,7 +6,7 @@ const SECTIONS = [
   {
     title: 'Getting started',
     items: [
-      { q: 'How do I create a record?', a: 'Use the + button in the header or open any module list and click Create. Leads, contacts, accounts, and deals each have their own create form.' },
+      { q: 'How do I create a record?', a: 'Use the + button in the header or open any module list and click Create. Cold leads, warm leads, contacts, accounts, and deals each have their own create form.' },
       { q: 'Where is global search?', a: 'The search bar in the top header finds leads, contacts, and accounts across the CRM.' },
       { q: 'What is Work Items?', a: 'Work Items shows only the leads assigned to you, across every pipeline stage, in one place.' },
     ],
@@ -14,7 +14,7 @@ const SECTIONS = [
   {
     title: 'Sales pipeline',
     items: [
-      { q: 'What are the lead stages?', a: 'Raw Leads → Leads → Qualified Leads → Proposals. Move records forward as they progress through your sales process.' },
+      { q: 'What are the lead stages?', a: 'Cold Leads → Warm Leads → Qualified Leads → Proposals. Move records forward as they progress through your sales process.' },
       { q: 'How do I convert a lead?', a: 'Open a lead and use the Convert menu to move it to the next stage, or convert it into an account and contact.' },
       { q: 'Can I bulk update leads?', a: 'Yes. Select records on a list page, then use Mass Update from the toolbar.' },
     ],
@@ -52,7 +52,8 @@ const SECTIONS = [
 const QUICK_LINKS = [
   { href: '/dashboard', label: 'Home' },
   { href: '/work-items', label: 'Work Items' },
-  { href: '/leads', label: 'Leads' },
+  { href: '/leads', label: 'Warm Leads' },
+  { href: '/raw-leads', label: 'Cold Leads' },
   { href: '/calendar', label: 'Calendar' },
   { href: '/reports', label: 'Reports' },
   { href: '/settings', label: 'Settings' },

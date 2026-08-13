@@ -145,8 +145,8 @@ export default function PipelineLeadList({ stage, description }) {
   };
 
   const loadMassUpdateFields = useCallback(
-    () => fetchLeadMassUpdateFields({ canChangeOwner: canAssignLeads }),
-    [canAssignLeads],
+    () => fetchLeadMassUpdateFields({ canChangeOwner: canAssignLeads, moduleKey, pipelineStage: stage }),
+    [canAssignLeads, moduleKey, stage],
   );
 
   const totalPages = Math.ceil(total / limit) || 1;
@@ -210,7 +210,7 @@ export default function PipelineLeadList({ stage, description }) {
   }, [config, canAssignLeads, user?.id]);
 
   const createLabel = stage === PIPELINE_RAW
-    ? 'Create Raw Lead'
+    ? 'Create Cold Lead'
     : stage === PIPELINE_QUALIFIED
       ? 'Create Qualified Lead'
       : 'Create Proposal';
@@ -332,7 +332,7 @@ export default function PipelineLeadList({ stage, description }) {
       <CsvImportModal
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
-        title="Import CSV — Raw Leads"
+        title="Import CSV — Cold Leads"
         module="leads"
         importFn={leadsApi.importLeadsFile}
         downloadTemplate={downloadTemplate}

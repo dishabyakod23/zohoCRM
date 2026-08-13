@@ -12,7 +12,7 @@ export const ONBOARDING_STEPS = [
     id: 'sidebar',
     target: '[data-tour="sidebar-nav"]',
     title: 'Navigation',
-    body: 'The sidebar is your home base. Open Home, Work Items, Reports, and modules like Contacts, Leads, Qualified Leads, and Proposals.',
+    body: 'The sidebar is your home base. Open Home, Work Items, Reports, and modules like Contacts, Cold Leads, Warm Leads, Qualified Leads, and Proposals.',
     placement: 'right',
   },
   {
@@ -26,7 +26,7 @@ export const ONBOARDING_STEPS = [
     id: 'quick-create',
     target: '[data-tour="header-quick-create"]',
     title: 'Quick create',
-    body: 'Use the + button to add leads, contacts, accounts, proposals, campaigns, and calendar events without leaving your current page.',
+    body: 'Use the + button to add cold leads, warm leads, contacts, accounts, proposals, campaigns, and calendar events without leaving your current page.',
     placement: 'bottom',
     optional: true,
   },

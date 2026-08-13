@@ -49,7 +49,13 @@ export default function RecordDetailLayout({
       return <RecordNotesTab relatedType={recordNotes.relatedType} recordId={recordNotes.recordId} canEdit={recordNotes.canEdit} />;
     }
     if (tab === 'Files' && showDocuments) {
-      return <RecordDocumentsTab relatedType={documentsRelatedType} recordId={documentsRecordId} />;
+      return (
+        <RecordDocumentsTab
+          relatedType={documentsRelatedType}
+          recordId={documentsRecordId}
+          canEdit={Boolean(recordNotes?.canEdit)}
+        />
+      );
     }
     if (tab === 'History' && showHistory) {
       return <RecordHistoryTab entityType={recordHistory.entityType} recordId={recordHistory.recordId} />;

@@ -8,10 +8,11 @@ import { ArrowDownTrayIcon, TrashIcon, PaperClipIcon } from '@heroicons/react/24
 import RecordDetailLink from './RecordDetailLink.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 
-export default function RecordDocumentsTab({ relatedType, recordId }) {
+export default function RecordDocumentsTab({ relatedType, recordId, canEdit = false }) {
   const { showToast } = useToast();
   const { can } = usePermissions();
-  const canUpload = can('documents', 'upload');
+  // Global documents.upload (managers) OR owner/editor of this record (e.g. contact owner).
+  const canUpload = can('documents', 'upload') || canEdit;
   const canDownload = can('documents', 'download') || can('documents', 'view');
   const canDelete = can('documents', 'delete');
   const [docs, setDocs] = useState([]);
