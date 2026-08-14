@@ -39,13 +39,15 @@ export default function CompaniesPage() {
   const [users, setUsers] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const { campaigns } = useCampaignLookups();
-  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'account');
+  const { memberIds: campaignMemberIds, ready: campaignMembersReady } = useCampaignMemberFilter(filters.campaign_id, 'account');
 
   useEffect(() => {
     fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, []);
 
   const fetchCompanies = useCallback(async () => {
+    if (filters.campaign_id && !campaignMembersReady) return;
+
     setLoading(true);
     try {
       const result = await companiesApi.listCompanies({
@@ -63,7 +65,7 @@ export default function CompaniesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, filters, sort, showToast, campaignMemberIds]);
+  }, [page, debouncedSearch, filters, sort, showToast, campaignMemberIds, campaignMembersReady]);
 
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
   useListRefresh(fetchCompanies);

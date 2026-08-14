@@ -140,7 +140,7 @@ export function applyAccountRecordFilters(accounts, filters = {}, { campaignMemb
 
 export function hasLeadClientFilters(filters = {}) {
   return Boolean(
-    filters.company || filters.source || filters.status || filters.deal_status
+    filters.deal_status
     || filters.proposal_date_from || filters.proposal_date_to
     || filters.closure_date_from || filters.closure_date_to
     || (filters.deal_size_min !== '' && filters.deal_size_min != null)
@@ -161,15 +161,15 @@ export function hasContactClientFilters(filters = {}) {
   );
 }
 
-/** Company list API supports industry/city/website server-side. */
+/** Company list API supports industry/city/website/campaign_id server-side. */
 export function hasCompanyClientFilters(filters = {}) {
-  return Boolean(filters.status || filters.campaign_id || filters.email || hasTimestampFilters(filters));
+  return Boolean(filters.status || filters.email || hasTimestampFilters(filters));
 }
 
 export function hasAccountClientFilters(filters = {}) {
   return Boolean(
-    filters.industry || filters.website || filters.email || filters.status || filters.city
-    || filters.campaign_id || hasTimestampFilters(filters),
+    filters.website || filters.email || filters.status
+    || hasTimestampFilters(filters),
   );
 }
 

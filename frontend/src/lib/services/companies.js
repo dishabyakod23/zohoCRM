@@ -1,16 +1,16 @@
 import api from '../api.js';
 import { normalizeCompany, toCompanyPayload } from '../companyHelpers.js';
 import { applyAccountRecordFilters, hasCompanyClientFilters } from '../listRecordFilters.js';
-import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from '../constants.js';
+import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 
-async function fetchAllCompanyPages(params = {}) {
+async function fetchAllCompanyPages(params = {}, maxRecords = CLIENT_FILTER_MAX_RECORDS) {
   const pageSize = BULK_FETCH_PAGE_SIZE;
   let page = 1;
   let all = [];
   let serverTotal = 0;
 
-  while (page <= 50) {
+  while (page <= 50 && all.length < maxRecords) {
     const res = await api.get('/companies', { params: { ...params, page, page_size: pageSize } });
     const batch = (res.data.data || []).map(normalizeCompany);
     serverTotal = res.data.meta?.total ?? all.length + batch.length;
@@ -46,10 +46,9 @@ export async function listCompanies({
   if (filters.industry) baseParams.industry = filters.industry;
   if (filters.city) baseParams.city = filters.city;
   if (filters.website) baseParams.website = filters.website;
+  if (filters.campaign_id) baseParams.campaign_id = filters.campaign_id;
 
-  const needsCampaignFilter = Boolean(filters.campaign_id && campaignMemberIds);
-
-  if (hasCompanyClientFilters(filters) || needsCampaignFilter) {
+  if (hasCompanyClientFilters(filters)) {
     const all = await fetchAllCompanyPages(baseParams);
     const filtered = applyAccountRecordFilters(all, filters, { campaignMemberIds });
     const start = (page - 1) * page_size;

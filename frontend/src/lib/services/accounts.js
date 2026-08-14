@@ -6,7 +6,7 @@ import {
   applyAccountRecordFilters,
   hasAccountClientFilters,
 } from '../listRecordFilters.js';
-import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from '../constants.js';
+import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
 import { cachedRequest } from '../requestCache.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 
@@ -42,13 +42,13 @@ function attachContactEmails(accounts, emailMap) {
   }));
 }
 
-async function fetchAllAccountPages(params) {
+async function fetchAllAccountPages(params, maxRecords = CLIENT_FILTER_MAX_RECORDS) {
   const pageSize = BULK_FETCH_PAGE_SIZE;
   let page = 1;
   let all = [];
   let serverTotal = 0;
 
-  while (page <= 50) {
+  while (page <= 50 && all.length < maxRecords) {
     const res = await api.get('/accounts', { params: { ...params, page, page_size: pageSize } });
     const batch = (res.data.data || []).map(normalizeAccount);
     serverTotal = res.data.meta?.total ?? all.length + batch.length;
@@ -85,6 +85,8 @@ export async function listAccounts({
   const mergedOwnerId = filters.owner_id || owner_id;
   if (mergedOwnerId) params.owner_id = mergedOwnerId;
   if (filters.campaign_id) params.campaign_id = filters.campaign_id;
+  if (filters.industry) params.industry = filters.industry;
+  if (filters.city) params.city = filters.city;
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
 

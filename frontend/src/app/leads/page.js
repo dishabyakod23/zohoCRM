@@ -51,7 +51,7 @@ export default function LeadsPage() {
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const fetchRequestId = useRef(0);
   const { campaigns } = useCampaignLookups();
-  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'lead');
+  const { memberIds: campaignMemberIds } = useCampaignMemberFilter(filters.campaign_id, 'lead');
 
   useEffect(() => {
     fetchLeadStatuses().then((options) => {

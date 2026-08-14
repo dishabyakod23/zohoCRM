@@ -69,15 +69,19 @@ export default function PipelineLeadList({ stage, description }) {
   const [assignUserId, setAssignUserId] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const statusOptionsRef = useRef(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const fetchRequestId = useRef(0);
   const moduleKey = STAGE_MODULE_KEY[stage] || 'raw-leads';
   const { campaigns } = useCampaignLookups();
-  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'lead');
+  const { memberIds: campaignMemberIds } = useCampaignMemberFilter(filters.campaign_id, 'lead');
 
   useEffect(() => {
-    fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
+    fetchLeadStatuses().then((options) => {
+      statusOptionsRef.current = options;
+      setStatusOptions(options);
+    }).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
     fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
   }, []);
 
@@ -96,7 +100,7 @@ export default function PipelineLeadList({ stage, description }) {
         pipeline_stage: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL].includes(stage) ? stage : stage === PIPELINE_RAW ? PIPELINE_RAW : undefined,
         lead_status: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PIPELINE_RAW].includes(stage) ? undefined : (config?.apiStatus || stage),
         filters,
-        statusOptions,
+        statusOptions: statusOptionsRef.current,
         campaignMemberIds,
         ...getSortApiParams(sort, moduleKey),
       });
@@ -111,7 +115,7 @@ export default function PipelineLeadList({ stage, description }) {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, filters, stage, config?.apiStatus, showToast, statusOptions, sort, moduleKey, campaignMemberIds]);
+  }, [page, limit, debouncedSearch, filters, stage, config?.apiStatus, showToast, sort, moduleKey, campaignMemberIds]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
   useListRefresh(fetchLeads);

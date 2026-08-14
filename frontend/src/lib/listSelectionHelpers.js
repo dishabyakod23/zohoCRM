@@ -1,5 +1,5 @@
 import api from './api.js';
-import { DEFAULT_PAGE_SIZE } from './constants.js';
+import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from './constants.js';
 
 export async function fetchAllIdsFromEndpoint(
   endpoint,
@@ -28,7 +28,7 @@ export async function fetchAllIdsFromEndpoint(
 export async function listAllMatchingIdsFromListFn(
   listFn,
   params = {},
-  { maxPages = 50, pageSize = DEFAULT_PAGE_SIZE } = {},
+  { maxPages = 50, pageSize = BULK_FETCH_PAGE_SIZE } = {},
 ) {
   const all = [];
   let page = 1;

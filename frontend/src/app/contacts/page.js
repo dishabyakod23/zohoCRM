@@ -14,7 +14,7 @@ import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
-import { LIST_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { LIST_VIEWS, DEFAULT_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../../lib/constants.js';
 import * as contactDirectoryApi from '../../lib/services/contactDirectory.js';
 import { fetchPeopleStatusOptions } from '../../lib/services/people.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
@@ -62,9 +62,11 @@ export default function ContactsPage() {
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const [statusOptions, setStatusOptions] = useState(DIRECTORY_STATUS_OPTIONS);
   const [leadStatusOptions, setLeadStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const leadStatusOptionsRef = useRef(FALLBACK_LEAD_STATUSES);
   const { campaigns } = useCampaignLookups();
-  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'contact');
+  const { memberIds: campaignMemberIds, ready: campaignMembersReady } = useCampaignMemberFilter(filters.campaign_id, 'contact');
   const activityCallsRef = useRef([]);
+  const activityCallsLoadedRef = useRef(false);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
   const accountMapRef = useRef(accountMap);
@@ -78,7 +80,10 @@ export default function ContactsPage() {
     }).catch(() => setAccounts([]));
     fetchUsers().then(setUsers).catch(() => setUsers([]));
     fetchPeopleStatusOptions().then(setStatusOptions).catch(() => setStatusOptions(DIRECTORY_STATUS_OPTIONS));
-    fetchLeadStatuses().then(setLeadStatusOptions).catch(() => setLeadStatusOptions(FALLBACK_LEAD_STATUSES));
+    fetchLeadStatuses().then((options) => {
+      leadStatusOptionsRef.current = options;
+      setLeadStatusOptions(options);
+    }).catch(() => setLeadStatusOptions(FALLBACK_LEAD_STATUSES));
   }, []);
 
   useEffect(() => {
@@ -88,39 +93,31 @@ export default function ContactsPage() {
     }
   }, [canCreateContact, router]);
 
+  const needsActivityData = Boolean(filters.activity_from || filters.activity_to);
+  const needsClientPagination = needsActivityData || hasTimestampFilters(filters);
+
   const loadActivityCalls = useCallback(async () => {
+    if (activityCallsLoadedRef.current && activityCallsRef.current.length) {
+      return activityCallsRef.current;
+    }
     try {
       const canSeeAll = isSuperAdmin || isSalesManager;
       const calls = await listCloudTalkCallsLastDays(ACTIVITY_LOOKBACK_DAYS, {
         ...(canSeeAll ? {} : { user_id: user?.id }),
       }, { limit: 500 });
       activityCallsRef.current = calls;
+      activityCallsLoadedRef.current = true;
       return calls;
     } catch {
       activityCallsRef.current = [];
+      activityCallsLoadedRef.current = true;
       return [];
     }
   }, [isSalesManager, isSuperAdmin, user?.id]);
 
-  const fetchContacts = useCallback(async () => {
-    setLoading(true);
+  const enrichRowsWithActivity = useCallback(async (rows) => {
     try {
-      const directoryFilters = activeView === 'My Contacts' && user?.id
-        ? { ...filters, owner_id: user.id }
-        : filters;
-      const [result, calls] = await Promise.all([
-        contactDirectoryApi.listContactDirectory({
-          page: 1,
-          page_size: filters.activity_from || filters.activity_to || hasTimestampFilters(filters) ? 100000 : LIMIT,
-          search: debouncedSearch || undefined,
-          filters: directoryFilters,
-          campaignMemberIds,
-          sort_key: sort,
-          ...getSortApiParams(sort, 'contacts'),
-        }, accountMapRef.current),
-        loadActivityCalls(),
-      ]);
-
+      const calls = await loadActivityCalls();
       let enrichedCalls = calls;
       try {
         const lookup = await getCrmPhoneLookup();
@@ -128,13 +125,37 @@ export default function ContactsPage() {
       } catch {
         enrichedCalls = calls;
       }
-
       const outreachIndex = buildOutreachActivityIndex();
-      let rows = enrichContactDirectoryRows(result.data, {
+      return enrichContactDirectoryRows(rows, {
         calls: enrichedCalls,
         outreachIndex,
-        statusOptions: leadStatusOptions,
+        statusOptions: leadStatusOptionsRef.current,
       });
+    } catch {
+      return rows;
+    }
+  }, [loadActivityCalls]);
+
+  const fetchContacts = useCallback(async () => {
+    if (filters.campaign_id && !campaignMembersReady) return;
+
+    setLoading(true);
+    try {
+      const directoryFilters = activeView === 'My Contacts' && user?.id
+        ? { ...filters, owner_id: user.id }
+        : filters;
+
+      const result = await contactDirectoryApi.listContactDirectory({
+        page: needsClientPagination ? 1 : page,
+        page_size: needsClientPagination ? CLIENT_FILTER_MAX_RECORDS : LIMIT,
+        search: debouncedSearch || undefined,
+        filters: directoryFilters,
+        campaignMemberIds,
+        sort_key: sort,
+        ...getSortApiParams(sort, 'contacts'),
+      }, accountMapRef.current);
+
+      let rows = result.data;
 
       if (directoryFilters.lead_status) {
         rows = rows.filter((row) => matchLeadStatus(row, directoryFilters.lead_status));
@@ -144,17 +165,28 @@ export default function ContactsPage() {
         rows = rows.filter((row) => matchesRecordTimestampFilters(row, filters));
       }
 
-      const needsClientPagination = filters.activity_from || filters.activity_to || hasTimestampFilters(filters);
       if (needsClientPagination) {
+        const enrichedRows = await enrichRowsWithActivity(rows);
+        let filteredRows = enrichedRows;
         if (filters.activity_from || filters.activity_to) {
-          rows = filterRowsByActivityDate(rows, filters, { outreachIndex, calls: enrichedCalls });
+          const calls = activityCallsRef.current;
+          const outreachIndex = buildOutreachActivityIndex();
+          filteredRows = filterRowsByActivityDate(enrichedRows, filters, { outreachIndex, calls });
         }
         const start = (page - 1) * LIMIT;
-        setTotal(rows.length);
-        setContacts(rows.slice(start, start + LIMIT));
+        setTotal(filteredRows.length);
+        setContacts(filteredRows.slice(start, start + LIMIT));
       } else {
         setContacts(rows);
         setTotal(result.total);
+        enrichRowsWithActivity(rows).then((enriched) => {
+          setContacts((current) => {
+            if (current.length !== enriched.length) return current;
+            const currentIds = current.map((row) => row.id).join('|');
+            const enrichedIds = enriched.map((row) => row.id).join('|');
+            return currentIds === enrichedIds ? enriched : current;
+          });
+        }).catch(() => {});
       }
     } catch (err) {
       showToast(getApiError(err));
@@ -172,8 +204,10 @@ export default function ContactsPage() {
     filters,
     sort,
     campaignMemberIds,
-    loadActivityCalls,
-    leadStatusOptions,
+    campaignMembersReady,
+    needsClientPagination,
+    needsActivityData,
+    enrichRowsWithActivity,
   ]);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);

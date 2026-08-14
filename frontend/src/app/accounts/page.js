@@ -44,13 +44,15 @@ export default function AccountsPage() {
   const [users, setUsers] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const { campaigns } = useCampaignLookups();
-  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'account');
+  const { memberIds: campaignMemberIds, ready: campaignMembersReady } = useCampaignMemberFilter(filters.campaign_id, 'account');
 
   useEffect(() => {
     fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, []);
 
   const fetchAccounts = useCallback(async () => {
+    if (filters.campaign_id && !campaignMembersReady) return;
+
     setLoading(true);
     try {
       const result = await accountsApi.listAccounts({
@@ -68,7 +70,7 @@ export default function AccountsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, filters, sort, showToast, campaignMemberIds]);
+  }, [page, debouncedSearch, filters, sort, showToast, campaignMemberIds, campaignMembersReady]);
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
   useListRefresh(fetchAccounts);

@@ -17,7 +17,7 @@ import {
 } from '../campaignRecordHelpers.js';
 import { finalizeLeadBulkImport } from '../importSyncHelpers.js';
 import { LEAD_IMPORT_FIELDS } from '../importFieldConfig.js';
-import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from '../constants.js';
+import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
 import { ensureCsvColumn } from '../csvHelpers.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
@@ -52,12 +52,12 @@ async function convertPipelineTargets(ids, value, extras = {}) {
   return result;
 }
 
-async function fetchAllLeadPages(params, statusOptions, pageSize = BULK_FETCH_PAGE_SIZE) {
+async function fetchAllLeadPages(params, statusOptions, pageSize = BULK_FETCH_PAGE_SIZE, maxRecords = CLIENT_FILTER_MAX_RECORDS) {
   let page = 1;
   let all = [];
   let serverTotal = 0;
 
-  while (page <= 50) {
+  while (page <= 50 && all.length < maxRecords) {
     const res = await api.get('/leads', { params: { ...params, page, page_size: pageSize } });
     const batch = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
     serverTotal = res.data.meta?.total ?? all.length + batch.length;
@@ -89,6 +89,8 @@ function buildLeadListApiParams({
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
   if (filters.campaign_id) params.campaign_id = filters.campaign_id;
+  if (filters.company) params.company = filters.company;
+  if (filters.source) params.lead_source = filters.source;
 
   if (pipeline_stage) {
     params.is_converted = false;
@@ -218,6 +220,7 @@ export async function listWorkItems({
     pipeline_stage,
     filters,
     search,
+    owner_id: userId,
     sort_by,
     sort_order,
   });

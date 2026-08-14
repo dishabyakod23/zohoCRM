@@ -7,6 +7,7 @@ import { safeNextPath, loginHref } from '../lib/safeRedirect.js';
 import {
   parseAuthTokenResponse,
   parseAuthUserResponse,
+  readStoredAuthUser,
   isPublicAuthPath,
 } from '../lib/authHelpers.js';
 import { mergeStoredProfileImage } from '../lib/profileImageHelpers.js';
@@ -20,24 +21,24 @@ export function AuthProvider({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    const stored = localStorage.getItem('crm_user');
     const token = localStorage.getItem('crm_token');
-    if (stored && token) {
+    const cachedUser = readStoredAuthUser();
+    if (cachedUser && token) {
       setAuthSessionCookie();
-      api.get('/auth/me', { timeout: 45000 }).then((r) => {
+      setUser(cachedUser);
+      setLoading(false);
+      api.get('/auth/me', { timeout: 15000 }).then((r) => {
         const me = parseAuthUserResponse(r.data);
         if (!me?.id) throw new Error('Invalid session');
         setUser(me);
         localStorage.setItem('crm_user', JSON.stringify(me));
         setAuthSessionCookie();
-        setLoading(false);
       }).catch(() => {
         localStorage.removeItem('crm_token');
         localStorage.removeItem('crm_refresh_token');
         localStorage.removeItem('crm_user');
         clearAuthSessionCookie();
         setUser(null);
-        setLoading(false);
         if (typeof window !== 'undefined' && !isPublicAuthPath(window.location.pathname)) {
           router.replace(loginHref());
         }

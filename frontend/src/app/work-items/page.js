@@ -52,11 +52,12 @@ export default function WorkItemsPage() {
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [activeView, setActiveView] = useState('All Work Items');
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const statusOptionsRef = useRef(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const fetchRequestId = useRef(0);
   const { campaigns } = useCampaignLookups();
-  const campaignMemberIds = useCampaignMemberFilter(filters.campaign_id, 'lead');
+  const { memberIds: campaignMemberIds } = useCampaignMemberFilter(filters.campaign_id, 'lead');
 
   useEffect(() => {
     fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
@@ -80,7 +81,7 @@ export default function WorkItemsPage() {
         search: debouncedSearch || undefined,
         pipeline_stage: STAGE_BY_VIEW[activeView] || undefined,
         filters,
-        statusOptions,
+        statusOptions: statusOptionsRef.current,
         campaignMemberIds,
         sort_key: sort,
         ...getSortApiParams(sort, 'leads'),
@@ -96,7 +97,7 @@ export default function WorkItemsPage() {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [user?.id, page, limit, debouncedSearch, filters, activeView, showToast, statusOptions, sort, campaignMemberIds]);
+  }, [user?.id, page, limit, debouncedSearch, filters, activeView, showToast, sort, campaignMemberIds]);
 
   useEffect(() => { fetchWorkItems(); }, [fetchWorkItems]);
 

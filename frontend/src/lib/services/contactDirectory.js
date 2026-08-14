@@ -6,7 +6,7 @@ import {
   buildDirectoryRows,
   applyContactDirectoryFilters,
 } from '../contactDirectoryHelpers.js';
-import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { DEFAULT_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
 
 function shouldFallbackFromDirectoryApi(error) {
@@ -141,7 +141,7 @@ export async function listAllMatchingContactDirectoryIds(params = {}, accountMap
   const result = await listContactDirectoryClientSide({
     ...params,
     page: 1,
-    page_size: 100000,
+    page_size: CLIENT_FILTER_MAX_RECORDS,
     statusOptions,
   }, accountMap);
   return (result.data || []).map((row) => row.id).filter(Boolean);
