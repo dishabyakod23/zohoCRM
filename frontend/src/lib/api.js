@@ -1,7 +1,5 @@
 import axios from 'axios';
-import { setAuthSessionCookie, clearAuthSessionCookie } from './authCookie.js';
-import { loginHref } from './safeRedirect.js';
-import { parseAuthTokenResponse } from './authHelpers.js';
+import { getStoredAccessToken, refreshAuthSession, shouldAttemptTokenRefresh } from './authSession.js';
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'https://salescrm-api.duckdns.org/api/v1';
@@ -14,7 +12,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('crm_token');
+    const token = getStoredAccessToken();
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -24,37 +22,16 @@ api.interceptors.response.use(
   (res) => res,
   async (err) => {
     const original = err.config;
-    if (
-      err.response?.status === 401 &&
-      typeof window !== 'undefined' &&
-      !original?._retry &&
-      !original?.url?.includes('/auth/login')
-    ) {
-      const refresh = localStorage.getItem('crm_refresh_token');
-      if (refresh) {
-        original._retry = true;
-        try {
-          const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refresh });
-          const auth = parseAuthTokenResponse(data);
-          if (!auth?.access_token) throw new Error('Refresh failed');
-          localStorage.setItem('crm_token', auth.access_token);
-          localStorage.setItem('crm_refresh_token', auth.refresh_token);
-          localStorage.setItem('crm_user', JSON.stringify(auth.user));
-          setAuthSessionCookie();
-          original.headers.Authorization = `Bearer ${auth.access_token}`;
-          return api(original);
-        } catch {
-          localStorage.removeItem('crm_token');
-          localStorage.removeItem('crm_refresh_token');
-          localStorage.removeItem('crm_user');
-          clearAuthSessionCookie();
-          window.location.href = loginHref();
-        }
-      } else {
-        localStorage.removeItem('crm_token');
-        localStorage.removeItem('crm_user');
-        clearAuthSessionCookie();
-        window.location.href = loginHref();
+    if (shouldAttemptTokenRefresh(original, err.response?.status)) {
+      original._retry = true;
+      try {
+        const auth = await refreshAuthSession();
+        if (!auth?.access_token) return Promise.reject(err);
+        original.headers = original.headers || {};
+        original.headers.Authorization = `Bearer ${auth.access_token}`;
+        return api(original);
+      } catch {
+        return Promise.reject(err);
       }
     }
     return Promise.reject(err);

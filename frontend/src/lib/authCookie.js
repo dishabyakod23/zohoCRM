@@ -1,5 +1,5 @@
 const COOKIE_NAME = 'crm_session';
-const MAX_AGE_SEC = 60 * 60 * 24 * 7;
+const MAX_AGE_SEC = 60 * 60 * 24 * 365;
 
 export function setAuthSessionCookie() {
   if (typeof document === 'undefined') return;

@@ -11,7 +11,7 @@ export default function ListViewLayout({
   views = [],
   activeView,
   onViewChange,
-  showFilters = true,
+  showFilters = false,
   onToggleFilters,
   hasFilters = false,
   filterTitle,

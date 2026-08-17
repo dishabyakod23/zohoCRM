@@ -22,7 +22,7 @@ export default function ListToolbar({
   sort,
   onSortChange,
 }) {
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const hasFilters = !!children;
 
   const toolbarLeft = (

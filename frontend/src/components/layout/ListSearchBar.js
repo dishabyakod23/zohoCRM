@@ -22,7 +22,7 @@ export default function ListSearchBar({
   onSortChange,
   table,
 }) {
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const hasFilters = !!filterFields;
 
   const toolbarLeft = (
