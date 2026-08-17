@@ -76,7 +76,26 @@ export default function LeadConvertMenu({
       setAccountModalOpen(true);
       return;
     }
+    if (option.type === CONVERT_TYPE.CONTACT) {
+      setPendingOption(option);
+      return;
+    }
     setPendingOption(option);
+  };
+
+  const runContactConvert = async () => {
+    setConverting(true);
+    try {
+      const result = await leadsApi.convertLeadToContact(leadId);
+      const contactId = result?.contact_id || result?.contact?.id || result?.id;
+      showToast('Converted to Contact', 'success');
+      setPendingOption(null);
+      navigateToRecord(contactId ? `/contacts/${contactId}` : '/contacts', router);
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setConverting(false);
+    }
   };
 
   const handleAccountConvert = async () => {
@@ -139,7 +158,11 @@ export default function LeadConvertMenu({
         message={`Convert ${leadName} to ${pendingOption?.label}?`}
         confirmLabel={`Convert to ${pendingOption?.label}`}
         confirming={converting}
-        onConfirm={() => runStageConvert(pendingOption)}
+        onConfirm={() => (
+          pendingOption?.type === CONVERT_TYPE.CONTACT
+            ? runContactConvert()
+            : runStageConvert(pendingOption)
+        )}
         onCancel={() => !converting && setPendingOption(null)}
       />
 

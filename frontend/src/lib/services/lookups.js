@@ -3,6 +3,7 @@ import { leadStatusLabel } from '../leadHelpers.js';
 import { dealStageLabel, FALLBACK_DEAL_STAGES } from '../dealHelpers.js';
 import { parseLookupOptions } from '../recordHelpers.js';
 import { INDUSTRIES, RATINGS } from '../constants.js';
+import { PIPELINE_RAW } from '../pipelineHelpers.js';
 import { cachedLookup } from '../lookupCache.js';
 import { fetchCampaignLookups } from '../campaignRecordHelpers.js';
 import { mergeStoredProfileImage } from '../profileImageHelpers.js';
@@ -225,9 +226,31 @@ export function filterPipelineConvertTargets(options = []) {
   });
 }
 
-export async function fetchPipelineConvertTargets() {
-  const res = await api.get('/lookups/pipeline-convert-targets');
-  return filterPipelineConvertTargets(parseLookupOptions(res.data.data));
+export const CONTACT_CONVERT_TARGET = { value: 'contact', label: 'Contact' };
+
+/** Cold leads can be moved back to the Contacts pool. */
+export function mergeContactConvertTarget(options = [], { moduleKey, pipelineStage } = {}) {
+  const stage = String(pipelineStage || '').toLowerCase();
+  const isColdLeadsModule = moduleKey === 'raw-leads'
+    || stage === 'raw_prospect'
+    || stage === PIPELINE_RAW;
+  if (!isColdLeadsModule) return options;
+
+  const hasContact = (options || []).some(
+    (option) => String(option?.value ?? '').toLowerCase() === 'contact',
+  );
+  if (hasContact) return options;
+  return [CONTACT_CONVERT_TARGET, ...(options || [])];
+}
+
+export async function fetchPipelineConvertTargets({ moduleKey, pipelineStage } = {}) {
+  try {
+    const res = await api.get('/lookups/pipeline-convert-targets');
+    const options = filterPipelineConvertTargets(parseLookupOptions(res.data.data));
+    return mergeContactConvertTarget(options, { moduleKey, pipelineStage });
+  } catch {
+    return mergeContactConvertTarget([], { moduleKey, pipelineStage });
+  }
 }
 
 export async function fetchLostReasons() {

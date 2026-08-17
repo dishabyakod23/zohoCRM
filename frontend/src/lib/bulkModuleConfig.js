@@ -20,6 +20,10 @@ const CONVERT_OPTIONS = [
   { value: PIPELINE_QUALIFIED, label: 'Qualified Lead' },
   { value: PIPELINE_PROPOSAL, label: 'Proposal' },
 ];
+const COLD_LEAD_CONVERT_OPTIONS = [
+  { value: 'contact', label: 'Contact' },
+  ...CONVERT_OPTIONS,
+];
 const CONTACT_CONVERT_OPTIONS = [
   { value: PIPELINE_RAW, label: 'Cold Lead' },
   { value: PIPELINE_LEAD, label: 'Warm Lead' },
@@ -49,7 +53,7 @@ export const BULK_MODULE_CONFIG = {
     emailField: 'email',
     statusField: 'lead_status',
     massUpdateFields: ['status', 'convert', 'campaign'],
-    convertOptions: CONVERT_OPTIONS,
+    convertOptions: COLD_LEAD_CONVERT_OPTIONS,
     update: (id, payload) => leadsApi.updateLead(id, payload),
     convert: (id, target) => leadsApi.advanceLeadStage(id, target, { proposal: target === PIPELINE_PROPOSAL }),
     deleteOne: (id) => leadsApi.deleteLead(id),

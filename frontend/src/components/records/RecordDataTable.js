@@ -179,6 +179,7 @@ export default function RecordDataTable({
   const { user } = useAuth();
   const { canEdit, canDelete, canAssignLeads, canEditRecord, canDeleteRecord } = usePermissions();
   const config = useMemo(() => getBulkConfig(moduleKey), [moduleKey]);
+  const currentStageTarget = MODULE_PIPELINE_STAGE[moduleKey] || null;
   const noteMeta = useMemo(() => getNoteMeta(moduleKey), [moduleKey]);
   const showNotes = notesApiSupported(moduleKey);
 
@@ -318,13 +319,13 @@ export default function RecordDataTable({
     setLoadingMassValueOptions(true);
     setDynamicConvertTargets([]);
 
-    convertTargetsLoader()
+    convertTargetsLoader({ moduleKey, pipelineStage: currentStageTarget })
       .then((options) => { if (!cancelled) setDynamicConvertTargets(options); })
       .catch(() => { if (!cancelled) setDynamicConvertTargets([]); })
       .finally(() => { if (!cancelled) setLoadingMassValueOptions(false); });
 
     return () => { cancelled = true; };
-  }, [massField, dynamicMassFields, convertTargetsLoader]);
+  }, [massField, dynamicMassFields, convertTargetsLoader, moduleKey, currentStageTarget]);
 
   useEffect(() => {
     if (!massField) {
@@ -376,7 +377,6 @@ export default function RecordDataTable({
   const isConvertMassField = isConvertMassUpdateField(selectedMassFieldDef)
     || massFieldKey === 'convert'
     || massFieldKey === 'pipeline_convert';
-  const currentStageTarget = MODULE_PIPELINE_STAGE[moduleKey] || null;
   const filteredConvertTargets = useMemo(() => {
     if (!isConvertMassField || !currentStageTarget) return dynamicConvertTargets;
     return (dynamicConvertTargets || []).filter((option) => (

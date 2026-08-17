@@ -23,7 +23,7 @@ import { ensureCsvColumn } from '../csvHelpers.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 import { sumAmountsInInr } from '../fxRates.js';
 
-const CONVERT_MASS_TARGETS = new Set(['account', 'contact', 'deal']);
+const CONVERT_MASS_TARGETS = new Set(['account', 'deal']);
 const PIPELINE_CONVERT_MASS_FIELD = 'pipeline_convert_target';
 
 function isConvertMassUpdateFieldKey(field) {
@@ -34,6 +34,7 @@ function isConvertMassUpdateFieldKey(field) {
 function resolvePipelineConvertMassValue(value, { proposal = false, clearProposal = false } = {}) {
   if (proposal) return 'proposal';
   const target = String(value ?? '').toLowerCase();
+  if (target === 'contact') return 'contact';
   if (clearProposal || target === 'lead') return PIPELINE_LEAD;
   const mapped = resolveLeadStatusForApi(value);
   if (mapped) return mapped;
@@ -288,6 +289,9 @@ export async function massUpdateLeads(ids, field, value, { lost_reason } = {}) {
 export async function applyLeadMassUpdate(ids, field, value, extras = {}) {
   if (isConvertMassUpdateFieldKey(field)) {
     const target = String(value || '').toLowerCase();
+    if (target === 'contact') {
+      return convertLeadsToContact(ids);
+    }
     if (CONVERT_MASS_TARGETS.has(target)) {
       let success = 0;
       const errors = [];
@@ -331,6 +335,31 @@ export async function applyLeadMassUpdate(ids, field, value, extras = {}) {
 export async function convertLead(id, form) {
   const res = await api.post(`/leads/${id}/convert`, toConvertPayload(form));
   return res.data.data;
+}
+
+/** Move a cold lead back into the Contacts module (reverse of convert-to-raw-lead). */
+export async function convertLeadToContact(id) {
+  const res = await api.post(`/leads/${id}/convert-to-contact`);
+  return res.data?.data || null;
+}
+
+async function convertLeadsToContact(ids = []) {
+  let success = 0;
+  const errors = [];
+  for (const id of ids) {
+    try {
+      await convertLeadToContact(id);
+      success += 1;
+    } catch (err) {
+      errors.push(`${id}: ${err.response?.data?.message || err.response?.data?.error || err.message || 'Convert failed'}`);
+    }
+  }
+  if (errors.length) {
+    const err = new Error(errors.join('; '));
+    err.massUpdateResult = { success_count: success, failed_count: errors.length, errors };
+    throw err;
+  }
+  return { success_count: success, updated: success, failed_count: 0, errors: [] };
 }
 
 export async function listLeadAttachments(id) {

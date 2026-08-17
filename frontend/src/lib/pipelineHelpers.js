@@ -186,6 +186,7 @@ export const LEAD_MODULE_STATUSES = [PIPELINE_LEAD];
 export const CONVERT_TYPE = {
   STAGE: 'stage',
   ACCOUNT: 'account',
+  CONTACT: 'contact',
 };
 
 const CONVERT_REDIRECT = {
@@ -226,6 +227,7 @@ export function getConvertOptions(stage, { isAdmin = false } = {}) {
     add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT });
     add({ id: 'lead', label: 'Warm Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD, clearProposal: true, adminOnly: true });
   } else if (stage === PIPELINE_RAW) {
+    add({ id: 'contact', label: 'Contact', type: CONVERT_TYPE.CONTACT });
     add({ id: 'lead', label: 'Warm Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD });
     add({ id: 'qualified_lead', label: 'Qualified Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_QUALIFIED });
     add({ id: 'proposal', label: 'Proposal', type: CONVERT_TYPE.STAGE, target: PIPELINE_PROPOSAL, proposal: true });
