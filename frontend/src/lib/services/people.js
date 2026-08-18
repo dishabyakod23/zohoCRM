@@ -2,6 +2,7 @@ import api from '../api.js';
 import { ownerName } from '../recordHelpers.js';
 import { getLeadDetailPath } from '../pipelineHelpers.js';
 import { DIRECTORY_STATUS_OPTIONS, resolveDirectoryCurrentStatus, directoryLeadStatusValue, isConvertedToAccount } from '../contactDirectoryHelpers.js';
+import { leadStatusLabel } from '../leadHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { cachedLookup } from '../lookupCache.js';
 import * as contactsApi from './contacts.js';
@@ -169,6 +170,8 @@ export function normalizePersonRow(person) {
     entityType = 'contact';
   }
 
+  const lead_status = directoryLeadStatusValue(person);
+
   return {
     ...person,
     id: rowId,
@@ -176,7 +179,8 @@ export function normalizePersonRow(person) {
     entity_type: entityType,
     account_name: person.account_name || person.company || person.company_name || null,
     current_status,
-    lead_status: directoryLeadStatusValue(person),
+    lead_status,
+    lead_status_label: lead_status ? (leadStatusLabel(lead_status) || lead_status) : '—',
     owner_name: ownerName(person) || person.owner_name || null,
     campaign_id: person.campaign_id || null,
     campaign_name: person.campaign_name || null,

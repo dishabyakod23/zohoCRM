@@ -9,6 +9,7 @@ import {
   PIPELINE_RAW,
 } from './pipelineHelpers.js';
 import { includesText, matchLeadStatus, matchesRecordTimestampFilters } from './listRecordFilters.js';
+import { leadStatusLabel } from './leadHelpers.js';
 
 export const DIRECTORY_STATUS_OPTIONS = [
   { value: 'Contact', label: 'Contact' },
@@ -183,6 +184,7 @@ export function leadToDirectoryRow(lead, statusOptions = []) {
     owner_id: lead.owner_id,
     owner_name: lead.owner_name,
     lead_status,
+    lead_status_label: lead_status ? (leadStatusLabel(lead_status, statusOptions) || lead_status) : '—',
     current_status,
     _statusPriority: statusPriorityForLabel(current_status),
     updated_at: lead.updated_at,
@@ -192,12 +194,14 @@ export function leadToDirectoryRow(lead, statusOptions = []) {
 
 export function contactToDirectoryRow(contact) {
   const current_status = resolveDirectoryCurrentStatus({ ...contact, entity_type: 'contact' });
+  const lead_status = directoryLeadStatusValue(contact);
 
   return {
     ...contact,
     _entityType: 'contact',
     _detailHref: `/contacts/${contact.id}`,
-    lead_status: directoryLeadStatusValue(contact),
+    lead_status,
+    lead_status_label: lead_status ? (leadStatusLabel(lead_status) || lead_status) : '—',
     current_status,
     _statusPriority: statusPriorityForLabel(current_status),
   };
