@@ -29,13 +29,12 @@ import ReadOnlyRecordBanner from '../records/ReadOnlyRecordBanner.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { useRecordCampaign } from '../../hooks/useRecordCampaign.js';
 import { LEAD_SOURCES } from '../../lib/constants.js';
+import { IndustrySelectControl } from '../forms/IndustryField.js';
 import { formatMoney, CURRENCIES, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon, UserIcon,
 } from '@heroicons/react/24/outline';
-
-const INDUSTRIES = ['IT Services', 'E-Commerce', 'EdTech', 'Automotive', 'Finance', 'Healthcare', 'Manufacturing', 'Education', 'Media', 'Real Estate', 'Other'];
 
 export default function PipelineLeadDetail({ stage }) {
   const config = getPipelineConfig(stage);
@@ -234,7 +233,12 @@ export default function PipelineLeadDetail({ stage }) {
               { name: 'title', label: 'Job Title' },
               { name: 'lead_status', label: statusFieldLabel, format: () => lead.status, render: (d, set) => select(statusOptions)(d, set, 'lead_status') },
               { name: 'source', label: 'Lead Source', render: (d, set) => select(LEAD_SOURCES, null, null)(d, set, 'source') },
-              { name: 'industry', label: 'Industry', render: (d, set) => select(INDUSTRIES, null, null)(d, set, 'industry') },
+              { name: 'industry', label: 'Industry', render: (d, set) => (
+                <IndustrySelectControl
+                  value={d.industry ?? ''}
+                  onChange={(industry) => set((p) => ({ ...p, industry }))}
+                />
+              ) },
               campaignField,
               ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: lead.owner_name }),
               { name: 'description', label: 'Description', colSpan: true, render: (d, set) => (

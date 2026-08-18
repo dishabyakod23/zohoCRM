@@ -7,7 +7,10 @@ import FormField, { inputClass } from '../forms/FormField.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
-import { ACCOUNT_TYPES, RATINGS, INDUSTRIES } from '../../lib/constants.js';
+import { ACCOUNT_TYPES, RATINGS } from '../../lib/constants.js';
+import IndustryField from '../forms/IndustryField.js';
+import { AddressCountryField, AddressStateField } from '../forms/AddressCountryStateFields.js';
+import { nextStateForCountry } from '../../lib/addressRegions.js';
 import { CONFIRMED_ACCOUNT_TYPE } from '../../lib/companyHelpers.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as accountsApi from '../../lib/services/accounts.js';
@@ -54,7 +57,7 @@ function SectionTitle({ children }) {
   );
 }
 
-function AddressBlock({ prefix, label, form, set, copyFrom }) {
+function AddressBlock({ prefix, label, form, set, setForm, copyFrom }) {
   const clearAll = () => {
     ['flat', 'street', 'city', 'state', 'country', 'zip', 'lat', 'lng'].forEach(f =>
       set(`${prefix}_${f}`)({ target: { value: '' } })
@@ -71,9 +74,15 @@ function AddressBlock({ prefix, label, form, set, copyFrom }) {
         )}
       </div>
       <div className="space-y-4">
-        <FormField label="Country / Region" name={`${prefix}_country`}>
-          <input className="input" placeholder="—None—" value={form[`${prefix}_country`]} onChange={set(`${prefix}_country`)} />
-        </FormField>
+        <AddressCountryField
+          name={`${prefix}_country`}
+          value={form[`${prefix}_country`]}
+          onChange={(country) => setForm((f) => ({
+            ...f,
+            [`${prefix}_country`]: country,
+            [`${prefix}_state`]: nextStateForCountry(country, f[`${prefix}_state`]),
+          }))}
+        />
         <FormField label="Flat / House No. / Building / Apartment Name" name={`${prefix}_flat`}>
           <input className="input" value={form[`${prefix}_flat`]} onChange={set(`${prefix}_flat`)} />
         </FormField>
@@ -83,9 +92,12 @@ function AddressBlock({ prefix, label, form, set, copyFrom }) {
         <FormField label="City" name={`${prefix}_city`}>
           <input className="input" value={form[`${prefix}_city`]} onChange={set(`${prefix}_city`)} />
         </FormField>
-        <FormField label="State / Province" name={`${prefix}_state`}>
-          <input className="input" placeholder="—None—" value={form[`${prefix}_state`]} onChange={set(`${prefix}_state`)} />
-        </FormField>
+        <AddressStateField
+          name={`${prefix}_state`}
+          country={form[`${prefix}_country`]}
+          value={form[`${prefix}_state`]}
+          onChange={(state) => setForm((f) => ({ ...f, [`${prefix}_state`]: state }))}
+        />
         <FormField label="Zip / Postal Code" name={`${prefix}_zip`}>
           <input className="input" value={form[`${prefix}_zip`]} onChange={set(`${prefix}_zip`)} />
         </FormField>
@@ -249,12 +261,11 @@ export default function CreateAccountForm() {
               </select>
             </FormField>
 
-            <FormField label="Industry" name="industry">
-              <select className="input" value={form.industry} onChange={set('industry')}>
-                <option value="">—None—</option>
-                {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
-              </select>
-            </FormField>
+            <IndustryField
+              value={form.industry}
+              onChange={(industry) => setForm((f) => ({ ...f, industry }))}
+              noneLabel="—None—"
+            />
             <CampaignSelect
               value={form.campaign_id}
               valueLabel={form.campaign_name}
@@ -313,8 +324,8 @@ export default function CreateAccountForm() {
           {/* ── Address Information ── */}
           <SectionTitle>Address Information</SectionTitle>
           <div className="flex flex-col sm:flex-row gap-8 sm:gap-x-12 sm:gap-y-8 pt-1">
-            <AddressBlock prefix="billing" label="Billing Address" form={form} set={set} />
-            <AddressBlock prefix="shipping" label="Shipping Address" form={form} set={set} copyFrom={copyBillingToShipping} />
+            <AddressBlock prefix="billing" label="Billing Address" form={form} set={set} setForm={setForm} />
+            <AddressBlock prefix="shipping" label="Shipping Address" form={form} set={set} setForm={setForm} copyFrom={copyBillingToShipping} />
           </div>
 
           {/* ── Deal & Related Records ── */}

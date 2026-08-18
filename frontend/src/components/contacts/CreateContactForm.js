@@ -8,6 +8,8 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { LEAD_SOURCES, SALUTATIONS } from '../../lib/constants.js';
+import { AddressCountryField, AddressStateField } from '../forms/AddressCountryStateFields.js';
+import { nextStateForCountry } from '../../lib/addressRegions.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
@@ -43,7 +45,7 @@ function SectionTitle({ children }) {
   );
 }
 
-function AddressBlock({ prefix, label, form, set, copyFrom }) {
+function AddressBlock({ prefix, label, form, set, setForm, copyFrom }) {
   return (
     <div className="flex-1 min-w-0">
       <div className="flex items-center justify-between mb-5 pt-1">
@@ -56,9 +58,15 @@ function AddressBlock({ prefix, label, form, set, copyFrom }) {
         )}
       </div>
       <div className="space-y-4">
-        <FormField label="Country / Region" name={`${prefix}_country`}>
-          <input className="input" placeholder="—None—" value={form[`${prefix}_country`]} onChange={set(`${prefix}_country`)} />
-        </FormField>
+        <AddressCountryField
+          name={`${prefix}_country`}
+          value={form[`${prefix}_country`]}
+          onChange={(country) => setForm((f) => ({
+            ...f,
+            [`${prefix}_country`]: country,
+            [`${prefix}_state`]: nextStateForCountry(country, f[`${prefix}_state`]),
+          }))}
+        />
         <FormField label="Flat / House No. / Building / Apartment Name" name={`${prefix}_flat`}>
           <input className="input" value={form[`${prefix}_flat`]} onChange={set(`${prefix}_flat`)} />
         </FormField>
@@ -68,9 +76,12 @@ function AddressBlock({ prefix, label, form, set, copyFrom }) {
         <FormField label="City" name={`${prefix}_city`}>
           <input className="input" value={form[`${prefix}_city`]} onChange={set(`${prefix}_city`)} />
         </FormField>
-        <FormField label="State / Province" name={`${prefix}_state`}>
-          <input className="input" placeholder="—None—" value={form[`${prefix}_state`]} onChange={set(`${prefix}_state`)} />
-        </FormField>
+        <AddressStateField
+          name={`${prefix}_state`}
+          country={form[`${prefix}_country`]}
+          value={form[`${prefix}_state`]}
+          onChange={(state) => setForm((f) => ({ ...f, [`${prefix}_state`]: state }))}
+        />
         <FormField label="Zip / Postal Code" name={`${prefix}_zip`}>
           <input className="input" value={form[`${prefix}_zip`]} onChange={set(`${prefix}_zip`)} />
         </FormField>
@@ -356,8 +367,8 @@ export default function CreateContactForm() {
           {/* ── Address Information ── */}
           <SectionTitle>Address Information</SectionTitle>
           <div className="flex flex-col sm:flex-row gap-8 sm:gap-x-12 sm:gap-y-8 pt-1">
-            <AddressBlock prefix="mailing" label="Mailing Address" form={form} set={set} />
-            <AddressBlock prefix="other" label="Other Address" form={form} set={set} copyFrom={copyMailingToOther} />
+            <AddressBlock prefix="mailing" label="Mailing Address" form={form} set={set} setForm={setForm} />
+            <AddressBlock prefix="other" label="Other Address" form={form} set={set} setForm={setForm} copyFrom={copyMailingToOther} />
           </div>
 
           {/* ── Description ── */}

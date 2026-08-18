@@ -16,22 +16,16 @@ import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { PIPELINE_RAW } from '../../lib/pipelineHelpers.js';
 import {
-  LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES,
+  LEAD_SOURCES, SALUTATIONS, RATINGS,
 } from '../../lib/constants.js';
+import IndustryField from '../forms/IndustryField.js';
+import { AddressCountryField, AddressStateField } from '../forms/AddressCountryStateFields.js';
+import { nextStateForCountry } from '../../lib/addressRegions.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 import { syncSingleLeadAsContact } from '../../lib/importSyncHelpers.js';
-
-const COUNTRIES = ['India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Singapore', 'UAE', 'Other'];
-const INDIAN_STATES = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat',
-  'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh',
-  'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
-  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh',
-  'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu and Kashmir', 'Ladakh',
-];
 
 export function emptyRawLeadForm(ownerId = '') {
   return {
@@ -114,6 +108,16 @@ export default function CreateRawLeadForm() {
     setErrors((er) => ({ ...er, [field]: null }));
   };
 
+  const setCountry = (country) => {
+    setForm((f) => ({ ...f, country, state: nextStateForCountry(country, f.state) }));
+    setErrors((er) => ({ ...er, country: null, state: null }));
+  };
+
+  const setStateValue = (state) => {
+    setForm((f) => ({ ...f, state }));
+    setErrors((er) => ({ ...er, state: null }));
+  };
+
   const clearAddress = () => {
     setForm((f) => ({
       ...f,
@@ -158,7 +162,7 @@ export default function CreateRawLeadForm() {
       if (created?.id) {
         await syncSingleLeadAsContact(created, campaignId);
       }
-      showToast('Raw lead created', 'success');
+      showToast('Cold Lead is created', 'success');
       navigateToRecord(created?.id ? `/raw-leads/${created.id}` : '/raw-leads');
     } catch (err) {
       showToast(getApiError(err));
@@ -193,12 +197,15 @@ export default function CreateRawLeadForm() {
               </select>
             </FormField>
             )}
-            <div className="sm:col-span-2 grid grid-cols-[120px_1fr] gap-3">
+            <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-[120px_1fr_1fr] gap-3">
               <FormField label="Salutation">
                 {noneSelect(form.salutation, set('salutation'), SALUTATIONS)}
               </FormField>
               <FormField label="First Name" required error={errors.first_name} name="first_name">
                 <input className={inputClass(errors.first_name)} placeholder="First Name" value={form.first_name} onChange={set('first_name')} />
+              </FormField>
+              <FormField label="Last Name" required error={errors.last_name} name="last_name">
+                <input className={inputClass(errors.last_name)} placeholder="Last Name" value={form.last_name} onChange={set('last_name')} />
               </FormField>
             </div>
             <FormField label="Title" name="title">
@@ -226,9 +233,10 @@ export default function CreateRawLeadForm() {
               valueLabel={form.campaign_name}
               onChange={({ campaign_id, campaign_name }) => setForm((f) => ({ ...f, campaign_id, campaign_name }))}
             />
-            <FormField label="Industry" name="industry">
-              {noneSelect(form.industry, set('industry'), INDUSTRIES)}
-            </FormField>
+            <IndustryField
+              value={form.industry}
+              onChange={(industry) => setForm((f) => ({ ...f, industry }))}
+            />
             <FormField label="Annual Revenue" name="annual_revenue">
               <CurrencyAmountInput
                 amount={form.annual_revenue}
@@ -245,9 +253,6 @@ export default function CreateRawLeadForm() {
             </FormField>
             <FormField label="Company" required error={errors.company} name="company">
               <input className={inputClass(errors.company)} value={form.company} onChange={set('company')} />
-            </FormField>
-            <FormField label="Last Name" required error={errors.last_name} name="last_name">
-              <input className={inputClass(errors.last_name)} value={form.last_name} onChange={set('last_name')} />
             </FormField>
             <FormField label="Fax" name="fax">
               <input className="input" value={form.fax} onChange={set('fax')} />
@@ -280,9 +285,7 @@ export default function CreateRawLeadForm() {
 
           <SectionTitle>Address Information</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 mb-2">
-            <FormField label="Country / Region" name="country">
-              {noneSelect(form.country, set('country'), COUNTRIES)}
-            </FormField>
+            <AddressCountryField value={form.country} onChange={setCountry} />
             <FormField label="Flat / House No./ Building / Apartment Name" name="building">
               <input className="input" value={form.building} onChange={set('building')} />
             </FormField>
@@ -294,9 +297,7 @@ export default function CreateRawLeadForm() {
             <FormField label="City" name="city">
               <input className="input" value={form.city} onChange={set('city')} />
             </FormField>
-            <FormField label="State / Province" name="state">
-              {noneSelect(form.state, set('state'), INDIAN_STATES)}
-            </FormField>
+            <AddressStateField country={form.country} value={form.state} onChange={setStateValue} />
             <FormField label="Zip / Postal Code" name="zip_code">
               <input className="input" value={form.zip_code} onChange={set('zip_code')} />
             </FormField>

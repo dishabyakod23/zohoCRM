@@ -6,7 +6,10 @@ import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
-import { LEAD_SOURCES, SALUTATIONS, RATINGS, INDUSTRIES } from '../../lib/constants.js';
+import { LEAD_SOURCES, SALUTATIONS, RATINGS } from '../../lib/constants.js';
+import IndustryField from '../forms/IndustryField.js';
+import { AddressCountryField, AddressStateField } from '../forms/AddressCountryStateFields.js';
+import { nextStateForCountry } from '../../lib/addressRegions.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
@@ -56,6 +59,16 @@ export default function CreateLeadForm() {
   const set = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
     setErrors((er) => ({ ...er, [field]: null }));
+  };
+
+  const setCountry = (country) => {
+    setForm((f) => ({ ...f, country, state: nextStateForCountry(country, f.state) }));
+    setErrors((er) => ({ ...er, country: null, state: null }));
+  };
+
+  const setStateValue = (state) => {
+    setForm((f) => ({ ...f, state }));
+    setErrors((er) => ({ ...er, state: null }));
   };
 
   const validate = async () => {
@@ -152,12 +165,10 @@ export default function CreateLeadForm() {
               valueLabel={form.campaign_name}
               onChange={({ campaign_id, campaign_name }) => setForm((f) => ({ ...f, campaign_id, campaign_name }))}
             />
-            <FormField label="Industry">
-              <select className="input" value={form.industry} onChange={set('industry')}>
-                <option value="">--None--</option>
-                {INDUSTRIES.map((i) => <option key={i}>{i}</option>)}
-              </select>
-            </FormField>
+            <IndustryField
+              value={form.industry}
+              onChange={(industry) => setForm((f) => ({ ...f, industry }))}
+            />
             <FormField label="Rating">
               <select className="input" value={form.rating} onChange={set('rating')}>
                 <option value="">--None--</option>
@@ -216,14 +227,10 @@ export default function CreateLeadForm() {
             <FormField label="City">
               <input className="input" value={form.city} onChange={set('city')} />
             </FormField>
-            <FormField label="State">
-              <input className="input" value={form.state} onChange={set('state')} />
-            </FormField>
+            <AddressCountryField value={form.country} onChange={setCountry} />
+            <AddressStateField country={form.country} value={form.state} onChange={setStateValue} />
             <FormField label="Zip Code">
               <input className="input" value={form.zip_code} onChange={set('zip_code')} />
-            </FormField>
-            <FormField label="Country">
-              <input className="input" value={form.country} onChange={set('country')} />
             </FormField>
           </div>
 
