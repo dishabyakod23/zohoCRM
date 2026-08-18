@@ -12,7 +12,7 @@ import { validateRequired, validateEmail } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
-import { PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES } from '../../lib/pipelineHelpers.js';
+import { PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
 import {
   LEAD_SOURCES, SALUTATIONS, RATINGS,
 } from '../../lib/constants.js';
@@ -289,7 +289,7 @@ export default function CreatePipelineLeadForm({
             </FormField>
             {showLeadStatus && (
               <FormField label="Lead Status" name="lead_status">
-                {noneSelect(form.lead_status, set('lead_status'), statusOptions, '--None--')}
+                {noneSelect(form.lead_status, set('lead_status'), outreachLeadStatusOptions(statusOptions), '--None--')}
               </FormField>
             )}
             <FormField label="No. of Employees" name="no_of_employees">

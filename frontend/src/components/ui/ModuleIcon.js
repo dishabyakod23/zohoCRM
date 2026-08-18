@@ -13,6 +13,7 @@ import {
   MegaphoneIcon,
   FolderIcon,
   ClipboardDocumentListIcon,
+  PaperClipIcon,
 } from '@heroicons/react/24/outline';
 
 const ICONS = {
@@ -32,6 +33,7 @@ const ICONS = {
   Accounts: BuildingOffice2Icon,
   Calendar: CalendarDaysIcon,
   Campaigns: MegaphoneIcon,
+  Documents: PaperClipIcon,
   Projects: FolderIcon,
 };
 

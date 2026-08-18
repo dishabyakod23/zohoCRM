@@ -1,4 +1,14 @@
-import { formatFileSize, matchesRelatedRecord, DOCUMENT_FILE_ACCEPT } from '../documents.js';
+import {
+  formatFileSize,
+  matchesRelatedRecord,
+  DOCUMENT_FILE_ACCEPT,
+  resolveDocumentOwnerName,
+  normalizeDocument,
+  documentPreviewMode,
+  canPreviewDocument,
+  documentFileName,
+  documentMimeType,
+} from '../documents.js';
 
 describe('formatFileSize', () => {
   it('formats bytes, KB, and MB', () => {
@@ -47,5 +57,51 @@ describe('DOCUMENT_FILE_ACCEPT', () => {
     expect(DOCUMENT_FILE_ACCEPT).toContain('.doc');
     expect(DOCUMENT_FILE_ACCEPT).toContain('.jpg');
     expect(DOCUMENT_FILE_ACCEPT).toContain('.png');
+  });
+});
+
+describe('resolveDocumentOwnerName', () => {
+  const userMap = {
+    u1: { id: 'u1', first_name: 'Raksha', last_name: 'Chaturvedi', email: 'raksha@example.com' },
+  };
+
+  it('uses nested owner object from the API', () => {
+    expect(resolveDocumentOwnerName({
+      owner: { first_name: 'Ada', last_name: 'Lovelace', email: 'ada@example.com' },
+    })).toBe('Ada Lovelace');
+  });
+
+  it('resolves owner_id through the users lookup map', () => {
+    expect(resolveDocumentOwnerName({ owner_id: 'u1' }, userMap)).toBe('Raksha Chaturvedi');
+  });
+
+  it('falls back to created_by when owner fields are missing', () => {
+    expect(resolveDocumentOwnerName({
+      created_by: { first_name: 'Jane', last_name: 'Doe', email: 'jane@example.com' },
+    })).toBe('Jane Doe');
+  });
+
+  it('returns null when no owner data is available', () => {
+    expect(resolveDocumentOwnerName({})).toBeNull();
+    expect(normalizeDocument({ name: 'file.pdf' }).owner_name).toBeNull();
+  });
+});
+
+describe('document preview helpers', () => {
+  it('detects previewable PDF and image files', () => {
+    expect(documentPreviewMode({ name: 'deck.pdf' })).toBe('pdf');
+    expect(documentPreviewMode({ name: 'photo.png' })).toBe('image');
+    expect(canPreviewDocument({ name: 'notes.txt' })).toBe(true);
+  });
+
+  it('marks office files as non-previewable in the browser', () => {
+    expect(documentPreviewMode({ name: 'proposal.pptx' })).toBe('none');
+    expect(documentPreviewMode({ name: 'scope.docx' })).toBe('none');
+    expect(canPreviewDocument({ name: 'sheet.xlsx' })).toBe(false);
+  });
+
+  it('resolves file names and mime types from document metadata', () => {
+    expect(documentFileName({ document_name: 'TVS Proposal.pptx' })).toBe('TVS Proposal.pptx');
+    expect(documentMimeType({ name: 'report.pdf' })).toContain('pdf');
   });
 });

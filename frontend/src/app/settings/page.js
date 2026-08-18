@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
@@ -44,6 +45,20 @@ const TABS = [
 ];
 
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={(
+      <CRMLayout>
+        <div className="max-w-5xl mx-auto w-full p-6 text-sm text-zoho-muted">Loading settings…</div>
+      </CRMLayout>
+    )}>
+      <SettingsPageContent />
+    </Suspense>
+  );
+}
+
+function SettingsPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, logout } = useAuth();
   const { canManageUsers, canManageSettings, canManageRoles, roleAccess, roleLabel: myRoleLabel, can } = usePermissions();
   const { showToast } = useToast();
@@ -85,11 +100,18 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('sales_targets') && can('settings_sales_targets', 'view')) {
+    if (!searchParams.get('sales_targets')) return;
+    if (can('settings_sales_targets', 'view')) {
       setTab('sales_targets');
     }
-  }, [can]);
+  }, [searchParams]);
+
+  const handleTabChange = useCallback((nextTab) => {
+    setTab(nextTab);
+    if (searchParams.get('sales_targets') && nextTab !== 'sales_targets') {
+      router.replace('/settings', { scroll: false });
+    }
+  }, [router, searchParams]);
 
   const loadUsers = useCallback(async () => {
     if (!canManageUsers) return;
@@ -353,7 +375,7 @@ export default function SettingsPage() {
 
         <div className="flex gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
           {visibleTabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            <button key={t.id} onClick={() => handleTabChange(t.id)}
               className={`px-4 py-2 text-sm border-b-2 -mb-px whitespace-nowrap ${tab === t.id ? 'border-brand-500 text-brand-600 font-medium' : 'border-transparent text-gray-500'}`}>
               {t.label}
             </button>

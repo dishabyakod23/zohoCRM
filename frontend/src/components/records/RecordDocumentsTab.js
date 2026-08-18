@@ -1,17 +1,17 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useToast } from '../ui/Toast.js';
+import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as documentsApi from '../../lib/services/documents.js';
-import { ArrowDownTrayIcon, TrashIcon, PaperClipIcon } from '@heroicons/react/24/outline';
-import RecordDetailLink from './RecordDetailLink.js';
-import { tableLinkClass } from '../../lib/tableStyles.js';
+import { PaperClipIcon } from '@heroicons/react/24/outline';
+import DocumentFileActions, { DocumentFileNameButton } from '../documents/DocumentFileActions.js';
 
 export default function RecordDocumentsTab({ relatedType, recordId, canEdit = false }) {
   const { showToast } = useToast();
+  const { user } = useAuth();
   const { can } = usePermissions();
-  // Global documents.upload (managers) OR owner/editor of this record (e.g. contact owner).
   const canUpload = can('documents', 'upload') || canEdit;
   const canDownload = can('documents', 'download') || can('documents', 'view');
   const canDelete = can('documents', 'delete');
@@ -19,6 +19,7 @@ export default function RecordDocumentsTab({ relatedType, recordId, canEdit = fa
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [openingId, setOpeningId] = useState(null);
   const fileInputRef = useRef(null);
 
   const loadDocs = useCallback(async () => {
@@ -47,6 +48,7 @@ export default function RecordDocumentsTab({ relatedType, recordId, canEdit = fa
           name: file.name,
           related_type: relatedType,
           related_id: recordId,
+          owner_id: user?.id,
         });
         uploaded += 1;
       }
@@ -61,24 +63,14 @@ export default function RecordDocumentsTab({ relatedType, recordId, canEdit = fa
     }
   };
 
-  const handleDownload = async (doc) => {
+  const handleOpen = async (doc) => {
+    setOpeningId(doc.id);
     try {
-      await documentsApi.downloadDocument(doc.id, doc.file_name || doc.name);
+      await documentsApi.openDocument(doc);
     } catch (err) {
-      showToast(getApiError(err));
-    }
-  };
-
-  const handleDelete = async (doc) => {
-    setDeletingId(doc.id);
-    try {
-      await documentsApi.deleteDocument(doc.id);
-      setDocs((prev) => prev.filter((item) => item.id !== doc.id));
-      showToast('File removed', 'success');
-    } catch (err) {
-      showToast(getApiError(err));
+      showToast(getApiError(err) || 'Could not open file');
     } finally {
-      setDeletingId(null);
+      setOpeningId(null);
     }
   };
 
@@ -120,9 +112,11 @@ export default function RecordDocumentsTab({ relatedType, recordId, canEdit = fa
             <div key={doc.id} className="flex items-center gap-3 px-3 py-2.5 bg-white hover:bg-brand-50/40">
               <PaperClipIcon className="w-4 h-4 text-zoho-muted shrink-0" />
               <div className="min-w-0 flex-1">
-                <RecordDetailLink href={`/documents/${doc.id}`} className={`text-sm font-medium ${tableLinkClass}`}>
-                  {doc.name || doc.document_name || 'Untitled'}
-                </RecordDetailLink>
+                <DocumentFileNameButton
+                  doc={doc}
+                  opening={openingId === doc.id}
+                  onOpen={() => handleOpen(doc)}
+                />
                 <p className="text-[11px] text-zoho-muted mt-0.5">
                   {[doc.file_type || doc.mime_type, documentsApi.formatFileSize(doc.file_size)]
                     .filter((part) => part && part !== '—')
@@ -130,31 +124,15 @@ export default function RecordDocumentsTab({ relatedType, recordId, canEdit = fa
                   {doc.created_at ? ` · ${new Date(doc.created_at).toLocaleString()}` : ''}
                 </p>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                {canDownload && (
-                  <button
-                    type="button"
-                    onClick={() => handleDownload(doc)}
-                    className="p-1.5 text-zoho-muted hover:text-brand-600 rounded"
-                    aria-label="Download file"
-                    title="Download"
-                  >
-                    <ArrowDownTrayIcon className="w-4 h-4" />
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(doc)}
-                    disabled={deletingId === doc.id}
-                    className="p-1.5 text-zoho-muted hover:text-red-600 rounded"
-                    aria-label="Delete file"
-                    title="Delete"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+              <DocumentFileActions
+                doc={doc}
+                canDownload={canDownload}
+                canDelete={canDelete}
+                deleting={deletingId === doc.id}
+                onDeleteStart={setDeletingId}
+                onDeleted={(id) => setDocs((prev) => prev.filter((item) => item.id !== id))}
+                showToast={showToast}
+              />
             </div>
           ))}
         </div>

@@ -26,6 +26,7 @@ import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter, DateFilter, Crea
 import { EMPTY_CONTACT_FILTERS, countActiveFilters, matchLeadStatus, hasTimestampFilters, matchesRecordTimestampFilters } from '../../lib/listRecordFilters.js';
 import { recordTimestampColumns } from '../../lib/listTimestampHelpers.js';
 import { DIRECTORY_STATUS_OPTIONS } from '../../lib/contactDirectoryHelpers.js';
+import { outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
@@ -301,7 +302,7 @@ export default function ContactsPage() {
               records={contacts}
               loading={loading}
               columns={columns}
-              statusOptions={leadStatusOptions}
+              statusOptions={outreachLeadStatusOptions(leadStatusOptions)}
               onRefresh={fetchContacts}
               emptyMessage="No contacts found"
               sort={sort}
@@ -324,7 +325,7 @@ export default function ContactsPage() {
             label="Lead Status"
             value={filters.lead_status}
             onChange={(v) => { setFilters((f) => ({ ...f, lead_status: v })); setPage(1); }}
-            options={leadStatusOptions}
+            options={outreachLeadStatusOptions(leadStatusOptions)}
             emptyLabel="All lead statuses"
           />
           <DateFilter label="Activity from" value={filters.activity_from} onChange={(v) => { setFilters((f) => ({ ...f, activity_from: v })); setPage(1); }} />

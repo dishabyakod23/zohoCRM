@@ -1,14 +1,14 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
 import Modal from '../../components/ui/Modal.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
-import RecordDetailLink from '../../components/records/RecordDetailLink.js';
+import DocumentFileActions, { DocumentFileNameButton } from '../../components/documents/DocumentFileActions.js';
 import FormField, { inputClass } from '../../components/forms/FormField.js';
 import { useToast } from '../../components/ui/Toast.js';
+import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../lib/api.js';
@@ -17,7 +17,6 @@ import * as leadsApi from '../../lib/services/leads.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import * as dealsApi from '../../lib/services/deals.js';
 import { fetchAccountLookups, accountMapFromLookups } from '../../lib/services/lookups.js';
-import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
@@ -31,6 +30,7 @@ const ENTITY_TYPES = [
 
 export default function DocumentsPage() {
   const { showToast } = useToast();
+  const { user } = useAuth();
   const { can } = usePermissions();
   const canUpload = can('documents', 'upload');
   const [docs, setDocs] = useState([]);
@@ -48,6 +48,7 @@ export default function DocumentsPage() {
   const [uploadErrors, setUploadErrors] = useState({});
   const [uploading, setUploading] = useState(false);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
+  const [openingId, setOpeningId] = useState(null);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
 
@@ -158,7 +159,7 @@ export default function DocumentsPage() {
 
     setUploading(true);
     try {
-      await documentsApi.uploadDocument(uploadForm);
+      await documentsApi.uploadDocument({ ...uploadForm, owner_id: user?.id });
       setUploadModal(false);
       fetchDocs();
       showToast('Document uploaded', 'success');
@@ -169,12 +170,46 @@ export default function DocumentsPage() {
     }
   };
 
+  const handleOpenDocument = useCallback(async (doc) => {
+    setOpeningId(doc.id);
+    try {
+      await documentsApi.openDocument(doc);
+    } catch (err) {
+      showToast(getApiError(err) || 'Could not open file');
+    } finally {
+      setOpeningId(null);
+    }
+  }, [showToast]);
+
   const columns = useMemo(() => [
-    { id: 'name', header: 'Name', cell: (d) => <RecordDetailLink href={`/documents/${d.id}`} className={tableLinkClass}>{d.name}</RecordDetailLink> },
+    {
+      id: 'name',
+      header: 'Name',
+      cell: (d) => (
+        <DocumentFileNameButton
+          doc={d}
+          opening={openingId === d.id}
+          onOpen={() => handleOpenDocument(d)}
+        />
+      ),
+    },
     { id: 'type', header: 'Type', cell: (d) => d.file_type || '—' },
     { id: 'size', header: 'Size', cell: (d) => d.file_size ? `${(d.file_size / 1024).toFixed(1)} KB` : '—' },
-    { id: 'owner', header: 'Owner', cell: (d) => d.owner_name },
-  ], []);
+    { id: 'owner', header: 'Owner', cell: (d) => d.owner_name || '—' },
+    {
+      id: 'actions',
+      header: '',
+      cell: (d) => (
+        <DocumentFileActions
+          doc={d}
+          canDownload={can('documents', 'download') || can('documents', 'view')}
+          canDelete={can('documents', 'delete')}
+          onDeleted={() => fetchDocs()}
+          showToast={showToast}
+        />
+      ),
+    },
+  ], [openingId, can, showToast, fetchDocs, handleOpenDocument]);
 
   return (
     <CRMLayout>

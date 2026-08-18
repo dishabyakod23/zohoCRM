@@ -72,3 +72,29 @@ describe('resolveLeadStatusForApi', () => {
     expect(resolveLeadStatusForApi('custom_status_value')).toBe('custom_status_value');
   });
 });
+
+describe('toLeadPayload lead_status', () => {
+  it('sends null lead_status when none is selected', () => {
+    const payload = toLeadPayload({
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      company: 'Acme',
+      email: 'ada@example.com',
+      lead_status: '',
+    });
+    expect(payload.lead_status).toBeNull();
+  });
+
+  it('includes pipeline_stage when creating a cold lead', () => {
+    const payload = toLeadPayload({
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      company: 'Acme',
+      email: 'ada@example.com',
+      lead_status: '',
+      pipeline_stage: 'raw_prospect',
+    });
+    expect(payload.lead_status).toBeNull();
+    expect(payload.pipeline_stage).toBe('raw_prospect');
+  });
+});

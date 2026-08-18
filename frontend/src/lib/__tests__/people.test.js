@@ -74,6 +74,28 @@ describe('normalizePersonRow', () => {
     expect(row.current_status).toBe('Contact');
     expect(row._entityType).toBe('contact');
   });
+
+  it('shows Cold Lead current status and blank lead status for synced cold-lead contacts', () => {
+    const row = normalizePersonRow({
+      id: 'c1',
+      entity_type: 'contact',
+      current_status: 'CONTACT',
+      lead_status: 'raw_prospect',
+    });
+    expect(row.current_status).toBe('Cold Lead');
+    expect(row.lead_status).toBeNull();
+  });
+
+  it('keeps outreach lead status and does not default it', () => {
+    const row = normalizePersonRow({
+      id: 'c1',
+      entity_type: 'contact',
+      current_status: 'Contact',
+      lead_status: 'not_contacted',
+    });
+    expect(row.current_status).toBe('Contact');
+    expect(row.lead_status).toBe('not_contacted');
+  });
 });
 
 describe('deletePersonRecord', () => {

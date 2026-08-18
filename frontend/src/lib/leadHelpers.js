@@ -154,7 +154,11 @@ export function toLeadPayload(form, { partial = false } = {}) {
     }
     if (formHas(form, 'industry')) payload.industry = form.industry || null;
     if (formHas(form, 'lead_status') || formHas(form, 'status')) {
-      payload.lead_status = resolveLeadStatusForApi(form.lead_status || form.status);
+      const rawStatus = form.lead_status || form.status;
+      payload.lead_status = rawStatus ? resolveLeadStatusForApi(rawStatus) : null;
+    }
+    if (formHas(form, 'pipeline_stage')) {
+      payload.pipeline_stage = form.pipeline_stage || null;
     }
     if (formHas(form, 'description')) payload.description = form.description || null;
     if (formHas(form, 'website')) payload.website = form.website || null;
@@ -203,7 +207,10 @@ export function toLeadPayload(form, { partial = false } = {}) {
     title: form.title || null,
     lead_source: form.source || form.lead_source || null,
     industry: form.industry || null,
-    lead_status: resolveLeadStatusForApi(form.lead_status || form.status),
+    lead_status: (form.lead_status || form.status)
+      ? resolveLeadStatusForApi(form.lead_status || form.status)
+      : null,
+    ...(form.pipeline_stage ? { pipeline_stage: form.pipeline_stage } : {}),
     description: form.description || null,
     website: form.website || null,
     annual_revenue: form.annual_revenue || null,

@@ -2,6 +2,7 @@ import { ownerName } from './recordHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
 import { coerceImportBool } from './importHelpers.js';
 import { leadStatusLabel, resolveLeadStatusForApi } from './leadHelpers.js';
+import { directoryLeadStatusValue } from './contactDirectoryHelpers.js';
 
 export function isImportUuid(value) {
   return /^[0-9a-f-]{36}$/i.test(String(value || '').trim());
@@ -15,6 +16,7 @@ export function normalizeContact(contact, companyMap = {}) {
     || company?.label
     || company?.name
     || contact.account_name;
+  const leadStatus = directoryLeadStatusValue(contact);
   return {
     ...contact,
     company_id: companyId,
@@ -22,8 +24,8 @@ export function normalizeContact(contact, companyMap = {}) {
     account_name: companyName || contact.account_name,
     owner_name: ownerName(contact) || contact.owner_name,
     currency: contact.currency || DEFAULT_CURRENCY,
-    lead_status: contact.lead_status ?? contact.status ?? null,
-    lead_status_label: leadStatusLabel(contact.lead_status ?? contact.status),
+    lead_status: leadStatus,
+    lead_status_label: leadStatus ? leadStatusLabel(leadStatus) : '—',
   };
 }
 

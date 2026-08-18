@@ -4,6 +4,8 @@ import {
   contactToDirectoryRow,
   leadToDirectoryRow,
   applyContactDirectoryFilters,
+  resolveDirectoryCurrentStatus,
+  directoryLeadStatusValue,
 } from '../contactDirectoryHelpers.js';
 import { PIPELINE_RAW } from '../pipelineHelpers.js';
 
@@ -90,5 +92,59 @@ describe('dedupeDirectoryRows', () => {
     ]);
     expect(rows).toHaveLength(1);
     expect(rows[0].current_status).toBe('Cold Lead');
+  });
+});
+
+describe('directory current status vs lead status', () => {
+  it('shows Cold Lead as Current Status when a synced contact still has pipeline lead_status', () => {
+    const row = contactToDirectoryRow({
+      id: 'c1',
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      email: 'ada@example.com',
+      current_status: 'CONTACT',
+      lead_status: PIPELINE_RAW,
+    });
+    expect(row.current_status).toBe('Cold Lead');
+    expect(row.lead_status).toBeNull();
+  });
+
+  it('keeps Current Status as Contact when there is no pipeline stage', () => {
+    const row = contactToDirectoryRow({
+      id: 'c1',
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      email: 'ada@example.com',
+      current_status: 'Contact',
+    });
+    expect(row.current_status).toBe('Contact');
+    expect(row.lead_status).toBeNull();
+  });
+
+  it('does not copy outreach lead status into Current Status', () => {
+    const row = contactToDirectoryRow({
+      id: 'c1',
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      email: 'ada@example.com',
+      current_status: 'Contact',
+      lead_status: 'not_contacted',
+    });
+    expect(row.current_status).toBe('Contact');
+    expect(row.lead_status).toBe('not_contacted');
+  });
+
+  it('uses pipeline_stage for Current Status when lead_status is blank', () => {
+    expect(resolveDirectoryCurrentStatus({
+      entity_type: 'contact',
+      current_status: 'Contact',
+      pipeline_stage: PIPELINE_RAW,
+    })).toBe('Cold Lead');
+    expect(directoryLeadStatusValue({ lead_status: '' })).toBeNull();
+  });
+
+  it('leaves Lead Status blank when the value is a pipeline stage label', () => {
+    expect(directoryLeadStatusValue({ lead_status: 'Cold Lead' })).toBeNull();
+    expect(directoryLeadStatusValue({ lead_status: PIPELINE_RAW })).toBeNull();
   });
 });

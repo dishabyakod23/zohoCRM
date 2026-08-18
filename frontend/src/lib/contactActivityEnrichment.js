@@ -3,6 +3,7 @@ import { phoneMatchKeys, phoneDigits } from './phoneLookup.js';
 import { matchesDateRange } from './listRecordFilters.js';
 import { buildOutreachActivityIndex, getLinkedInRequestSent } from './outreachActivity.js';
 import { leadStatusLabel } from './leadHelpers.js';
+import { directoryLeadStatusValue } from './contactDirectoryHelpers.js';
 
 function formatActivityDateTime(iso) {
   if (!iso) return '';
@@ -111,10 +112,10 @@ export function enrichContactDirectoryRows(rows = [], {
     const linkedinEntry = getLinkedInRequestSent(recordId)
       || (row.linkedin_request_sent_at ? { sent_at: row.linkedin_request_sent_at } : null);
 
-    const rawLeadStatus = row.lead_status ?? row.status;
+    const rawLeadStatus = directoryLeadStatusValue(row);
     const lead_status_label = rawLeadStatus
       ? (leadStatusLabel(rawLeadStatus, statusOptions) || rawLeadStatus)
-      : (row._entityType === 'contact' ? '—' : row.current_status || '—');
+      : '—';
 
     return {
       ...row,

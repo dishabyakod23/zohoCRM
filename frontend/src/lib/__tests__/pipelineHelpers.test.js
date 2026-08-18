@@ -2,6 +2,7 @@ import {
   PIPELINE_RAW,
   filterLeadsByPipelineStage,
   resolveLeadPipelineStage,
+  outreachLeadStatusOptions,
 } from '../pipelineHelpers.js';
 
 describe('resolveLeadPipelineStage', () => {
@@ -63,5 +64,16 @@ describe('filterLeadsByPipelineStage — raw leads', () => {
       { id: '2', pipeline_stage: 'raw_prospect', lead_status: 'not_contacted' },
     ];
     expect(filterLeadsByPipelineStage(leads, PIPELINE_RAW).map((l) => l.id)).toEqual(['2']);
+  });
+});
+
+describe('outreachLeadStatusOptions', () => {
+  it('removes pipeline stages from Lead Status dropdowns', () => {
+    const options = outreachLeadStatusOptions([
+      { value: 'raw_prospect', label: 'Cold Lead' },
+      { value: 'contacted', label: 'Warm Lead' },
+      { value: 'not_contacted', label: 'Not Contacted' },
+    ]);
+    expect(options.map((o) => o.value)).toEqual(['not_contacted']);
   });
 });

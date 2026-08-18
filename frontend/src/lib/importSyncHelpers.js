@@ -39,6 +39,7 @@ export async function syncImportedLeadsAsContacts(readyRecords, { campaignId, ca
     lead_source: record.lead_source || record.source || null,
     owner_id: record.owner_id || null,
     title: record.title || null,
+    pipeline_stage: record.pipeline_stage || null,
   }));
 
   const processedRecords = await prepareContactImportRecords(contactRecords, { companies });
@@ -103,6 +104,7 @@ export async function syncSingleLeadAsContact(lead, campaignId) {
     lead_source: lead.lead_source || lead.source,
     owner_id: lead.owner_id,
     title: lead.title,
+    pipeline_stage: lead.pipeline_stage || 'raw_prospect',
   }];
   const campaignLookups = await fetchCampaignLookups().catch(() => []);
   const { contactIds } = await syncImportedLeadsAsContacts(readyRecords, { campaignId, campaignLookups });

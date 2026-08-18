@@ -48,6 +48,32 @@ export const PIPELINE_STAGE_LABELS = {
   deal_lost: 'Deal Lost',
 };
 
+/** Values that represent pipeline stage, not a selectable outreach Lead Status. */
+const PIPELINE_STAGE_STATUS_VALUES = new Set([
+  PIPELINE_RAW,
+  PIPELINE_LEAD,
+  PIPELINE_QUALIFIED,
+  PIPELINE_PROPOSAL,
+  'raw_prospect',
+  'raw_lead',
+  'cold_lead',
+  'lead',
+  'warm_lead',
+  'contacted',
+  'qualified_lead',
+  'proposal',
+]);
+
+export function isPipelineStageStatus(value) {
+  if (!value) return false;
+  return PIPELINE_STAGE_STATUS_VALUES.has(String(value).trim().toLowerCase());
+}
+
+/** Lead Status dropdowns: outreach values only, not Cold/Warm/Qualified/Proposal. */
+export function outreachLeadStatusOptions(options = []) {
+  return (options || []).filter((option) => option?.value && !isPipelineStageStatus(option.value));
+}
+
 /** Map UI / legacy status strings to API LeadStatus enum */
 export const STATUS_TO_API = {
   raw_lead: 'raw_prospect',

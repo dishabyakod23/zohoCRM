@@ -41,6 +41,7 @@ export const NAV_MODULES = [
   { href: '/accounts', label: 'Accounts', section: 'modules', icon: 'Accounts', permissionKey: 'accounts' },
   { href: '/calendar', label: 'Calendar', section: 'modules', icon: 'Calendar', permissionKey: 'calendar' },
   { href: '/campaigns', label: 'Campaigns', section: 'modules', icon: 'Campaigns', permissionKey: 'campaigns' },
+  { href: '/documents', label: 'Documents', section: 'modules', icon: 'Documents', permissionKey: 'documents' },
 ];
 
 export const QUICK_CREATE = [

@@ -14,7 +14,7 @@ import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
-import { PIPELINE_RAW } from '../../lib/pipelineHelpers.js';
+import { outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
 import {
   LEAD_SOURCES, SALUTATIONS, RATINGS,
 } from '../../lib/constants.js';
@@ -44,7 +44,7 @@ export function emptyRawLeadForm(ownerId = '') {
     email: '',
     fax: '',
     website: '',
-    lead_status: PIPELINE_RAW,
+    lead_status: '',
     no_of_employees: '',
     rating: '',
     skype_id: '',
@@ -261,7 +261,7 @@ export default function CreateRawLeadForm() {
               <input className="input" placeholder="https://" value={form.website} onChange={set('website')} />
             </FormField>
             <FormField label="Lead Status" name="lead_status">
-              {noneSelect(form.lead_status, set('lead_status'), statusOptions, '--None--')}
+              {noneSelect(form.lead_status, set('lead_status'), outreachLeadStatusOptions(statusOptions), '--None--')}
             </FormField>
             <FormField label="No. of Employees" name="no_of_employees">
               <input className="input" type="number" value={form.no_of_employees} onChange={set('no_of_employees')} />
