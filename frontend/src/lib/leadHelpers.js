@@ -97,10 +97,12 @@ export function resolveLeadStatusForApi(status, statusOptions = []) {
 export function normalizeLead(lead, statusOptions = []) {
   if (!lead) return lead;
   const rawStatus = lead.lead_status ?? lead.status;
+  const pipelineStage = lead.pipeline_stage || null;
   return {
     ...lead,
     status: leadStatusLabel(rawStatus, statusOptions),
     lead_status: rawStatus,
+    pipeline_stage: pipelineStage,
     source: lead.lead_source || lead.source,
     lead_source: lead.lead_source || lead.source,
     owner_name: ownerName(lead),

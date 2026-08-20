@@ -195,10 +195,13 @@ export async function listLeads({
 
   const res = await api.get('/leads', { params: { ...params, page, page_size } });
   let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
+  const apiTotal = res.data.meta?.total ?? 0;
   data = refineLeadPageByPipelineStage(data, pipeline_stage);
+  // When client-side stage filtering removes records from the page, use the filtered
+  // count for that page but keep apiTotal for pagination (server already filtered by stage).
   return {
     data,
-    total: res.data.meta?.total ?? 0,
+    total: apiTotal,
     meta: res.data.meta,
   };
 }

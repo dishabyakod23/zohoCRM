@@ -107,7 +107,11 @@ export function filterLeadsByPipelineStage(leads, stage) {
   const active = (leads || []).filter((l) => !isConvertedLead(l));
 
   if (stage === PIPELINE_PROPOSAL) {
-    return active.filter(isProposalLead);
+    const strict = active.filter(isProposalLead);
+    // If the API already filtered by pipeline_stage=proposal server-side and didn't
+    // populate lead_source/pipeline_stage in the response, trust the API result and
+    // return all active records rather than filtering everything out.
+    return strict.length > 0 ? strict : active;
   }
   if (stage === PIPELINE_QUALIFIED) {
     return active.filter((l) => resolveLeadPipelineStage(l) === PIPELINE_QUALIFIED);
