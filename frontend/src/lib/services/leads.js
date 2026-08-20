@@ -97,8 +97,9 @@ function buildLeadListApiParams({
   if (pipeline_stage) {
     params.is_converted = false;
     if (pipeline_stage === PIPELINE_PROPOSAL) {
+      // Proposals are identified by pipeline_stage only. Do not pin lead_status to
+      // qualified_lead — proposal records keep outreach statuses like "Proposal Required".
       params.pipeline_stage = PIPELINE_PROPOSAL;
-      params.lead_status = 'qualified_lead';
     } else if (pipeline_stage === PIPELINE_QUALIFIED) {
       params.pipeline_stage = PIPELINE_QUALIFIED;
       params.lead_status = 'qualified_lead';
@@ -179,11 +180,27 @@ export async function listLeads({
     sort_order,
   });
 
-  const needsClientFilter = hasLeadClientFilters(filters);
+  const needsClientFilter = hasLeadClientFilters(filters) || pipeline_stage === PIPELINE_PROPOSAL;
 
   if (needsClientFilter) {
-    const allLeads = await fetchAllLeadPages(params, statusOptions);
+    let allLeads = await fetchAllLeadPages(params, statusOptions);
     let filtered = refineLeadPageByPipelineStage(allLeads, pipeline_stage);
+
+    // Some backends ignore pipeline_stage=proposal or only return qualified_lead rows.
+    // Re-fetch without stage pins and identify proposals client-side.
+    if (pipeline_stage === PIPELINE_PROPOSAL && filtered.length === 0) {
+      const fallbackParams = buildLeadListApiParams({
+        filters,
+        search,
+        owner_id,
+        sort_by,
+        sort_order,
+      });
+      fallbackParams.is_converted = false;
+      allLeads = await fetchAllLeadPages(fallbackParams, statusOptions);
+      filtered = refineLeadPageByPipelineStage(allLeads, PIPELINE_PROPOSAL);
+    }
+
     filtered = applyLeadRecordFilters(filtered, filters, { campaignMemberIds });
     const start = (page - 1) * page_size;
     return {
@@ -476,8 +493,12 @@ export async function createQualifiedLead(form) {
 export async function createProposal(form) {
   return createLead({
     ...form,
-    lead_status: PIPELINE_QUALIFIED,
-    source: PROPOSAL_SOURCE,
+    pipeline_stage: PIPELINE_PROPOSAL,
+    // Keep outreach lead_status from the form (e.g. Proposal Required); do not force qualified_lead.
+    lead_status: form.lead_status && !isPipelineStageStatus(form.lead_status)
+      ? form.lead_status
+      : null,
+    source: form.source || form.lead_source || PROPOSAL_SOURCE,
     deal_status: form.deal_status || 'active_proposal',
   });
 }

@@ -7,32 +7,46 @@ import { withDefaultOwnerFilters, defaultOwnerFilterId } from '../lib/listRecord
 /**
  * List filter state with owner_id defaulting to the logged-in user.
  * Resets to the default owner when the user session loads or when clearFilters() is called.
+ *
+ * Pass `{ applyDefaultOwner: false }` for shared lists (e.g. Proposals) that every role should see.
  */
-export function useDefaultOwnerFilters(emptyFilters) {
+export function useDefaultOwnerFilters(emptyFilters, { applyDefaultOwner = true } = {}) {
   const { user } = useAuth();
   const emptyFiltersRef = useRef(emptyFilters);
   emptyFiltersRef.current = emptyFilters;
+  const applyDefaultOwnerRef = useRef(applyDefaultOwner);
+  applyDefaultOwnerRef.current = applyDefaultOwner;
 
-  const [filters, setFilters] = useState(() => withDefaultOwnerFilters(emptyFilters, readStoredAuthUser()));
+  const buildFilters = useCallback((authUser) => {
+    if (!applyDefaultOwnerRef.current) {
+      return { ...emptyFiltersRef.current, owner_id: '' };
+    }
+    return withDefaultOwnerFilters(emptyFiltersRef.current, authUser);
+  }, []);
+
+  const [filters, setFilters] = useState(() => buildFilters(readStoredAuthUser()));
 
   useEffect(() => {
     if (!user?.id) return;
     setFilters((current) => {
-      const next = withDefaultOwnerFilters(emptyFiltersRef.current, user);
+      const next = buildFilters(user);
+      if (!applyDefaultOwnerRef.current) {
+        return { ...next, owner_id: current.owner_id || '' };
+      }
       const defaultOwnerId = defaultOwnerFilterId(user);
       const ownerUnchanged = !current.owner_id || String(current.owner_id) === String(defaultOwnerId);
       return ownerUnchanged ? next : { ...next, owner_id: current.owner_id };
     });
-  }, [user?.id, user?.role]);
+  }, [user?.id, user?.role, buildFilters, applyDefaultOwner]);
 
   const clearFilters = useCallback(() => {
-    setFilters(withDefaultOwnerFilters(emptyFiltersRef.current, user));
-  }, [user]);
+    setFilters(buildFilters(user));
+  }, [user, buildFilters]);
 
   return {
     filters,
     setFilters,
     clearFilters,
-    defaultOwnerId: defaultOwnerFilterId(user),
+    defaultOwnerId: applyDefaultOwner ? defaultOwnerFilterId(user) : '',
   };
 }

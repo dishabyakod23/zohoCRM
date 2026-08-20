@@ -93,9 +93,20 @@ export function toApiLeadStatus(status) {
 }
 
 export function isProposalLead(lead) {
-  const source = String(lead?.lead_source || lead?.source || '').trim();
+  if (!lead) return false;
+
+  const stage = String(lead.pipeline_stage || '').toLowerCase().trim();
+  if (stage === PIPELINE_PROPOSAL || stage === 'proposal') return true;
+
+  const currentStatus = String(lead.current_status || '').toLowerCase().trim();
+  if (currentStatus === 'proposal') return true;
+
+  const source = String(lead.lead_source || lead.source || '').trim();
   if (source && source.toLowerCase() === PROPOSAL_SOURCE.toLowerCase()) return true;
-  if (lead?.pipeline_stage === PIPELINE_PROPOSAL) return true;
+
+  const dealStatus = String(lead.deal_status || '').toLowerCase().trim();
+  if (dealStatus === 'active_proposal') return true;
+
   return false;
 }
 
@@ -107,11 +118,7 @@ export function filterLeadsByPipelineStage(leads, stage) {
   const active = (leads || []).filter((l) => !isConvertedLead(l));
 
   if (stage === PIPELINE_PROPOSAL) {
-    const strict = active.filter(isProposalLead);
-    // If the API already filtered by pipeline_stage=proposal server-side and didn't
-    // populate lead_source/pipeline_stage in the response, trust the API result and
-    // return all active records rather than filtering everything out.
-    return strict.length > 0 ? strict : active;
+    return active.filter(isProposalLead);
   }
   if (stage === PIPELINE_QUALIFIED) {
     return active.filter((l) => resolveLeadPipelineStage(l) === PIPELINE_QUALIFIED);

@@ -77,3 +77,36 @@ describe('outreachLeadStatusOptions', () => {
     expect(options.map((o) => o.value)).toEqual(['not_contacted']);
   });
 });
+
+describe('filterLeadsByPipelineStage — proposals', () => {
+  it('keeps proposal-stage records even when outreach lead_status is Proposal Required', () => {
+    const leads = [
+      {
+        id: '1',
+        pipeline_stage: 'proposal',
+        lead_status: 'proposal_required',
+        first_name: 'Umakanth',
+      },
+      {
+        id: '2',
+        pipeline_stage: 'qualified_lead',
+        lead_status: 'qualified_lead',
+        first_name: 'Other',
+      },
+      {
+        id: '3',
+        lead_source: 'Proposal',
+        lead_status: 'proposal_required',
+      },
+    ];
+    expect(filterLeadsByPipelineStage(leads, 'proposal').map((l) => l.id)).toEqual(['1', '3']);
+  });
+
+  it('does not treat plain qualified leads as proposals', () => {
+    const leads = [
+      { id: '1', pipeline_stage: 'qualified_lead', lead_status: 'qualified_lead' },
+      { id: '2', lead_status: 'qualified_lead' },
+    ];
+    expect(filterLeadsByPipelineStage(leads, 'proposal')).toEqual([]);
+  });
+});
