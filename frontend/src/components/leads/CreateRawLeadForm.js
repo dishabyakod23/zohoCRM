@@ -13,10 +13,10 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
-import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import { fetchUsers, fetchLeadStatuses, fetchLeadSources, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
 import {
-  LEAD_SOURCES, SALUTATIONS, RATINGS,
+  SALUTATIONS, RATINGS,
 } from '../../lib/constants.js';
 import IndustryField from '../forms/IndustryField.js';
 import { AddressCountryField, AddressStateField } from '../forms/AddressCountryStateFields.js';
@@ -92,13 +92,18 @@ export default function CreateRawLeadForm() {
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const [sourceOptions, setSourceOptions] = useState([]);
   const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
   const savingRef = useRef(false);
 
   useEffect(() => {
     if (user?.id) setForm((f) => ({ ...f, owner_id: f.owner_id || user.id }));
-    Promise.all([fetchUsers(), fetchLeadStatuses()])
-      .then(([u, s]) => { setUsers(u); setStatusOptions(s); })
+    Promise.all([fetchUsers(), fetchLeadStatuses(), fetchLeadSources()])
+      .then(([u, s, sources]) => {
+        setUsers(u);
+        setStatusOptions(s);
+        setSourceOptions(sources);
+      })
       .catch(() => {});
   }, [user?.id]);
 
@@ -226,7 +231,7 @@ export default function CreateRawLeadForm() {
               <input className="input" value={form.mobile} onChange={set('mobile')} />
             </FormField>
             <FormField label="Lead Source" name="source">
-              {noneSelect(form.source, set('source'), LEAD_SOURCES)}
+              {noneSelect(form.source, set('source'), sourceOptions)}
             </FormField>
             <CampaignSelect
               value={form.campaign_id}

@@ -61,6 +61,7 @@ describe('resolveLeadStatusForApi', () => {
   const statusOptions = [
     { value: 'follow_up_email_1', label: 'Follow Up Email 1' },
     { value: 'not_contacted', label: 'Not Contacted' },
+    { value: 'proposal_required', label: 'Proposal Required' },
   ];
 
   it('resolves custom status values from lookup options', () => {
@@ -70,6 +71,11 @@ describe('resolveLeadStatusForApi', () => {
 
   it('passes through snake_case custom values', () => {
     expect(resolveLeadStatusForApi('custom_status_value')).toBe('custom_status_value');
+  });
+
+  it('does not map proposal pipeline stage to qualified_lead', () => {
+    expect(resolveLeadStatusForApi('proposal')).toBe('proposal');
+    expect(resolveLeadStatusForApi('proposal_required', statusOptions)).toBe('proposal_required');
   });
 });
 

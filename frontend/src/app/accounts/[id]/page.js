@@ -26,8 +26,7 @@ import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js'
 import { TrashIcon } from '@heroicons/react/24/outline';
 import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
 import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
-
-const INDUSTRIES = ['IT Services', 'E-Commerce', 'Automotive', 'EdTech', 'FinTech', 'Healthcare', 'Manufacturing', 'Retail', 'Other'];
+import { IndustrySelectControl } from '../../../components/forms/IndustryField.js';
 
 export default function AccountDetailPage() {
   const id = useRecordId();
@@ -127,10 +126,10 @@ export default function AccountDetailPage() {
                 </select>
               ) },
               { name: 'industry', label: 'Industry', render: (d, set) => (
-                <select className="input" value={d.industry ?? ''} onChange={(e) => set((p) => ({ ...p, industry: e.target.value }))}>
-                  <option value="">--None--</option>
-                  {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
-                </select>
+                <IndustrySelectControl
+                  value={d.industry ?? ''}
+                  onChange={(industry) => set((p) => ({ ...p, industry }))}
+                />
               ) },
               { name: 'annual_revenue', label: 'Annual Revenue', format: (v) => formatMoney(v, account.currency) },
               { name: 'currency', label: 'Currency', format: (v) => v || account.currency || 'INR', render: (d, set) => (

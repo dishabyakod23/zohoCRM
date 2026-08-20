@@ -1,10 +1,13 @@
-/** Sales pipeline stages — values must match API LeadStatus enum */
+/** Sales pipeline stages — values must match API pipeline_stage enum */
 
 export const PIPELINE_RAW = 'raw_prospect';
 export const PIPELINE_LEAD = 'contacted';
 export const PIPELINE_QUALIFIED = 'qualified_lead';
-/** Proposal is tracked as qualified_lead + lead_source marker (API has no proposal status) */
+/** Proposal module is pipeline_stage=proposal (not a lead_source marker). */
 export const PIPELINE_PROPOSAL = 'proposal';
+/** Default outreach lead_status when creating a Proposal. */
+export const PROPOSAL_DEFAULT_LEAD_STATUS = 'proposal_required';
+/** @deprecated Never use "Proposal" as lead_source — convert/module uses pipeline_stage. */
 export const PROPOSAL_SOURCE = 'Proposal';
 
 /** Deal status values shown on proposal records */
@@ -74,7 +77,7 @@ export function outreachLeadStatusOptions(options = []) {
   return (options || []).filter((option) => option?.value && !isPipelineStageStatus(option.value));
 }
 
-/** Map UI / legacy status strings to API LeadStatus enum */
+/** Map UI / legacy status strings to API lead_status values (never map proposal → qualified_lead). */
 export const STATUS_TO_API = {
   raw_lead: 'raw_prospect',
   raw_prospect: 'raw_prospect',
@@ -83,7 +86,6 @@ export const STATUS_TO_API = {
   contacted: 'contacted',
   warm_lead: 'contacted',
   qualified_lead: 'qualified_lead',
-  proposal: 'qualified_lead',
   deal_lost: 'deal_lost',
 };
 
@@ -92,6 +94,7 @@ export function toApiLeadStatus(status) {
   return STATUS_TO_API[status] || status;
 }
 
+/** True when a lead belongs in the Proposals module (pipeline_stage owns the module). */
 export function isProposalLead(lead) {
   if (!lead) return false;
 
@@ -100,12 +103,6 @@ export function isProposalLead(lead) {
 
   const currentStatus = String(lead.current_status || '').toLowerCase().trim();
   if (currentStatus === 'proposal') return true;
-
-  const source = String(lead.lead_source || lead.source || '').trim();
-  if (source && source.toLowerCase() === PROPOSAL_SOURCE.toLowerCase()) return true;
-
-  const dealStatus = String(lead.deal_status || '').toLowerCase().trim();
-  if (dealStatus === 'active_proposal') return true;
 
   return false;
 }
@@ -187,7 +184,7 @@ export const PIPELINE_STAGE_CONFIG = {
     listPath: '/qualified-leads',
     detailPath: (id) => `/qualified-leads/${id}`,
     listTitle: 'Qualified Leads',
-    apiStatus: PIPELINE_QUALIFIED,
+    apiStatus: null,
     convertTo: { status: PIPELINE_PROPOSAL, label: 'Proposal', redirectPath: '/proposals', proposal: true },
     allowAssign: false,
     allowUpload: false,
@@ -196,7 +193,7 @@ export const PIPELINE_STAGE_CONFIG = {
     listPath: '/proposals',
     detailPath: (id) => `/proposals/${id}`,
     listTitle: 'Proposals',
-    apiStatus: PIPELINE_QUALIFIED,
+    apiStatus: null,
     convertTo: null,
     allowAssign: false,
     allowUpload: false,

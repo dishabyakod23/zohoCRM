@@ -16,7 +16,8 @@ import * as companiesApi from '../../../lib/services/companies.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import { fetchUsers } from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
-import { INDUSTRIES, DEFAULT_PAGE_SIZE } from '../../../lib/constants.js';
+import { DEFAULT_PAGE_SIZE } from '../../../lib/constants.js';
+import { IndustrySelectControl } from '../../../components/forms/IndustryField.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
@@ -104,10 +105,10 @@ export default function CompanyDetailPage() {
               { name: 'phone', label: 'Phone' },
               { name: 'website', label: 'Website' },
               { name: 'industry', label: 'Industry', render: (d, set) => (
-                <select className="input" value={d.industry ?? ''} onChange={(e) => set((p) => ({ ...p, industry: e.target.value }))}>
-                  <option value="">--None--</option>
-                  {INDUSTRIES.map((item) => <option key={item} value={item}>{item}</option>)}
-                </select>
+                <IndustrySelectControl
+                  value={d.industry ?? ''}
+                  onChange={(industry) => set((p) => ({ ...p, industry }))}
+                />
               ) },
               ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: company.owner_name }),
             ]}

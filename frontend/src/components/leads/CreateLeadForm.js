@@ -6,17 +6,17 @@ import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
-import { LEAD_SOURCES, SALUTATIONS, RATINGS } from '../../lib/constants.js';
+import { SALUTATIONS, RATINGS } from '../../lib/constants.js';
 import IndustryField from '../forms/IndustryField.js';
 import { AddressCountryField, AddressStateField } from '../forms/AddressCountryStateFields.js';
 import { nextStateForCountry } from '../../lib/addressRegions.js';
-import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
+import { PIPELINE_LEAD, outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
-import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import { fetchLeadStatuses, fetchLeadSources, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
@@ -48,12 +48,16 @@ export default function CreateLeadForm() {
   const [form, setForm] = useState(emptyLeadForm);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const [statusOptions, setStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
+  const [sourceOptions, setSourceOptions] = useState([]);
   const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
   const savingRef = useRef(false);
 
   useEffect(() => {
-    fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
+    fetchLeadStatuses()
+      .then((options) => setStatusOptions(outreachLeadStatusOptions(options)))
+      .catch(() => setStatusOptions(outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES)));
+    fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
   }, []);
 
   const set = (field) => (e) => {
@@ -157,7 +161,9 @@ export default function CreateLeadForm() {
             <FormField label="Lead Source">
               <select className="input" value={form.source} onChange={set('source')}>
                 <option value="">--None--</option>
-                {LEAD_SOURCES.map((s) => <option key={s}>{s}</option>)}
+                {sourceOptions.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
               </select>
             </FormField>
             <CampaignSelect

@@ -96,7 +96,21 @@ describe('dedupeDirectoryRows', () => {
 });
 
 describe('directory current status vs lead status', () => {
-  it('shows Cold Lead as Current Status when a synced contact still has pipeline lead_status', () => {
+  it('shows Cold Lead as Current Status when a synced contact has pipeline_stage', () => {
+    const row = contactToDirectoryRow({
+      id: 'c1',
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      email: 'ada@example.com',
+      current_status: 'CONTACT',
+      pipeline_stage: PIPELINE_RAW,
+      lead_status: 'not_contacted',
+    });
+    expect(row.current_status).toBe('Cold Lead');
+    expect(row.lead_status).toBe('not_contacted');
+  });
+
+  it('does not promote contact Current Status from pipeline-valued lead_status alone', () => {
     const row = contactToDirectoryRow({
       id: 'c1',
       first_name: 'Ada',
@@ -105,7 +119,7 @@ describe('directory current status vs lead status', () => {
       current_status: 'CONTACT',
       lead_status: PIPELINE_RAW,
     });
-    expect(row.current_status).toBe('Cold Lead');
+    expect(row.current_status).toBe('Contact');
     expect(row.lead_status).toBeNull();
   });
 
@@ -132,6 +146,15 @@ describe('directory current status vs lead status', () => {
     });
     expect(row.current_status).toBe('Contact');
     expect(row.lead_status).toBe('not_contacted');
+  });
+
+  it('keeps Current Status as Contact when lead_status is wrongly set to Qualified Lead', () => {
+    expect(resolveDirectoryCurrentStatus({
+      entity_type: 'contact',
+      current_status: 'Qualified Lead',
+      lead_status: 'qualified_lead',
+    })).toBe('Contact');
+    expect(directoryLeadStatusValue({ lead_status: 'qualified_lead' })).toBeNull();
   });
 
   it('uses pipeline_stage for Current Status when lead_status is blank', () => {

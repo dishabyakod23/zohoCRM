@@ -11,11 +11,11 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { getApiError } from '../../lib/api.js';
 import * as companiesApi from '../../lib/services/companies.js';
-import { INDUSTRIES, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { tableLinkClass, tableEmailClass, avatarInitialClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../../components/layout/ListFilterFields.js';
 import { recordTimestampColumns } from '../../lib/listTimestampHelpers.js';
-import { fetchUsers } from '../../lib/services/lookups.js';
+import { fetchUsers, fetchIndustries } from '../../lib/services/lookups.js';
 import { EMPTY_ACCOUNT_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
@@ -37,12 +37,14 @@ export default function CompaniesPage() {
   const [page, setPage] = useState(1);
   const { filters, setFilters, clearFilters } = useDefaultOwnerFilters(EMPTY_ACCOUNT_FILTERS);
   const [users, setUsers] = useState([]);
+  const [industryOptions, setIndustryOptions] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
   const { campaigns } = useCampaignLookups();
   const { memberIds: campaignMemberIds, ready: campaignMembersReady } = useCampaignMemberFilter(filters.campaign_id, 'account');
 
   useEffect(() => {
     fetchUsers().then(setUsers).catch(() => setUsers([]));
+    fetchIndustries().then(setIndustryOptions).catch(() => setIndustryOptions([]));
   }, []);
 
   const fetchCompanies = useCallback(async () => {
@@ -109,8 +111,6 @@ export default function CompaniesPage() {
     { id: 'owner', header: 'Owner', cell: (company) => company.owner_name || '—' },
     ...recordTimestampColumns(),
   ], []);
-
-  const industryOptions = INDUSTRIES.map((value) => ({ value, label: value }));
 
   const updateFilter = (key, value) => {
     setFilters((current) => ({ ...current, [key]: value }));

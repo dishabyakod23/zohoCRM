@@ -60,6 +60,11 @@ export function normalizeDirectoryStatusLabel(label) {
 
 /** Pipeline place only — never treat outreach lead_status as Current Status. */
 function directoryPipelineStage(record) {
+  const entityType = String(
+    record?.entity_type || record?._entityType || record?.record_type || '',
+  ).toLowerCase();
+
+  // Explicit pipeline_stage / proposal markers only — ignore lead_status here.
   const fromField = resolveLeadPipelineStage({
     pipeline_stage: record?.pipeline_stage,
     lead_source: record?.lead_source,
@@ -67,13 +72,14 @@ function directoryPipelineStage(record) {
   });
   if (fromField) return fromField;
 
-  const entityType = String(
-    record?.entity_type || record?._entityType || record?.record_type || '',
-  ).toLowerCase();
   if (entityType === 'raw_lead') return PIPELINE_RAW;
   if (entityType === 'qualified_lead') return PIPELINE_QUALIFIED;
   if (entityType === 'proposal') return PIPELINE_PROPOSAL;
 
+  // Contact rows stay Contacts unless Convert / pipeline_stage moved them.
+  if (!entityType || entityType === 'contact') return null;
+
+  // Lead rows without pipeline_stage may still use legacy status-as-stage data.
   const status = record?.lead_status ?? record?.status;
   if (isPipelineStageStatus(status)) {
     return resolveLeadPipelineStage({
@@ -129,6 +135,15 @@ export function resolveDirectoryCurrentStatus(record) {
 
   if (entityType === 'lead') {
     return stageLabel || fromApi || 'Warm Lead';
+  }
+
+  // Contacts: Current Status is Contact unless an explicit pipeline_stage moved them.
+  if (entityType === 'contact') {
+    if (stageLabel && stageLabel !== '—') return stageLabel;
+    if (fromApi && fromApi !== 'Account' && !['Cold Lead', 'Warm Lead', 'Qualified Lead', 'Proposal', 'Deal'].includes(fromApi)) {
+      return fromApi;
+    }
+    return 'Contact';
   }
 
   if (stageLabel && stageLabel !== '—' && (!fromApi || fromApi === 'Contact')) {

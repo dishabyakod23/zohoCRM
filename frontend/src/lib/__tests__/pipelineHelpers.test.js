@@ -95,11 +95,19 @@ describe('filterLeadsByPipelineStage — proposals', () => {
       },
       {
         id: '3',
-        lead_source: 'Proposal',
-        lead_status: 'proposal_required',
+        pipeline_stage: 'proposal',
+        lead_status: 'proposal_sent',
       },
     ];
     expect(filterLeadsByPipelineStage(leads, 'proposal').map((l) => l.id)).toEqual(['1', '3']);
+  });
+
+  it('does not treat lead_source Proposal as a proposal module marker', () => {
+    const leads = [
+      { id: '1', lead_source: 'Proposal', lead_status: 'proposal_required' },
+      { id: '2', pipeline_stage: 'proposal', lead_status: 'proposal_required' },
+    ];
+    expect(filterLeadsByPipelineStage(leads, 'proposal').map((l) => l.id)).toEqual(['2']);
   });
 
   it('does not treat plain qualified leads as proposals', () => {

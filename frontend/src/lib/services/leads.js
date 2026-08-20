@@ -3,7 +3,8 @@ import { normalizeLead, toLeadPayload, resolveLeadStatusForApi } from '../leadHe
 import { toConvertPayload } from '../dealHelpers.js';
 import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
 import {
-  PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PIPELINE_LEAD, PROPOSAL_SOURCE,
+  PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PIPELINE_LEAD,
+  PROPOSAL_DEFAULT_LEAD_STATUS,
   filterLeadsByPipelineStage, toApiLeadStatus, RAW_LEAD_CSV_HEADERS, pipelineStageLabel,
   isPipelineStageStatus,
 } from '../pipelineHelpers.js';
@@ -34,12 +35,16 @@ function isConvertMassUpdateFieldKey(field) {
 
 function resolvePipelineConvertMassValue(value, { proposal = false, clearProposal = false } = {}) {
   if (proposal) return 'proposal';
-  const target = String(value ?? '').toLowerCase();
+  const target = String(value ?? '').toLowerCase().trim();
   if (target === 'contact') return 'contact';
+  if (target === 'proposal' || target === PIPELINE_PROPOSAL) return 'proposal';
   if (clearProposal || target === 'lead') return PIPELINE_LEAD;
+  if (target === 'qualified' || target === 'qualified_lead') return PIPELINE_QUALIFIED;
+  if (target === 'raw_prospect' || target === 'raw_lead' || target === 'cold_lead') return PIPELINE_RAW;
+  if (target === 'contacted' || target === 'warm_lead') return PIPELINE_LEAD;
   const mapped = resolveLeadStatusForApi(value);
+  if (mapped && !isPipelineStageStatus(mapped)) return mapped;
   if (mapped) return mapped;
-  if (target === 'proposal') return 'proposal';
   return value;
 }
 
@@ -97,29 +102,36 @@ function buildLeadListApiParams({
   if (pipeline_stage) {
     params.is_converted = false;
     if (pipeline_stage === PIPELINE_PROPOSAL) {
-      // Proposals are identified by pipeline_stage only. Do not pin lead_status to
-      // qualified_lead — proposal records keep outreach statuses like "Proposal Required".
+      // Correct: GET /leads?pipeline_stage=proposal&is_converted=false — never send lead_status.
       params.pipeline_stage = PIPELINE_PROPOSAL;
     } else if (pipeline_stage === PIPELINE_QUALIFIED) {
+      // Correct: pipeline_stage only — do not pin lead_status=qualified_lead.
       params.pipeline_stage = PIPELINE_QUALIFIED;
-      params.lead_status = 'qualified_lead';
+      const statusFilter = filters.status || lead_status;
+      if (statusFilter && !isPipelineStageStatus(statusFilter)) {
+        const apiStatus = toApiLeadStatus(statusFilter) || resolveLeadStatusForApi(statusFilter);
+        if (apiStatus) params.lead_status = apiStatus;
+      }
     } else if (pipeline_stage === PIPELINE_RAW) {
       params.pipeline_stage = PIPELINE_RAW;
       // Do not pin lead_status to raw_prospect — outreach statuses (e.g. not_contacted)
       // are updated independently and records must stay in Raw Leads.
       const statusFilter = filters.status || lead_status;
-      if (statusFilter) {
+      if (statusFilter && !isPipelineStageStatus(statusFilter)) {
         const apiStatus = toApiLeadStatus(statusFilter) || resolveLeadStatusForApi(statusFilter);
         if (apiStatus) params.lead_status = apiStatus;
       }
     } else {
       params.pipeline_stage = pipeline_stage;
-      const apiStatus = toApiLeadStatus(pipeline_stage) || resolveLeadStatusForApi(pipeline_stage);
-      if (apiStatus) params.lead_status = apiStatus;
+      const statusFilter = filters.status || lead_status;
+      if (statusFilter && !isPipelineStageStatus(statusFilter)) {
+        const apiStatus = toApiLeadStatus(statusFilter) || resolveLeadStatusForApi(statusFilter);
+        if (apiStatus) params.lead_status = apiStatus;
+      }
     }
   } else {
     const apiStatus = toApiLeadStatus(mergedStatus) || (mergedStatus ? resolveLeadStatusForApi(mergedStatus) : null);
-    if (apiStatus) params.lead_status = apiStatus;
+    if (apiStatus && !isPipelineStageStatus(apiStatus)) params.lead_status = apiStatus;
   }
 
   return params;
@@ -180,27 +192,11 @@ export async function listLeads({
     sort_order,
   });
 
-  const needsClientFilter = hasLeadClientFilters(filters) || pipeline_stage === PIPELINE_PROPOSAL;
+  const needsClientFilter = hasLeadClientFilters(filters);
 
   if (needsClientFilter) {
-    let allLeads = await fetchAllLeadPages(params, statusOptions);
+    const allLeads = await fetchAllLeadPages(params, statusOptions);
     let filtered = refineLeadPageByPipelineStage(allLeads, pipeline_stage);
-
-    // Some backends ignore pipeline_stage=proposal or only return qualified_lead rows.
-    // Re-fetch without stage pins and identify proposals client-side.
-    if (pipeline_stage === PIPELINE_PROPOSAL && filtered.length === 0) {
-      const fallbackParams = buildLeadListApiParams({
-        filters,
-        search,
-        owner_id,
-        sort_by,
-        sort_order,
-      });
-      fallbackParams.is_converted = false;
-      allLeads = await fetchAllLeadPages(fallbackParams, statusOptions);
-      filtered = refineLeadPageByPipelineStage(allLeads, PIPELINE_PROPOSAL);
-    }
-
     filtered = applyLeadRecordFilters(filtered, filters, { campaignMemberIds });
     const start = (page - 1) * page_size;
     return {
@@ -212,13 +208,10 @@ export async function listLeads({
 
   const res = await api.get('/leads', { params: { ...params, page, page_size } });
   let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
-  const apiTotal = res.data.meta?.total ?? 0;
   data = refineLeadPageByPipelineStage(data, pipeline_stage);
-  // When client-side stage filtering removes records from the page, use the filtered
-  // count for that page but keep apiTotal for pagination (server already filtered by stage).
   return {
     data,
-    total: apiTotal,
+    total: res.data.meta?.total ?? data.length,
     meta: res.data.meta,
   };
 }
@@ -478,27 +471,32 @@ export async function createRawLead(form) {
     ...form,
     lead_status: outreachStatus,
     pipeline_stage: form.pipeline_stage || PIPELINE_RAW,
-    source: form.source || form.lead_source || 'Manual Entry',
+    source: form.source || form.lead_source || null,
   });
 }
 
 export async function createQualifiedLead(form) {
+  const outreachStatus = form.lead_status && !isPipelineStageStatus(form.lead_status)
+    ? form.lead_status
+    : null;
   return createLead({
     ...form,
-    lead_status: form.lead_status || PIPELINE_QUALIFIED,
-    source: form.source || form.lead_source || 'Manual Entry',
+    lead_status: outreachStatus,
+    pipeline_stage: form.pipeline_stage || PIPELINE_QUALIFIED,
+    source: form.source || form.lead_source || null,
   });
 }
 
 export async function createProposal(form) {
+  const outreachStatus = form.lead_status && !isPipelineStageStatus(form.lead_status)
+    ? form.lead_status
+    : PROPOSAL_DEFAULT_LEAD_STATUS;
   return createLead({
     ...form,
     pipeline_stage: PIPELINE_PROPOSAL,
-    // Keep outreach lead_status from the form (e.g. Proposal Required); do not force qualified_lead.
-    lead_status: form.lead_status && !isPipelineStageStatus(form.lead_status)
-      ? form.lead_status
-      : null,
-    source: form.source || form.lead_source || PROPOSAL_SOURCE,
+    lead_status: outreachStatus,
+    // Never send lead_source: "Proposal" — source is a real Origami lookup or omitted.
+    source: form.source || form.lead_source || null,
     deal_status: form.deal_status || 'active_proposal',
   });
 }

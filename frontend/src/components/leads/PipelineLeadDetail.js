@@ -21,14 +21,13 @@ import { getApiError } from '../../lib/api.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
-import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, proposalDealStatusLabel, proposalTypeLabel, resolveLeadPipelineStage, getLeadDetailPath } from '../../lib/pipelineHelpers.js';
+import { fetchUsers, fetchLeadStatuses, fetchLeadSources, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, proposalDealStatusLabel, proposalTypeLabel, resolveLeadPipelineStage, getLeadDetailPath, outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
 import { ownerFieldConfig } from '../forms/ownerField.js';
 import { trackRecentItem } from '../layout/BottomUtilityBar.js';
 import ReadOnlyRecordBanner from '../records/ReadOnlyRecordBanner.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { useRecordCampaign } from '../../hooks/useRecordCampaign.js';
-import { LEAD_SOURCES } from '../../lib/constants.js';
 import { IndustrySelectControl } from '../forms/IndustryField.js';
 import { formatMoney, CURRENCIES, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
@@ -50,7 +49,8 @@ export default function PipelineLeadDetail({ stage }) {
   const [assignUserId, setAssignUserId] = useState('');
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
-  const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const [statusOptions, setStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
+  const [sourceOptions, setSourceOptions] = useState([]);
   const { campaignField, saveCampaignFromDraft, campaignValues } = useRecordCampaign(
     'lead',
     id,
@@ -58,7 +58,10 @@ export default function PipelineLeadDetail({ stage }) {
   );
 
   useEffect(() => {
-    fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
+    fetchLeadStatuses()
+      .then((options) => setStatusOptions(outreachLeadStatusOptions(options)))
+      .catch(() => setStatusOptions(outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES)));
+    fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
   }, []);
 
   useEffect(() => {
@@ -232,7 +235,7 @@ export default function PipelineLeadDetail({ stage }) {
               { name: 'company', label: 'Company', required: true },
               { name: 'title', label: 'Job Title' },
               { name: 'lead_status', label: statusFieldLabel, format: () => lead.status, render: (d, set) => select(statusOptions)(d, set, 'lead_status') },
-              { name: 'source', label: 'Lead Source', render: (d, set) => select(LEAD_SOURCES, null, null)(d, set, 'source') },
+              { name: 'source', label: 'Lead Source', render: (d, set) => select(sourceOptions)(d, set, 'source') },
               { name: 'industry', label: 'Industry', render: (d, set) => (
                 <IndustrySelectControl
                   value={d.industry ?? ''}

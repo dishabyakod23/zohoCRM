@@ -7,7 +7,7 @@ import FormField, { inputClass } from '../forms/FormField.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
-import { LEAD_SOURCES, SALUTATIONS } from '../../lib/constants.js';
+import { SALUTATIONS } from '../../lib/constants.js';
 import { AddressCountryField, AddressStateField } from '../forms/AddressCountryStateFields.js';
 import { nextStateForCountry } from '../../lib/addressRegions.js';
 import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
@@ -15,7 +15,14 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
-import { fetchCompanyLookups, fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import {
+  fetchCompanyLookups,
+  fetchUsers,
+  fetchLeadStatuses,
+  fetchLeadSources,
+  FALLBACK_LEAD_STATUSES,
+} from '../../lib/services/lookups.js';
+import { outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
 import AccountNameCombobox from '../forms/AccountNameCombobox.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { resolveContactCompanyFields } from '../../lib/resolveContactAccount.js';
@@ -115,14 +122,18 @@ export default function CreateContactForm() {
   const [saving, setSaving] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [users, setUsers] = useState([]);
-  const [leadStatusOptions, setLeadStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const [leadStatusOptions, setLeadStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
+  const [leadSourceOptions, setLeadSourceOptions] = useState([]);
   const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
   const savingRef = useRef(false);
 
   useEffect(() => {
     fetchCompanyLookups().then(setAccounts).catch(() => setAccounts([]));
     fetchUsers().then(setUsers).catch(() => setUsers([]));
-    fetchLeadStatuses().then(setLeadStatusOptions).catch(() => setLeadStatusOptions(FALLBACK_LEAD_STATUSES));
+    fetchLeadStatuses()
+      .then((options) => setLeadStatusOptions(outreachLeadStatusOptions(options)))
+      .catch(() => setLeadStatusOptions(outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES)));
+    fetchLeadSources().then(setLeadSourceOptions).catch(() => setLeadSourceOptions([]));
   }, []);
 
   const set = (field) => (e) => {
@@ -294,7 +305,9 @@ export default function CreateContactForm() {
             <FormField label="Lead Source" name="lead_source">
               <select className="input" value={form.lead_source} onChange={set('lead_source')}>
                 <option value="">—None—</option>
-                {LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}
+                {leadSourceOptions.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
               </select>
             </FormField>
 

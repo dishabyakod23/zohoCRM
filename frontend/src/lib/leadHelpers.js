@@ -84,7 +84,6 @@ export function resolveLeadStatusForApi(status, statusOptions = []) {
   );
   if (fromOption?.value) return fromOption.value;
 
-  if (status === PIPELINE_PROPOSAL) return 'qualified_lead';
   const mapped = toApiLeadStatus(raw);
   if (mapped && mapped !== raw) return mapped;
   if (SNAKE_CASE_RE.test(raw)) return raw;

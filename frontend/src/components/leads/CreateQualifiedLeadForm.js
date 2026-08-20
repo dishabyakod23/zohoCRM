@@ -11,8 +11,13 @@ export default function CreateQualifiedLeadForm() {
       title="Create Qualified Lead"
       saveLabel="Save Qualified Lead"
       successToast="Qualified lead created"
-      emptyFormDefaults={{ lead_status: PIPELINE_QUALIFIED, source: 'Manual Entry' }}
+      emptyFormDefaults={{
+        lead_status: '',
+        pipeline_stage: PIPELINE_QUALIFIED,
+        source: '',
+      }}
       createFn={leadsApi.createQualifiedLead}
+      showLeadStatus
     />
   );
 }

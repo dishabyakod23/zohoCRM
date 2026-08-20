@@ -24,12 +24,11 @@ import * as leadsApi from '../../../lib/services/leads.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchUsers } from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
 import { LEAD_SOURCES, SALUTATIONS, RATINGS } from '../../../lib/constants.js';
+import { IndustrySelectControl } from '../../../components/forms/IndustryField.js';
 import { PIPELINE_LEAD } from '../../../lib/pipelineHelpers.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon,
 } from '@heroicons/react/24/outline';
-
-const INDUSTRIES = ['IT Services', 'E-Commerce', 'EdTech', 'Automotive', 'Finance', 'Healthcare', 'Manufacturing', 'Education', 'Media', 'Real Estate', 'Other'];
 
 export default function LeadDetailPage() {
   const id = useRecordId();
@@ -162,7 +161,12 @@ export default function LeadDetailPage() {
                   { name: 'title', label: 'Job Title' },
                   { name: 'lead_status', label: 'Lead Status', format: () => lead.status, render: (d, set) => select(statusOptions)(d, set, 'lead_status') },
                   { name: 'source', label: 'Lead Source', render: (d, set) => select(LEAD_SOURCES, null, null)(d, set, 'source') },
-                  { name: 'industry', label: 'Industry', render: (d, set) => select(INDUSTRIES, null, null)(d, set, 'industry') },
+                  { name: 'industry', label: 'Industry', render: (d, set) => (
+                    <IndustrySelectControl
+                      value={d.industry ?? ''}
+                      onChange={(industry) => set((p) => ({ ...p, industry }))}
+                    />
+                  ) },
                   { name: 'rating', label: 'Rating', render: (d, set) => select(RATINGS, null, null)(d, set, 'rating') },
                   { name: 'annual_revenue', label: 'Annual Revenue' },
                   { name: 'no_of_employees', label: 'No. of Employees' },

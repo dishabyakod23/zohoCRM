@@ -2,11 +2,17 @@ import api from '../api.js';
 import { leadStatusLabel } from '../leadHelpers.js';
 import { dealStageLabel, FALLBACK_DEAL_STAGES } from '../dealHelpers.js';
 import { parseLookupOptions } from '../recordHelpers.js';
-import { INDUSTRIES, RATINGS } from '../constants.js';
+import { LEAD_SOURCES, RATINGS } from '../constants.js';
 import { PIPELINE_RAW } from '../pipelineHelpers.js';
 import { cachedLookup } from '../lookupCache.js';
 import { fetchCampaignLookups } from '../campaignRecordHelpers.js';
 import { mergeStoredProfileImage } from '../profileImageHelpers.js';
+
+/** Fallback when GET /lookups/lead-sources is unavailable */
+export const FALLBACK_LEAD_SOURCES = LEAD_SOURCES.map((source) => ({
+  value: source,
+  label: source,
+}));
 
 /** Fallback when lookups API is unavailable */
 export const FALLBACK_LEAD_STATUSES = [
@@ -20,6 +26,9 @@ export const FALLBACK_LEAD_STATUSES = [
   { value: 'not_qualified', label: 'Not Qualified' },
   { value: 'junk_lead', label: 'Junk Lead' },
   { value: 'lost_lead', label: 'Lost Lead' },
+  { value: 'proposal_required', label: 'Proposal Required' },
+  { value: 'proposal_sent', label: 'Proposal Sent' },
+  { value: 'negotiation', label: 'Negotiation' },
 ];
 
 /** Normalize GET /lookups/lead-statuses → { value, label }[] */
@@ -111,6 +120,14 @@ export const fetchCampaignStatuses = () => fetchLookup('/lookups/campaign-status
 export const fetchProjectStatuses = () => fetchLookup('/lookups/project-statuses', formatLookupLabel);
 export const fetchVisitStatuses = () => fetchLookup('/lookups/visit-statuses', formatLookupLabel);
 
+/** GET /lookups/industries → { value, label }[] */
+export async function fetchIndustries() {
+  return cachedLookup('industries', async () => {
+    const res = await api.get('/lookups/industries');
+    return parseLookupOptions(res.data.data);
+  });
+}
+
 function formatLookupLabel(value) {
   if (!value) return '—';
   return String(value).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -121,6 +138,7 @@ const MASS_UPDATE_FIELD_LOOKUPS = {
   status: '/lookups/lead-statuses',
   source: '/lookups/lead-sources',
   lead_source: '/lookups/lead-sources',
+  industry: '/lookups/industries',
   convert: '/lookups/pipeline-convert-targets',
   owner_id: '/lookups/users',
   owner: '/lookups/users',
@@ -203,7 +221,11 @@ export function normalizeMassUpdateField(raw = {}) {
 export async function fetchLeadSources() {
   return cachedLookup('lead-sources', async () => {
     const res = await api.get('/lookups/lead-sources');
-    return parseLookupOptions(res.data.data);
+    // Never treat "Proposal" as a lead source — module membership is pipeline_stage.
+    return parseLookupOptions(res.data.data).filter((option) => (
+      String(option.value || '').toLowerCase() !== 'proposal'
+      && String(option.label || '').toLowerCase() !== 'proposal'
+    ));
   });
 }
 
@@ -305,9 +327,6 @@ export async function fetchMassUpdateFieldOptions(fieldDef) {
     }
   }
 
-  if (field.value === 'industry') {
-    return INDUSTRIES.map((v) => ({ value: v, label: v }));
-  }
   if (field.value === 'rating') {
     return RATINGS.map((v) => ({ value: v, label: v }));
   }

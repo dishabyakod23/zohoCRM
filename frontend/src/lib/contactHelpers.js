@@ -3,9 +3,23 @@ import { DEFAULT_CURRENCY } from './currencies.js';
 import { coerceImportBool } from './importHelpers.js';
 import { leadStatusLabel, resolveLeadStatusForApi } from './leadHelpers.js';
 import { directoryLeadStatusValue } from './contactDirectoryHelpers.js';
+import { isPipelineStageStatus } from './pipelineHelpers.js';
 
 export function isImportUuid(value) {
   return /^[0-9a-f-]{36}$/i.test(String(value || '').trim());
+}
+
+/** Contact Lead Status is outreach-only — never send pipeline stage values. */
+function contactOutreachLeadStatus(raw) {
+  if (!raw) return null;
+  if (isPipelineStageStatus(raw)) return null;
+  const normalized = String(raw).trim();
+  if (!normalized) return null;
+  const label = normalized.toLowerCase();
+  if (['cold lead', 'warm lead', 'qualified lead', 'proposal', 'contact', 'account', 'deal'].includes(label)) {
+    return null;
+  }
+  return resolveLeadStatusForApi(raw);
 }
 
 export function normalizeContact(contact, companyMap = {}) {
@@ -70,8 +84,7 @@ export function toContactPayload(form, { partial = false } = {}) {
       payload.lead_source = form.lead_source || form.source || null;
     }
     if (formHas(form, 'lead_status') || formHas(form, 'status')) {
-      const rawStatus = form.lead_status || form.status;
-      payload.lead_status = rawStatus ? resolveLeadStatusForApi(rawStatus) : null;
+      payload.lead_status = contactOutreachLeadStatus(form.lead_status || form.status);
     }
     if (formHas(form, 'reports_to_id')) payload.reports_to_id = form.reports_to_id || null;
     if (formHas(form, 'assistant')) payload.assistant = form.assistant || null;
@@ -121,7 +134,7 @@ export function toContactPayload(form, { partial = false } = {}) {
     title: form.title || null,
     department: form.department || null,
     lead_source: form.lead_source || form.source || null,
-    lead_status: form.lead_status ? resolveLeadStatusForApi(form.lead_status) : null,
+    lead_status: contactOutreachLeadStatus(form.lead_status),
     reports_to_id: form.reports_to_id || null,
     assistant: form.assistant || null,
     asst_phone: form.asst_phone || null,
