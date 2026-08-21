@@ -649,8 +649,7 @@ function SettingsPageContent() {
 
         {tab === 'company' && canManageSettings && (
           <div className="card p-5 max-w-lg">
-            <h2 className="text-sm font-semibold mb-1">Company Settings</h2>
-            <p className="text-xs text-zoho-muted mb-4">From <code className="text-brand-600">GET /admin/settings</code> · app_settings</p>
+            <h2 className="text-sm font-semibold mb-4">Company Settings</h2>
             {settingsLoading ? (
               <p className="text-sm text-gray-400 py-6">Loading settings...</p>
             ) : (

@@ -25,7 +25,7 @@ export const MODULE_SORT_CONFIG = {
   documents: { apiNameField: 'document_name', getLabel: (r) => r.document_name || r.name },
   visits: { apiNameField: 'title', getLabel: (r) => r.title || r.visit_name },
   projects: { apiNameField: 'name', getLabel: (r) => r.name },
-  'recycle-bin': { apiNameField: 'entity_name', getLabel: (r) => r.entity_name },
+  'recycle-bin': { apiNameField: 'name', getLabel: (r) => r.entity_name || r.name },
 };
 
 function compareStrings(a, b) {
@@ -49,6 +49,7 @@ function getCreatedTime(record) {
 
 export function getSortApiParams(sortKey = DEFAULT_LIST_SORT, moduleKey = 'leads') {
   const config = MODULE_SORT_CONFIG[moduleKey] || MODULE_SORT_CONFIG.leads;
+  const createdField = moduleKey === 'recycle-bin' ? 'deleted_at' : 'created_at';
   switch (sortKey) {
     case 'name_asc':
       return { sort_by: config.apiNameField, sort_order: 'asc' };
@@ -59,10 +60,10 @@ export function getSortApiParams(sortKey = DEFAULT_LIST_SORT, moduleKey = 'leads
     case 'email_desc':
       return { sort_by: 'email', sort_order: 'desc' };
     case 'created_asc':
-      return { sort_by: 'created_at', sort_order: 'asc' };
+      return { sort_by: createdField, sort_order: 'asc' };
     case 'created_desc':
     default:
-      return { sort_by: 'created_at', sort_order: 'desc' };
+      return { sort_by: createdField, sort_order: 'desc' };
   }
 }
 

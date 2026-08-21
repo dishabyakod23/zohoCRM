@@ -29,6 +29,11 @@ import ReadOnlyRecordBanner from '../records/ReadOnlyRecordBanner.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { useRecordCampaign } from '../../hooks/useRecordCampaign.js';
 import { IndustrySelectControl } from '../forms/IndustryField.js';
+import {
+  AddressCountrySelect,
+  AddressStateSelect,
+} from '../forms/AddressCountryStateFields.js';
+import { nextStateForCountry } from '../../lib/addressRegions.js';
 import { formatMoney, CURRENCIES, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import {
@@ -314,8 +319,23 @@ export default function PipelineLeadDetail({ stage }) {
             fields={[
               { name: 'street', label: 'Street' },
               { name: 'city', label: 'City' },
-              { name: 'state', label: 'State' },
-              { name: 'country', label: 'Country' },
+              { name: 'country', label: 'Country', render: (d, set) => (
+                <AddressCountrySelect
+                  value={d.country ?? ''}
+                  onChange={(country) => set((p) => ({
+                    ...p,
+                    country,
+                    state: nextStateForCountry(country, p.state),
+                  }))}
+                />
+              ) },
+              { name: 'state', label: 'State', render: (d, set) => (
+                <AddressStateSelect
+                  country={d.country}
+                  value={d.state ?? ''}
+                  onChange={(state) => set((p) => ({ ...p, state }))}
+                />
+              ) },
               { name: 'zip', label: 'Zip Code' },
             ]}
           />

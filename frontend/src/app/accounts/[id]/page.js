@@ -22,11 +22,16 @@ import { fetchDealStages, accountMapFromLookups, fetchUsers } from '../../../lib
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
 import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { ACCOUNT_TYPES, DEFAULT_PAGE_SIZE } from '../../../lib/constants.js';
+import { IndustrySelectControl } from '../../../components/forms/IndustryField.js';
+import {
+  AddressCountrySelect,
+  AddressStateSelect,
+} from '../../../components/forms/AddressCountryStateFields.js';
+import { nextStateForCountry } from '../../../lib/addressRegions.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
 import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
-import { IndustrySelectControl } from '../../../components/forms/IndustryField.js';
 
 export default function AccountDetailPage() {
   const id = useRecordId();
@@ -149,14 +154,44 @@ export default function AccountDetailPage() {
             fields={[
               { name: 'billing_street', label: 'Billing Street' },
               { name: 'billing_city', label: 'Billing City' },
-              { name: 'billing_state', label: 'Billing State' },
+              { name: 'billing_country', label: 'Billing Country', render: (d, set) => (
+                <AddressCountrySelect
+                  value={d.billing_country ?? ''}
+                  onChange={(country) => set((p) => ({
+                    ...p,
+                    billing_country: country,
+                    billing_state: nextStateForCountry(country, p.billing_state),
+                  }))}
+                />
+              ) },
+              { name: 'billing_state', label: 'Billing State', render: (d, set) => (
+                <AddressStateSelect
+                  country={d.billing_country}
+                  value={d.billing_state ?? ''}
+                  onChange={(state) => set((p) => ({ ...p, billing_state: state }))}
+                />
+              ) },
               { name: 'billing_zip', label: 'Billing Zip' },
-              { name: 'billing_country', label: 'Billing Country' },
               { name: 'shipping_street', label: 'Shipping Street' },
               { name: 'shipping_city', label: 'Shipping City' },
-              { name: 'shipping_state', label: 'Shipping State' },
+              { name: 'shipping_country', label: 'Shipping Country', render: (d, set) => (
+                <AddressCountrySelect
+                  value={d.shipping_country ?? ''}
+                  onChange={(country) => set((p) => ({
+                    ...p,
+                    shipping_country: country,
+                    shipping_state: nextStateForCountry(country, p.shipping_state),
+                  }))}
+                />
+              ) },
+              { name: 'shipping_state', label: 'Shipping State', render: (d, set) => (
+                <AddressStateSelect
+                  country={d.shipping_country}
+                  value={d.shipping_state ?? ''}
+                  onChange={(state) => set((p) => ({ ...p, shipping_state: state }))}
+                />
+              ) },
               { name: 'shipping_zip', label: 'Shipping Zip' },
-              { name: 'shipping_country', label: 'Shipping Country' },
             ]}
           />
 

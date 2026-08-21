@@ -21,11 +21,16 @@ import { getApiError } from '../../../lib/api.js';
 import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import * as leadsApi from '../../../lib/services/leads.js';
-import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchUsers } from '../../../lib/services/lookups.js';
+import { fetchLeadStatuses, fetchLeadSources, FALLBACK_LEAD_STATUSES, fetchUsers } from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
-import { LEAD_SOURCES, SALUTATIONS, RATINGS } from '../../../lib/constants.js';
+import { SALUTATIONS, RATINGS } from '../../../lib/constants.js';
 import { IndustrySelectControl } from '../../../components/forms/IndustryField.js';
-import { PIPELINE_LEAD } from '../../../lib/pipelineHelpers.js';
+import {
+  AddressCountrySelect,
+  AddressStateSelect,
+} from '../../../components/forms/AddressCountryStateFields.js';
+import { nextStateForCountry } from '../../../lib/addressRegions.js';
+import { PIPELINE_LEAD, outreachLeadStatusOptions } from '../../../lib/pipelineHelpers.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon,
 } from '@heroicons/react/24/outline';
@@ -38,7 +43,8 @@ export default function LeadDetailPage() {
   const { canEditRecord, canDeleteRecord, isSuperAdmin, canAssignLeads } = usePermissions();
   const [lead, setLead] = useState(null);
   const [users, setUsers] = useState([]);
-  const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const [statusOptions, setStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
+  const [sourceOptions, setSourceOptions] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
@@ -46,7 +52,10 @@ export default function LeadDetailPage() {
   useMarkRecordViewed('lead', id);
 
   useEffect(() => {
-    fetchLeadStatuses().then(setStatusOptions).catch(() => setStatusOptions(FALLBACK_LEAD_STATUSES));
+    fetchLeadStatuses()
+      .then((options) => setStatusOptions(outreachLeadStatusOptions(options)))
+      .catch(() => setStatusOptions(outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES)));
+    fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
     if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, [canAssignLeads]);
 
@@ -106,7 +115,7 @@ export default function LeadDetailPage() {
     <CRMLayout>
       <ReadOnlyRecordBanner show={!editable && !lead.is_converted} />
       <RecordDetailLayout
-        backHref="/leads" backLabel="Leads"
+        backHref="/leads" backLabel="Warm Leads"
         title={`${lead.first_name} ${lead.last_name}`}
         subtitle={lead.company}
         badges={<Badge label={lead.status} />}
@@ -160,7 +169,7 @@ export default function LeadDetailPage() {
                   { name: 'company', label: 'Company', required: true },
                   { name: 'title', label: 'Job Title' },
                   { name: 'lead_status', label: 'Lead Status', format: () => lead.status, render: (d, set) => select(statusOptions)(d, set, 'lead_status') },
-                  { name: 'source', label: 'Lead Source', render: (d, set) => select(LEAD_SOURCES, null, null)(d, set, 'source') },
+                  { name: 'source', label: 'Lead Source', render: (d, set) => select(sourceOptions)(d, set, 'source') },
                   { name: 'industry', label: 'Industry', render: (d, set) => (
                     <IndustrySelectControl
                       value={d.industry ?? ''}
@@ -201,9 +210,24 @@ export default function LeadDetailPage() {
                 fields={[
                   { name: 'street', label: 'Street', colSpan: true },
                   { name: 'city', label: 'City' },
-                  { name: 'state', label: 'State' },
+                  { name: 'country', label: 'Country', render: (d, set) => (
+                    <AddressCountrySelect
+                      value={d.country ?? ''}
+                      onChange={(country) => set((p) => ({
+                        ...p,
+                        country,
+                        state: nextStateForCountry(country, p.state),
+                      }))}
+                    />
+                  ) },
+                  { name: 'state', label: 'State', render: (d, set) => (
+                    <AddressStateSelect
+                      country={d.country}
+                      value={d.state ?? ''}
+                      onChange={(state) => set((p) => ({ ...p, state }))}
+                    />
+                  ) },
                   { name: 'zip_code', label: 'Zip Code' },
-                  { name: 'country', label: 'Country' },
                 ]}
               />
               <EditableFieldSection

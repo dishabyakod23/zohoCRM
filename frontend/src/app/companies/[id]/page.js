@@ -18,6 +18,11 @@ import { fetchUsers } from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
 import { DEFAULT_PAGE_SIZE } from '../../../lib/constants.js';
 import { IndustrySelectControl } from '../../../components/forms/IndustryField.js';
+import {
+  AddressCountrySelect,
+  AddressStateSelect,
+} from '../../../components/forms/AddressCountryStateFields.js';
+import { nextStateForCountry } from '../../../lib/addressRegions.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
@@ -123,9 +128,24 @@ export default function CompanyDetailPage() {
             fields={[
               { name: 'billing_street', label: 'Billing Street' },
               { name: 'billing_city', label: 'Billing City' },
-              { name: 'billing_state', label: 'Billing State' },
+              { name: 'billing_country', label: 'Billing Country', render: (d, set) => (
+                <AddressCountrySelect
+                  value={d.billing_country ?? ''}
+                  onChange={(country) => set((p) => ({
+                    ...p,
+                    billing_country: country,
+                    billing_state: nextStateForCountry(country, p.billing_state),
+                  }))}
+                />
+              ) },
+              { name: 'billing_state', label: 'Billing State', render: (d, set) => (
+                <AddressStateSelect
+                  country={d.billing_country}
+                  value={d.billing_state ?? ''}
+                  onChange={(state) => set((p) => ({ ...p, billing_state: state }))}
+                />
+              ) },
               { name: 'billing_zip', label: 'Billing Zip' },
-              { name: 'billing_country', label: 'Billing Country' },
             ]}
           />
 

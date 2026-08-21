@@ -44,6 +44,31 @@ export async function listRecycleBin({ page = 1, page_size = DEFAULT_PAGE_SIZE, 
   };
 }
 
+/** Load every recycle-bin row (for reliable client-side name sorting). */
+export async function listAllRecycleBin({ entity_type, page_size = 200 } = {}) {
+  const all = [];
+  let page = 1;
+  let total = Infinity;
+
+  while (all.length < total) {
+    const result = await listRecycleBin({
+      page,
+      page_size,
+      entity_type: entity_type || undefined,
+      sort_by: 'deleted_at',
+      sort_order: 'desc',
+    });
+    const batch = result.data || [];
+    total = result.total ?? batch.length;
+    all.push(...batch);
+    if (!batch.length || batch.length < page_size) break;
+    page += 1;
+    if (page > 100) break;
+  }
+
+  return { data: all, total: all.length };
+}
+
 export async function restoreRecycleItem(recycleId) {
   const res = await api.post(`/recycle-bin/${recycleId}/restore`);
   return res.data?.data || res.data;

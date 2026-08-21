@@ -17,11 +17,24 @@ import api from '../../../lib/api.js';
 import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import * as dealsApi from '../../../lib/services/deals.js';
-import { fetchCompanyLookups, accountMapFromLookups, fetchDealStages, fetchUsers, fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../../lib/services/lookups.js';
+import {
+  fetchCompanyLookups,
+  accountMapFromLookups,
+  fetchDealStages,
+  fetchUsers,
+  fetchLeadStatuses,
+  fetchLeadSources,
+  FALLBACK_LEAD_STATUSES,
+} from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
-import { LEAD_SOURCES } from '../../../lib/constants.js';
+import {
+  AddressCountrySelect,
+  AddressStateSelect,
+} from '../../../components/forms/AddressCountryStateFields.js';
+import { nextStateForCountry } from '../../../lib/addressRegions.js';
 import {
   PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL,
+  outreachLeadStatusOptions,
 } from '../../../lib/pipelineHelpers.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import PhoneDisplay from '../../../components/cloudtalk/PhoneDisplay.js';
@@ -77,7 +90,8 @@ export default function ContactDetailPage() {
   const [accounts, setAccounts] = useState([]);
   const [deals, setDeals] = useState([]);
   const [stageOptions, setStageOptions] = useState(FALLBACK_DEAL_STAGES);
-  const [leadStatusOptions, setLeadStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
+  const [leadStatusOptions, setLeadStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
+  const [leadSourceOptions, setLeadSourceOptions] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
@@ -103,7 +117,10 @@ export default function ContactDetailPage() {
   useEffect(() => {
     fetchCompanyLookups().then(setAccounts).catch(() => {});
     fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
-    fetchLeadStatuses().then(setLeadStatusOptions).catch(() => setLeadStatusOptions(FALLBACK_LEAD_STATUSES));
+    fetchLeadStatuses()
+      .then((options) => setLeadStatusOptions(outreachLeadStatusOptions(options)))
+      .catch(() => setLeadStatusOptions(outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES)));
+    fetchLeadSources().then(setLeadSourceOptions).catch(() => setLeadSourceOptions([]));
     if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, [canAssignLeads]);
 
@@ -172,8 +189,8 @@ export default function ContactDetailPage() {
   }, [convertOpen]);
 
   const CONVERT_OPTIONS = [
-    { label: 'Raw Lead', target: PIPELINE_RAW },
-    { label: 'Lead', target: PIPELINE_LEAD },
+    { label: 'Cold Lead', target: PIPELINE_RAW },
+    { label: 'Warm Lead', target: PIPELINE_LEAD },
     { label: 'Qualified Lead', target: PIPELINE_QUALIFIED },
     { label: 'Proposal', target: PIPELINE_PROPOSAL },
     { label: 'Account', target: 'account' },
@@ -285,7 +302,9 @@ export default function ContactDetailPage() {
               { name: 'lead_source', label: 'Lead Source', render: (d, set) => (
                 <select className="input" value={d.lead_source ?? ''} onChange={(e) => set((p) => ({ ...p, lead_source: e.target.value }))}>
                   <option value="">--None--</option>
-                  {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {leadSourceOptions.map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
                 </select>
               ) },
               { name: 'lead_status', label: 'Lead Status', render: (d, set) => (
@@ -363,9 +382,24 @@ export default function ContactDetailPage() {
             fields={[
               { name: 'mailing_street', label: 'Street' },
               { name: 'mailing_city', label: 'City' },
-              { name: 'mailing_state', label: 'State' },
+              { name: 'mailing_country', label: 'Country', render: (d, set) => (
+                <AddressCountrySelect
+                  value={d.mailing_country ?? ''}
+                  onChange={(country) => set((p) => ({
+                    ...p,
+                    mailing_country: country,
+                    mailing_state: nextStateForCountry(country, p.mailing_state),
+                  }))}
+                />
+              ) },
+              { name: 'mailing_state', label: 'State', render: (d, set) => (
+                <AddressStateSelect
+                  country={d.mailing_country}
+                  value={d.mailing_state ?? ''}
+                  onChange={(state) => set((p) => ({ ...p, mailing_state: state }))}
+                />
+              ) },
               { name: 'mailing_zip', label: 'Zip' },
-              { name: 'mailing_country', label: 'Country' },
             ]}
           />
           <EditableFieldSection
@@ -377,9 +411,24 @@ export default function ContactDetailPage() {
             fields={[
               { name: 'other_street', label: 'Street' },
               { name: 'other_city', label: 'City' },
-              { name: 'other_state', label: 'State' },
+              { name: 'other_country', label: 'Country', render: (d, set) => (
+                <AddressCountrySelect
+                  value={d.other_country ?? ''}
+                  onChange={(country) => set((p) => ({
+                    ...p,
+                    other_country: country,
+                    other_state: nextStateForCountry(country, p.other_state),
+                  }))}
+                />
+              ) },
+              { name: 'other_state', label: 'State', render: (d, set) => (
+                <AddressStateSelect
+                  country={d.other_country}
+                  value={d.other_state ?? ''}
+                  onChange={(state) => set((p) => ({ ...p, other_state: state }))}
+                />
+              ) },
               { name: 'other_zip', label: 'Zip' },
-              { name: 'other_country', label: 'Country' },
             ]}
           />
           <EditableFieldSection

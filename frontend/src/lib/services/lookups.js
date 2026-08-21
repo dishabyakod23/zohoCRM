@@ -128,6 +128,24 @@ export async function fetchIndustries() {
   });
 }
 
+/** GET /lookups/countries → { value, label }[] */
+export async function fetchCountries() {
+  return cachedLookup('countries', async () => {
+    const res = await api.get('/lookups/countries');
+    return parseLookupOptions(res.data.data);
+  });
+}
+
+/** GET /lookups/states?country={country} → { value, label }[] */
+export async function fetchStates(country) {
+  const key = String(country || '').trim();
+  if (!key) return [];
+  return cachedLookup(`states:${key}`, async () => {
+    const res = await api.get('/lookups/states', { params: { country: key } });
+    return parseLookupOptions(res.data.data);
+  });
+}
+
 function formatLookupLabel(value) {
   if (!value) return '—';
   return String(value).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
