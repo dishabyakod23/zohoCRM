@@ -553,7 +553,6 @@ export default function CreateCampaignForm() {
             </>
           )}
 
-          <SectionTitle>Description Information</SectionTitle>
           <FormField label="Description" name="description">
             <textarea className="input min-h-[120px] w-full" value={form.description} onChange={set('description')} />
           </FormField>

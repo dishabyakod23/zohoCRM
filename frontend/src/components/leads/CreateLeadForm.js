@@ -240,8 +240,7 @@ export default function CreateLeadForm() {
             </FormField>
           </div>
 
-          <SectionTitle>Description</SectionTitle>
-          <FormField label="Description">
+          <FormField label="Description" name="description">
             <textarea className="input min-h-[100px] resize-y" placeholder="Add a description..." value={form.description} onChange={set('description')} />
           </FormField>
 

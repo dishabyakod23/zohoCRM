@@ -98,8 +98,9 @@ export function CreatedUpdatedDateFilters({ filters, onChange }) {
     </>
   );
 }
+CreatedUpdatedDateFilters.filterLabel = 'Created from Created to Updated from Updated to';
 
-export function OwnerFilter({ users = [], value, onChange }) {
+export function OwnerFilter({ users = [], value, onChange, label = 'Owner' }) {
   const { user } = useAuth();
   const options = useMemo(() => {
     const byId = new Map();
@@ -114,12 +115,15 @@ export function OwnerFilter({ users = [], value, onChange }) {
         byId.set(currentId, userDisplayName(user));
       }
     }
-    return Array.from(byId.entries()).map(([optionValue, label]) => ({ value: optionValue, label }));
+    return Array.from(byId.entries()).map(([optionValue, optionLabel]) => ({
+      value: optionValue,
+      label: optionLabel,
+    }));
   }, [users, user]);
 
   return (
     <SelectFilter
-      label="Owner"
+      label={label}
       value={value ? String(value) : ''}
       onChange={onChange}
       options={options}
@@ -127,14 +131,15 @@ export function OwnerFilter({ users = [], value, onChange }) {
     />
   );
 }
+OwnerFilter.filterLabel = 'Owner';
 
-export function CampaignFilter({ campaigns = [], value, onChange, loading = false }) {
+export function CampaignFilter({ campaigns = [], value, onChange, loading = false, label = 'Campaign' }) {
   const layout = useFilterLayout();
   const widthClass = layout === 'sidebar' ? 'w-full' : 'w-48';
   const selected = campaigns.find((c) => String(c.value) === String(value));
 
   return (
-    <FilterField label="Campaign">
+    <FilterField label={label}>
       <div className={widthClass}>
         <CampaignCombobox
           options={campaigns}
@@ -151,3 +156,5 @@ export function CampaignFilter({ campaigns = [], value, onChange, loading = fals
     </FilterField>
   );
 }
+CampaignFilter.filterLabel = 'Campaign';
+

@@ -21,17 +21,25 @@ function toIndexRecords(records, entityType, phoneFields) {
 
 let cachedLookup = null;
 let cachedAt = 0;
+let cachedIncludeAccounts = true;
 
-function buildLookupFromCrm() {
-  return cachedRequest('crm-phone-lookup', async () => {
-    const [contactsRes, leadsRes, accountsRes] = await Promise.all([
+function buildLookupFromCrm({ includeAccounts = true } = {}) {
+  const cacheKey = includeAccounts ? 'crm-phone-lookup' : 'crm-phone-lookup:people';
+  return cachedRequest(cacheKey, async () => {
+    const tasks = [
       contactsApi.listAllContacts().catch(() => ({ data: [] })),
       leadsApi.listAllLeads().catch(() => ({ data: [] })),
-      accountsApi.listAllAccounts().catch(() => ({ data: [] })),
-    ]);
+    ];
+    if (includeAccounts) {
+      tasks.push(accountsApi.listAllAccounts().catch(() => ({ data: [] })));
+    }
+
+    const [contactsRes, leadsRes, accountsRes] = await Promise.all(tasks);
 
     const index = buildPhoneLookupIndex([
-      ...toIndexRecords(accountsRes.data, 'account', ACCOUNT_PHONE_FIELDS),
+      ...(includeAccounts
+        ? toIndexRecords(accountsRes?.data, 'account', ACCOUNT_PHONE_FIELDS)
+        : []),
       ...toIndexRecords(leadsRes.data, 'lead', LEAD_PHONE_FIELDS),
       ...toIndexRecords(contactsRes.data, 'contact', CONTACT_PHONE_FIELDS),
     ]);
@@ -40,12 +48,18 @@ function buildLookupFromCrm() {
   }, CACHE_MS);
 }
 
-export async function getCrmPhoneLookup({ force = false } = {}) {
-  if (!force && cachedLookup && Date.now() - cachedAt < CACHE_MS) {
+export async function getCrmPhoneLookup({ force = false, includeAccounts = true } = {}) {
+  if (
+    !force
+    && cachedLookup
+    && cachedIncludeAccounts === includeAccounts
+    && Date.now() - cachedAt < CACHE_MS
+  ) {
     return cachedLookup;
   }
 
-  cachedLookup = await buildLookupFromCrm();
+  cachedLookup = await buildLookupFromCrm({ includeAccounts });
+  cachedIncludeAccounts = includeAccounts;
   cachedAt = Date.now();
   return cachedLookup;
 }

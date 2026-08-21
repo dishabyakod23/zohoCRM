@@ -100,23 +100,40 @@ export async function listAuditLogsLastDays(days = 30, params = {}) {
   return listAuditLogsInRange(auditLogDateRange(days), params);
 }
 
-export async function listAuditLogsInRange({ start_at, end_at }, params = {}) {
-  const pageSize = 100;
-  let page = 1;
-  let all = [];
-
-  while (page <= 50) {
-    const res = await api.get(AUDIT_LOGS_BASE, {
-      params: { ...params, page, page_size: pageSize, start_at, end_at },
-    });
-    const batch = (res.data.data || []).map(normalizeAuditLog);
-    const total = res.data.meta?.total ?? all.length + batch.length;
-    all = all.concat(batch);
-    if (batch.length === 0 || all.length >= total) break;
-    page += 1;
+export async function listAuditLogsInRange(
+  { start_at, end_at },
+  params = {},
+  { maxPages = 10, pageSize = 100 } = {},
+) {
+  const firstRes = await api.get(AUDIT_LOGS_BASE, {
+    params: { ...params, page: 1, page_size: pageSize, start_at, end_at },
+  });
+  const firstBatch = (firstRes.data.data || []).map(normalizeAuditLog);
+  const total = firstRes.data.meta?.total ?? firstBatch.length;
+  if (!firstBatch.length || firstBatch.length >= total || maxPages <= 1) {
+    return filterVisibleAuditLogs(firstBatch);
   }
 
-  return filterVisibleAuditLogs(all);
+  const totalPages = Math.min(maxPages, Math.ceil(total / pageSize));
+  const pageNumbers = [];
+  for (let page = 2; page <= totalPages; page += 1) pageNumbers.push(page);
+
+  // Fetch remaining pages in parallel batches to avoid long sequential waits.
+  const PARALLEL = 4;
+  const rest = [];
+  for (let i = 0; i < pageNumbers.length; i += PARALLEL) {
+    const chunk = pageNumbers.slice(i, i + PARALLEL);
+    const batches = await Promise.all(chunk.map(async (page) => {
+      const res = await api.get(AUDIT_LOGS_BASE, {
+        params: { ...params, page, page_size: pageSize, start_at, end_at },
+      });
+      return (res.data.data || []).map(normalizeAuditLog);
+    }));
+    rest.push(...batches.flat());
+    if (firstBatch.length + rest.length >= total) break;
+  }
+
+  return filterVisibleAuditLogs([...firstBatch, ...rest]);
 }
 
 export function filterVisibleAuditLogs(logs, limit) {
@@ -133,7 +150,16 @@ export function mergeActivityLogs(auditLogs = [], cloudTalkCalls = []) {
 /** Audit logs plus CloudTalk call history for a date window (full window). */
 export async function listActivityLogsLastDays(
   days = 30,
-  { user, canSeeAll = false, activity_from, activity_to, ...params } = {},
+  {
+    user,
+    canSeeAll = false,
+    activity_from,
+    activity_to,
+    enrichPhones = true,
+    cloudTalkLimit = 100,
+    maxAuditPages = 8,
+    ...params
+  } = {},
 ) {
   const scopedParams = canSeeAll ? params : { ...params, user_id: user?.id };
   const range = activity_from || activity_to
@@ -141,19 +167,32 @@ export async function listActivityLogsLastDays(
     : auditLogDateRange(days);
   const windowDays = daysBetween(range.start_at, range.end_at);
 
-  const [auditLogs, cloudTalkCalls] = await Promise.all([
-    listAuditLogsInRange(range, scopedParams).catch(() => []),
-    listCloudTalkCallsInRange(range, scopedParams, { limit: 200, days: windowDays }).catch(() => []),
+  // Kick off phone lookup in parallel with log fetches (was sequential before).
+  const phoneLookupPromise = enrichPhones
+    ? getCrmPhoneLookup().catch(() => null)
+    : Promise.resolve(null);
+
+  const [auditLogs, cloudTalkCalls, lookup] = await Promise.all([
+    listAuditLogsInRange(range, scopedParams, { maxPages: maxAuditPages }).catch(() => []),
+    listCloudTalkCallsInRange(range, scopedParams, { limit: cloudTalkLimit, days: windowDays }).catch(() => []),
+    phoneLookupPromise,
   ]);
 
   const scopedCloudTalk = scopeCloudTalkCalls(cloudTalkCalls, { user, canSeeAll });
   const merged = mergeActivityLogs(auditLogs, scopedCloudTalk);
+  if (!lookup) return merged;
+  return enrichActivityLogsWithPhoneNames(merged, lookup);
+}
 
+/** Enrich already-loaded activity rows with CRM phone names (background pass). */
+export async function enrichLoadedActivityLogs(logs) {
+  if (!logs?.length) return logs || [];
   try {
-    const lookup = await getCrmPhoneLookup();
-    return enrichActivityLogsWithPhoneNames(merged, lookup);
+    // Contacts + leads are enough for call name resolution; skip accounts for speed.
+    const lookup = await getCrmPhoneLookup({ includeAccounts: false });
+    return enrichActivityLogsWithPhoneNames(logs, lookup);
   } catch {
-    return merged;
+    return logs;
   }
 }
 
@@ -174,7 +213,7 @@ export async function listRecentActivityLogs(
   const { start_at, end_at } = auditLogDateRange(days);
   const auditPageSize = limit ? Math.min(Math.max(limit * 3, limit), 100) : 100;
 
-  const [auditRes, cloudTalkCalls] = await Promise.all([
+  const [auditRes, cloudTalkCalls, lookup] = await Promise.all([
     api.get(AUDIT_LOGS_BASE, {
       params: {
         ...scopedParams,
@@ -187,6 +226,7 @@ export async function listRecentActivityLogs(
     includeCloudTalk
       ? listCloudTalkCallsLastDays(days, scopedParams, { limit: cloudTalkLimit }).catch(() => [])
       : Promise.resolve([]),
+    enrichPhones ? getCrmPhoneLookup().catch(() => null) : Promise.resolve(null),
   ]);
 
   const auditLogs = filterVisibleAuditLogs((auditRes.data.data || []).map(normalizeAuditLog));
@@ -194,14 +234,8 @@ export async function listRecentActivityLogs(
   const merged = mergeActivityLogs(auditLogs, scopedCloudTalk);
   const sliced = limit ? merged.slice(0, limit) : merged;
 
-  if (!enrichPhones) return sliced;
-
-  try {
-    const lookup = await getCrmPhoneLookup();
-    return enrichActivityLogsWithPhoneNames(sliced, lookup);
-  } catch {
-    return sliced;
-  }
+  if (!lookup) return sliced;
+  return enrichActivityLogsWithPhoneNames(sliced, lookup);
 }
 
 export async function getEntityTimeline(entityType, entityId, params = {}) {

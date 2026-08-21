@@ -385,7 +385,6 @@ export default function CreateContactForm() {
           </div>
 
           {/* ── Description ── */}
-          <SectionTitle>Description Information</SectionTitle>
           <FormField label="Description" name="description">
             <textarea className="input min-h-[100px] resize-y" placeholder="Add a description…"
               value={form.description} onChange={set('description')} />

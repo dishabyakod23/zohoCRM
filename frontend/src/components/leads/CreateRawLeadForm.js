@@ -320,7 +320,6 @@ export default function CreateRawLeadForm() {
           </div>
           <button type="button" onClick={clearAddress} className="text-xs text-brand-600 hover:underline mb-4">Clear All</button>
 
-          <SectionTitle>Description Information</SectionTitle>
           <FormField label="Description" name="description">
             <textarea className="input min-h-[100px] resize-y" value={form.description} onChange={set('description')} />
           </FormField>

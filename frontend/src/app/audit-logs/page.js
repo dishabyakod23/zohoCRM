@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { DateFilter } from '../../components/layout/ListFilterFields.js';
@@ -35,31 +35,54 @@ export default function AuditLogsPage() {
   const [loading, setLoading] = useState(true);
   const [activityFrom, setActivityFrom] = useState(DEFAULT_ACTIVITY_FROM);
   const [activityTo, setActivityTo] = useState(DEFAULT_ACTIVITY_TO);
+  const loadGenRef = useRef(0);
 
   const canViewAuditLogs = can('audit_logs', 'view');
 
   const loadLogs = useCallback(async () => {
     if (!user?.id || !canViewAuditLogs) return;
+    const gen = ++loadGenRef.current;
     setLoading(true);
     try {
       const canSeeAllLogs = isSuperAdmin || isSalesManager;
-      const allLogs = await auditLogsApi.listActivityLogsLastDays(30, {
+      const scope = {
         user,
         canSeeAll: canSeeAllLogs,
         activity_from: activityFrom || undefined,
         activity_to: activityTo || undefined,
         ...(canSeeAllLogs ? {} : { user_id: user.id }),
+      };
+
+      // Fast first paint: skip phone enrichment, then upgrade names in the background.
+      const allLogs = await auditLogsApi.listActivityLogsLastDays(30, {
+        ...scope,
+        enrichPhones: false,
+        cloudTalkLimit: 100,
+        maxAuditPages: 8,
       });
+      if (gen !== loadGenRef.current) return;
       const filtered = allLogs.filter((log) => matchesDateRange(
         log.created_at,
         activityFrom,
         activityTo,
       ));
       setLogs(filtered);
+      setLoading(false);
+
+      auditLogsApi.enrichLoadedActivityLogs(filtered)
+        .then((enriched) => {
+          if (gen !== loadGenRef.current) return;
+          setLogs(enriched.filter((log) => matchesDateRange(
+            log.created_at,
+            activityFrom,
+            activityTo,
+          )));
+        })
+        .catch(() => {});
     } catch (err) {
+      if (gen !== loadGenRef.current) return;
       showToast(getApiError(err));
       setLogs([]);
-    } finally {
       setLoading(false);
     }
   }, [activityFrom, activityTo, canViewAuditLogs, isSalesManager, isSuperAdmin, showToast, user]);

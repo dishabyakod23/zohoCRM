@@ -24,7 +24,25 @@ function FilterSection({ title, open, onToggle, children }) {
 
 function childLabel(child) {
   if (!isValidElement(child)) return '';
-  return child.props?.label || child.props?.['data-filter-label'] || '';
+  const fromProps = child.props?.label || child.props?.['data-filter-label'] || '';
+  if (fromProps) return String(fromProps);
+  const type = child.type;
+  if (typeof type === 'function' && type.filterLabel) return String(type.filterLabel);
+  return '';
+}
+
+function matchScore(label, query) {
+  const normalized = String(label || '').toLowerCase();
+  const q = String(query || '').toLowerCase().trim();
+  if (!q || !normalized) return null;
+  if (normalized === q) return 0;
+  if (normalized.startsWith(q)) return 1;
+  // Match any word in composite labels (e.g. "Created from Created to …").
+  const words = normalized.split(/[\s,/|-]+/).filter(Boolean);
+  if (words.some((word) => word.startsWith(q))) return 2;
+  if (normalized.includes(q)) return 3;
+  if (words.some((word) => word.includes(q))) return 4;
+  return null;
 }
 
 export default function ListFilterSidebar({
@@ -37,12 +55,20 @@ export default function ListFilterSidebar({
   const [fieldsOpen, setFieldsOpen] = useState(true);
 
   const visibleChildren = useMemo(() => {
+    const list = Children.toArray(children).filter(isValidElement);
     const q = filterSearch.trim().toLowerCase();
-    if (!q) return Children.toArray(children);
-    return Children.toArray(children).filter((child) => {
-      const label = childLabel(child).toLowerCase();
-      return !label || label.includes(q);
-    });
+    if (!q) return list;
+
+    return list
+      .map((child) => {
+        const label = childLabel(child);
+        const score = matchScore(label, q);
+        if (score == null) return null;
+        return { child, score, label: label.toLowerCase() };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.score - b.score || a.label.localeCompare(b.label))
+      .map((entry) => entry.child);
   }, [children, filterSearch]);
 
   if (!children) return null;
