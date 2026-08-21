@@ -41,6 +41,7 @@ export default function CsvImportModal({
   const [validationMessage, setValidationMessage] = useState('');
   const [validating, setValidating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState('');
   const [defaultCampaign, setDefaultCampaign] = useState({ campaign_id: '', campaign_name: '' });
 
   const reset = () => {
@@ -52,6 +53,7 @@ export default function CsvImportModal({
     setHideRecognized(false);
     setPreview(null);
     setValidationMessage('');
+    setImportProgress('');
     setDefaultCampaign({ campaign_id: '', campaign_name: '' });
   };
 
@@ -130,6 +132,7 @@ export default function CsvImportModal({
       return;
     }
     setImporting(true);
+    setImportProgress('Preparing import…');
     try {
       const mappedFile = buildMappedFile();
       let readyCount = preview?.ready_count;
@@ -146,6 +149,7 @@ export default function CsvImportModal({
       const result = await importFn(mappedFile, {
         dry_run: false,
         campaignId: campaignId || undefined,
+        onProgress: (info) => setImportProgress(info?.message || ''),
       });
       showToast(`Imported ${result.imported_count ?? result.ready_count ?? readyCount} record(s)`, 'success');
       onDone?.();
@@ -154,6 +158,7 @@ export default function CsvImportModal({
       setValidationMessage(getApiError(err));
     } finally {
       setImporting(false);
+      setImportProgress('');
     }
   };
 
@@ -273,6 +278,10 @@ export default function CsvImportModal({
               </button>
             </div>
           </div>
+
+          {importProgress && (
+            <p className="text-xs text-zoho-muted">{importProgress}</p>
+          )}
 
           {(hasValidationIssues || (preview && preview.ready_count > 0)) && (
             <div className="text-xs space-y-2 border-t border-zoho-border pt-3 mt-1">

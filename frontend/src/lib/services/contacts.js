@@ -128,7 +128,7 @@ export async function downloadContactImportTemplate() {
   downloadBlob(new Blob([csv], { type: 'text/csv' }), 'contacts-import-template.csv');
 }
 
-export async function importContactsFile(file, { dry_run = true, campaignId } = {}) {
+export async function importContactsFile(file, { dry_run = true, campaignId, onProgress } = {}) {
   const csv = await file.text();
   const upload = await api.post('/contacts/bulk-upload', { csv }, { timeout: BULK_IMPORT_TIMEOUT_MS });
   const payload = upload.data.data || {};
@@ -160,6 +160,7 @@ export async function importContactsFile(file, { dry_run = true, campaignId } = 
   const result = await postBulkImportInChunks(api, '/contacts/bulk-import', {
     records,
     campaign_id: defaultCampaignId || undefined,
+    onProgress,
   });
 
   return normalizeImportResult({

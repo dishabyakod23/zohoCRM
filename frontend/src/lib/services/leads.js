@@ -400,7 +400,7 @@ export async function downloadLeadImportTemplate() {
   downloadBlob(new Blob([csv], { type: 'text/csv' }), 'raw-leads-import-template.csv');
 }
 
-export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus = PIPELINE_RAW, campaignId } = {}) {
+export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus = PIPELINE_RAW, campaignId, onProgress } = {}) {
   const rawCsv = await file.text();
   const csv = ensureCsvColumn(rawCsv, 'lead_status', defaultLeadStatus);
   if (dry_run) {
@@ -432,6 +432,7 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
   const result = await postBulkImportInChunks(api, '/leads/bulk-import', {
     records,
     campaign_id: defaultCampaignId || undefined,
+    onProgress,
   });
 
   await finalizeLeadBulkImport({

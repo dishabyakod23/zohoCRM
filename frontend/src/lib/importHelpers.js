@@ -84,8 +84,14 @@ export function normalizeImportResult(data = {}) {
 /** Per-request timeout for bulk-upload / bulk-import (default axios timeout is 45s). */
 export const BULK_IMPORT_TIMEOUT_MS = 180000;
 
-/** Rows per POST /…/bulk-import request. */
-export const BULK_IMPORT_CHUNK_SIZE = 200;
+/**
+ * Rows per POST /…/bulk-import request.
+ * Kept well under the API/nginx failure threshold (~1000 rows) seen in production.
+ */
+export const BULK_IMPORT_CHUNK_SIZE = 50;
+
+/** Smallest chunk size when auto-splitting after a server error. */
+export const BULK_IMPORT_MIN_CHUNK_SIZE = 10;
 
 export function chunkArray(items = [], size = BULK_IMPORT_CHUNK_SIZE) {
   const list = Array.isArray(items) ? items : [];
@@ -96,6 +102,60 @@ export function chunkArray(items = [], size = BULK_IMPORT_CHUNK_SIZE) {
     chunks.push(list.slice(i, i + chunkSize));
   }
   return chunks;
+}
+
+function isRetryableBulkImportError(err) {
+  const status = err?.response?.status;
+  if (status === 413 || status === 408 || status === 429) return true;
+  if (status >= 500 && status < 600) return true;
+  if (err?.code === 'ECONNABORTED') return true;
+  if (err?.message === 'Network Error') return true;
+  return false;
+}
+
+async function postBulkImportChunk(apiClient, url, chunk, campaign_id, timeout) {
+  const body = { records: chunk };
+  if (campaign_id) body.campaign_id = campaign_id;
+  const res = await apiClient.post(url, body, { timeout });
+  return res.data?.data || res.data || {};
+}
+
+/**
+ * Post one chunk; on server overload/timeout, split and retry until min size.
+ */
+async function postBulkImportChunkWithSplit(
+  apiClient,
+  url,
+  chunk,
+  { campaign_id, timeout, minChunkSize = BULK_IMPORT_MIN_CHUNK_SIZE, onProgress } = {},
+) {
+  try {
+    return [await postBulkImportChunk(apiClient, url, chunk, campaign_id, timeout)];
+  } catch (err) {
+    if (!isRetryableBulkImportError(err) || chunk.length <= minChunkSize) {
+      throw err;
+    }
+    const mid = Math.ceil(chunk.length / 2);
+    const left = chunk.slice(0, mid);
+    const right = chunk.slice(mid);
+    onProgress?.({
+      phase: 'split',
+      message: `Server rejected a batch of ${chunk.length}; retrying as ${left.length} + ${right.length}…`,
+    });
+    const leftResults = await postBulkImportChunkWithSplit(apiClient, url, left, {
+      campaign_id,
+      timeout,
+      minChunkSize,
+      onProgress,
+    });
+    const rightResults = await postBulkImportChunkWithSplit(apiClient, url, right, {
+      campaign_id,
+      timeout,
+      minChunkSize,
+      onProgress,
+    });
+    return [...leftResults, ...rightResults];
+  }
 }
 
 /** Merge chunked bulk-import API payloads into one result. */
@@ -146,11 +206,19 @@ export function mergeBulkImportResults(results = []) {
 /**
  * POST records to a bulk-import endpoint in chunks with an extended timeout.
  * Keeps campaign_id on every chunk when provided.
+ * On 5xx/413/timeout, automatically splits the failing batch and retries.
  */
 export async function postBulkImportInChunks(
   apiClient,
   url,
-  { records = [], campaign_id, chunkSize = BULK_IMPORT_CHUNK_SIZE, timeout = BULK_IMPORT_TIMEOUT_MS } = {},
+  {
+    records = [],
+    campaign_id,
+    chunkSize = BULK_IMPORT_CHUNK_SIZE,
+    timeout = BULK_IMPORT_TIMEOUT_MS,
+    minChunkSize = BULK_IMPORT_MIN_CHUNK_SIZE,
+    onProgress,
+  } = {},
 ) {
   const chunks = chunkArray(records, chunkSize);
   if (!chunks.length) {
@@ -158,11 +226,22 @@ export async function postBulkImportInChunks(
   }
 
   const results = [];
-  for (const chunk of chunks) {
-    const body = { records: chunk };
-    if (campaign_id) body.campaign_id = campaign_id;
-    const res = await apiClient.post(url, body, { timeout });
-    results.push(res.data?.data || res.data || {});
+  for (let i = 0; i < chunks.length; i += 1) {
+    const chunk = chunks[i];
+    onProgress?.({
+      phase: 'chunk',
+      current: i + 1,
+      total: chunks.length,
+      rows: chunk.length,
+      message: `Importing batch ${i + 1} of ${chunks.length} (${chunk.length} rows)…`,
+    });
+    const chunkResults = await postBulkImportChunkWithSplit(apiClient, url, chunk, {
+      campaign_id,
+      timeout,
+      minChunkSize,
+      onProgress,
+    });
+    results.push(...chunkResults);
   }
   return mergeBulkImportResults(results);
 }

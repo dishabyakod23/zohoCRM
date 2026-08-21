@@ -46,6 +46,14 @@ export function getApiError(err) {
   const data = err.response?.data;
   if (!data) return err.message || 'Request failed';
 
+  if (typeof data === 'string') {
+    const text = data.trim();
+    if (err.response?.status >= 500) {
+      return 'The server failed while processing this import. Large files are sent in smaller batches — try again, or split the CSV if it keeps failing.';
+    }
+    return text || err.message || 'Request failed';
+  }
+
   if (err.response?.status === 403) {
     return typeof data.detail === 'string'
       ? data.detail

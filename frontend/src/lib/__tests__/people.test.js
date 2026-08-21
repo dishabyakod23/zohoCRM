@@ -75,14 +75,14 @@ describe('normalizePersonRow', () => {
     expect(row._entityType).toBe('contact');
   });
 
-  it('shows Cold Lead current status and blank lead status for synced cold-lead contacts', () => {
+  it('keeps contact current status and clears pipeline values from lead status', () => {
     const row = normalizePersonRow({
       id: 'c1',
       entity_type: 'contact',
       current_status: 'CONTACT',
       lead_status: 'raw_prospect',
     });
-    expect(row.current_status).toBe('Cold Lead');
+    expect(row.current_status).toBe('Contact');
     expect(row.lead_status).toBeNull();
   });
 
