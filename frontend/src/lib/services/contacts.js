@@ -1,6 +1,6 @@
 import api from '../api.js';
 import { normalizeContact, toContactPayload, normalizeBulkUploadContactRecords } from '../contactHelpers.js';
-import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
+import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS } from '../importHelpers.js';
 import {
   applyContactRecordFilters,
   hasContactClientFilters,
@@ -130,7 +130,7 @@ export async function downloadContactImportTemplate() {
 
 export async function importContactsFile(file, { dry_run = true, campaignId } = {}) {
   const csv = await file.text();
-  const upload = await api.post('/contacts/bulk-upload', { csv });
+  const upload = await api.post('/contacts/bulk-upload', { csv }, { timeout: BULK_IMPORT_TIMEOUT_MS });
   const payload = upload.data.data || {};
   const readyRecords = payload.readyRecords || [];
   if (dry_run) {
@@ -157,18 +157,19 @@ export async function importContactsFile(file, { dry_run = true, campaignId } = 
     campaignLookups,
   });
 
-  const importBody = { records };
-  if (defaultCampaignId) {
-    importBody.campaign_id = defaultCampaignId;
-  }
-
-  const res = await api.post('/contacts/bulk-import', importBody);
-  const result = res.data.data || res.data || {};
+  const result = await postBulkImportInChunks(api, '/contacts/bulk-import', {
+    records,
+    campaign_id: defaultCampaignId || undefined,
+  });
 
   return normalizeImportResult({
     imported_count: result.imported ?? result.imported_count ?? records.length,
+    skipped_count: result.skipped ?? result.skipped_count,
     error_count: result.errors ?? result.error_count,
-    errorRecords: result.errorRecords || result.errors,
+    errorRecords: result.errorRecords,
+    created_ids: result.created_ids,
+    records: result.records,
+    skip_messages: result.skip_messages,
   });
 }
 

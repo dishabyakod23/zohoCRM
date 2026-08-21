@@ -6,11 +6,14 @@ import {
   invalidateCampaignCaches,
 } from './campaignRecordHelpers.js';
 import { prepareContactImportRecords } from './contactHelpers.js';
+import { postBulkImportInChunks } from './importHelpers.js';
 import { invalidateCachedRequestPrefix } from './requestCache.js';
 
 function extractImportedIds(result = {}) {
   const records = Array.isArray(result.records) ? result.records : [];
-  return records.map((row) => row?.id).filter(Boolean);
+  const fromRecords = records.map((row) => row?.id).filter(Boolean);
+  if (fromRecords.length) return fromRecords;
+  return Array.isArray(result.created_ids) ? result.created_ids.filter(Boolean) : [];
 }
 
 /** Link imported leads/contacts to a campaign and refresh cached member lists. */
@@ -48,11 +51,10 @@ export async function syncImportedLeadsAsContacts(readyRecords, { campaignId, ca
     campaignLookups,
   });
 
-  const importBody = { records };
-  if (campaignId) importBody.campaign_id = campaignId;
-
-  const res = await api.post('/contacts/bulk-import', importBody);
-  const result = res.data?.data || res.data || {};
+  const result = await postBulkImportInChunks(api, '/contacts/bulk-import', {
+    records,
+    campaign_id: campaignId || undefined,
+  });
   const contactIds = extractImportedIds(result);
   return { imported: result.imported ?? contactIds.length, contactIds, result };
 }

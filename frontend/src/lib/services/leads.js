@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { normalizeLead, toLeadPayload, resolveLeadStatusForApi } from '../leadHelpers.js';
 import { toConvertPayload } from '../dealHelpers.js';
-import { downloadBlob, normalizeImportResult } from '../importHelpers.js';
+import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS } from '../importHelpers.js';
 import {
   PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PIPELINE_LEAD,
   PROPOSAL_DEFAULT_LEAD_STATUS,
@@ -404,7 +404,7 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
   const rawCsv = await file.text();
   const csv = ensureCsvColumn(rawCsv, 'lead_status', defaultLeadStatus);
   if (dry_run) {
-    const res = await api.post('/leads/bulk-upload', { csv });
+    const res = await api.post('/leads/bulk-upload', { csv }, { timeout: BULK_IMPORT_TIMEOUT_MS });
     const payload = res.data.data || {};
     return normalizeImportResult({
       ready_count: payload.ready,
@@ -413,7 +413,7 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
       readyRecords: payload.readyRecords,
     });
   }
-  const upload = await api.post('/leads/bulk-upload', { csv });
+  const upload = await api.post('/leads/bulk-upload', { csv }, { timeout: BULK_IMPORT_TIMEOUT_MS });
   const payload = upload.data.data || {};
   const readyRecords = payload.readyRecords || [];
 
@@ -429,13 +429,10 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
     campaignLookups,
   });
 
-  const importBody = { records };
-  if (defaultCampaignId) {
-    importBody.campaign_id = defaultCampaignId;
-  }
-
-  const res = await api.post('/leads/bulk-import', importBody);
-  const result = res.data.data || res.data || {};
+  const result = await postBulkImportInChunks(api, '/leads/bulk-import', {
+    records,
+    campaign_id: defaultCampaignId || undefined,
+  });
 
   await finalizeLeadBulkImport({
     campaignId: defaultCampaignId,
@@ -447,9 +444,14 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
 
   return normalizeImportResult({
     imported_count: result.imported ?? result.imported_count ?? records.length,
+    skipped_count: result.skipped ?? result.skipped_count,
     error_count: result.errors ?? result.error_count,
-    errorRecords: result.errorRecords || result.errors,
-    created_ids: (result.records || []).map((row) => row?.id).filter(Boolean),
+    errorRecords: result.errorRecords,
+    created_ids: result.created_ids?.length
+      ? result.created_ids
+      : (result.records || []).map((row) => row?.id).filter(Boolean),
+    records: result.records,
+    skip_messages: result.skip_messages,
   });
 }
 
