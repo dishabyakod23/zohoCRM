@@ -266,6 +266,40 @@ export function filterPipelineConvertTargets(options = []) {
   });
 }
 
+/** Remap legacy convert-target labels to Cold/Warm Lead for mass-update Convert. */
+export function remapPipelineConvertTargetLabels(options = []) {
+  return (options || []).map((option) => {
+    if (!option) return option;
+    const value = String(option.value ?? '').toLowerCase().trim();
+    const label = String(option.label ?? '').trim();
+    const labelLower = label.toLowerCase();
+
+    let nextLabel = label;
+    if (
+      labelLower === 'raw lead'
+      || labelLower === 'raw prospect'
+      || value === 'raw_prospect'
+      || value === 'raw_lead'
+      || value === 'cold_lead'
+    ) {
+      nextLabel = 'Cold Lead';
+    } else if (
+      label === 'Lead'
+      || labelLower === 'lead'
+      || value === 'contacted'
+      || value === 'lead'
+      || value === 'warm_lead'
+    ) {
+      // Exact "Lead" only — do not remap "Qualified Lead"
+      if (labelLower !== 'qualified lead' && value !== 'qualified_lead') {
+        nextLabel = 'Warm Lead';
+      }
+    }
+
+    return nextLabel === label ? option : { ...option, label: nextLabel };
+  });
+}
+
 export const CONTACT_CONVERT_TARGET = { value: 'contact', label: 'Contact' };
 
 /** Cold leads can be moved back to the Contacts pool. */
@@ -286,7 +320,9 @@ export function mergeContactConvertTarget(options = [], { moduleKey, pipelineSta
 export async function fetchPipelineConvertTargets({ moduleKey, pipelineStage } = {}) {
   try {
     const res = await api.get('/lookups/pipeline-convert-targets');
-    const options = filterPipelineConvertTargets(parseLookupOptions(res.data.data));
+    const options = remapPipelineConvertTargetLabels(
+      filterPipelineConvertTargets(parseLookupOptions(res.data.data)),
+    );
     return mergeContactConvertTarget(options, { moduleKey, pipelineStage });
   } catch {
     return mergeContactConvertTarget([], { moduleKey, pipelineStage });

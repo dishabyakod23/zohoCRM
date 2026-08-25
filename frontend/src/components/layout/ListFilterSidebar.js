@@ -50,12 +50,16 @@ export default function ListFilterSidebar({
   children,
   hasActiveFilters = false,
   onClearFilters,
+  onListSearch,
+  listSearchValue,
 }) {
   const [filterSearch, setFilterSearch] = useState('');
   const [fieldsOpen, setFieldsOpen] = useState(true);
+  const useListSearch = typeof onListSearch === 'function';
 
   const visibleChildren = useMemo(() => {
     const list = Children.toArray(children).filter(isValidElement);
+    if (useListSearch) return list;
     const q = filterSearch.trim().toLowerCase();
     if (!q) return list;
 
@@ -69,9 +73,12 @@ export default function ListFilterSidebar({
       .filter(Boolean)
       .sort((a, b) => a.score - b.score || a.label.localeCompare(b.label))
       .map((entry) => entry.child);
-  }, [children, filterSearch]);
+  }, [children, filterSearch, useListSearch]);
 
   if (!children) return null;
+
+  const searchValue = useListSearch ? (listSearchValue || '') : filterSearch;
+  const searchPlaceholder = useListSearch ? 'Search list…' : 'Filter fields…';
 
   return (
     <aside className="list-filter-sidebar">
@@ -84,9 +91,13 @@ export default function ListFilterSidebar({
           <input
             type="search"
             className="input w-full pl-8 py-1.5 text-xs"
-            placeholder="Search"
-            value={filterSearch}
-            onChange={(e) => setFilterSearch(e.target.value)}
+            placeholder={searchPlaceholder}
+            value={searchValue}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (useListSearch) onListSearch(next);
+              else setFilterSearch(next);
+            }}
           />
         </div>
       </div>

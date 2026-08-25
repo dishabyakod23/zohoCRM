@@ -367,8 +367,7 @@ export default function ReportsPage() {
                   </div>
                   {weeklySettings?.enabled && (
                     <p className="text-xs text-gray-500 mt-3">
-                      Scheduled send: {formatWeeklyReportSchedule(weeklySettings)}. When enabled, the CRM calls{' '}
-                      <code className="text-brand-600">POST /admin/reports/weekly/trigger</code> at that time while an admin session is open.
+                      Scheduled send: {formatWeeklyReportSchedule(weeklySettings)}. When enabled, reports are sent automatically at that time while an admin session is open.
                     </p>
                   )}
                 </div>
@@ -376,7 +375,7 @@ export default function ReportsPage() {
                 <div className="card p-5">
                   <h3 className="font-semibold mb-1">Email Recipients</h3>
                   <p className="text-xs text-gray-500 mb-4">
-                    Loaded from <code className="text-brand-600">GET /admin/users</code>. Reports are sent to the email addresses of included users.
+                    Choose which users receive individual performance reports. Reports are sent to the email addresses of included users.
                     {reportRecipients.length > 0 && (
                       <span className="block mt-1 text-brand-700 font-medium">
                         Will send to: {reportRecipients.map(u => u.email).join(', ')}

@@ -5,6 +5,7 @@ import {
   tryCloudTalkDesktopDial,
   copyPhoneToClipboard,
   displayPhoneWithoutAutoDetect,
+  formatPhoneForDisplay,
 } from '../cloudTalkHelpers.js';
 
 describe('normalizePhoneForDial', () => {
@@ -98,6 +99,23 @@ describe('displayPhoneWithoutAutoDetect', () => {
   it('passes through falsy input unchanged', () => {
     expect(displayPhoneWithoutAutoDetect('')).toBe('');
     expect(displayPhoneWithoutAutoDetect(null)).toBeNull();
+  });
+});
+
+describe('formatPhoneForDisplay', () => {
+  it('does not invent +1 for a bare 10-digit number', () => {
+    expect(formatPhoneForDisplay('9810556482')).toBe('9810556482');
+  });
+
+  it('keeps an international + number readable without auto-detect wrapping', () => {
+    const result = formatPhoneForDisplay('+919810556482');
+    expect(result.replace(/​/g, '')).toBe('+919810556482');
+    expect(result).toContain('​');
+  });
+
+  it('passes through empty input', () => {
+    expect(formatPhoneForDisplay('')).toBe('');
+    expect(formatPhoneForDisplay(null)).toBeNull();
   });
 });
 

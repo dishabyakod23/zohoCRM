@@ -197,6 +197,12 @@ export function getContactConvertRedirect(result, target) {
 export async function convertContact(contactId, target = PIPELINE_RAW) {
   const converted = await convertToRawLead(contactId);
   const leadId = resolveLeadIdFromContactConvert(converted);
+  // Best-effort: mark the contact converted so it drops out of the Contacts directory.
+  try {
+    await updateContact(contactId, { is_converted: true });
+  } catch {
+    // Backend may not accept is_converted on PATCH — directory filters still apply when set.
+  }
   if (!leadId || target === PIPELINE_RAW || target === 'raw_prospect') {
     return { ...converted, lead_id: leadId };
   }

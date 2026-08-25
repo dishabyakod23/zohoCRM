@@ -508,7 +508,7 @@ function SettingsPageContent() {
             <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <h2 className="text-sm font-semibold">Users</h2>
-                <p className="text-xs text-zoho-muted">Manage CRM users via <code className="text-brand-600">/admin/users</code></p>
+                <p className="text-xs text-zoho-muted">Create and manage users for your CRM.</p>
               </div>
               <button type="button" onClick={openCreateUser} className="btn-primary text-xs">+ Add User</button>
             </div>
@@ -562,7 +562,7 @@ function SettingsPageContent() {
             <div className="card p-5">
               <h2 className="text-sm font-semibold mb-1">Add Custom Lead Status</h2>
               <p className="text-xs text-zoho-muted mb-4">
-                Manage via <code className="text-brand-600">/admin/lookup-options/lead-statuses</code>.
+                Add custom outreach statuses for your pipeline.
                 Status value is saved as snake_case (e.g. <code className="text-brand-600">follow_up_required</code>).
                 System statuses cannot be removed.
               </p>

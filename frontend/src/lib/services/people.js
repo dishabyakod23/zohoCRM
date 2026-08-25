@@ -162,6 +162,15 @@ export function personDetailHref(person) {
 export function normalizePersonRow(person) {
   if (!person) return person;
   let entityType = personEntityType(person);
+
+  // Converted contacts live on as leads/accounts — do not list them as Contact rows.
+  if (
+    (entityType === 'contact' || entityType === '')
+    && (person.is_converted || person.converted)
+  ) {
+    return null;
+  }
+
   const recordId = personRecordId(person);
   const rowId = personRowId(person);
   const current_status = resolveDirectoryCurrentStatus({ ...person, entity_type: entityType });

@@ -21,6 +21,7 @@ export default function ListToolbar({
   onClearFilters,
   sort,
   onSortChange,
+  filterListSearch = false,
 }) {
   const [showFilters, setShowFilters] = useState(false);
   const hasFilters = !!children;
@@ -65,6 +66,8 @@ export default function ListToolbar({
       filterContent={hasFilters ? children : null}
       hasActiveFilters={hasActiveFilters}
       onClearFilters={onClearFilters}
+      onListSearch={filterListSearch ? onSearch : undefined}
+      listSearchValue={filterListSearch ? searchValue : undefined}
       table={table}
     />
   );

@@ -88,7 +88,22 @@ export default function RecycleBinPage() {
     setRestoringId(item.id);
     try {
       const result = await recycleBinApi.restoreRecycleItem(item.id);
-      showToast(result?.message || `${item.entity_name} restored`, 'success');
+      const restored = result?.restored;
+      const conflict = result?.conflict || result?.duplicate || result?.skipped;
+      const failed = restored === false
+        || conflict
+        || result?.success === false
+        || result?.error
+        || /already exist|conflict|duplicate|skip/i.test(String(result?.message || ''));
+      if (failed) {
+        showToast(
+          result?.message
+            || 'Could not restore — a matching record may already exist.',
+          'warning',
+        );
+      } else {
+        showToast(result?.message || `${item.entity_name} restored`, 'success');
+      }
       setAllNameSorted(null);
       fetchItems();
     } catch (err) {

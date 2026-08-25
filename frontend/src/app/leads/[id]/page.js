@@ -13,7 +13,7 @@ import EditableEmailField from '../../../components/forms/EditableEmailField.js'
 import LeadConvertMenu from '../../../components/leads/LeadConvertMenu.js';
 import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
 import CallRecordButton from '../../../components/cloudtalk/CallRecordButton.js';
-import { displayPhoneWithoutAutoDetect, normalizePhoneForDial } from '../../../lib/cloudTalkHelpers.js';
+import { formatPhoneForDisplay } from '../../../lib/cloudTalkHelpers.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { useMarkRecordViewed } from '../../../hooks/useMarkRecordViewed.js';
@@ -146,8 +146,8 @@ export default function LeadDetailPage() {
               <h3 className="zoho-widget-title">Contact Details</h3>
               <div className="divide-y divide-gray-50">
                 <InfoRow icon={<EnvelopeIcon className="w-4 h-4" />} label="Email" value={lead.email} href={lead.email && `mailto:${lead.email}`} />
-                <InfoRow icon={<PhoneIcon className="w-4 h-4" />} label="Phone" value={lead.phone && displayPhoneWithoutAutoDetect(normalizePhoneForDial(lead.phone))} href={lead.phone && `tel:${lead.phone}`} />
-                <InfoRow icon={<DevicePhoneMobileIcon className="w-4 h-4" />} label="Mobile" value={lead.mobile && displayPhoneWithoutAutoDetect(normalizePhoneForDial(lead.mobile))} href={lead.mobile && `tel:${lead.mobile}`} />
+                <InfoRow icon={<PhoneIcon className="w-4 h-4" />} label="Phone" value={lead.phone && formatPhoneForDisplay(String(lead.phone))} href={lead.phone && `tel:${lead.phone}`} />
+                <InfoRow icon={<DevicePhoneMobileIcon className="w-4 h-4" />} label="Mobile" value={lead.mobile && formatPhoneForDisplay(String(lead.mobile))} href={lead.mobile && `tel:${lead.mobile}`} />
                 <InfoRow icon={<BuildingOffice2Icon className="w-4 h-4" />} label="Company" value={lead.company} />
                 <InfoRow icon={<TagIcon className="w-4 h-4" />} label="Lead Source" value={lead.source} />
               </div>

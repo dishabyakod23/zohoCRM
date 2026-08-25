@@ -1,13 +1,13 @@
 'use client';
 import { useCloudTalk } from './CloudTalkProvider.js';
-import { displayPhoneWithoutAutoDetect, normalizePhoneForDial } from '../../lib/cloudTalkHelpers.js';
+import { formatPhoneForDisplay, normalizePhoneForDial } from '../../lib/cloudTalkHelpers.js';
 
 export default function PhoneCell({ value }) {
   const { dialNumber } = useCloudTalk();
 
   if (!value) return '—';
-  const normalized = normalizePhoneForDial(value);
-  if (!normalized) return value;
+  const dialable = normalizePhoneForDial(value);
+  const display = formatPhoneForDisplay(String(value));
 
   const handleDial = (e) => {
     e.preventDefault();
@@ -21,9 +21,9 @@ export default function PhoneCell({ value }) {
         type="button"
         onClick={handleDial}
         className="truncate text-left text-brand-600 hover:text-brand-700 hover:underline"
-        title={`Dial ${displayPhoneWithoutAutoDetect(normalized)}`}
+        title={dialable ? `Dial ${dialable}` : `Dial ${value}`}
       >
-        {displayPhoneWithoutAutoDetect(normalized)}
+        {display}
       </button>
     </span>
   );

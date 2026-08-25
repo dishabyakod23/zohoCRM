@@ -156,7 +156,7 @@ export default function SalesTargetsPanel() {
       {settings && canEdit && (
         <div className="card p-5">
           <h2 className="text-sm font-semibold mb-1">Target Configuration Settings</h2>
-          <p className="text-xs text-zoho-muted mb-4">Company-wide rules from <code className="text-brand-600">/sales-targets/settings</code></p>
+          <p className="text-xs text-zoho-muted mb-4">Company-wide rules for how pipeline and revenue targets are calculated.</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FormField label="Year Format" name="year_format">
               <select className="input" value={settings.year_format} onChange={(e) => setSettings((s) => ({ ...s, year_format: e.target.value }))}>

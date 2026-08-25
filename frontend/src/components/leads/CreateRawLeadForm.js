@@ -8,7 +8,7 @@ import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
-import { validateRequired, validateEmail } from '../../lib/validators.js';
+import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
@@ -138,6 +138,14 @@ export default function CreateRawLeadForm() {
       const secErr = validateEmail(form.secondary_email);
       if (secErr) errs.secondary_email = secErr;
     }
+    if (form.phone) {
+      const phoneErr = validatePhone(form.phone);
+      if (phoneErr) errs.phone = phoneErr;
+    }
+    if (form.mobile) {
+      const mobileErr = validatePhone(form.mobile);
+      if (mobileErr) errs.mobile = mobileErr;
+    }
     if (!errs.email && form.email) {
       const uniqueErr = emailError || await validateEmailUnique(form.email);
       if (uniqueErr) errs.email = uniqueErr;
@@ -232,11 +240,11 @@ export default function CreateRawLeadForm() {
                 )}
               </div>
             </FormField>
-            <FormField label="Phone" name="phone">
-              <input className="input" value={form.phone} onChange={set('phone')} />
+            <FormField label="Phone" error={errors.phone} name="phone">
+              <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} maxLength={20} />
             </FormField>
-            <FormField label="Mobile" name="mobile">
-              <input className="input" value={form.mobile} onChange={set('mobile')} />
+            <FormField label="Mobile" error={errors.mobile} name="mobile">
+              <input className={inputClass(errors.mobile)} value={form.mobile} onChange={set('mobile')} maxLength={20} />
             </FormField>
             <FormField label="Lead Source" name="source">
               {noneSelect(form.source, set('source'), sourceOptions)}

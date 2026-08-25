@@ -15,6 +15,8 @@ import RecordNotesSidePanel from './RecordNotesSidePanel.js';
 import SortableEmailHeader from './SortableEmailHeader.js';
 import * as tasksApi from '../../lib/services/tasks.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
+import * as leadsApi from '../../lib/services/leads.js';
+import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchUsers, fetchMassUpdateFieldOptions, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
 import { fetchCampaignLookups, assignRecordsToCampaign, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 import { personRecordId, personCampaignMemberType, parsePersonRowId } from '../../lib/services/people.js';
@@ -539,13 +541,28 @@ export default function RecordDataTable({
       } else {
         let success = 0;
         let failed = 0;
+        const isStatusField = massField === 'status' || massField === 'lead_status';
         for (const recordId of selected) {
           try {
+            const record = selectedRecords.find((r) => getRowId(r) === recordId);
+            const parsed = parsePersonRowId(recordId);
+            const entity = (record?.entity_type || record?._entityType || parsed.entityType || '').toLowerCase();
             const targetId = moduleKey === 'contacts'
-              ? parsePersonRowId(recordId).recordId
+              ? (parsed.recordId || recordId)
               : recordId;
-            if (massField === 'status' && config.statusField && config.update) {
-              await config.update(targetId, { [config.statusField]: massValue });
+
+            if (isStatusField && config.statusField && config.update) {
+              if (moduleKey === 'contacts') {
+                const isLeadRow = ['lead', 'raw_lead', 'qualified_lead', 'proposal'].includes(entity)
+                  || entity.includes('lead');
+                if (isLeadRow) {
+                  await leadsApi.updateLead(targetId, { [config.statusField]: massValue });
+                } else {
+                  await contactsApi.updateContact(targetId, { [config.statusField]: massValue });
+                }
+              } else {
+                await config.update(targetId, { [config.statusField]: massValue });
+              }
               success += 1;
             } else if (massField === 'convert' && config.convert) {
               await config.convert(targetId, massValue);
@@ -805,7 +822,18 @@ export default function RecordDataTable({
                             recordId={id}
                             moduleLabel={noteMeta.moduleLabel}
                             recordLabel={recordLabel}
-                            onOpen={() => setPanelRecord({ id, label: recordLabel })}
+                            onOpen={() => {
+                              const parsed = parsePersonRowId(id);
+                              const entity = (record.entity_type || record._entityType || parsed.entityType || '').toLowerCase();
+                              const relatedType = ['lead', 'raw_lead', 'qualified_lead', 'proposal'].includes(entity) || entity.includes('lead')
+                                ? 'lead'
+                                : (entity === 'deal' ? 'deal' : entity === 'account' ? 'account' : 'contact');
+                              setPanelRecord({
+                                id: parsed.recordId || personRecordId(record) || id,
+                                label: recordLabel,
+                                relatedType,
+                              });
+                            }}
                           />
                         )}
                         <input type="checkbox" className="rounded border-zoho-border" checked={selected.includes(id)} onChange={() => toggleSelect(id)} />
@@ -888,7 +916,7 @@ export default function RecordDataTable({
       <RecordNotesSidePanel
         open={!!panelRecord && showNotes}
         onClose={() => setPanelRecord(null)}
-        relatedType={noteMeta.relatedType}
+        relatedType={panelRecord?.relatedType || noteMeta.relatedType}
         recordId={panelRecord?.id}
         recordLabel={panelRecord?.label}
         moduleLabel={noteMeta.moduleLabel}

@@ -18,6 +18,8 @@ export default function ListViewLayout({
   filterContent,
   hasActiveFilters = false,
   onClearFilters,
+  onListSearch,
+  listSearchValue,
   table,
 }) {
   const showSidebar = showFilters && hasFilters && filterContent;
@@ -72,6 +74,8 @@ export default function ListViewLayout({
                 title={filterTitle}
                 hasActiveFilters={hasActiveFilters}
                 onClearFilters={onClearFilters}
+                onListSearch={onListSearch}
+                listSearchValue={listSearchValue}
               >
                 {filterContent}
               </ListFilterSidebar>

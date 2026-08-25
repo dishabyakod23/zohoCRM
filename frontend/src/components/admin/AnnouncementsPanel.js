@@ -4,7 +4,7 @@ import Modal from '../ui/Modal.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
-import { USER_ROLES, ROLE_LABELS } from '../../lib/roles.js';
+import { USER_ROLES, roleLabel } from '../../lib/roles.js';
 import * as announcementsApi from '../../lib/services/announcements.js';
 import { formatAnnouncementDate } from '../../lib/services/announcements.js';
 
@@ -130,7 +130,7 @@ export default function AnnouncementsPanel() {
           <div>
             <h2 className="text-sm font-semibold">Announcements</h2>
             <p className="text-xs text-zoho-muted">
-              Shown in the bottom utility bar via <code className="text-brand-600">GET /announcements</code>
+              Messages shown to users in the bottom utility bar.
             </p>
           </div>
           <button type="button" onClick={openCreate} className="btn-primary text-xs">+ New Announcement</button>
@@ -164,9 +164,13 @@ export default function AnnouncementsPanel() {
                     </span>
                   </td>
                   <td className="table-td text-xs">{a.priority ?? 0}</td>
-                  <td className="table-td text-xs text-zoho-muted max-w-[140px]">
+                  <td className="table-td text-xs text-zoho-muted max-w-[140px] truncate" title={
+                    (a.audience_roles || []).length
+                      ? a.audience_roles.map((r) => roleLabel(r)).join(', ')
+                      : 'All roles'
+                  }>
                     {(a.audience_roles || []).length
-                      ? a.audience_roles.map((r) => ROLE_LABELS[r] || r).join(', ')
+                      ? a.audience_roles.map((r) => roleLabel(r)).join(', ')
                       : 'All roles'}
                   </td>
                   <td className="table-td text-xs text-zoho-muted">
@@ -261,7 +265,7 @@ export default function AnnouncementsPanel() {
                       checked={form.audience_roles.includes(role)}
                       onChange={() => toggleRole(role)}
                     />
-                    {ROLE_LABELS[role]}
+                    {roleLabel(role)}
                   </label>
                 ))}
               </div>

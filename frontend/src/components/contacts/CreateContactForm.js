@@ -249,15 +249,17 @@ export default function CreateContactForm() {
             {/* empty cell to align grid */}
             <div />
 
-            <FormField label="First Name" required error={errors.first_name} name="first_name">
-              <div className="flex gap-2">
-                <select className="input w-24 shrink-0" value={form.salutation} onChange={set('salutation')}>
+            <div className="grid grid-cols-[auto_1fr] gap-2 items-start">
+              <FormField label="Salutation" name="salutation">
+                <select className="input w-24" value={form.salutation} onChange={set('salutation')}>
                   <option value="">—None—</option>
-                  {SALUTATIONS.map(s => <option key={s}>{s}</option>)}
+                  {SALUTATIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
+              </FormField>
+              <FormField label="First Name" required error={errors.first_name} name="first_name">
                 <input className={inputClass(errors.first_name)} placeholder="First Name" value={form.first_name} onChange={set('first_name')} />
-              </div>
-            </FormField>
+              </FormField>
+            </div>
 
             <FormField label="Last Name" required error={errors.last_name} name="last_name">
               <input className={inputClass(errors.last_name)} value={form.last_name} onChange={set('last_name')} />
@@ -287,15 +289,15 @@ export default function CreateContactForm() {
             </FormField>
 
             <FormField label="Phone" error={errors.phone} name="phone">
-              <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} />
+              <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} maxLength={20} />
             </FormField>
 
             <FormField label="Other Phone" name="other_phone">
-              <input className="input" value={form.other_phone} onChange={set('other_phone')} />
+              <input className="input" value={form.other_phone} onChange={set('other_phone')} maxLength={20} />
             </FormField>
 
             <FormField label="Mobile" name="mobile">
-              <input className="input" value={form.mobile} onChange={set('mobile')} />
+              <input className="input" value={form.mobile} onChange={set('mobile')} maxLength={20} />
             </FormField>
 
             <FormField label="Assistant" name="assistant">

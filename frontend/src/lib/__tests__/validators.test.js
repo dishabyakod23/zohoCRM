@@ -39,6 +39,15 @@ describe('validatePhone', () => {
     expect(validatePhone('12345')).toMatch(/valid phone/i);
     expect(validatePhone('abc-def')).toMatch(/valid phone/i);
   });
+
+  it('rejects numbers with more than 15 digits (E.164 max)', () => {
+    expect(validatePhone('1234567890123456')).toMatch(/15 digits/i);
+    expect(validatePhone('+1 (234) 567-8901 23456')).toMatch(/15 digits/i);
+  });
+
+  it('accepts numbers with exactly 15 digits', () => {
+    expect(validatePhone('123456789012345')).toBeNull();
+  });
 });
 
 describe('validateRequired', () => {

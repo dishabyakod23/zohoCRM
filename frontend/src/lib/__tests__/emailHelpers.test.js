@@ -54,6 +54,22 @@ describe('findEmailConflict', () => {
     const conflict = await findEmailConflict('ada@example.com', { excludeLeadId: 'lead-1' });
     expect(conflict).toBeNull();
   });
+
+  it('skips contact conflicts when excludeLeadId is set (synced lead/contact email)', async () => {
+    leadsApi.listLeads.mockResolvedValue({ data: [] });
+    contactsApi.listContacts.mockResolvedValue({ data: [contact({ email: 'ada@example.com' })] });
+    const conflict = await findEmailConflict('ada@example.com', { excludeLeadId: 'lead-1' });
+    expect(conflict).toBeNull();
+    expect(contactsApi.listContacts).not.toHaveBeenCalled();
+  });
+
+  it('skips lead conflicts when only excludeContactId is set', async () => {
+    leadsApi.listLeads.mockResolvedValue({ data: [lead({ email: 'grace@example.com' })] });
+    contactsApi.listContacts.mockResolvedValue({ data: [] });
+    const conflict = await findEmailConflict('grace@example.com', { excludeContactId: 'contact-1' });
+    expect(conflict).toBeNull();
+    expect(leadsApi.listLeads).not.toHaveBeenCalled();
+  });
 });
 
 describe('validateEmailUnique', () => {

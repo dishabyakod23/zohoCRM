@@ -52,11 +52,26 @@ describe('buildDirectoryRows', () => {
     expect(rows[0].account_name).toBe('Acme');
   });
 
-  it('marks converted leads as Account', () => {
+  it('hides contacts marked is_converted so they do not appear as Contact rows', () => {
     const rows = buildDirectoryRows({
-      leads: [{ id: 'l1', first_name: 'David', last_name: 'Brown', email: 'david@example.com', is_converted: true }],
+      contacts: [{
+        id: 'c1',
+        first_name: 'Ann',
+        last_name: 'Lee',
+        email: 'ann@example.com',
+        is_converted: true,
+      }],
+      leads: [{
+        id: 'l1',
+        first_name: 'Ann',
+        last_name: 'Lee',
+        email: 'ann@example.com',
+        pipeline_stage: 'proposal',
+      }],
     });
-    expect(rows[0].current_status).toBe('Account');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].current_status).toBe('Proposal');
+    expect(rows[0]._entityType).toBe('lead');
   });
 });
 

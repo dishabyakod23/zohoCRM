@@ -83,6 +83,18 @@ export function displayPhoneWithoutAutoDetect(normalized) {
   return `${normalized[0]}​${normalized.slice(1)}`;
 }
 
+/**
+ * Format a phone for display only — never invent a +1 country code.
+ * Shows the stored value as-is; only inserts a zero-width space after an existing "+".
+ */
+export function formatPhoneForDisplay(raw) {
+  if (raw == null || raw === '') return raw;
+  const trimmed = String(raw).trim();
+  if (!trimmed) return trimmed;
+  if (trimmed.startsWith('+')) return displayPhoneWithoutAutoDetect(trimmed);
+  return trimmed;
+}
+
 /** Copy a number to the clipboard so it can be pasted into the CloudTalk dialer. */
 export async function copyPhoneToClipboard(number) {
   if (!number || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return false;

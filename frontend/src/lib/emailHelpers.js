@@ -10,36 +10,56 @@ function sameEmail(a, b) {
   return normalizeEmail(a) === normalizeEmail(b);
 }
 
-/** Find an existing lead or contact using this email (case-insensitive). */
+/**
+ * Find an existing lead or contact using this email (case-insensitive).
+ *
+ * - excludeLeadId: only check other leads (contacts may share a synced copy)
+ * - excludeContactId: only check other contacts
+ * - neither: check both
+ * - both excludes: check both modules while skipping those ids
+ */
 export async function findEmailConflict(email, { excludeLeadId, excludeContactId } = {}) {
   const needle = normalizeEmail(email);
   if (!needle) return null;
 
+  const onlyLeads = !!excludeLeadId && !excludeContactId;
+  const onlyContacts = !!excludeContactId && !excludeLeadId;
+  const checkLeads = onlyLeads || !onlyContacts;
+  const checkContacts = onlyContacts || !onlyLeads;
+
   const [leadsRes, contactsRes] = await Promise.all([
-    leadsApi.listLeads({ search: email.trim(), page_size: DEFAULT_PAGE_SIZE }),
-    contactsApi.listContacts({ search: email.trim(), page_size: DEFAULT_PAGE_SIZE }),
+    checkLeads
+      ? leadsApi.listLeads({ search: email.trim(), page_size: DEFAULT_PAGE_SIZE })
+      : Promise.resolve({ data: [] }),
+    checkContacts
+      ? contactsApi.listContacts({ search: email.trim(), page_size: DEFAULT_PAGE_SIZE })
+      : Promise.resolve({ data: [] }),
   ]);
 
-  const lead = leadsRes.data.find(
-    (r) => sameEmail(r.email, needle) && String(r.id) !== String(excludeLeadId),
-  );
-  if (lead) {
-    return {
-      module: 'lead',
-      id: lead.id,
-      name: `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || lead.company,
-    };
+  if (checkLeads) {
+    const lead = leadsRes.data.find(
+      (r) => sameEmail(r.email, needle) && String(r.id) !== String(excludeLeadId || ''),
+    );
+    if (lead) {
+      return {
+        module: 'lead',
+        id: lead.id,
+        name: `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || lead.company,
+      };
+    }
   }
 
-  const contact = contactsRes.data.find(
-    (r) => sameEmail(r.email, needle) && String(r.id) !== String(excludeContactId),
-  );
-  if (contact) {
-    return {
-      module: 'contact',
-      id: contact.id,
-      name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
-    };
+  if (checkContacts) {
+    const contact = contactsRes.data.find(
+      (r) => sameEmail(r.email, needle) && String(r.id) !== String(excludeContactId || ''),
+    );
+    if (contact) {
+      return {
+        module: 'contact',
+        id: contact.id,
+        name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+      };
+    }
   }
 
   return null;

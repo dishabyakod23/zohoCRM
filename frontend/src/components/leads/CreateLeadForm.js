@@ -216,10 +216,10 @@ export default function CreateLeadForm() {
               </div>
             </FormField>
             <FormField label="Phone" error={errors.phone} name="phone">
-              <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} />
+              <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} maxLength={20} />
             </FormField>
             <FormField label="Mobile">
-              <input className="input" value={form.mobile} onChange={set('mobile')} />
+              <input className="input" value={form.mobile} onChange={set('mobile')} maxLength={20} />
             </FormField>
           </div>
 

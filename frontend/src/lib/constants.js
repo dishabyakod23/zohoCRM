@@ -45,11 +45,12 @@ export const NAV_MODULES = [
 ];
 
 export const QUICK_CREATE = [
-  { label: 'Warm Lead', href: '/leads/create', group: 'Sales', permissionKey: 'leads' },
-  { label: 'Cold Lead', href: '/raw-leads/create', group: 'Sales', permissionKey: 'raw_leads' },
   { label: 'Contact', href: '/contacts/create', group: 'Sales', permissionKey: 'contacts' },
-  { label: 'Account', href: '/accounts/create', group: 'Sales', permissionKey: 'accounts' },
+  { label: 'Cold Lead', href: '/raw-leads/create', group: 'Sales', permissionKey: 'raw_leads' },
+  { label: 'Warm Lead', href: '/leads/create', group: 'Sales', permissionKey: 'leads' },
+  { label: 'Qualified Lead', href: '/qualified-leads/create', group: 'Sales', permissionKey: 'qualified_leads' },
   { label: 'Proposal', href: '/proposals/create', group: 'Sales', permissionKey: 'proposals' },
+  { label: 'Account', href: '/accounts/create', group: 'Sales', permissionKey: 'accounts' },
   { label: 'Calendar Event', href: '/calendar', group: 'Sales', permissionKey: 'calendar' },
   { label: 'Campaign', href: '/campaigns/create', group: 'Marketing', permissionKey: 'campaigns' },
 ];

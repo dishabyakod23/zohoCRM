@@ -7,7 +7,7 @@ import Modal from '../ui/Modal.js';
 import Badge from '../ui/Badge.js';
 import LeadConvertMenu from './LeadConvertMenu.js';
 import CallRecordButton from '../cloudtalk/CallRecordButton.js';
-import { displayPhoneWithoutAutoDetect, normalizePhoneForDial } from '../../lib/cloudTalkHelpers.js';
+import { formatPhoneForDisplay } from '../../lib/cloudTalkHelpers.js';
 import ConfirmDialog from '../ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import RecordDetailLayout, { InfoRow } from '../records/RecordDetailLayout.js';
@@ -189,7 +189,18 @@ export default function PipelineLeadDetail({ stage }) {
         backLabel={config.listTitle}
         title={`${lead.first_name} ${lead.last_name}`}
         subtitle={lead.company}
-        badges={<><Badge label={pipelineStageLabel(stage)} />{lead.status !== pipelineStageLabel(stage) ? <Badge label={lead.status} /> : null}</>}
+        badges={(
+          <>
+            <Badge label={pipelineStageLabel(stage)} />
+            {(() => {
+              const statusLabel = String(lead.status || '').trim();
+              const stageLabel = pipelineStageLabel(stage);
+              const isPlaceholder = !statusLabel || statusLabel === '—' || statusLabel === '-';
+              if (isPlaceholder || statusLabel === stageLabel) return null;
+              return <Badge label={statusLabel} />;
+            })()}
+          </>
+        )}
         lastUpdated={new Date(lead.updated_at).toLocaleString()}
         recordNotes={{ relatedType: 'lead', recordId: id, canEdit: editable }}
         recordHistory={{ entityType: 'lead', recordId: id }}
@@ -220,8 +231,8 @@ export default function PipelineLeadDetail({ stage }) {
             <h3 className="zoho-widget-title">Contact Details</h3>
             <div className="divide-y divide-gray-50">
               <InfoRow icon={<EnvelopeIcon className="w-4 h-4" />} label="Email" value={lead.email} href={lead.email && `mailto:${lead.email}`} />
-              <InfoRow icon={<PhoneIcon className="w-4 h-4" />} label="Phone" value={lead.phone && displayPhoneWithoutAutoDetect(normalizePhoneForDial(lead.phone))} href={lead.phone && `tel:${lead.phone}`} />
-              <InfoRow icon={<DevicePhoneMobileIcon className="w-4 h-4" />} label="Mobile" value={lead.mobile && displayPhoneWithoutAutoDetect(normalizePhoneForDial(lead.mobile))} href={lead.mobile && `tel:${lead.mobile}`} />
+              <InfoRow icon={<PhoneIcon className="w-4 h-4" />} label="Phone" value={lead.phone && formatPhoneForDisplay(String(lead.phone))} href={lead.phone && `tel:${lead.phone}`} />
+              <InfoRow icon={<DevicePhoneMobileIcon className="w-4 h-4" />} label="Mobile" value={lead.mobile && formatPhoneForDisplay(String(lead.mobile))} href={lead.mobile && `tel:${lead.mobile}`} />
               <InfoRow icon={<BuildingOffice2Icon className="w-4 h-4" />} label="Company" value={lead.company} />
               <InfoRow icon={<TagIcon className="w-4 h-4" />} label="Lead Source" value={lead.source} />
               <InfoRow icon={<UserIcon className="w-4 h-4" />} label="Owner" value={lead.owner_name || 'Unassigned'} />

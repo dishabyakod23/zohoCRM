@@ -310,9 +310,12 @@ export function buildDirectoryRows({
   deals = [],
   statusOptions = [],
 } = {}) {
-  const contactLookup = Object.fromEntries(contacts.map((c) => [String(c.id), c]));
+  const activeContacts = (contacts || []).filter(
+    (c) => !(c?.is_converted || c?.converted),
+  );
+  const contactLookup = Object.fromEntries(activeContacts.map((c) => [String(c.id), c]));
   const rows = [
-    ...contacts.map(contactToDirectoryRow),
+    ...activeContacts.map(contactToDirectoryRow),
     ...leads.map((lead) => leadToDirectoryRow(lead, statusOptions)),
     ...deals.map((deal) => dealToDirectoryRow(deal, contactLookup)).filter(Boolean),
   ];

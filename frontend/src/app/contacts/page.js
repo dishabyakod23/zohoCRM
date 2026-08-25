@@ -249,7 +249,9 @@ export default function ContactsPage() {
         <RecordDetailLink href={c._detailHref || `/contacts/${c.id}`} className={tableLinkClass}>{c.first_name} {c.last_name}</RecordDetailLink>
       </div>
     ) },
-    { id: 'title', header: 'Designation', cell: (c) => c.title || '—' },
+    { id: 'title', header: 'Designation', cell: (c) => (
+      <span className="block max-w-[10rem] truncate" title={c.title || ''}>{c.title || '—'}</span>
+    ) },
     { id: 'company', header: 'Company', cell: (c) => c.account_name || '—' },
     { id: 'status', header: 'Current Status', cell: (c) => c.current_status || '—' },
     { id: 'lead_status', header: 'Lead Status', cell: (c) => c.lead_status_label || '—' },
@@ -292,6 +294,7 @@ export default function ContactsPage() {
           }}
           searchValue={search}
           onSearch={(v) => { setSearch(v); setPage(1); }}
+          filterListSearch
           sort={sort}
           onSortChange={(v) => { setSort(v); setPage(1); }}
           hasActiveFilters={countActiveFilters(filters, user) > 0}

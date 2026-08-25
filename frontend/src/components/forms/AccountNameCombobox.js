@@ -21,11 +21,13 @@ export default function AccountNameCombobox({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(valueLabel || '');
+  const [userTyped, setUserTyped] = useState(false);
   const rootRef = useRef(null);
   const listRef = useRef(null);
 
   useEffect(() => {
     setQuery(valueLabel || '');
+    setUserTyped(false);
   }, [valueLabel, valueId]);
 
   useEffect(() => {
@@ -37,12 +39,14 @@ export default function AccountNameCombobox({
   }, []);
 
   const filtered = useMemo(() => {
+    // On focus/open with a selected value, show the broad list until the user types.
+    if (!userTyped) return options.slice(0, 50);
     const q = query.trim().toLowerCase();
     if (!q) return options.slice(0, 50);
     return options
       .filter((a) => String(a.label || '').toLowerCase().includes(q))
       .slice(0, 50);
-  }, [options, query]);
+  }, [options, query, userTyped]);
 
   const exactMatch = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -50,7 +54,7 @@ export default function AccountNameCombobox({
     return options.find((a) => String(a.label || '').toLowerCase() === q) || null;
   }, [options, query]);
 
-  const showCreateOption = query.trim() && !exactMatch;
+  const showCreateOption = userTyped && query.trim() && !exactMatch;
 
   const emit = (account_id, account_name) => {
     onChange?.({ account_id: account_id || '', account_name: account_name || '' });
@@ -58,6 +62,7 @@ export default function AccountNameCombobox({
 
   const selectOption = (opt) => {
     setQuery(opt.label || '');
+    setUserTyped(false);
     emit(opt.value, opt.label || '');
     setOpen(false);
   };
@@ -71,9 +76,15 @@ export default function AccountNameCombobox({
     if (exactMatch) {
       emit(exactMatch.value, exactMatch.label);
       setQuery(exactMatch.label);
+      setUserTyped(false);
       return;
     }
     emit('', name);
+  };
+
+  const openFullList = () => {
+    setUserTyped(false);
+    setOpen(true);
   };
 
   return (
@@ -90,6 +101,7 @@ export default function AccountNameCombobox({
           onChange={(e) => {
             const next = e.target.value;
             setQuery(next);
+            setUserTyped(true);
             setOpen(true);
             const match = options.find(
               (a) => String(a.label || '').toLowerCase() === next.trim().toLowerCase(),
@@ -97,7 +109,7 @@ export default function AccountNameCombobox({
             if (match) emit(match.value, match.label);
             else emit('', next);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={openFullList}
           onBlur={() => {
             // slight delay so option click can register
             window.setTimeout(() => commitTyped(), 120);
@@ -130,7 +142,13 @@ export default function AccountNameCombobox({
           tabIndex={-1}
           disabled={disabled}
           aria-label="Show accounts"
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => {
+            if (open) {
+              setOpen(false);
+              return;
+            }
+            openFullList();
+          }}
           className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-zoho-muted hover:text-zoho-text"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,6 +187,7 @@ export default function AccountNameCombobox({
                 const name = query.trim();
                 emit('', name);
                 setQuery(name);
+                setUserTyped(false);
                 setOpen(false);
               }}
             >

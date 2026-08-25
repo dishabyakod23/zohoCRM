@@ -38,6 +38,20 @@ function normalizeImportIssue(entry) {
 export function importValidationNotice(result = {}) {
   const warnings = (result.warnings || []).map(normalizeImportIssue).filter((w) => w?.message);
   const errors = (result.errorRecords || []).map(normalizeImportIssue).filter((e) => e?.message);
+  const skipMessages = (result.skip_messages || [])
+    .map((m) => (typeof m === 'string' ? formatImportNotice(m) : formatImportNotice(m?.message || m)))
+    .filter(Boolean);
+
+  const allMessages = [
+    ...warnings.map((w) => w.message),
+    ...errors.map((e) => e.message),
+    ...skipMessages,
+  ];
+
+  const duplicateLike = allMessages.find((msg) => /duplicate|already exist|already exists|email.*exist/i.test(msg));
+  if (duplicateLike || result.duplicate_count || result.duplicates) {
+    return 'Some contacts already exist (duplicate email). Remove or update those rows and try again.';
+  }
 
   const issues = warnings.length ? warnings : errors;
   if (!issues.length) return null;

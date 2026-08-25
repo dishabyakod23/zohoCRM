@@ -71,7 +71,25 @@ export async function listAllRecycleBin({ entity_type, page_size = 200 } = {}) {
 
 export async function restoreRecycleItem(recycleId) {
   const res = await api.post(`/recycle-bin/${recycleId}/restore`);
-  return res.data?.data || res.data;
+  const payload = res.data?.data || res.data || {};
+  // Normalize conflict / skip shapes so the UI can show a warning instead of false success.
+  if (
+    payload.restored === false
+    || payload.success === false
+    || payload.conflict
+    || payload.duplicate
+    || payload.skipped
+  ) {
+    return {
+      ...payload,
+      restored: false,
+      message: payload.message
+        || payload.error
+        || payload.detail
+        || 'Could not restore — a matching record may already exist.',
+    };
+  }
+  return payload;
 }
 
 export async function deleteRecycleItem(recycleId) {

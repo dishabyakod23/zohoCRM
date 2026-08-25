@@ -6,7 +6,9 @@ export function validateEmail(email) {
 export function validatePhone(phone) {
   if (!phone) return null;
   const digits = phone.replace(/\D/g, '');
-  return digits.length >= 7 ? null : 'Please enter a valid phone number.';
+  if (digits.length < 7) return 'Please enter a valid phone number.';
+  if (digits.length > 15) return 'Phone number cannot exceed 15 digits.';
+  return null;
 }
 
 export function validateRequired(fields, values) {
