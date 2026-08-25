@@ -1,5 +1,5 @@
 export const ONBOARDING_RESTART_EVENT = 'crm-restart-onboarding';
-export const ONBOARDING_VERSION = 'v1';
+export const ONBOARDING_VERSION = 'v2';
 
 export const ONBOARDING_STEPS = [
   {

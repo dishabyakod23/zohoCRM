@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   getAvailableOnboardingSteps,
   isOnboardingComplete,
@@ -60,7 +61,38 @@ function getTooltipStyle(rect, placement) {
   return style;
 }
 
+/** Four dim panels around the spotlight — never a full-screen hit target. */
+function SpotlightDim({ rect }) {
+  if (!rect) {
+    return <div className="fixed inset-0 z-[200] bg-slate-900/60 pointer-events-none" aria-hidden="true" />;
+  }
+
+  const top = Math.max(0, rect.top - PADDING);
+  const left = Math.max(0, rect.left - PADDING);
+  const width = rect.width + PADDING * 2;
+  const height = rect.height + PADDING * 2;
+  const bottom = top + height;
+  const right = left + width;
+  const dim = 'fixed z-[200] bg-slate-900/60 pointer-events-none';
+
+  return (
+    <>
+      <div className={dim} style={{ top: 0, left: 0, right: 0, height: top }} aria-hidden="true" />
+      <div className={dim} style={{ top: bottom, left: 0, right: 0, bottom: 0 }} aria-hidden="true" />
+      <div className={dim} style={{ top, left: 0, width: left, height }} aria-hidden="true" />
+      <div className={dim} style={{ top, left: right, right: 0, height }} aria-hidden="true" />
+      <div
+        className="fixed z-[200] rounded-xl ring-2 ring-brand-400 ring-offset-2 ring-offset-transparent pointer-events-none transition-all duration-300"
+        style={{ top, left, width, height }}
+        aria-hidden="true"
+      />
+    </>
+  );
+}
+
 export default function OnboardingTour({ userId }) {
+  const pathname = usePathname();
+  const pathWhenOpened = useRef(null);
   const [open, setOpen] = useState(false);
   const [steps, setSteps] = useState([]);
   const [stepIndex, setStepIndex] = useState(0);
@@ -71,8 +103,9 @@ export default function OnboardingTour({ userId }) {
     if (!available.length) return;
     setSteps(available);
     setStepIndex(0);
+    pathWhenOpened.current = pathname;
     setOpen(true);
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (!userId || isOnboardingComplete(userId)) return undefined;
@@ -111,13 +144,28 @@ export default function OnboardingTour({ userId }) {
     setOpen(false);
   }, [userId]);
 
+  // End the tour as soon as the user navigates (sidebar or otherwise).
+  useEffect(() => {
+    if (!open) return;
+    if (pathWhenOpened.current != null && pathname !== pathWhenOpened.current) {
+      finish();
+    }
+  }, [pathname, open, finish]);
+
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => {
       if (e.key === 'Escape') finish();
     };
+    const onNavClick = (e) => {
+      if (e.target.closest?.('[data-tour="sidebar-nav"] a')) finish();
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    document.addEventListener('click', onNavClick, true);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('click', onNavClick, true);
+    };
   }, [open, finish]);
 
   const goNext = () => {
@@ -135,27 +183,14 @@ export default function OnboardingTour({ userId }) {
   const isLast = stepIndex === steps.length - 1;
   const tooltipStyle = getTooltipStyle(rect, step.placement);
 
-  // Root is pointer-events-none so the spotlight does not trap clicks on the sidebar /
-  // header (box-shadow overlays still capture events on a normal full-screen layer).
   return (
-    <div className="fixed inset-0 z-[200] pointer-events-none" role="dialog" aria-modal="true" aria-labelledby="onboarding-tour-title">
-      {rect ? (
-        <div
-          className="absolute rounded-xl pointer-events-none ring-2 ring-brand-400 ring-offset-2 ring-offset-transparent transition-all duration-300"
-          style={{
-            top: rect.top - PADDING,
-            left: rect.left - PADDING,
-            width: rect.width + PADDING * 2,
-            height: rect.height + PADDING * 2,
-            boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.62)',
-          }}
-        />
-      ) : (
-        <div className="absolute inset-0 bg-slate-900/60 pointer-events-none" />
-      )}
-
+    <>
+      <SpotlightDim rect={rect} />
       <div
-        className="absolute z-[201] w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-zoho-border bg-white p-5 shadow-card-hover animate-scaleIn pointer-events-auto"
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="onboarding-tour-title"
+        className="fixed z-[201] w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-zoho-border bg-white p-5 shadow-card-hover animate-scaleIn"
         style={tooltipStyle}
       >
         <p className="text-[10px] font-bold uppercase tracking-wider text-brand-600">
@@ -186,6 +221,6 @@ export default function OnboardingTour({ userId }) {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

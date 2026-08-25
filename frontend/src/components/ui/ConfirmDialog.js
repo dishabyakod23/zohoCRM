@@ -38,7 +38,7 @@ export default function ConfirmDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn" onClick={inFlight ? undefined : onCancel}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn" onClick={inFlight ? undefined : onCancel}>
       <div className="bg-white rounded-2xl shadow-card-hover w-full max-w-md p-6 animate-scaleIn" onClick={e => e.stopPropagation()}>
         {title && <h3 className="font-semibold text-zoho-text mb-2">{title}</h3>}
         <p className="text-sm text-zoho-muted mb-6">{message}</p>

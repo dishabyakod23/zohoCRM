@@ -157,7 +157,7 @@ export default function StickyNote({ visible, onClose }) {
   return (
     <div
       ref={noteRef}
-      className="sticky-note fixed z-[60] flex flex-col rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.18)] border border-[#e8d87a]/60 select-none"
+      className="sticky-note fixed z-[40] flex flex-col rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.18)] border border-[#e8d87a]/60 select-none"
       style={{
         left: note.x,
         top: note.y,

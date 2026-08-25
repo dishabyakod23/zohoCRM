@@ -29,7 +29,13 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
     && canViewNav(n)
     && n.label.toLowerCase().includes(moduleSearch.toLowerCase()));
 
-  const isActive = (href) => pathname === href || pathname.startsWith(href + '/');
+  const normalizePath = (path) => (path || '/').replace(/\/+$/, '') || '/';
+  const toAppHref = (href) => (href.endsWith('/') ? href : `${href}/`);
+  const isActive = (href) => {
+    const current = normalizePath(pathname);
+    const target = normalizePath(href);
+    return current === target || current.startsWith(`${target}/`);
+  };
 
   const toggleCollapsed = () => setCollapsed((c) => !c);
 
@@ -51,16 +57,33 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
     </div>
   );
 
-  const navLink = (href, label, icon) => (
-    <Link key={href} href={href} title={label} onClick={onNavigate}
-      className={`zoho-nav-item ${isActive(href) ? 'zoho-nav-active' : 'zoho-nav-inactive'}`}>
-      <ModuleIcon name={icon} />
-      {!collapsed && <span className="truncate">{label}</span>}
-    </Link>
-  );
+  const navLink = (href, label, icon) => {
+    const target = toAppHref(href);
+    return (
+      <Link
+        key={href}
+        href={target}
+        title={label}
+        onClick={(e) => {
+          onNavigate?.();
+          if (normalizePath(pathname) === normalizePath(href)) {
+            e.preventDefault();
+            return;
+          }
+          // Hard navigation — soft client transitions can appear stuck behind overlays / static export.
+          e.preventDefault();
+          window.location.assign(target);
+        }}
+        className={`zoho-nav-item ${isActive(href) ? 'zoho-nav-active' : 'zoho-nav-inactive'}`}
+      >
+        <ModuleIcon name={icon} />
+        {!collapsed && <span className="truncate">{label}</span>}
+      </Link>
+    );
+  };
 
   return (
-    <aside className={`${collapsed ? 'w-16' : 'w-60'} bg-sidebar-gradient flex flex-col h-screen shrink-0 transition-all duration-300 shadow-lg z-50
+    <aside className={`${collapsed ? 'w-16' : 'w-60'} bg-sidebar-gradient flex flex-col h-screen shrink-0 transition-all duration-300 shadow-lg z-[70]
       fixed md:sticky inset-y-0 left-0
       ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       <div className={`px-3 py-3.5 flex items-center border-b border-white/10 min-h-[3.75rem] ${collapsed ? 'justify-center' : 'gap-2.5'}`}>
