@@ -65,6 +65,7 @@ export default function StickyNote({ visible, onClose }) {
       loaded.x = Math.max(80, window.innerWidth - loaded.width - 48);
       loaded.y = Math.max(72, window.innerHeight - loaded.height - 80);
     }
+    loaded.x = Math.max(248, Number(loaded.x) || 248);
     setNote(loaded);
     setReminderInput(loaded.reminder || '');
   }, []);
@@ -126,7 +127,8 @@ export default function StickyNote({ visible, onClose }) {
       if (dragRef.current) {
         const { startX, startY, origX, origY } = dragRef.current;
         persist({
-          x: Math.max(0, origX + e.clientX - startX),
+          // Keep notes out of the left nav so they cannot block sidebar clicks.
+          x: Math.max(248, origX + e.clientX - startX),
           y: Math.max(0, origY + e.clientY - startY),
         });
       }

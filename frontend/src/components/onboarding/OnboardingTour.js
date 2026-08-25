@@ -111,6 +111,15 @@ export default function OnboardingTour({ userId }) {
     setOpen(false);
   }, [userId]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') finish();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, finish]);
+
   const goNext = () => {
     if (stepIndex >= steps.length - 1) finish();
     else setStepIndex((i) => i + 1);
@@ -126,8 +135,10 @@ export default function OnboardingTour({ userId }) {
   const isLast = stepIndex === steps.length - 1;
   const tooltipStyle = getTooltipStyle(rect, step.placement);
 
+  // Root is pointer-events-none so the spotlight does not trap clicks on the sidebar /
+  // header (box-shadow overlays still capture events on a normal full-screen layer).
   return (
-    <div className="fixed inset-0 z-[200]" role="dialog" aria-modal="true" aria-labelledby="onboarding-tour-title">
+    <div className="fixed inset-0 z-[200] pointer-events-none" role="dialog" aria-modal="true" aria-labelledby="onboarding-tour-title">
       {rect ? (
         <div
           className="absolute rounded-xl pointer-events-none ring-2 ring-brand-400 ring-offset-2 ring-offset-transparent transition-all duration-300"
@@ -140,11 +151,11 @@ export default function OnboardingTour({ userId }) {
           }}
         />
       ) : (
-        <div className="absolute inset-0 bg-slate-900/60" />
+        <div className="absolute inset-0 bg-slate-900/60 pointer-events-none" />
       )}
 
       <div
-        className="absolute z-[201] w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-zoho-border bg-white p-5 shadow-card-hover animate-scaleIn"
+        className="absolute z-[201] w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-zoho-border bg-white p-5 shadow-card-hover animate-scaleIn pointer-events-auto"
         style={tooltipStyle}
       >
         <p className="text-[10px] font-bold uppercase tracking-wider text-brand-600">

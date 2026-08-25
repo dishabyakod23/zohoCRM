@@ -60,7 +60,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
   );
 
   return (
-    <aside className={`${collapsed ? 'w-16' : 'w-60'} bg-sidebar-gradient flex flex-col h-screen shrink-0 transition-all duration-300 shadow-lg z-40
+    <aside className={`${collapsed ? 'w-16' : 'w-60'} bg-sidebar-gradient flex flex-col h-screen shrink-0 transition-all duration-300 shadow-lg z-50
       fixed md:sticky inset-y-0 left-0
       ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       <div className={`px-3 py-3.5 flex items-center border-b border-white/10 min-h-[3.75rem] ${collapsed ? 'justify-center' : 'gap-2.5'}`}>
