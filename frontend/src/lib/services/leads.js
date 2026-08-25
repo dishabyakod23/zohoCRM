@@ -4,7 +4,7 @@ import { toConvertPayload } from '../dealHelpers.js';
 import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS } from '../importHelpers.js';
 import {
   PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PIPELINE_LEAD,
-  PROPOSAL_DEFAULT_LEAD_STATUS,
+  PROPOSAL_DEFAULT_LEAD_STATUS, PIPELINE_MODULE_PERMISSION,
   filterLeadsByPipelineStage, toApiLeadStatus, RAW_LEAD_CSV_HEADERS, pipelineStageLabel,
   isPipelineStageStatus,
 } from '../pipelineHelpers.js';
@@ -534,6 +534,7 @@ export async function summarizePipelineDashboard(statusOptions = []) {
     .map((stage) => ({
       status: pipelineStageLabel(stage),
       count: filterLeadsByPipelineStage(data, stage).length,
+      permissionKey: PIPELINE_MODULE_PERMISSION[stage],
     }))
     .filter((row) => row.count > 0);
 

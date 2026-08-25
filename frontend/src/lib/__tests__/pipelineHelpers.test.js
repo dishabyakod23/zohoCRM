@@ -3,6 +3,7 @@ import {
   filterLeadsByPipelineStage,
   resolveLeadPipelineStage,
   outreachLeadStatusOptions,
+  getConvertOptions,
 } from '../pipelineHelpers.js';
 
 describe('resolveLeadPipelineStage', () => {
@@ -75,6 +76,14 @@ describe('outreachLeadStatusOptions', () => {
       { value: 'not_contacted', label: 'Not Contacted' },
     ]);
     expect(options.map((o) => o.value)).toEqual(['not_contacted']);
+  });
+});
+
+describe('getConvertOptions', () => {
+  it('hides convert targets the user cannot view', () => {
+    const can = (module) => module === 'leads';
+    const options = getConvertOptions(PIPELINE_RAW, { can });
+    expect(options.map((o) => o.id)).toEqual(['lead']);
   });
 });
 

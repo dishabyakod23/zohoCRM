@@ -86,7 +86,7 @@ export default function CreateRawLeadForm() {
   const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canAssignLeads } = usePermissions();
+  const { canAssignLeads, can } = usePermissions();
   const [form, setForm] = useState(() => emptyRawLeadForm(user?.id || ''));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -159,13 +159,21 @@ export default function CreateRawLeadForm() {
     try {
       if (!(await validate())) return;
       const created = await leadsApi.createRawLead(form);
-      const campaignId = await resolveOrCreateCampaignId({
-        campaign_id: form.campaign_id,
-        campaign_name: form.campaign_name,
-      });
-      await afterRecordSave({ campaignId, memberType: 'lead', recordId: created?.id });
-      if (created?.id) {
-        await syncSingleLeadAsContact(created, campaignId);
+      try {
+        const canUseCampaigns = can('campaigns', 'view') || can('campaigns', 'create');
+        let campaignId = form.campaign_id || null;
+        if (canUseCampaigns) {
+          campaignId = await resolveOrCreateCampaignId({
+            campaign_id: form.campaign_id,
+            campaign_name: form.campaign_name,
+          });
+          await afterRecordSave({ campaignId, memberType: 'lead', recordId: created?.id });
+        }
+        if (created?.id && can('contacts', 'create')) {
+          await syncSingleLeadAsContact(created, campaignId);
+        }
+      } catch {
+        // Campaign/contact follow-up must not fail Cold Lead create.
       }
       showToast('Cold Lead is created', 'success');
       navigateToRecord(created?.id ? `/raw-leads/${created.id}` : '/raw-leads');

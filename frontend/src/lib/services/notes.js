@@ -1,4 +1,5 @@
 import api from '../api.js';
+import { noteOwnerId } from '../noteHelpers.js';
 
 export function normalizeNote(note) {
   if (!note) return note;
@@ -6,6 +7,7 @@ export function normalizeNote(note) {
     ...note,
     body: note.body || note.content || '',
     owner_name: note.owner_name || note.created_by_name || note.author_name || '',
+    owner_id: noteOwnerId(note) || note.owner_id || '',
   };
 }
 

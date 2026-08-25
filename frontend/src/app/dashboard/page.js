@@ -63,6 +63,11 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { role, can } = usePermissions();
   const showSalesTargetWidgets = can('settings_sales_targets', 'view') || can('reports', 'view');
+  const canViewQualified = can('qualified_leads', 'view');
+  const canViewAccounts = can('accounts', 'view');
+  const canViewProposals = can('proposals', 'view');
+  const canViewAuditLogs = can('audit_logs', 'view');
+  const quickCreateItems = QUICK_CREATE.filter((item) => can(item.permissionKey, 'create'));
   const [stats, setStats] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,40 +84,48 @@ export default function DashboardPage() {
         leadsThisMonth: 0,
         proposals: { total: 0, dealSize: 0 },
       })),
-      auditLogsApi.listRecentActivityLogs(30, {
-        user,
-        canSeeAll: role === 'super_admin' || role === 'sales_manager',
-        limit: DEFAULT_PAGE_SIZE,
-        enrichPhones: false,
-        cloudTalkLimit: 50,
-      }).catch(() => []),
+      canViewAuditLogs
+        ? auditLogsApi.listRecentActivityLogs(30, {
+          user,
+          canSeeAll: role === 'super_admin' || role === 'sales_manager',
+          limit: DEFAULT_PAGE_SIZE,
+          enrichPhones: false,
+          cloudTalkLimit: 50,
+        }).catch(() => [])
+        : Promise.resolve([]),
     ]).then(async ([home, pipelineSummary, logs]) => {
-      const accountsTotal = await accountsApi.countAccounts().catch(() => 0);
-      const topAccountsRaw = (home.top_accounts || [])
-        .filter((account) => isConfirmedAccount(account));
+      const accountsTotal = canViewAccounts
+        ? await accountsApi.countAccounts().catch(() => 0)
+        : 0;
+      const topAccountsRaw = canViewAccounts
+        ? (home.top_accounts || []).filter((account) => isConfirmedAccount(account))
+        : [];
+      const visiblePipeline = (pipelineSummary.leadsByPipeline || []).filter((row) => (
+        !row.permissionKey || can(row.permissionKey, 'view')
+      ));
       setAuditLogs(logs);
       setStats({
         leads: {
-          total: pipelineSummary.totalLeads,
+          total: visiblePipeline.reduce((sum, row) => sum + (row.count || 0), 0),
           this_month: pipelineSummary.leadsThisMonth ?? 0,
-          qualified: pipelineSummary.qualifiedCount,
+          qualified: canViewQualified ? pipelineSummary.qualifiedCount : 0,
         },
         accounts: { total: accountsTotal },
-        proposals: pipelineSummary.proposals,
+        proposals: canViewProposals ? pipelineSummary.proposals : { total: 0, dealSize: 0 },
         topAccounts: topAccountsRaw.map((a) => ({
           id: a.id,
           name: a.account_name || a.name,
           revenue: Number(a.annual_revenue ?? a.revenue) || 0,
           currency: a.currency || DEFAULT_CURRENCY,
         })),
-        leadsByStatus: pipelineSummary.leadsByPipeline,
+        leadsByStatus: visiblePipeline,
       });
       setLoading(false);
     }).catch((err) => {
       showToast(getApiError(err));
       setLoading(false);
     });
-  }, [showToast, user?.id, role]);
+  }, [showToast, user?.id, role, can, canViewAccounts, canViewAuditLogs, canViewProposals, canViewQualified]);
 
   const fmt = (amount, currency) => formatCompactMoney(amount, currency);
 
@@ -138,6 +151,7 @@ export default function DashboardPage() {
               icon={UserGroupIcon}
               gradient="bg-gradient-to-br from-accent-teal to-brand-600"
             />
+            {canViewQualified && (
             <Link href="/qualified-leads" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
                 title="Qualified Leads"
@@ -147,6 +161,8 @@ export default function DashboardPage() {
                 gradient="bg-gradient-to-br from-accent-yellow to-brand-600"
               />
             </Link>
+            )}
+            {canViewAccounts && (
             <Link href="/accounts" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
                 title="Accounts"
@@ -156,6 +172,8 @@ export default function DashboardPage() {
                 gradient="bg-gradient-to-br from-accent-orange to-accent-pink"
               />
             </Link>
+            )}
+            {canViewProposals && (
             <Link href="/proposals" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
                 title="Proposals"
@@ -165,6 +183,7 @@ export default function DashboardPage() {
                 gradient="bg-gradient-to-br from-accent-pink to-brand-600"
               />
             </Link>
+            )}
 
             {showSalesTargetWidgets && <SalesTargetWidgets />}
 
@@ -218,6 +237,7 @@ export default function DashboardPage() {
               ) : <p className="text-sm text-zoho-muted text-center py-8">No leads</p>}
             </Widget>
 
+            {canViewAuditLogs && (
             <Widget title="Audit Logs" className="col-span-12 lg:col-span-6">
               <div className="flex justify-end -mt-1 mb-2">
                 <button
@@ -228,12 +248,12 @@ export default function DashboardPage() {
                   View all (30 days) →
                 </button>
               </div>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
+              <div className="space-y-1 max-h-48 overflow-y-auto overflow-x-hidden">
                 {auditLogs.length > 0 ? auditLogs.map((log) => (
                   <div key={log.id} className="flex gap-3 text-sm py-2 px-2 -mx-2 rounded-lg hover:bg-brand-50/60 transition-colors">
                     <UserAvatar user={log.user} name={log.user_name || 'System'} size="sm" className="mt-0.5" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-zoho-text font-medium">{log.summary}</p>
+                      <p className="text-zoho-text font-medium break-words">{log.summary}</p>
                       <p className="text-[11px] text-zoho-muted">
                         {log.user_name || 'System'} · {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
                       </p>
@@ -244,7 +264,9 @@ export default function DashboardPage() {
                 )}
               </div>
             </Widget>
+            )}
 
+            {canViewAccounts && (
             <Widget title="Top Accounts by Revenue" className="col-span-12 lg:col-span-6">
               <div className="flex justify-end -mt-1 mb-2">
                 <Link href="/accounts" className="text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline">
@@ -265,16 +287,19 @@ export default function DashboardPage() {
                 )}
               </div>
             </Widget>
+            )}
 
+            {quickCreateItems.length > 0 && (
             <Widget title="Quick Create" className="col-span-12">
               <div className="flex flex-wrap gap-2">
-                {QUICK_CREATE.map(q => (
+                {quickCreateItems.map(q => (
                   <Link key={q.label} href={q.href} className="btn-secondary-sm">
                     + {q.label}
                   </Link>
                 ))}
               </div>
             </Widget>
+            )}
           </div>
         ) : <p className="text-zoho-muted">Failed to load dashboard</p>}
       </div>

@@ -6,11 +6,13 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { getApiError } from '../../lib/api.js';
 import Logo from '../../components/ui/Logo.js';
 import PasswordInput from '../../components/forms/PasswordInput.js';
-import { safeNextPath } from '../../lib/safeRedirect.js';
-import { normalizeLoginEmail } from '../../lib/authHelpers.js';
+import { safeNextPath, shouldSkipLoginNext } from '../../lib/safeRedirect.js';
+import { normalizeLoginEmail, isInactiveUserError, INACTIVE_ACCOUNT_MESSAGE } from '../../lib/authHelpers.js';
+import { useToast } from '../../components/ui/Toast.js';
 
 function getNextPath() {
   if (typeof window === 'undefined') return '/dashboard';
+  if (shouldSkipLoginNext()) return '/dashboard';
   const next = new URLSearchParams(window.location.search).get('next');
   return safeNextPath(next);
 }
@@ -18,9 +20,14 @@ function getNextPath() {
 export default function LoginPage() {
   const { login, user, loading } = useAuth();
   const router = useRouter();
+  const { clearToasts } = useToast();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    clearToasts?.();
+  }, [clearToasts]);
 
   useEffect(() => {
     if (!loading && user) router.replace(getNextPath());
@@ -33,7 +40,8 @@ export default function LoginPage() {
     try {
       await login(form.email, form.password);
     } catch (err) {
-      setError(getApiError(err) || 'Invalid email or password.');
+      const message = getApiError(err) || 'Invalid email or password.';
+      setError(isInactiveUserError(message) ? INACTIVE_ACCOUNT_MESSAGE : message);
     } finally {
       setSubmitting(false);
     }

@@ -1,4 +1,4 @@
-import { safeNextPath, loginHref } from '../safeRedirect.js';
+import { safeNextPath, loginHref, markSkipLoginNext, SKIP_LOGIN_NEXT_KEY } from '../safeRedirect.js';
 
 describe('safeNextPath', () => {
   it('allows a plain in-app path', () => {
@@ -62,5 +62,11 @@ describe('loginHref', () => {
   it('defaults to reading window.location when no argument is given', () => {
     // jsdom's default test URL is http://localhost/
     expect(loginHref()).toBe('/login?next=%2F');
+  });
+
+  it('omits ?next= after an explicit logout', () => {
+    markSkipLoginNext();
+    expect(loginHref('/calendar')).toBe('/login');
+    sessionStorage.removeItem(SKIP_LOGIN_NEXT_KEY);
   });
 });

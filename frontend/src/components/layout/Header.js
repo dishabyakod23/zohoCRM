@@ -33,7 +33,7 @@ function formatNotifWhen(iso) {
 
 export default function Header({ onMenuClick }) {
   const { user, logout } = useAuth();
-  const { showToast } = useToast();
+  const { showToast, clearToasts } = useToast();
   const { canQuickCreate, can } = usePermissions();
   const {
     reminders: meetingReminders,
@@ -311,7 +311,7 @@ export default function Header({ onMenuClick }) {
       </header>
 
       <ConfirmDialog open={logoutConfirm} message="Are you sure you want to log out?" confirmLabel="Log Out" cancelLabel="Stay"
-        onConfirm={() => { setLogoutConfirm(false); logout(); }} onCancel={() => setLogoutConfirm(false)} />
+        onConfirm={() => { setLogoutConfirm(false); clearToasts?.(); logout(); }} onCancel={() => setLogoutConfirm(false)} />
     </>
   );
 }

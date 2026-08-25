@@ -22,3 +22,18 @@ export function userInitial(user) {
 export function userProfileImageUrl(user) {
   return extractProfileImageUrl(user);
 }
+
+function userCreatedAtMs(user) {
+  const raw = user?.created_at || user?.createdAt || user?.inserted_at;
+  const ms = raw ? new Date(raw).getTime() : 0;
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+/** Newest users first so a just-created account appears at the top of Users & Roles. */
+export function sortUsersNewestFirst(users = []) {
+  return [...users].sort((a, b) => {
+    const byDate = userCreatedAtMs(b) - userCreatedAtMs(a);
+    if (byDate) return byDate;
+    return String(b?.id || '').localeCompare(String(a?.id || ''));
+  });
+}

@@ -22,6 +22,8 @@ import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers
 import { logEmailSent } from '../../lib/outreachActivity.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
+import { missingRequiredMessage } from '../../lib/formValidation.js';
+import { getConvertOptions, convertOptionsToLookup, filterConvertLookupOptions } from '../../lib/pipelineHelpers.js';
 
 const defaultGetRowId = (r) => r.id;
 
@@ -177,7 +179,7 @@ export default function RecordDataTable({
 }) {
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit, canDelete, canAssignLeads, canEditRecord, canDeleteRecord } = usePermissions();
+  const { canEdit, canDelete, canAssignLeads, canEditRecord, canDeleteRecord, can, isSuperAdmin } = usePermissions();
   const config = useMemo(() => getBulkConfig(moduleKey), [moduleKey]);
   const currentStageTarget = MODULE_PIPELINE_STAGE[moduleKey] || null;
   const noteMeta = useMemo(() => getNoteMeta(moduleKey), [moduleKey]);
@@ -310,8 +312,20 @@ export default function RecordDataTable({
       || String(massField).toLowerCase() === 'convert'
       || String(massField).toLowerCase() === 'pipeline_convert';
 
-    if (!massField || !isConvert || !convertTargetsLoader) {
+    const fallbackTargets = () => convertOptionsToLookup(
+      getConvertOptions(currentStageTarget || MODULE_PIPELINE_STAGE[moduleKey], {
+        isAdmin: isSuperAdmin,
+        can,
+      }),
+    );
+
+    if (!massField || !isConvert) {
       setDynamicConvertTargets([]);
+      return undefined;
+    }
+
+    if (!convertTargetsLoader) {
+      setDynamicConvertTargets(fallbackTargets());
       return undefined;
     }
 
@@ -320,12 +334,16 @@ export default function RecordDataTable({
     setDynamicConvertTargets([]);
 
     convertTargetsLoader({ moduleKey, pipelineStage: currentStageTarget })
-      .then((options) => { if (!cancelled) setDynamicConvertTargets(options); })
-      .catch(() => { if (!cancelled) setDynamicConvertTargets([]); })
+      .then((options) => {
+        if (cancelled) return;
+        const permitted = filterConvertLookupOptions(options, can);
+        setDynamicConvertTargets(permitted.length ? permitted : fallbackTargets());
+      })
+      .catch(() => { if (!cancelled) setDynamicConvertTargets(fallbackTargets()); })
       .finally(() => { if (!cancelled) setLoadingMassValueOptions(false); });
 
     return () => { cancelled = true; };
-  }, [massField, dynamicMassFields, convertTargetsLoader, moduleKey, currentStageTarget]);
+  }, [massField, dynamicMassFields, convertTargetsLoader, moduleKey, currentStageTarget, can, isSuperAdmin]);
 
   useEffect(() => {
     if (!massField) {
@@ -595,8 +613,13 @@ export default function RecordDataTable({
   };
 
   const saveTask = async () => {
-    if (!taskForm.title || !taskForm.due_date || !taskForm.assigned_to) {
-      showToast('Fill in task title, due date, and assignee');
+    const missing = missingRequiredMessage([
+      { label: 'task title', value: taskForm.title },
+      { label: 'due date', value: taskForm.due_date },
+      { label: 'assignee', value: taskForm.assigned_to },
+    ]);
+    if (missing) {
+      showToast(missing);
       return;
     }
     setSavingTask(true);

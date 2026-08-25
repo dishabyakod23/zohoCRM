@@ -259,7 +259,7 @@ export default function ReportsPage() {
               <ResponsiveContainer width="100%" height={220}><BarChart data={data.source || []}><XAxis dataKey="label" tick={{ fontSize: 10 }} /><YAxis /><Tooltip /><Bar dataKey="count" fill="#378ADD" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
             </div>
             <div className="card p-5"><h3 className="font-semibold mb-4">Leads by Status</h3>
-              <ResponsiveContainer width="100%" height={220}><PieChart><Pie data={data.status || []} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={80} label>{(data.status || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer>
+              <ResponsiveContainer width="100%" height={220}><PieChart><Pie data={data.status || []} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={80} label={false} labelLine={false}>{(data.status || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip /><Legend formatter={(value) => leadStatusLabel(value)} /></PieChart></ResponsiveContainer>
             </div>
             <div className="card p-5 col-span-full"><h3 className="font-semibold mb-2">Lead Conversion Rate</h3>
               <p className="text-3xl font-bold text-brand-600">{data.conversion?.rate ?? 0}%</p>

@@ -36,6 +36,7 @@ import {
 import { nextStateForCountry } from '../../lib/addressRegions.js';
 import { formatMoney, CURRENCIES, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import { SALUTATIONS } from '../../lib/constants.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon, UserIcon,
 } from '@heroicons/react/24/outline';
@@ -95,7 +96,8 @@ export default function PipelineLeadDetail({ stage }) {
         pipelineStage: stage,
         lead: r,
       });
-    }).catch(() => {
+    }).catch((err) => {
+      if (err?.response?.status === 401) return;
       showToast('Lead not found');
       router.push(config?.listPath || '/dashboard');
     });
@@ -235,6 +237,7 @@ export default function PipelineLeadDetail({ stage }) {
             values={{ ...lead, ...campaignValues }}
             onSave={saveSection}
             fields={[
+              { name: 'salutation', label: 'Salutation', render: (d, set) => select(SALUTATIONS, null, null)(d, set, 'salutation') },
               { name: 'first_name', label: 'First Name', required: true },
               { name: 'last_name', label: 'Last Name', required: true },
               { name: 'company', label: 'Company', required: true },

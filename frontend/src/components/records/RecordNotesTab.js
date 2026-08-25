@@ -5,9 +5,14 @@ import { getApiError } from '../../lib/api.js';
 import * as notesApi from '../../lib/services/notes.js';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import UserAvatarById from '../users/UserAvatarById.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
+import { canManageNote } from '../../lib/noteHelpers.js';
 
 export default function RecordNotesTab({ relatedType, recordId, canEdit = false }) {
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const { isSuperAdmin } = usePermissions();
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [noteText, setNoteText] = useState('');
@@ -111,6 +116,7 @@ export default function RecordNotesTab({ relatedType, recordId, canEdit = false 
         <div className="space-y-2">
           {notes.map((n) => {
             const isEditing = editingId === n.id;
+            const canManage = canManageNote(n, user, { canEdit, isAdmin: isSuperAdmin });
             return (
               <div key={n.id} className="text-sm bg-brand-50/60 border border-zoho-border/60 p-3 rounded-xl">
                 {isEditing ? (
@@ -131,7 +137,7 @@ export default function RecordNotesTab({ relatedType, recordId, canEdit = false 
                   <>
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-zoho-text whitespace-pre-wrap flex-1">{n.body}</p>
-                      {canEdit && (
+                      {canManage && (
                         <div className="flex items-center gap-1 shrink-0">
                           <button type="button" onClick={() => startEdit(n)} className="p-1 text-zoho-muted hover:text-brand-600 rounded" aria-label="Edit note" title="Edit">
                             <PencilIcon className="w-4 h-4" />

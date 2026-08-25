@@ -2,11 +2,13 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api.js';
-import { safeNextPath, loginHref } from '../lib/safeRedirect.js';
+import { safeNextPath, loginHref, markSkipLoginNext, consumeSkipLoginNext } from '../lib/safeRedirect.js';
 import {
   parseAuthTokenResponse,
   parseAuthUserResponse,
   readStoredAuthUser,
+  isInactiveUser,
+  INACTIVE_ACCOUNT_MESSAGE,
 } from '../lib/authHelpers.js';
 import { mergeStoredProfileImage } from '../lib/profileImageHelpers.js';
 import { postLogin } from '../lib/authClient.js';
@@ -44,6 +46,10 @@ export function AuthProvider({ children }) {
       const res = await api.get('/auth/me');
       const me = parseAuthUserResponse(res.data);
       if (me?.id) applyUser(me);
+      if (isInactiveUser(me)) {
+        clearAuthSession();
+        setUser(null);
+      }
     } catch {
       // Timeouts, 401s, and network errors must not force a logout.
     }
@@ -97,17 +103,24 @@ export function AuthProvider({ children }) {
       refresh_token: auth.refresh_token,
       user: auth.user,
     });
+    if (isInactiveUser(auth.user)) {
+      clearAuthSession();
+      setUser(null);
+      throw new Error(INACTIVE_ACCOUNT_MESSAGE);
+    }
     setUser(auth.user);
-    const next = typeof window !== 'undefined'
-      ? new URLSearchParams(window.location.search).get('next')
-      : null;
+    const skipNext = consumeSkipLoginNext();
+    const next = skipNext || typeof window === 'undefined'
+      ? null
+      : new URLSearchParams(window.location.search).get('next');
     router.replace(safeNextPath(next));
   };
 
   const logout = () => {
+    markSkipLoginNext();
     clearAuthSession();
     setUser(null);
-    router.push(loginHref());
+    router.push('/login');
   };
 
   const updateUser = useCallback((patch) => {

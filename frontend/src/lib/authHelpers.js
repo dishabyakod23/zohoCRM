@@ -58,3 +58,22 @@ export function isPublicAuthPath(pathname = '') {
   const path = String(pathname || '').replace(/\/$/, '') || '/';
   return path === '/login' || path === '/forgot-password' || path === '/reset-password';
 }
+
+export const INACTIVE_ACCOUNT_MESSAGE = 'This account is inactive. Contact your administrator to restore access.';
+
+/** True when the user record is marked inactive/disabled. */
+export function isInactiveUser(user) {
+  if (!user) return false;
+  if (user.is_active === false || user.active === false || user.is_inactive === true) return true;
+  const status = String(user.status || '').toLowerCase();
+  return status === 'inactive' || status === 'disabled' || status === 'deactivated';
+}
+
+export function isInactiveUserError(message) {
+  return /inactive|not found or inactive/i.test(String(message || ''));
+}
+
+/** Toasts leftover from a previous session that should not appear on the login screen. */
+export function isStaleAuthToast(message) {
+  return /authentication required|not authenticated|unauthorized|lead not found|invalid token|token expired|please log in|session expired/i.test(String(message || ''));
+}

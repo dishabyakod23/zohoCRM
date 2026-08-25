@@ -2,6 +2,16 @@ import { pipelineStageLabel, PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PI
 import { toDateOnly } from './activityHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
 import { ownerName } from './recordHelpers.js';
+import { SALUTATIONS } from './constants.js';
+
+export function normalizeSalutation(value) {
+  if (!value) return '';
+  const raw = String(value).trim();
+  const match = SALUTATIONS.find((item) => (
+    item.toLowerCase().replace(/\.$/, '') === raw.toLowerCase().replace(/\.$/, '')
+  ));
+  return match || raw;
+}
 
 /** Map API snake_case lead_status to display label (fallback when lookups unavailable) */
 const STATUS_LABELS = {
@@ -121,6 +131,7 @@ export function normalizeLead(lead, statusOptions = []) {
     amc_currency: lead.amc_currency || lead.currency || DEFAULT_CURRENCY,
     campaign_id: lead.campaign_id || null,
     campaign_name: lead.campaign_name || null,
+    salutation: normalizeSalutation(lead.salutation || lead.prefix || ''),
   };
 }
 

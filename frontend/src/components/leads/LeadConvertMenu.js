@@ -15,6 +15,7 @@ import { FALLBACK_DEAL_STAGES } from '../../lib/dealHelpers.js';
 import {
   CONVERT_TYPE, getConvertOptions, getConvertRedirectPath,
 } from '../../lib/pipelineHelpers.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 export default function LeadConvertMenu({
   stage,
@@ -26,6 +27,7 @@ export default function LeadConvertMenu({
 }) {
   const router = useRouter();
   const { showToast } = useToast();
+  const { can, isSuperAdmin } = usePermissions();
   const menuRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [pendingOption, setPendingOption] = useState(null);
@@ -36,7 +38,7 @@ export default function LeadConvertMenu({
     create_deal: false, deal_name: '', close_date: '', stage_value: 'qualification', amount: '',
   });
 
-  const options = getConvertOptions(stage, { isAdmin });
+  const options = getConvertOptions(stage, { isAdmin: isAdmin || isSuperAdmin, can });
 
   useEffect(() => {
     fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));

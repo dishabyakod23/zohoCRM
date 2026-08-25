@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import ConfirmDialog from '../ui/ConfirmDialog.js';
 
 const STORAGE_KEY = 'crm_sticky_note';
 const NOTE_COLORS = ['#fff9c4', '#ffcdd2', '#c8e6c9', '#bbdefb', '#e1bee7', '#ffe0b2'];
@@ -51,6 +52,7 @@ export default function StickyNote({ visible, onClose }) {
   const [note, setNote] = useState(DEFAULT_STATE);
   const [showColors, setShowColors] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [reminderInput, setReminderInput] = useState('');
   const editorRef = useRef(null);
   const noteRef = useRef(null);
@@ -92,8 +94,7 @@ export default function StickyNote({ visible, onClose }) {
     persist({ content: editorRef.current?.innerHTML || '' });
   };
 
-  const onDelete = () => {
-    if (!confirm('Delete this sticky note?')) return;
+  const confirmDelete = () => {
     const reset = {
       ...DEFAULT_STATE,
       x: note.x,
@@ -104,6 +105,7 @@ export default function StickyNote({ visible, onClose }) {
     saveState(reset);
     setNote(reset);
     if (editorRef.current) editorRef.current.innerHTML = DEFAULT_CONTENT;
+    setDeleteConfirm(false);
     onClose?.();
   };
 
@@ -230,7 +232,7 @@ export default function StickyNote({ visible, onClose }) {
           </svg>
         </button>
 
-        <button type="button" title="Delete" onClick={onDelete} className="w-7 h-7 flex items-center justify-center rounded text-[#5a5a5a] hover:bg-black/5 hover:text-red-600">
+        <button type="button" title="Delete" onClick={() => setDeleteConfirm(true)} className="w-7 h-7 flex items-center justify-center rounded text-[#5a5a5a] hover:bg-black/5 hover:text-red-600">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
@@ -290,6 +292,15 @@ export default function StickyNote({ visible, onClose }) {
           <path d="M12 12H8V10h2V8h2v4zM6 12H4v-2h2v2zM10 6H8V4h2v2z" />
         </svg>
       </div>
+      <ConfirmDialog
+        open={deleteConfirm}
+        title="Delete sticky note?"
+        message="Delete this sticky note? This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm(false)}
+      />
     </div>
   );
 }

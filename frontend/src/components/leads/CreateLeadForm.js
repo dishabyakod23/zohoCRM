@@ -137,7 +137,7 @@ export default function CreateLeadForm() {
               <FormField label="Salutation">
                 <select className="input" value={form.salutation} onChange={set('salutation')}>
                   <option value="">--None--</option>
-                  {SALUTATIONS.map((s) => <option key={s}>{s}</option>)}
+                  {SALUTATIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </FormField>
               <FormField label="First Name" required error={errors.first_name} name="first_name">

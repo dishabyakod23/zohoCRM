@@ -12,7 +12,7 @@ import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import ProfileImageManager from '../../components/users/ProfileImageManager.js';
 import UserAvatar from '../../components/users/UserAvatar.js';
-import { userDisplayName } from '../../lib/userHelpers.js';
+import { userDisplayName, sortUsersNewestFirst } from '../../lib/userHelpers.js';
 import { mergeStoredProfileImage } from '../../lib/profileImageHelpers.js';
 import { USER_ROLES, ROLE_LABELS, ROLE_ACCESS, roleLabel, normalizeRole } from '../../lib/roles.js';
 import * as adminApi from '../../lib/services/admin.js';
@@ -85,6 +85,7 @@ function SettingsPageContent() {
   const [deletingStatus, setDeletingStatus] = useState('');
   const [editingStatus, setEditingStatus] = useState(null);
   const [editingStatusLabel, setEditingStatusLabel] = useState('');
+  const [editingStatusValue, setEditingStatusValue] = useState('');
   const [editingStatusSaving, setEditingStatusSaving] = useState(false);
 
   const [passwordForm, setPasswordForm] = useState({ otp: '', new_password: '', confirm_password: '' });
@@ -121,7 +122,7 @@ function SettingsPageContent() {
         adminApi.listAdminUsers(),
         manageRolesApi.listAssignableRoles().catch(() => []),
       ]);
-      setUsers(userList);
+      setUsers(sortUsersNewestFirst(userList));
       setAssignableRoles(roleList);
     } catch (err) {
       showToast(getApiError(err));
@@ -286,6 +287,7 @@ function SettingsPageContent() {
   const openEditLeadStatus = (status) => {
     setEditingStatus(status);
     setEditingStatusLabel(status.label || '');
+    setEditingStatusValue(status.value || '');
   };
 
   const saveLeadStatusEdit = async () => {
@@ -297,10 +299,14 @@ function SettingsPageContent() {
     }
     setEditingStatusSaving(true);
     try {
-      await adminApi.updateAdminLeadStatus(editingStatus.id || editingStatus.value, { label: nextLabel });
+      await adminApi.updateAdminLeadStatus(editingStatus.id || editingStatus.value, {
+        label: nextLabel,
+        value: editingStatusValue.trim() || slugifyStatusValue(nextLabel),
+      });
       showToast('Status updated', 'success');
       setEditingStatus(null);
       setEditingStatusLabel('');
+      setEditingStatusValue('');
       loadLeadStatuses();
     } catch (err) {
       showToast(getApiError(err));
@@ -740,7 +746,7 @@ function SettingsPageContent() {
       )}
 
       {editingStatus && (
-        <Modal title="Edit Lead Status" onClose={() => { if (!editingStatusSaving) { setEditingStatus(null); setEditingStatusLabel(''); } }}>
+        <Modal title="Edit Lead Status" onClose={() => { if (!editingStatusSaving) { setEditingStatus(null); setEditingStatusLabel(''); setEditingStatusValue(''); } }}>
           <div className="space-y-3">
             <FormField label="Status Label" required name="edit_status_label">
               <input
@@ -751,9 +757,9 @@ function SettingsPageContent() {
             </FormField>
             <FormField label="Status Value" name="edit_status_value">
               <input
-                className="input font-mono text-xs bg-gray-50"
-                value={editingStatus.value}
-                readOnly
+                className="input font-mono text-xs"
+                value={editingStatusValue}
+                onChange={(e) => setEditingStatusValue(e.target.value)}
               />
             </FormField>
           </div>

@@ -51,6 +51,24 @@ export const PIPELINE_STAGE_LABELS = {
   deal_lost: 'Deal Lost',
 };
 
+export const PIPELINE_MODULE_PERMISSION = {
+  [PIPELINE_RAW]: 'raw_leads',
+  [PIPELINE_LEAD]: 'leads',
+  [PIPELINE_QUALIFIED]: 'qualified_leads',
+  [PIPELINE_PROPOSAL]: 'proposals',
+};
+
+export const CONVERT_TARGET_PERMISSION = {
+  contact: 'contacts',
+  lead: 'leads',
+  contacted: 'leads',
+  qualified_lead: 'qualified_leads',
+  qualified: 'qualified_leads',
+  proposal: 'proposals',
+  account: 'accounts',
+  raw_prospect: 'raw_leads',
+};
+
 /** Values that represent pipeline stage, not a selectable outreach Lead Status. */
 const PIPELINE_STAGE_STATUS_VALUES = new Set([
   PIPELINE_RAW,
@@ -243,7 +261,7 @@ export function getLeadDetailPath(leadOrStage, leadId) {
 }
 
 /** Options for the unified Convert dropdown per pipeline stage */
-export function getConvertOptions(stage, { isAdmin = false } = {}) {
+export function getConvertOptions(stage, { isAdmin = false, can } = {}) {
   const opts = [];
   const add = (option) => {
     const disabled = option.adminOnly && !isAdmin;
@@ -251,24 +269,50 @@ export function getConvertOptions(stage, { isAdmin = false } = {}) {
   };
 
   if (stage === PIPELINE_LEAD) {
-    add({ id: 'qualified_lead', label: 'Qualified Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_QUALIFIED });
-    add({ id: 'proposal', label: 'Proposal', type: CONVERT_TYPE.STAGE, target: PIPELINE_PROPOSAL, proposal: true });
-    add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT });
+    add({ id: 'qualified_lead', label: 'Qualified Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_QUALIFIED, permissionKey: 'qualified_leads' });
+    add({ id: 'proposal', label: 'Proposal', type: CONVERT_TYPE.STAGE, target: PIPELINE_PROPOSAL, proposal: true, permissionKey: 'proposals' });
+    add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT, permissionKey: 'accounts' });
   } else if (stage === PIPELINE_QUALIFIED) {
-    add({ id: 'proposal', label: 'Proposal', type: CONVERT_TYPE.STAGE, target: PIPELINE_PROPOSAL, proposal: true });
-    add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT });
+    add({ id: 'proposal', label: 'Proposal', type: CONVERT_TYPE.STAGE, target: PIPELINE_PROPOSAL, proposal: true, permissionKey: 'proposals' });
+    add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT, permissionKey: 'accounts' });
   } else if (stage === PIPELINE_PROPOSAL) {
-    add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT });
-    add({ id: 'lead', label: 'Warm Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD, clearProposal: true, adminOnly: true });
+    add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT, permissionKey: 'accounts' });
+    add({ id: 'lead', label: 'Warm Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD, clearProposal: true, adminOnly: true, permissionKey: 'leads' });
   } else if (stage === PIPELINE_RAW) {
-    add({ id: 'contact', label: 'Contact', type: CONVERT_TYPE.CONTACT });
-    add({ id: 'lead', label: 'Warm Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD });
-    add({ id: 'qualified_lead', label: 'Qualified Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_QUALIFIED });
-    add({ id: 'proposal', label: 'Proposal', type: CONVERT_TYPE.STAGE, target: PIPELINE_PROPOSAL, proposal: true });
-    add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT });
+    add({ id: 'contact', label: 'Contact', type: CONVERT_TYPE.CONTACT, permissionKey: 'contacts' });
+    add({ id: 'lead', label: 'Warm Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_LEAD, permissionKey: 'leads' });
+    add({ id: 'qualified_lead', label: 'Qualified Lead', type: CONVERT_TYPE.STAGE, target: PIPELINE_QUALIFIED, permissionKey: 'qualified_leads' });
+    add({ id: 'proposal', label: 'Proposal', type: CONVERT_TYPE.STAGE, target: PIPELINE_PROPOSAL, proposal: true, permissionKey: 'proposals' });
+    add({ id: 'account', label: 'Account', type: CONVERT_TYPE.ACCOUNT, permissionKey: 'accounts' });
   }
 
-  return opts;
+  if (typeof can !== 'function') return opts;
+  return opts.filter((option) => {
+    if (option.disabled) return false;
+    const key = option.permissionKey || CONVERT_TARGET_PERMISSION[option.id] || CONVERT_TARGET_PERMISSION[option.target];
+    return !key || can(key, 'view');
+  });
+}
+
+export function convertOptionsToLookup(options = []) {
+  return options.map((option) => ({
+    value: option.type === CONVERT_TYPE.ACCOUNT
+      ? 'account'
+      : option.type === CONVERT_TYPE.CONTACT
+        ? 'contact'
+        : (option.target || option.id),
+    label: option.label,
+    permissionKey: option.permissionKey,
+  }));
+}
+
+export function filterConvertLookupOptions(options = [], can) {
+  if (typeof can !== 'function') return options;
+  return (options || []).filter((option) => {
+    const value = String(option?.value || option?.id || '').toLowerCase();
+    const key = option?.permissionKey || CONVERT_TARGET_PERMISSION[value];
+    return !key || can(key, 'view');
+  });
 }
 
 export function resolveLeadPipelineStage(lead) {

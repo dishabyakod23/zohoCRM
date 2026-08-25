@@ -30,6 +30,11 @@ describe('AMC / IT Support on leads', () => {
     expect(payload.amc_currency).toBe('GBP');
   });
 
+  it('normalizes salutation aliases from the API', () => {
+    expect(normalizeLead({ salutation: 'Mr' }).salutation).toBe('Mr.');
+    expect(normalizeLead({ prefix: 'Mrs' }).salutation).toBe('Mrs.');
+  });
+
   it('clears amc_it_support when empty on patch', () => {
     const payload = toLeadPayload({ amc_it_support: '' }, { partial: true });
     expect(payload.amc_it_support).toBeNull();

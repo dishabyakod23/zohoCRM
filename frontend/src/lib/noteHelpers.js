@@ -62,6 +62,30 @@ export function getNoteMeta(moduleKey) {
   return MODULE_NOTE_META[moduleKey] || MODULE_NOTE_META.leads;
 }
 
+function asUserId(value) {
+  if (value == null || value === '') return '';
+  if (typeof value === 'object') return value.id || value.user_id || '';
+  return value;
+}
+
+export function noteOwnerId(note) {
+  return asUserId(note?.owner_id)
+    || asUserId(note?.created_by)
+    || asUserId(note?.created_by_id)
+    || asUserId(note?.user_id)
+    || asUserId(note?.author_id)
+    || '';
+}
+
+/** Edit/delete notes only when the current user owns them (admins can always manage). */
+export function canManageNote(note, user, { canEdit = false, isAdmin = false } = {}) {
+  if (!canEdit) return false;
+  if (isAdmin) return true;
+  const ownerId = noteOwnerId(note);
+  if (!ownerId) return false;
+  return Boolean(user?.id) && String(ownerId) === String(user.id);
+}
+
 export function formatNoteTime(dateStr) {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();

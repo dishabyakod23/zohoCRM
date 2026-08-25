@@ -4,6 +4,8 @@ import {
   parseAuthTokenResponse,
   parseAuthUserResponse,
   isPublicAuthPath,
+  isInactiveUser,
+  isStaleAuthToast,
 } from '../authHelpers.js';
 
 describe('normalizeLoginEmail', () => {
@@ -83,5 +85,21 @@ describe('isPublicAuthPath', () => {
     expect(isPublicAuthPath('/leads/123')).toBe(false);
     expect(isPublicAuthPath('')).toBe(false);
     expect(isPublicAuthPath(undefined)).toBe(false);
+  });
+});
+
+describe('isInactiveUser', () => {
+  it('detects inactive flags from the user record', () => {
+    expect(isInactiveUser({ id: '1', is_active: false })).toBe(true);
+    expect(isInactiveUser({ id: '1', status: 'inactive' })).toBe(true);
+    expect(isInactiveUser({ id: '1', is_active: true })).toBe(false);
+  });
+});
+
+describe('isStaleAuthToast', () => {
+  it('matches leftover session errors that should not show on login', () => {
+    expect(isStaleAuthToast('Authentication required')).toBe(true);
+    expect(isStaleAuthToast('Lead not found')).toBe(true);
+    expect(isStaleAuthToast('Invalid email or password.')).toBe(false);
   });
 });

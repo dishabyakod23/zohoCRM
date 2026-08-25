@@ -2,7 +2,10 @@
 import { useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useRecordNotes } from '../../hooks/useRecordNotes.js';
-import { formatNoteTime } from '../../lib/noteHelpers.js';
+import { formatNoteTime, canManageNote } from '../../lib/noteHelpers.js';
+import UserAvatarById from '../users/UserAvatarById.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 export default function RecordNotesSidePanel({
   open,
@@ -15,6 +18,8 @@ export default function RecordNotesSidePanel({
   onNotesChange,
 }) {
   const notes = useRecordNotes(relatedType, recordId);
+  const { user } = useAuth();
+  const { isSuperAdmin } = usePermissions();
 
   useEffect(() => {
     if (open && onNotesChange && !notes.loading) {
@@ -65,9 +70,10 @@ export default function RecordNotesSidePanel({
           ) : (
             notes.notes.map((n) => {
               const isEditing = notes.editingId === n.id;
+              const canManage = canManageNote(n, user, { canEdit, isAdmin: isSuperAdmin });
               return (
                 <div key={n.id} className="flex gap-3">
-                  <div className="w-9 h-9 rounded-full bg-gray-200 shrink-0 mt-0.5" />
+                  <UserAvatarById userId={n.owner_id || n.created_by} name={n.owner_name} size="md" className="mt-0.5" />
                   <div className="flex-1 min-w-0">
                     {isEditing ? (
                       <div className="space-y-2">
@@ -88,7 +94,7 @@ export default function RecordNotesSidePanel({
                         <p className="text-sm text-zoho-text whitespace-pre-wrap">{n.body}</p>
                         <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1.5 text-[11px] text-zoho-muted">
                           <span className="text-brand-600">{moduleLabel} - {recordLabel}</span>
-                          {canEdit && (
+                          {canManage && (
                             <>
                               <button type="button" onClick={() => notes.startEdit(n)} className="text-brand-600 hover:underline">Edit</button>
                               <button type="button" onClick={() => notes.removeNote(n.id)} disabled={notes.deletingId === n.id} className="text-red-600 hover:underline">Delete</button>
