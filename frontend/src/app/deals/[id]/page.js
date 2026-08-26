@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import { navigateToRecord } from '../../../lib/recordNavigation.js';
@@ -27,7 +26,6 @@ import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
 export default function DealDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/deals', message: 'Deal not found' });
-  const router = useRouter();
   const { showToast } = useToast();
   const { canEditRecord, canDeleteRecord, canAssignLeads } = usePermissions();
   const [deal, setDeal] = useState(null);
@@ -57,9 +55,9 @@ export default function DealDetailPage() {
       trackRecentItem({ type: 'deal', id, name: r.name || r.deal_name });
     }).catch(() => {
       showToast('Deal not found');
-      router.push('/deals');
+      navigateToRecord('/deals');
     });
-  }, [id, ready, accounts, stageOptions, router, showToast]);
+  }, [id, ready, accounts, stageOptions, showToast]);
 
   useEffect(() => { if (ready && stageOptions.length) loadDeal(); }, [ready, loadDeal, stageOptions.length]);
 
@@ -82,7 +80,7 @@ export default function DealDetailPage() {
     try {
       const result = await dealsApi.reopenDealAsLead(id);
       showToast('Deal reopened as lead', 'success');
-      if (result?.lead_id) navigateToRecord(`/leads/${result.lead_id}`, router);
+      if (result?.lead_id) navigateToRecord(`/leads/${result.lead_id}`);
       else loadDeal();
     } catch (err) {
       showToast(getApiError(err));
@@ -193,7 +191,7 @@ export default function DealDetailPage() {
 
       <ConfirmDialog open={deleteConfirm} message={`Delete ${deal.deal_name || deal.name}?`} confirmLabel="Confirm Delete" danger
         onConfirm={async () => {
-          try { await dealsApi.deleteDeal(id); router.push('/deals'); showToast('Deal deleted', 'success'); }
+          try { await dealsApi.deleteDeal(id); navigateToRecord('/deals'); showToast('Deal deleted', 'success'); }
           catch (err) { showToast(getApiError(err)); }
         }} onCancel={() => setDeleteConfirm(false)} />
     </CRMLayout>

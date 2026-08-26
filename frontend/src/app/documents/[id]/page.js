@@ -1,6 +1,6 @@
 'use client';
+import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
@@ -18,7 +18,6 @@ import { TrashIcon } from '@heroicons/react/24/outline';
 export default function DocumentDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/documents', message: 'Document not found' });
-  const router = useRouter();
   const { showToast } = useToast();
   const { can } = usePermissions();
   const canDownloadDoc = can('documents', 'download');
@@ -28,8 +27,8 @@ export default function DocumentDetailPage() {
 
   const load = useCallback(() => {
     if (!ready) return;
-    documentsApi.getDocument(id).then(setDoc).catch(() => { showToast('Document not found'); router.push('/documents'); });
-  }, [id, ready, router, showToast]);
+    documentsApi.getDocument(id).then(setDoc).catch(() => { showToast('Document not found'); navigateToRecord('/documents'); });
+  }, [id, ready, showToast]);
 
   useEffect(() => { if (ready) load(); }, [ready, load]);
 
@@ -73,7 +72,7 @@ export default function DocumentDetailPage() {
         </div>
       </RecordDetailLayout>
       <ConfirmDialog open={deleteConfirm} message={`Remove document "${doc.name}"?`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { try { await documentsApi.deleteDocument(id); router.push('/documents'); } catch (err) { showToast(getApiError(err)); } }}
+        onConfirm={async () => { try { await documentsApi.deleteDocument(id); navigateToRecord('/documents'); } catch (err) { showToast(getApiError(err)); } }}
         onCancel={() => setDeleteConfirm(false)} />
     </CRMLayout>
   );

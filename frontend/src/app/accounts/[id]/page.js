@@ -1,7 +1,7 @@
 'use client';
+import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import RecordDetailLink from '../../../components/records/RecordDetailLink.js';
@@ -36,7 +36,6 @@ import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
 export default function AccountDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/accounts', message: 'Account not found' });
-  const router = useRouter();
   const { showToast } = useToast();
   const { canEditRecord, canDeleteRecord, canAssignLeads } = usePermissions();
   const [account, setAccount] = useState(null);
@@ -65,9 +64,9 @@ export default function AccountDetailPage() {
       setDeals((dealResult.data || []).filter((d) => String(d.account_id) === String(id)));
     } catch {
       showToast('Account not found');
-      router.push('/accounts');
+      navigateToRecord('/accounts');
     }
-  }, [id, ready, router, showToast]);
+  }, [id, ready, showToast]);
 
   useEffect(() => { if (ready) loadAccount(); }, [ready, loadAccount]);
 
@@ -294,7 +293,7 @@ export default function AccountDetailPage() {
 
       <ConfirmDialog open={deleteConfirm} message={`Delete ${account.name}?`} confirmLabel="Confirm Delete" danger
         onConfirm={async () => {
-          try { await accountsApi.deleteAccount(id); router.push('/accounts'); showToast('Account deleted', 'success'); }
+          try { await accountsApi.deleteAccount(id); navigateToRecord('/accounts'); showToast('Account deleted', 'success'); }
           catch (err) { showToast(getApiError(err)); }
         }} onCancel={() => setDeleteConfirm(false)} />
     </CRMLayout>

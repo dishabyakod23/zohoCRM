@@ -1,6 +1,6 @@
 'use client';
+import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useRecordId, isValidRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
@@ -38,7 +38,6 @@ import {
 export default function LeadDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/leads', message: 'Lead not found' });
-  const router = useRouter();
   const { showToast } = useToast();
   const { canEditRecord, canDeleteRecord, isSuperAdmin, canAssignLeads } = usePermissions();
   const [lead, setLead] = useState(null);
@@ -66,9 +65,9 @@ export default function LeadDetailPage() {
       trackRecentItem({ type: 'lead', id, name: `${r.first_name} ${r.last_name}`, lead: r });
     }).catch(() => {
       showToast('Lead not found');
-      router.push('/leads');
+      navigateToRecord('/leads');
     });
-  }, [id, ready, router, showToast]);
+  }, [id, ready, showToast]);
 
   useEffect(() => {
     if (!ready || !isValidRecordId(id)) return;
@@ -252,7 +251,7 @@ export default function LeadDetailPage() {
 
       <ConfirmDialog open={deleteConfirm} message={`Delete ${lead.first_name} ${lead.last_name}?`} confirmLabel="Confirm Delete" danger
         onConfirm={async () => {
-          try { await leadsApi.deleteLead(id); router.push('/leads'); showToast('Lead deleted', 'success'); }
+          try { await leadsApi.deleteLead(id); navigateToRecord('/leads'); showToast('Lead deleted', 'success'); }
           catch (err) { showToast(getApiError(err)); }
         }} onCancel={() => setDeleteConfirm(false)} />
     </CRMLayout>

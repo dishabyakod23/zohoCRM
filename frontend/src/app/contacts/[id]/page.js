@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
@@ -81,7 +80,6 @@ function formatExternalLink(raw, kind) {
 export default function ContactDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/contacts', message: 'Contact not found' });
-  const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
   const { canEditRecord, canDeleteRecord, canAssignLeads } = usePermissions();
@@ -110,9 +108,9 @@ export default function ContactDetailPage() {
       trackRecentItem({ type: 'contact', id, name: `${r.first_name} ${r.last_name}` });
     }).catch((err) => {
       showToast(getApiError(err) || 'Contact not found');
-      router.push('/contacts');
+      navigateToRecord('/contacts');
     });
-  }, [id, ready, accounts, router, showToast]);
+  }, [id, ready, accounts, showToast]);
 
   useEffect(() => {
     fetchCompanyLookups().then(setAccounts).catch(() => {});
@@ -202,7 +200,7 @@ export default function ContactDetailPage() {
     try {
       const result = await contactsApi.convertContact(id, option.target);
       showToast(`Converted to ${option.label}`, 'success');
-      navigateToRecord(contactsApi.getContactConvertRedirect(result, option.target), router);
+      navigateToRecord(contactsApi.getContactConvertRedirect(result, option.target));
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -466,7 +464,7 @@ export default function ContactDetailPage() {
 
       <ConfirmDialog open={deleteConfirm} message={`Delete ${contact.first_name} ${contact.last_name}?`} confirmLabel="Confirm Delete" danger
         onConfirm={async () => {
-          try { await contactsApi.deleteContact(id); router.push('/contacts'); showToast('Contact deleted', 'success'); }
+          try { await contactsApi.deleteContact(id); navigateToRecord('/contacts'); showToast('Contact deleted', 'success'); }
           catch (err) { showToast(getApiError(err)); }
         }} onCancel={() => setDeleteConfirm(false)} />
     </CRMLayout>

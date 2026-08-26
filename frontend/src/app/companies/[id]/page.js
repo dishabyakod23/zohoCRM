@@ -1,6 +1,6 @@
 'use client';
+import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import RecordDetailLink from '../../../components/records/RecordDetailLink.js';
@@ -30,7 +30,6 @@ import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBann
 export default function CompanyDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/companies', message: 'Company not found' });
-  const router = useRouter();
   const { showToast } = useToast();
   const { canEditRecord, canDeleteRecord, canAssignLeads } = usePermissions();
   const [company, setCompany] = useState(null);
@@ -51,9 +50,9 @@ export default function CompanyDetailPage() {
       trackRecentItem({ type: 'company', id, name: record.name });
     } catch {
       showToast('Company not found');
-      router.push('/companies');
+      navigateToRecord('/companies');
     }
-  }, [id, ready, router, showToast]);
+  }, [id, ready, showToast]);
 
   useEffect(() => { if (ready) loadCompany(); }, [ready, loadCompany]);
 
@@ -181,7 +180,7 @@ export default function CompanyDetailPage() {
         onConfirm={async () => {
           try {
             await companiesApi.deleteCompany(id);
-            router.push('/companies');
+            navigateToRecord('/companies');
             showToast('Company deleted', 'success');
           } catch (err) {
             showToast(getApiError(err));

@@ -1,6 +1,6 @@
 'use client';
+import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
@@ -9,24 +9,27 @@ import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import RecordDetailLayout from '../../../components/records/RecordDetailLayout.js';
 import RecordDetailSkeleton from '../../../components/records/RecordDetailSkeleton.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
-import Link from 'next/link';
 import RecordDetailLink from '../../../components/records/RecordDetailLink.js';
-import { tableLinkClass } from '../../../lib/tableStyles.js';
+import { tableLinkClass, tableEmailClass } from '../../../lib/tableStyles.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { getApiError } from '../../../lib/api.js';
 import * as campaignsApi from '../../../lib/services/campaigns.js';
 import { fetchCampaignTypes, fetchCampaignStatuses, fetchUsers } from '../../../lib/services/lookups.js';
+import {
+  enrichCampaignMembers,
+  formatCampaignMemberIdentity,
+} from '../../../lib/campaignRecordHelpers.js';
 import { getLeadDetailPath } from '../../../lib/pipelineHelpers.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function CampaignDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/campaigns', message: 'Campaign not found' });
-  const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
   const [campaign, setCampaign] = useState(null);
+  const [members, setMembers] = useState([]);
   const [typeOptions, setTypeOptions] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
   const [users, setUsers] = useState([]);
@@ -40,9 +43,14 @@ export default function CampaignDetailPage() {
 
   const load = useCallback(() => {
     if (!ready) return;
-    campaignsApi.getCampaign(id).then(setCampaign)
-      .catch(() => { showToast('Campaign not found'); router.push('/campaigns'); });
-  }, [id, ready, router, showToast]);
+    campaignsApi.getCampaign(id)
+      .then(async (data) => {
+        setCampaign(data);
+        const enriched = await enrichCampaignMembers(data.members || []);
+        setMembers(enriched);
+      })
+      .catch(() => { showToast('Campaign not found'); navigateToRecord('/campaigns'); });
+  }, [id, ready, showToast]);
 
   useEffect(() => { if (ready) load(); }, [ready, load]);
 
@@ -57,8 +65,6 @@ export default function CampaignDetailPage() {
   };
 
   if (!ready || !campaign) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
-
-  const members = campaign.members || [];
 
   return (
     <CRMLayout>
@@ -98,7 +104,7 @@ export default function CampaignDetailPage() {
                 {users.map((u) => <option key={u.id || u.value} value={u.id || u.value}>{u.name}</option>)}
               </select>
             ) },
-            { name: 'member_count', label: 'Members', readOnly: true, format: () => String(campaign.member_count || (campaign.members || []).length || 0) },
+            { name: 'member_count', label: 'Members', readOnly: true, format: () => String(campaign.member_count || members.length || (campaign.members || []).length || 0) },
             { name: 'description', label: 'Description', colSpan: true, render: (d, set) => (
               <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: e.target.value }))} />
             ) },
@@ -110,17 +116,27 @@ export default function CampaignDetailPage() {
             ) : (
               <ul className="divide-y divide-zoho-border">
                 {members.map((member) => {
+                  const identity = formatCampaignMemberIdentity(member);
+                  const displayName = [identity.first_name, identity.last_name].filter(Boolean).join(' ')
+                    || identity.name
+                    || identity.email
+                    || 'Unknown member';
                   const href = member.member_type === 'lead'
                     ? getLeadDetailPath(member.lead || member, member.member_id)
                     : member.member_type === 'account'
                       ? `/accounts/${member.member_id}`
                       : `/contacts/${member.member_id}`;
                   return (
-                    <li key={member.id} className="py-2 flex items-center justify-between gap-3">
-                      <RecordDetailLink href={href} className={`text-sm font-medium ${tableLinkClass}`}>
-                        {member.member_name || `${member.member_type} #${member.member_id}`}
-                      </RecordDetailLink>
-                      <span className="text-xs text-zoho-muted capitalize">{member.member_type}</span>
+                    <li key={member.id || `${member.member_type}:${member.member_id}`} className="py-2 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <RecordDetailLink href={href} className={`text-sm font-medium ${tableLinkClass}`}>
+                          {displayName}
+                        </RecordDetailLink>
+                        {identity.email ? (
+                          <div className={`text-xs mt-0.5 truncate ${tableEmailClass}`}>{identity.email}</div>
+                        ) : null}
+                      </div>
+                      <span className="text-xs text-zoho-muted capitalize shrink-0">{member.member_type}</span>
                     </li>
                   );
                 })}
@@ -130,7 +146,7 @@ export default function CampaignDetailPage() {
         </div>
       </RecordDetailLayout>
       <ConfirmDialog open={deleteConfirm} message={`Delete campaign "${campaign.name}"?`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { try { await campaignsApi.deleteCampaign(id); router.push('/campaigns'); } catch (err) { showToast(getApiError(err)); } }}
+        onConfirm={async () => { try { await campaignsApi.deleteCampaign(id); navigateToRecord('/campaigns'); } catch (err) { showToast(getApiError(err)); } }}
         onCancel={() => setDeleteConfirm(false)} />
     </CRMLayout>
   );

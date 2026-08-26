@@ -1,6 +1,6 @@
 'use client';
+import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
@@ -20,7 +20,6 @@ import { TrashIcon } from '@heroicons/react/24/outline';
 export default function CallDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/calls', message: 'Call not found' });
-  const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
   const [call, setCall] = useState(null);
@@ -33,8 +32,8 @@ export default function CallDetailPage() {
 
   const load = useCallback(() => {
     if (!ready) return;
-    callsApi.getCall(id).then(setCall).catch(() => { showToast('Call not found'); router.push('/calls'); });
-  }, [id, ready, router, showToast]);
+    callsApi.getCall(id).then(setCall).catch(() => { showToast('Call not found'); navigateToRecord('/calls'); });
+  }, [id, ready, showToast]);
 
   useEffect(() => { if (ready) load(); }, [ready, load]);
 
@@ -93,7 +92,7 @@ export default function CallDetailPage() {
         </div>
       </RecordDetailLayout>
       <ConfirmDialog open={deleteConfirm} message={`Delete call "${call.subject}"?`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { try { await callsApi.deleteCall(id); router.push('/calls'); } catch (err) { showToast(getApiError(err)); } }}
+        onConfirm={async () => { try { await callsApi.deleteCall(id); navigateToRecord('/calls'); } catch (err) { showToast(getApiError(err)); } }}
         onCancel={() => setDeleteConfirm(false)} />
     </CRMLayout>
   );

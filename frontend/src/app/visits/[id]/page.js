@@ -1,6 +1,6 @@
 'use client';
+import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
@@ -19,7 +19,6 @@ import { TrashIcon } from '@heroicons/react/24/outline';
 export default function VisitDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/visits', message: 'Visit not found' });
-  const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
   const [visit, setVisit] = useState(null);
@@ -36,8 +35,8 @@ export default function VisitDetailPage() {
     if (!ready) return;
     const map = accountMapFromLookups(accounts);
     visitsApi.getVisit(id, map).then((v) => setVisit({ ...v, title: v.visit_name }))
-      .catch(() => { showToast('Visit not found'); router.push('/visits'); });
-  }, [id, ready, accounts, router, showToast]);
+      .catch(() => { showToast('Visit not found'); navigateToRecord('/visits'); });
+  }, [id, ready, accounts, showToast]);
 
   useEffect(() => { if (ready) load(); }, [ready, load]);
 
@@ -91,7 +90,7 @@ export default function VisitDetailPage() {
         </div>
       </RecordDetailLayout>
       <ConfirmDialog open={deleteConfirm} message={`Delete visit "${visit.title}"?`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { try { await visitsApi.deleteVisit(id); router.push('/visits'); } catch (err) { showToast(getApiError(err)); } }}
+        onConfirm={async () => { try { await visitsApi.deleteVisit(id); navigateToRecord('/visits'); } catch (err) { showToast(getApiError(err)); } }}
         onCancel={() => setDeleteConfirm(false)} />
     </CRMLayout>
   );

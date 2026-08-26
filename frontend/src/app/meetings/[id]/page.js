@@ -1,6 +1,6 @@
 'use client';
+import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
@@ -20,7 +20,6 @@ import { TrashIcon } from '@heroicons/react/24/outline';
 export default function MeetingDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/meetings', message: 'Meeting not found' });
-  const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
   const [meeting, setMeeting] = useState(null);
@@ -32,8 +31,8 @@ export default function MeetingDetailPage() {
 
   const load = useCallback(() => {
     if (!ready) return;
-    meetingsApi.getMeeting(id).then(setMeeting).catch(() => { showToast('Meeting not found'); router.push('/meetings'); });
-  }, [id, ready, router, showToast]);
+    meetingsApi.getMeeting(id).then(setMeeting).catch(() => { showToast('Meeting not found'); navigateToRecord('/meetings'); });
+  }, [id, ready, showToast]);
 
   useEffect(() => { if (ready) load(); }, [ready, load]);
 
@@ -110,7 +109,7 @@ export default function MeetingDetailPage() {
         </div>
       </RecordDetailLayout>
       <ConfirmDialog open={deleteConfirm} message={`Delete meeting "${meeting.title}"?`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { try { await meetingsApi.deleteMeeting(id); router.push('/meetings'); } catch (err) { showToast(getApiError(err)); } }}
+        onConfirm={async () => { try { await meetingsApi.deleteMeeting(id); navigateToRecord('/meetings'); } catch (err) { showToast(getApiError(err)); } }}
         onCancel={() => setDeleteConfirm(false)} />
     </CRMLayout>
   );

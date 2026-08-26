@@ -1,6 +1,6 @@
 'use client';
+import { navigateToRecord } from '../../../lib/recordNavigation.js';
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
@@ -19,7 +19,6 @@ import { TrashIcon } from '@heroicons/react/24/outline';
 export default function ProjectDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/projects', message: 'Project not found' });
-  const router = useRouter();
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
   const [project, setProject] = useState(null);
@@ -36,8 +35,8 @@ export default function ProjectDetailPage() {
     if (!ready) return;
     const map = accountMapFromLookups(accounts);
     projectsApi.getProject(id, map).then((p) => setProject({ ...p, name: p.project_name }))
-      .catch(() => { showToast('Project not found'); router.push('/projects'); });
-  }, [id, ready, accounts, router, showToast]);
+      .catch(() => { showToast('Project not found'); navigateToRecord('/projects'); });
+  }, [id, ready, accounts, showToast]);
 
   useEffect(() => { if (ready) load(); }, [ready, load]);
 
@@ -86,7 +85,7 @@ export default function ProjectDetailPage() {
           ]} />
       </RecordDetailLayout>
       <ConfirmDialog open={deleteConfirm} message={`Delete project "${project.name}"?`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { try { await projectsApi.deleteProject(id); router.push('/projects'); } catch (err) { showToast(getApiError(err)); } }}
+        onConfirm={async () => { try { await projectsApi.deleteProject(id); navigateToRecord('/projects'); } catch (err) { showToast(getApiError(err)); } }}
         onCancel={() => setDeleteConfirm(false)} />
     </CRMLayout>
   );
