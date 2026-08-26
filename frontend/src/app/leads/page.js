@@ -32,7 +32,8 @@ import { navigateToRecord } from '../../lib/recordNavigation.js';
 export default function LeadsPage() {
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit, canAssignLeads } = usePermissions();
+  const { can, canAssignLeads } = usePermissions();
+  const canCreate = can('leads', 'create');
   const [leads, setLeads] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -62,11 +63,11 @@ export default function LeadsPage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !canEdit) return;
+    if (typeof window === 'undefined' || !canCreate) return;
     if (new URLSearchParams(window.location.search).get('create') === '1') {
       navigateToRecord('/leads/create');
     }
-  }, [canEdit]);
+  }, [canCreate]);
 
   const fetchLeads = useCallback(async () => {
     const requestId = ++fetchRequestId.current;
@@ -154,7 +155,7 @@ export default function LeadsPage() {
         <ListPageHeader
           title="Warm Leads"
           subtitle="Manage and track warm leads through the pipeline."
-          primaryAction={canEdit ? (
+          primaryAction={canCreate ? (
             <button type="button" onClick={() => navigateToRecord('/leads/create')} className="btn-primary-sm">
               Create Warm Lead
             </button>

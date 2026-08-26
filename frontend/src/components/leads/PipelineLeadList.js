@@ -22,7 +22,7 @@ import PhoneCell from '../cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
 import { formatMoney } from '../../lib/currencies.js';
 import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../layout/ListFilterFields.js';
-import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES, PIPELINE_MODULE_PERMISSION } from '../../lib/pipelineHelpers.js';
 
 import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
@@ -54,7 +54,9 @@ export default function PipelineLeadList({ stage, description }) {
   const config = getPipelineConfig(stage);
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canAssignLeads, canEdit, canBulkUpload } = usePermissions();
+  const { can, canAssignLeads, canBulkUpload } = usePermissions();
+  const permissionKey = PIPELINE_MODULE_PERMISSION[stage];
+  const canCreate = can(permissionKey, 'create');
   const [leads, setLeads] = useState([]);
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -291,7 +293,7 @@ export default function PipelineLeadList({ stage, description }) {
               Bulk Upload
             </button>
           ) : null}
-          primaryAction={canEdit ? (
+          primaryAction={canCreate ? (
             <button type="button" onClick={() => navigateToRecord(createHref)} className="btn-primary-sm">
               {createLabel}
             </button>

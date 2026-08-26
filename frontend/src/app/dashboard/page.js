@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import AppLink from '../../components/ui/AppLink.js';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
@@ -153,7 +153,7 @@ export default function DashboardPage() {
               gradient="bg-gradient-to-br from-accent-teal to-brand-600"
             />
             {canViewQualified && (
-            <Link href="/qualified-leads" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
+            <AppLink href="/qualified-leads" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
                 title="Qualified Leads"
                 value={stats.leads.qualified}
@@ -161,10 +161,10 @@ export default function DashboardPage() {
                 icon={ChartBarIcon}
                 gradient="bg-gradient-to-br from-accent-yellow to-brand-600"
               />
-            </Link>
+            </AppLink>
             )}
             {canViewAccounts && (
-            <Link href="/accounts" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
+            <AppLink href="/accounts" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
                 title="Accounts"
                 value={stats.accounts.total}
@@ -172,10 +172,10 @@ export default function DashboardPage() {
                 icon={BuildingOffice2Icon}
                 gradient="bg-gradient-to-br from-accent-orange to-accent-pink"
               />
-            </Link>
+            </AppLink>
             )}
             {canViewProposals && (
-            <Link href="/proposals" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
+            <AppLink href="/proposals" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
                 title="Proposals"
                 value={formatProposalKpi(stats.proposals)}
@@ -183,7 +183,7 @@ export default function DashboardPage() {
                 icon={DocumentTextIcon}
                 gradient="bg-gradient-to-br from-accent-pink to-brand-600"
               />
-            </Link>
+            </AppLink>
             )}
 
             {showSalesTargetWidgets && <SalesTargetWidgets />}
@@ -270,9 +270,9 @@ export default function DashboardPage() {
             {canViewAccounts && (
             <Widget title="Top Accounts by Revenue" className="col-span-12 lg:col-span-6">
               <div className="flex justify-end -mt-1 mb-2">
-                <Link href="/accounts" className="text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline">
+                <AppLink href="/accounts" className="text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline">
                   View accounts →
-                </Link>
+                </AppLink>
               </div>
               <div className="space-y-1">
                 {stats.topAccounts?.length > 0 ? stats.topAccounts.map((a) => (

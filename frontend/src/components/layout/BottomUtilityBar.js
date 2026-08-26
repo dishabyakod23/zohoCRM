@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import AppLink from '../ui/AppLink.js';
 import StickyNote, { isStickyNotePinned } from './StickyNote.js';
 import { getRecentItemHref } from '../../lib/recentItemHelpers.js';
 import * as calendarApi from '../../lib/services/calendar.js';
@@ -335,9 +335,9 @@ export default function BottomUtilityBar() {
       {active === 'help' && (
         <Panel title="Help" onClose={() => setActive(null)} wide>
           <div className="space-y-3 text-sm">
-            <Link href="/help" onClick={() => setActive(null)} className="block p-3 rounded-xl border border-zoho-border hover:bg-brand-50 hover:border-brand-200 text-brand-600 transition-colors font-medium">
+            <AppLink href="/help" onClick={() => setActive(null)} className="block p-3 rounded-xl border border-zoho-border hover:bg-brand-50 hover:border-brand-200 text-brand-600 transition-colors font-medium">
               CRM Help Documentation →
-            </Link>
+            </AppLink>
             <div className="p-3 rounded-xl bg-brand-50/40 border border-zoho-border">
               <p className="font-medium mb-2">Quick Tips</p>
               <ul className="text-xs text-zoho-muted space-y-1.5 list-disc pl-4">
@@ -348,7 +348,7 @@ export default function BottomUtilityBar() {
                 <li>Convert leads to accounts and contacts</li>
               </ul>
             </div>
-            <p className="text-xs text-zoho-muted">API: test-crm.origami.dev</p>
+            <p className="text-xs text-zoho-muted">API: salescrm-api.duckdns.org</p>
           </div>
         </Panel>
       )}

@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
@@ -25,7 +24,8 @@ const EMPTY = { name: '', account_id: '', status: 'planning', start_date: '', en
 
 export default function ProjectsPage() {
   const { showToast } = useToast();
-  const { canEdit } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can('projects', 'create');
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [accounts, setAccounts] = useState([]);
@@ -119,7 +119,7 @@ export default function ProjectsPage() {
         <ListPageHeader
           title="Projects"
           subtitle="Track delivery work linked to accounts."
-          primaryAction={canEdit ? (
+          primaryAction={canCreate ? (
             <button type="button" onClick={openCreate} className="btn-primary-sm">Create Project</button>
           ) : null}
         />

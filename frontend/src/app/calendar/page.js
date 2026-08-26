@@ -128,7 +128,9 @@ function MonthDayCell({
 export default function CalendarPage() {
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit, canAssignLeads } = usePermissions();
+  const { can, canAssignLeads } = usePermissions();
+  const canCreate = can('calendar', 'create');
+  const canEdit = can('calendar', 'edit');
   const [view, setView] = useState('month');
   const [viewDate, setViewDate] = useState(() => new Date());
   const [events, setEvents] = useState([]);
@@ -186,7 +188,7 @@ export default function CalendarPage() {
   const selectedEvents = eventsByDate[selectedDate] || [];
 
   const openCreate = (dateKey) => {
-    if (!canEdit) return;
+    if (!canCreate) return;
     setEditEvent({ event_date: dateKey || selectedDate });
     setModalOpen(true);
   };
@@ -277,7 +279,7 @@ export default function CalendarPage() {
       <div className="h-[calc(100vh-6rem)] flex flex-col bg-white">
         {/* Google Calendar-style toolbar */}
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-zoho-border shrink-0">
-          <button type="button" onClick={() => openCreate(selectedDate)} disabled={!canEdit}
+          <button type="button" onClick={() => openCreate(selectedDate)} disabled={!canCreate}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-zoho-border shadow-sm hover:shadow text-sm font-medium disabled:opacity-50">
             <PlusIcon className="w-4 h-4" /> Create
           </button>
@@ -342,7 +344,7 @@ export default function CalendarPage() {
                   ))}
                 </div>
               )}
-              {canEdit && (
+              {canCreate && (
                 <button type="button" onClick={() => openCreate(selectedDate)} className="mt-3 text-xs text-brand-600 hover:underline">
                   + Add event
                 </button>
@@ -398,7 +400,7 @@ export default function CalendarPage() {
                       </button>
                       <div className="flex-1 overflow-y-auto p-2 space-y-1" onDoubleClick={() => openCreate(key)}>
                         {dayEvents.map((e) => <EventPill key={e.id} event={e} onClick={openEdit} />)}
-                        {dayEvents.length === 0 && canEdit && (
+                        {dayEvents.length === 0 && canCreate && (
                           <p className="text-[10px] text-zoho-muted text-center pt-4">Double-click to add</p>
                         )}
                       </div>

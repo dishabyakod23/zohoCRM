@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useRecordId, isValidRecordId, getRecordIdFromPathname } from '../../hooks/useRecordId.js';
 import CRMLayout from '../layout/CRMLayout.js';
 import Modal from '../ui/Modal.js';
@@ -44,7 +43,6 @@ import {
 export default function PipelineLeadDetail({ stage }) {
   const config = getPipelineConfig(stage);
   const id = useRecordId();
-  const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
   const { canEditRecord, canDeleteRecord, canAssignLeads, isSuperAdmin } = usePermissions();
@@ -80,11 +78,11 @@ export default function PipelineLeadDetail({ stage }) {
       const resolved = resolveLeadPipelineStage(r);
       if (resolved !== stage) {
         if (resolved) {
-          navigateToRecord(getLeadDetailPath(r, id), router);
+          navigateToRecord(getLeadDetailPath(r, id));
           return;
         }
         showToast('This record is not in the expected pipeline stage');
-        router.push(config?.listPath || '/dashboard');
+        navigateToRecord(config?.listPath || '/dashboard');
         return;
       }
       setLead(r);
@@ -99,9 +97,9 @@ export default function PipelineLeadDetail({ stage }) {
     }).catch((err) => {
       if (err?.response?.status === 401) return;
       showToast('Lead not found');
-      router.push(config?.listPath || '/dashboard');
+      navigateToRecord(config?.listPath || '/dashboard');
     });
-  }, [id, stage, config?.listPath, router, showToast, user?.id]);
+  }, [id, stage, config?.listPath, showToast, user?.id]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || isValidRecordId(id)) return undefined;
@@ -109,11 +107,11 @@ export default function PipelineLeadDetail({ stage }) {
       const fromPath = getRecordIdFromPathname(window.location.pathname);
       if (!isValidRecordId(fromPath)) {
         showToast('Lead not found');
-        router.push(config?.listPath || '/dashboard');
+        navigateToRecord(config?.listPath || '/dashboard');
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [id, config?.listPath, router, showToast]);
+  }, [id, config?.listPath, showToast]);
 
   useEffect(() => {
     if (!isValidRecordId(id)) return;
@@ -358,7 +356,7 @@ export default function PipelineLeadDetail({ stage }) {
 
       <ConfirmDialog open={deleteConfirm} message={`Delete ${lead.first_name} ${lead.last_name}?`} confirmLabel="Confirm Delete" danger
         onConfirm={async () => {
-          try { await leadsApi.deleteLead(id); router.push(config.listPath); showToast('Deleted', 'success'); }
+          try { await leadsApi.deleteLead(id); navigateToRecord(config.listPath); showToast('Deleted', 'success'); }
           catch (err) { showToast(getApiError(err)); }
         }} onCancel={() => setDeleteConfirm(false)} />
 

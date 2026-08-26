@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
@@ -28,7 +27,8 @@ const LIMIT = DEFAULT_PAGE_SIZE;
 
 export default function TasksPage() {
   const { showToast } = useToast();
-  const { canEdit } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can('tasks', 'create');
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
@@ -51,7 +51,7 @@ export default function TasksPage() {
   }, []);
 
   const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
-  useOpenCreateParam(canEdit, openCreate);
+  useOpenCreateParam(canCreate, openCreate);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -124,7 +124,7 @@ export default function TasksPage() {
         <ListPageHeader
           title="Tasks"
           subtitle="Track to-dos and follow-ups across your team."
-          primaryAction={canEdit ? (
+          primaryAction={canCreate ? (
             <button type="button" onClick={openCreate} className="btn-primary-sm">Create Task</button>
           ) : null}
         />

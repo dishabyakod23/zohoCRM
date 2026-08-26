@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import AppLink from '../ui/AppLink.js';
 import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { useToast } from '../ui/Toast.js';
@@ -83,7 +82,6 @@ function noneSelect(value, onChange, options, placeholder = '--None--') {
 }
 
 export default function CreateRawLeadForm() {
-  const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
   const { canAssignLeads, can } = usePermissions();
@@ -196,10 +194,10 @@ export default function CreateRawLeadForm() {
   return (
     <CRMLayout>
       <div className="p-6 max-w-5xl mx-auto w-full">
-        <Link href="/raw-leads" className="inline-flex items-center gap-1.5 text-xs font-medium text-zoho-muted hover:text-brand-600 transition-colors mb-4">
+        <AppLink href="/raw-leads" className="inline-flex items-center gap-1.5 text-xs font-medium text-zoho-muted hover:text-brand-600 transition-colors mb-4">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           Cold Leads
-        </Link>
+        </AppLink>
 
         <h1 className="text-lg font-semibold text-zoho-text mb-6">Create Cold Lead</h1>
 
@@ -341,7 +339,7 @@ export default function CreateRawLeadForm() {
           </FormField>
 
           <div className="flex gap-2 justify-end pt-6 mt-4 border-t border-zoho-border">
-            <Link href="/raw-leads" className="btn-secondary">Cancel</Link>
+            <AppLink href="/raw-leads" className="btn-secondary">Cancel</AppLink>
             <button type="button" onClick={handleSave} disabled={saving || checkingEmail || !!emailError} className="btn-primary">
               {saving ? 'Saving...' : 'Save Cold Lead'}
             </button>

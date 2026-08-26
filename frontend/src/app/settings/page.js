@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback, Suspense } from 'react';
-import Link from 'next/link';
+import AppLink from '../../components/ui/AppLink.js';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Modal from '../../components/ui/Modal.js';
@@ -496,7 +496,7 @@ function SettingsPageContent() {
               <div className="card p-5">
                 <h2 className="text-sm font-semibold mb-2">Weekly Auto-Reports</h2>
                 <p className="text-sm text-zoho-muted mb-3">Configure recipients and schedule in Reports.</p>
-                <Link href="/reports" className="btn-secondary text-xs inline-block mr-2">Configure in Reports</Link>
+                <AppLink href="/reports" className="btn-secondary text-xs inline-block mr-2">Configure in Reports</AppLink>
                 <button type="button" className="btn-secondary text-xs" onClick={handleTriggerReport}>Trigger report now</button>
               </div>
             )}

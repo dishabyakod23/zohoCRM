@@ -68,7 +68,7 @@ export default function CalendarEventModal({
   const isEditing = !!initial?.id;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-zoho-border flex items-center justify-between">
           <h2 className="text-lg font-semibold text-zoho-text">{isEditing ? 'Edit Event' : 'Create Event'}</h2>

@@ -33,7 +33,8 @@ const ACCOUNT_STATUS_OPTIONS = ACCOUNT_TYPES.map((t) => ({ value: t, label: t })
 export default function AccountsPage() {
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can('accounts', 'create');
   const [accounts, setAccounts] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -126,7 +127,7 @@ export default function AccountsPage() {
         <ListPageHeader
           title="Accounts"
           subtitle="Confirmed customers converted from proposals or created with an active deal."
-          primaryAction={canEdit ? (
+          primaryAction={canCreate ? (
             <button type="button" onClick={() => navigateToRecord('/accounts/create')} className="btn-primary-sm">
               Create Account
             </button>

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth.js';
 import { MeetingRemindersProvider } from '../../hooks/useMeetingReminders.js';
 import { WeeklyReportScheduler } from '../../hooks/useWeeklyReportScheduler.js';
@@ -12,16 +12,16 @@ import OnboardingTour from '../onboarding/OnboardingTour.js';
 import { CloudTalkProvider } from '../cloudtalk/CloudTalkProvider.js';
 import { UserAvatarsProvider } from '../../hooks/useUserAvatars.js';
 import { loginHref } from '../../lib/safeRedirect.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 
 export default function CRMLayout({ children }) {
   const { user, loading } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) router.push(loginHref());
-  }, [user, loading, router]);
+    if (!loading && !user) navigateToRecord(loginHref());
+  }, [user, loading]);
 
   useEffect(() => {
     setMobileNavOpen(false);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import AppLink from '../ui/AppLink.js';
 import * as salesTargetsApi from '../../lib/services/salesTargets.js';
 import { formatTargetAmount } from '../../lib/salesTargetHelpers.js';
 import { getApiError } from '../../lib/api.js';
@@ -71,7 +71,7 @@ export default function SalesTargetWidgets() {
       <div className="col-span-12 lg:col-span-6 zoho-widget">
         <div className="flex items-center justify-between mb-3">
           <h3 className="zoho-widget-title mb-0">BDE Pipeline Leaderboard</h3>
-          <Link href="/reports" className="text-xs text-brand-600 hover:underline">View reports →</Link>
+          <AppLink href="/reports" className="text-xs text-brand-600 hover:underline">View reports →</AppLink>
         </div>
         <div className="space-y-2">
           {(summary.bde_leaderboard || []).length === 0 ? (
@@ -90,7 +90,7 @@ export default function SalesTargetWidgets() {
       <div className="col-span-12 lg:col-span-6 zoho-widget">
         <div className="flex items-center justify-between mb-3">
           <h3 className="zoho-widget-title mb-0">Off Track Users</h3>
-          <Link href="/settings" className="text-xs text-brand-600 hover:underline">Configure targets →</Link>
+          <AppLink href="/settings" className="text-xs text-brand-600 hover:underline">Configure targets →</AppLink>
         </div>
         <div className="space-y-2">
           {(summary.off_track_users || []).length === 0 ? (

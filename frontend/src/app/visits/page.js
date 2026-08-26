@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
@@ -24,7 +23,8 @@ const EMPTY = { title: '', visit_date: '', location: '', status: 'planned', acco
 
 export default function VisitsPage() {
   const { showToast } = useToast();
-  const { canEdit } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can('visits', 'create');
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [accounts, setAccounts] = useState([]);
@@ -119,7 +119,7 @@ export default function VisitsPage() {
         <ListPageHeader
           title="Visits"
           subtitle="Plan and track on-site customer visits."
-          primaryAction={canEdit ? (
+          primaryAction={canCreate ? (
             <button type="button" onClick={openCreate} className="btn-primary-sm">Create Visit</button>
           ) : null}
         />

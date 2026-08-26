@@ -1,5 +1,4 @@
 'use client';
-import { useRouter } from 'next/navigation';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { useMeetingReminders } from '../../hooks/useMeetingReminders.js';
 import { userBriefName } from '../../lib/activityHelpers.js';
@@ -20,7 +19,6 @@ function formatWhen(iso) {
 }
 
 export default function MeetingInvitePopup() {
-  const router = useRouter();
   const { reminders, popupOpen, acknowledge, dismissPopup } = useMeetingReminders();
   const invite = reminders[0];
 
@@ -45,11 +43,11 @@ export default function MeetingInvitePopup() {
     } catch {
       // still navigate
     }
-    navigateToRecord(`/meetings/${id}`, router);
+    navigateToRecord(`/meetings/${id}`);
   };
 
   return (
-    <div className="fixed inset-0 z-[65] flex items-end sm:items-center justify-center p-4 bg-black/35 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-[115] flex items-end sm:items-center justify-center p-4 bg-black/35 backdrop-blur-[2px]">
       <div
         role="dialog"
         aria-labelledby="meeting-invite-title"

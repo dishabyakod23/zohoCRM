@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import AppLink from '../ui/AppLink.js';
 import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -133,7 +132,6 @@ function RsAmountInput({ value, onChange, error, name }) {
 }
 
 export default function CreateCampaignForm() {
-  const router = useRouter();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [form, setForm] = useState(() => ({ ...emptyCampaignForm(), owner_id: user?.id || '' }));
@@ -347,17 +345,17 @@ export default function CreateCampaignForm() {
   return (
     <CRMLayout>
       <div className="p-6 max-w-5xl mx-auto w-full">
-        <Link href="/campaigns" className="inline-flex items-center gap-1.5 text-xs font-medium text-zoho-muted hover:text-brand-600 transition-colors mb-4">
+        <AppLink href="/campaigns" className="inline-flex items-center gap-1.5 text-xs font-medium text-zoho-muted hover:text-brand-600 transition-colors mb-4">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Campaigns
-        </Link>
+        </AppLink>
 
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-lg font-semibold text-zoho-text">Create Campaign</h1>
           <div className="flex gap-2">
-            <Link href="/campaigns" className="btn-secondary">Cancel</Link>
+            <AppLink href="/campaigns" className="btn-secondary">Cancel</AppLink>
             <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
               {saving ? 'Saving…' : 'Save Campaign'}
             </button>

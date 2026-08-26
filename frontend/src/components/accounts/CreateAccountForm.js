@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import AppLink from '../ui/AppLink.js';
 import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -120,7 +119,6 @@ function AddressBlock({ prefix, label, form, set, setForm, copyFrom }) {
 }
 
 export default function CreateAccountForm() {
-  const router = useRouter();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [form, setForm] = useState(() => ({ ...emptyAccountForm(), owner_id: user?.id || '' }));
@@ -209,15 +207,15 @@ export default function CreateAccountForm() {
   return (
     <CRMLayout>
       <div className="p-6 max-w-5xl mx-auto w-full">
-        <Link href="/accounts" className="inline-flex items-center gap-1.5 text-xs font-medium text-zoho-muted hover:text-brand-600 transition-colors mb-4">
+        <AppLink href="/accounts" className="inline-flex items-center gap-1.5 text-xs font-medium text-zoho-muted hover:text-brand-600 transition-colors mb-4">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           Accounts
-        </Link>
+        </AppLink>
 
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-lg font-semibold text-zoho-text">Create Account</h1>
           <div className="flex gap-2">
-            <Link href="/accounts" className="btn-secondary">Cancel</Link>
+            <AppLink href="/accounts" className="btn-secondary">Cancel</AppLink>
             <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
               {saving ? 'Saving…' : 'Save Account'}
             </button>
@@ -402,7 +400,7 @@ export default function CreateAccountForm() {
         </div>
 
         <div className="flex gap-2 justify-end pt-4">
-          <Link href="/accounts" className="btn-secondary">Cancel</Link>
+          <AppLink href="/accounts" className="btn-secondary">Cancel</AppLink>
           <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
             {saving ? 'Saving…' : 'Save Account'}
           </button>

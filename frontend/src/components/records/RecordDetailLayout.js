@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import AppLink from '../ui/AppLink.js';
 import RecordNotesTab from './RecordNotesTab.js';
 import RecordHistoryTab from './RecordHistoryTab.js';
 import RecordDocumentsTab from './RecordDocumentsTab.js';
@@ -67,10 +67,10 @@ export default function RecordDetailLayout({
   return (
     <div className="min-h-full">
       <div className="zoho-record-header">
-        <Link href={backHref} className="inline-flex items-center gap-1.5 text-xs font-medium text-zoho-muted hover:text-brand-600 transition-colors">
+        <AppLink href={backHref} className="inline-flex items-center gap-1.5 text-xs font-medium text-zoho-muted hover:text-brand-600 transition-colors">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           {backLabel}
-        </Link>
+        </AppLink>
         <div className="flex items-start justify-between mt-4 gap-4 flex-wrap">
           <div className="flex items-start gap-4 min-w-0">
             <div className="w-12 h-12 rounded-xl bg-brand-gradient text-white flex items-center justify-center font-semibold text-base shadow-soft shrink-0">

@@ -1,8 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import AppLink from '../ui/AppLink.js';
 import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import WeeklyKpiPreviewTable from './WeeklyKpiPreviewTable.js';
@@ -28,6 +27,7 @@ import {
   metricsFromTarget,
 } from '../../lib/salesTargetMetrics.js';
 import { fetchPreviewActualsForTargetForm } from '../../lib/salesTargetActuals.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 
 const EMPTY_FORM = {
   period_type: 'weekly',
@@ -52,7 +52,6 @@ const EMPTY_FORM = {
 };
 
 export default function SalesTargetEditor({ targetId = null }) {
-  const router = useRouter();
   const { showToast } = useToast();
   const { can } = usePermissions();
   const canSave = targetId ? can('settings_sales_targets', 'edit') : can('settings_sales_targets', 'create');
@@ -202,7 +201,7 @@ export default function SalesTargetEditor({ targetId = null }) {
         await salesTargetsApi.createSalesTarget(payload);
         showToast('Target created', 'success');
       }
-      router.push('/settings?sales_targets=1');
+      navigateToRecord('/settings?sales_targets=1');
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -225,7 +224,7 @@ export default function SalesTargetEditor({ targetId = null }) {
       <div className="max-w-6xl mx-auto w-full p-4 md:p-6 space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <Link href="/settings?sales_targets=1" className="text-xs text-brand-600 hover:underline">← Back to Pipeline &amp; Revenue Targets</Link>
+            <AppLink href="/settings?sales_targets=1" className="text-xs text-brand-600 hover:underline">← Back to Pipeline &amp; Revenue Targets</AppLink>
             <h1 className="text-lg font-semibold text-zoho-text mt-2">
               {targetId ? 'Edit Target' : 'Add Target'}
             </h1>
@@ -351,7 +350,7 @@ export default function SalesTargetEditor({ targetId = null }) {
         </div>
 
         <div className="flex gap-2 justify-end pb-6">
-          <Link href="/settings?sales_targets=1" className="btn-secondary">Cancel</Link>
+          <AppLink href="/settings?sales_targets=1" className="btn-secondary">Cancel</AppLink>
           {canSave && (
             <button type="button" onClick={saveTarget} disabled={saving} className="btn-primary">
               {saving ? 'Saving…' : 'Save Target'}

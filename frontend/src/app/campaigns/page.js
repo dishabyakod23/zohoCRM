@@ -22,7 +22,8 @@ const LIMIT = DEFAULT_PAGE_SIZE;
 
 export default function CampaignsPage() {
   const { showToast } = useToast();
-  const { canEdit } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can('campaigns', 'create');
   const [items, setItems] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
   const [total, setTotal] = useState(0);
@@ -88,7 +89,7 @@ export default function CampaignsPage() {
         <ListPageHeader
           title="Campaigns"
           subtitle="Manage marketing campaigns and outreach."
-          primaryAction={canEdit ? (
+          primaryAction={canCreate ? (
             <button type="button" onClick={() => navigateToRecord('/campaigns/create')} className="btn-primary-sm">
               Create Campaign
             </button>

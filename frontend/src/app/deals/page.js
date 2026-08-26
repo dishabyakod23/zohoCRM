@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
@@ -32,7 +31,8 @@ const EMPTY = { deal_name: '', amount: '', currency: DEFAULT_CURRENCY, stage_val
 
 export default function DealsPage() {
   const { showToast } = useToast();
-  const { canEdit } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can('deals', 'create');
   const [deals, setDeals] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -68,7 +68,7 @@ export default function DealsPage() {
   }, []);
 
   const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
-  useOpenCreateParam(canEdit, openCreate);
+  useOpenCreateParam(canCreate, openCreate);
 
   const fetchDeals = useCallback(async () => {
     setLoading(true);
@@ -166,7 +166,7 @@ export default function DealsPage() {
               <button type="button" onClick={() => setView('kanban')} className={`px-3 py-1.5 text-xs border-l border-zoho-border ${view === 'kanban' ? 'bg-brand-500 text-white' : 'bg-white text-zoho-muted hover:text-zoho-text'}`}>Kanban</button>
             </div>
           )}
-          primaryAction={canEdit ? (
+          primaryAction={canCreate ? (
             <button type="button" onClick={openCreate} className="btn-primary-sm">Create Deal</button>
           ) : null}
         />

@@ -1,5 +1,5 @@
 'use client';
-import Link from 'next/link';
+import AppLink from '../../components/ui/AppLink.js';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 
 const SECTIONS = [
@@ -74,9 +74,9 @@ export default function HelpPage() {
           <h2 className="text-sm font-semibold text-zoho-text mb-3">Quick links</h2>
           <div className="flex flex-wrap gap-2">
             {QUICK_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} className="btn-secondary-sm">
+              <AppLink key={link.href} href={link.href} className="btn-secondary-sm">
                 {link.label}
-              </Link>
+              </AppLink>
             ))}
           </div>
         </div>

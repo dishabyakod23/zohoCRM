@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import AppLink from '../ui/AppLink.js';
 import FormField from '../forms/FormField.js';
 import { useToast } from '../ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
@@ -187,7 +187,7 @@ export default function SalesTargetsPanel() {
             <p className="text-xs text-zoho-muted">Configure weekly, monthly, quarterly, and yearly targets</p>
           </div>
           {canCreate && (
-            <Link href="/settings/sales-targets/new" className="btn-primary text-xs">+ Add Target</Link>
+            <AppLink href="/settings/sales-targets/new" className="btn-primary text-xs">+ Add Target</AppLink>
           )}
         </div>
 

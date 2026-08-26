@@ -15,10 +15,13 @@ import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams, sortRecords } from '../../lib/listSortHelpers.js';
 import ListSortSelect from '../../components/layout/ListSortSelect.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
+import AppLink from '../../components/ui/AppLink.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 export default function ActivitiesPage() {
   const { showToast } = useToast();
+  const { can } = usePermissions();
   const [tab, setTab] = useState('tasks');
   const [tasks, setTasks] = useState([]);
   const [meetings, setMeetings] = useState([]);
@@ -117,13 +120,15 @@ export default function ActivitiesPage() {
     { id: 'calls', label: 'Calls', count: calls.length, href: '/calls' },
   ];
 
+  const canCreate = can(tab, 'create');
+
   return (
     <CRMLayout>
       <div className="p-6">
         <ListPageHeader
           title="Activities"
           subtitle="Recent tasks, meetings, and calls."
-          primaryAction={(
+          primaryAction={canCreate ? (
             <button
               type="button"
               onClick={() => navigateToRecord(`/${tab}?create=1`)}
@@ -131,7 +136,7 @@ export default function ActivitiesPage() {
             >
               Create {tab === 'tasks' ? 'Task' : tab === 'meetings' ? 'Meeting' : 'Call'}
             </button>
-          )}
+          ) : null}
         />
 
         <div className="flex border-b border-zoho-border bg-white rounded-t px-2">
@@ -146,9 +151,9 @@ export default function ActivitiesPage() {
         <div className="card rounded-t-none">
           <div className="flex justify-between items-center px-4 py-2 border-b border-zoho-border gap-3">
             <ListSortSelect value={sort} onChange={setSort} />
-            <Link href={tabs.find((t) => t.id === tab)?.href || '/tasks'} className="text-xs text-brand-600 hover:text-brand-700 font-medium">
+            <AppLink href={tabs.find((t) => t.id === tab)?.href || '/tasks'} className="text-xs text-brand-600 hover:text-brand-700 font-medium">
               View all {tab} →
-            </Link>
+            </AppLink>
           </div>
           {tab === 'tasks' && (
             <RecordDataTable

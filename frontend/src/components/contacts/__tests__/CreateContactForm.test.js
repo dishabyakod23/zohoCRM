@@ -59,6 +59,8 @@ jest.mock('../../../lib/campaignRecordHelpers.js', () => ({
 
 jest.mock('../../../lib/recordNavigation.js', () => ({
   navigateToRecord: jest.fn(),
+  appHref: (href) => (href?.endsWith('/') || href?.includes('?') ? href : `${href}/`),
+  recordDetailHref: (href) => (href?.endsWith('/') || href?.includes('?') ? href : `${href}/`),
 }));
 
 function deferred() {

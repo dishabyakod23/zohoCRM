@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
@@ -26,7 +25,8 @@ const LIMIT = DEFAULT_PAGE_SIZE;
 
 export default function CallsPage() {
   const { showToast } = useToast();
-  const { canEdit } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can('calls', 'create');
   const [items, setItems] = useState([]);
   const [users, setUsers] = useState([]);
   const [callTypes, setCallTypes] = useState([]);
@@ -46,7 +46,7 @@ export default function CallsPage() {
   }, []);
 
   const openCreate = useCallback(() => { setForm(EMPTY); setErrors({}); setModal(true); }, []);
-  useOpenCreateParam(canEdit, openCreate);
+  useOpenCreateParam(canCreate, openCreate);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -117,7 +117,7 @@ export default function CallsPage() {
         <ListPageHeader
           title="Calls"
           subtitle="Log and review phone conversations."
-          primaryAction={canEdit ? (
+          primaryAction={canCreate ? (
             <button type="button" onClick={openCreate} className="btn-primary-sm">Create Call</button>
           ) : null}
         />
