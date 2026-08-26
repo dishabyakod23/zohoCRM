@@ -824,10 +824,30 @@ export default function RecordDataTable({
                             recordLabel={recordLabel}
                             onOpen={() => {
                               const parsed = parsePersonRowId(id);
-                              const entity = (record.entity_type || record._entityType || parsed.entityType || '').toLowerCase();
-                              const relatedType = ['lead', 'raw_lead', 'qualified_lead', 'proposal'].includes(entity) || entity.includes('lead')
-                                ? 'lead'
-                                : (entity === 'deal' ? 'deal' : entity === 'account' ? 'account' : 'contact');
+                              // parsePersonRowId defaults bare ids to "contact" — only trust an
+                              // explicit entity from the record or a prefixed row id (type:uuid).
+                              const explicitEntity = String(
+                                record.entity_type || record._entityType || record.record_type || '',
+                              ).toLowerCase();
+                              const prefixedEntity = String(id).includes(':')
+                                ? String(parsed.entityType || '').toLowerCase()
+                                : '';
+                              const entity = explicitEntity || prefixedEntity;
+
+                              let relatedType = noteMeta.relatedType;
+                              if (LEAD_MODULE_KEYS.has(moduleKey)) {
+                                relatedType = 'lead';
+                              } else if (entity.includes('lead')
+                                || ['lead', 'raw_lead', 'qualified_lead', 'proposal'].includes(entity)) {
+                                relatedType = 'lead';
+                              } else if (entity === 'deal') {
+                                relatedType = 'deal';
+                              } else if (entity === 'account') {
+                                relatedType = 'account';
+                              } else if (entity === 'contact') {
+                                relatedType = 'contact';
+                              }
+
                               setPanelRecord({
                                 id: parsed.recordId || personRecordId(record) || id,
                                 label: recordLabel,
