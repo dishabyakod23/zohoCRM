@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import Badge from '../../components/ui/Badge.js';
@@ -16,6 +15,7 @@ import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams, sortRecords } from '../../lib/listSortHelpers.js';
 import ListSortSelect from '../../components/layout/ListSortSelect.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 
 export default function ActivitiesPage() {
   const { showToast } = useToast();
@@ -124,9 +124,13 @@ export default function ActivitiesPage() {
           title="Activities"
           subtitle="Recent tasks, meetings, and calls."
           primaryAction={(
-            <Link href={`/${tab}?create=1`} className="btn-primary-sm">
+            <button
+              type="button"
+              onClick={() => navigateToRecord(`/${tab}?create=1`)}
+              className="btn-primary-sm"
+            >
               Create {tab === 'tasks' ? 'Task' : tab === 'meetings' ? 'Meeting' : 'Call'}
-            </Link>
+            </button>
           )}
         />
 
