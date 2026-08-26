@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { MODAL_Z_INDEX } from './Modal.js';
 
 export default function ConfirmDialog({
   open,
@@ -14,7 +15,12 @@ export default function ConfirmDialog({
   onCancel,
 }) {
   const [busy, setBusy] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const inFlight = confirming || busy;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) setBusy(false);
@@ -26,8 +32,7 @@ export default function ConfirmDialog({
     return () => window.removeEventListener('keydown', handler);
   }, [open, onCancel, inFlight]);
 
-  if (!open) return null;
-  if (typeof document === 'undefined') return null;
+  if (!open || !mounted) return null;
 
   const handleConfirm = async () => {
     if (inFlight || !onConfirm) return;
@@ -40,8 +45,12 @@ export default function ConfirmDialog({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn" onClick={inFlight ? undefined : onCancel}>
-      <div className="bg-white rounded-2xl shadow-card-hover w-full max-w-md p-6 animate-scaleIn" onClick={e => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn"
+      style={{ zIndex: MODAL_Z_INDEX + 20 }}
+      onClick={inFlight ? undefined : onCancel}
+    >
+      <div className="bg-white rounded-2xl shadow-card-hover w-full max-w-md p-6 animate-scaleIn" onClick={(e) => e.stopPropagation()}>
         {title && <h3 className="font-semibold text-zoho-text mb-2">{title}</h3>}
         <p className="text-sm text-zoho-muted mb-6">{message}</p>
         <div className="flex gap-2 justify-end">

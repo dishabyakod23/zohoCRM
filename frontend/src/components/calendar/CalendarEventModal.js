@@ -1,7 +1,9 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { ASSIGN_TO_ALL, ASSIGN_TO_ME, EVENT_TYPES, emptyEventForm, toDateKey } from '../../lib/calendarHelpers.js';
+import { MODAL_Z_INDEX } from '../ui/Modal.js';
 
 export default function CalendarEventModal({
   open,
@@ -16,11 +18,16 @@ export default function CalendarEventModal({
   canAssignToOthers = false,
 }) {
   const [form, setForm] = useState(emptyEventForm({ assign_to: ASSIGN_TO_ME }));
+  const [mounted, setMounted] = useState(false);
 
   const otherMembers = useMemo(
     () => users.filter((u) => String(u.id || u.value) !== String(currentUserId)),
     [users, currentUserId],
   );
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -49,7 +56,7 @@ export default function CalendarEventModal({
     }));
   }, [open, initial, currentUserId]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const set = (field) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -67,15 +74,19 @@ export default function CalendarEventModal({
 
   const isEditing = !!initial?.id;
 
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-zoho-border flex items-center justify-between">
+  return createPortal(
+    <div
+      className="fixed inset-0 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      style={{ zIndex: MODAL_Z_INDEX }}
+      onClick={onClose}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[min(90vh,100%)] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-zoho-border flex items-center justify-between shrink-0">
           <h2 className="text-lg font-semibold text-zoho-text">{isEditing ? 'Edit Event' : 'Create Event'}</h2>
           <button type="button" onClick={onClose} className="text-zoho-muted hover:text-zoho-text text-xl leading-none">×</button>
         </div>
 
-        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 space-y-4 overflow-y-auto">
           <FormField label="Title" required>
             <input className={inputClass()} value={form.title} onChange={set('title')} placeholder="Add title" autoFocus />
           </FormField>
@@ -141,7 +152,7 @@ export default function CalendarEventModal({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-zoho-border flex items-center justify-between gap-2">
+        <div className="px-6 py-4 border-t border-zoho-border flex items-center justify-between gap-2 shrink-0">
           <div>
             {isEditing && onDelete && (
               <button type="button" onClick={onDelete} className="text-sm text-red-600 hover:underline">Delete</button>
@@ -155,6 +166,7 @@ export default function CalendarEventModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

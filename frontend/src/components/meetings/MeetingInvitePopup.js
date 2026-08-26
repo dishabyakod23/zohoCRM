@@ -1,7 +1,10 @@
 'use client';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { useMeetingReminders } from '../../hooks/useMeetingReminders.js';
 import { userBriefName } from '../../lib/activityHelpers.js';
+import { MODAL_Z_INDEX } from '../ui/Modal.js';
 
 function formatWhen(iso) {
   if (!iso) return '—';
@@ -20,9 +23,14 @@ function formatWhen(iso) {
 
 export default function MeetingInvitePopup() {
   const { reminders, popupOpen, acknowledge, dismissPopup } = useMeetingReminders();
+  const [mounted, setMounted] = useState(false);
   const invite = reminders[0];
 
-  if (!popupOpen || !invite) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !popupOpen || !invite) return null;
 
   const hostLabel = invite.host_name || userBriefName(invite.host) || 'Someone';
   const remaining = Math.max(0, reminders.length - 1);
@@ -46,8 +54,11 @@ export default function MeetingInvitePopup() {
     navigateToRecord(`/meetings/${id}`);
   };
 
-  return (
-    <div className="fixed inset-0 z-[115] flex items-end sm:items-center justify-center p-4 bg-black/35 backdrop-blur-[2px]">
+  return createPortal(
+    <div
+      className="fixed inset-0 flex items-end sm:items-center justify-center p-4 bg-black/35 backdrop-blur-[2px]"
+      style={{ zIndex: MODAL_Z_INDEX + 10 }}
+    >
       <div
         role="dialog"
         aria-labelledby="meeting-invite-title"
@@ -96,6 +107,7 @@ export default function MeetingInvitePopup() {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
