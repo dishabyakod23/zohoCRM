@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import Link from 'next/link';
 import CRMLayout from '../layout/CRMLayout.js';
 import ListPageHeader from '../layout/ListPageHeader.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 import ListSearchBar from '../layout/ListSearchBar.js';
 import Modal from '../ui/Modal.js';
 import Badge from '../ui/Badge.js';
@@ -292,7 +292,9 @@ export default function PipelineLeadList({ stage, description }) {
             </button>
           ) : null}
           primaryAction={canEdit ? (
-            <Link href={createHref} className="btn-primary-sm">{createLabel}</Link>
+            <button type="button" onClick={() => navigateToRecord(createHref)} className="btn-primary-sm">
+              {createLabel}
+            </button>
           ) : null}
         />
 

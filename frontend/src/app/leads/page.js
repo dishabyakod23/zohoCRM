@@ -1,7 +1,5 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import Badge from '../../components/ui/Badge.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
@@ -29,9 +27,9 @@ import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.j
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 
 export default function LeadsPage() {
-  const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
   const { canEdit, canAssignLeads } = usePermissions();
@@ -66,9 +64,9 @@ export default function LeadsPage() {
   useEffect(() => {
     if (typeof window === 'undefined' || !canEdit) return;
     if (new URLSearchParams(window.location.search).get('create') === '1') {
-      router.replace('/leads/create');
+      navigateToRecord('/leads/create');
     }
-  }, [canEdit, router]);
+  }, [canEdit]);
 
   const fetchLeads = useCallback(async () => {
     const requestId = ++fetchRequestId.current;
@@ -157,7 +155,7 @@ export default function LeadsPage() {
           title="Warm Leads"
           subtitle="Manage and track warm leads through the pipeline."
           primaryAction={canEdit ? (
-            <button type="button" onClick={() => router.push('/leads/create')} className="btn-primary-sm">
+            <button type="button" onClick={() => navigateToRecord('/leads/create')} className="btn-primary-sm">
               Create Warm Lead
             </button>
           ) : null}

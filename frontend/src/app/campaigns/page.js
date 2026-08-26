@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
@@ -17,6 +16,7 @@ import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -89,7 +89,9 @@ export default function CampaignsPage() {
           title="Campaigns"
           subtitle="Manage marketing campaigns and outreach."
           primaryAction={canEdit ? (
-            <Link href="/campaigns/create" className="btn-primary-sm">Create Campaign</Link>
+            <button type="button" onClick={() => navigateToRecord('/campaigns/create')} className="btn-primary-sm">
+              Create Campaign
+            </button>
           ) : null}
         />
 

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV_MODULES } from '../../lib/constants.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import { appHref, navigateToRecord } from '../../lib/recordNavigation.js';
 import Logo from '../ui/Logo.js';
 import ModuleIcon from '../ui/ModuleIcon.js';
 
@@ -30,7 +31,6 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
     && n.label.toLowerCase().includes(moduleSearch.toLowerCase()));
 
   const normalizePath = (path) => (path || '/').replace(/\/+$/, '') || '/';
-  const toAppHref = (href) => (href.endsWith('/') ? href : `${href}/`);
   const isActive = (href) => {
     const current = normalizePath(pathname);
     const target = normalizePath(href);
@@ -58,7 +58,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
   );
 
   const navLink = (href, label, icon) => {
-    const target = toAppHref(href);
+    const target = appHref(href);
     return (
       <Link
         key={href}
@@ -70,9 +70,8 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
             e.preventDefault();
             return;
           }
-          // Hard navigation — soft client transitions can appear stuck behind overlays / static export.
           e.preventDefault();
-          window.location.assign(target);
+          navigateToRecord(href);
         }}
         className={`zoho-nav-item ${isActive(href) ? 'zoho-nav-active' : 'zoho-nav-inactive'}`}
       >

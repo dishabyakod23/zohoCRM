@@ -1,7 +1,5 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import BulkUpload from '../../components/records/BulkUpload.js';
 import RecordDataTable from '../../components/records/RecordDataTable.js';
@@ -39,12 +37,12 @@ import {
   filterRowsByActivityDate,
 } from '../../lib/contactActivityEnrichment.js';
 import { buildOutreachActivityIndex, formatLinkedInRequestLabel } from '../../lib/outreachActivity.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 const ACTIVITY_LOOKBACK_DAYS = 120;
 
 export default function ContactsPage() {
-  const router = useRouter();
   const { showToast } = useToast();
   const { user } = useAuth();
   const { can, isSuperAdmin, isSalesManager } = usePermissions();
@@ -90,9 +88,9 @@ export default function ContactsPage() {
   useEffect(() => {
     if (typeof window === 'undefined' || !canCreateContact) return;
     if (new URLSearchParams(window.location.search).get('create') === '1') {
-      router.replace('/contacts/create');
+      navigateToRecord('/contacts/create');
     }
-  }, [canCreateContact, router]);
+  }, [canCreateContact]);
 
   const needsActivityData = Boolean(filters.activity_from || filters.activity_to);
   const needsClientPagination = needsActivityData || hasTimestampFilters(filters);
@@ -276,7 +274,7 @@ export default function ContactsPage() {
           subtitle="Central pool of all people in the CRM — contacts, pipeline leads, deals, and accounts."
           secondaryActions={canImportContacts ? <BulkUpload onDone={fetchContacts} /> : null}
           primaryAction={canCreateContact ? (
-            <button type="button" onClick={() => router.push('/contacts/create')} className="btn-primary-sm">
+            <button type="button" onClick={() => navigateToRecord('/contacts/create')} className="btn-primary-sm">
               Create Contact
             </button>
           ) : null}

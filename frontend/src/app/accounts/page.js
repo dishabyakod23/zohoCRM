@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
@@ -25,6 +24,7 @@ import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.j
 import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -127,7 +127,9 @@ export default function AccountsPage() {
           title="Accounts"
           subtitle="Confirmed customers converted from proposals or created with an active deal."
           primaryAction={canEdit ? (
-            <Link href="/accounts/create" className="btn-primary-sm">Create Account</Link>
+            <button type="button" onClick={() => navigateToRecord('/accounts/create')} className="btn-primary-sm">
+              Create Account
+            </button>
           ) : null}
         />
 

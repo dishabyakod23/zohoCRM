@@ -6,6 +6,16 @@ async function loadNavigation(staticExport) {
   return import('../recordNavigation.js');
 }
 
+describe('appHref', () => {
+  it('adds trailing slash and preserves query/hash', async () => {
+    const { appHref } = await loadNavigation('false');
+    expect(appHref('/raw-leads/create')).toBe('/raw-leads/create/');
+    expect(appHref('/leads/create?from=quick')).toBe('/leads/create/?from=quick');
+    expect(appHref('/contacts/create/#top')).toBe('/contacts/create/#top');
+    expect(appHref('/accounts/create/?x=1#y')).toBe('/accounts/create/?x=1#y');
+  });
+});
+
 describe('salesTargetEditHref', () => {
   const prev = process.env.NEXT_PUBLIC_STATIC_EXPORT;
 

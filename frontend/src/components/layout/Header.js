@@ -200,8 +200,17 @@ export default function Header({ onMenuClick }) {
                 <div key={g}>
                   <p className="px-3 py-1 text-[10px] text-zoho-muted">{g}</p>
                   {QUICK_CREATE.filter(q => q.group === g && can(q.permissionKey, 'create')).map(q => (
-                    <Link key={q.label} href={q.href} onClick={() => setShowQuick(false)}
-                      className="block px-3 py-1.5 text-sm hover:bg-brand-50 hover:text-brand-600 text-zoho-text transition-colors rounded-lg mx-1">+ {q.label}</Link>
+                    <button
+                      key={q.label}
+                      type="button"
+                      onClick={() => {
+                        setShowQuick(false);
+                        navigateToRecord(q.href);
+                      }}
+                      className="block w-full text-left px-3 py-1.5 text-sm hover:bg-brand-50 hover:text-brand-600 text-zoho-text transition-colors rounded-lg mx-1"
+                    >
+                      + {q.label}
+                    </button>
                   ))}
                 </div>
               ))}

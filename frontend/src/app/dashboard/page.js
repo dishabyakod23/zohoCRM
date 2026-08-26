@@ -18,6 +18,7 @@ import { formatCompactMoney, formatIndianRupees, DEFAULT_CURRENCY } from '../../
 import { avatarInitialClass } from '../../lib/tableStyles.js';
 import UserAvatar from '../../components/users/UserAvatar.js';
 import SalesTargetWidgets from '../../components/dashboard/SalesTargetWidgets.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 import {
   UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
@@ -293,9 +294,14 @@ export default function DashboardPage() {
             <Widget title="Quick Create" className="col-span-12">
               <div className="flex flex-wrap gap-2">
                 {quickCreateItems.map(q => (
-                  <Link key={q.label} href={q.href} className="btn-secondary-sm">
+                  <button
+                    key={q.label}
+                    type="button"
+                    onClick={() => navigateToRecord(q.href)}
+                    className="btn-secondary-sm"
+                  >
                     + {q.label}
-                  </Link>
+                  </button>
                 ))}
               </div>
             </Widget>
