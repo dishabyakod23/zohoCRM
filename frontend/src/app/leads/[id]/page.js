@@ -21,7 +21,7 @@ import { getApiError } from '../../../lib/api.js';
 import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import * as leadsApi from '../../../lib/services/leads.js';
-import { fetchLeadStatuses, fetchLeadSources, FALLBACK_LEAD_STATUSES, fetchUsers } from '../../../lib/services/lookups.js';
+import { fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES, fetchUsers } from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
 import { SALUTATIONS, RATINGS } from '../../../lib/constants.js';
 import { IndustrySelectControl } from '../../../components/forms/IndustryField.js';
@@ -31,6 +31,7 @@ import {
 } from '../../../components/forms/AddressCountryStateFields.js';
 import { nextStateForCountry } from '../../../lib/addressRegions.js';
 import { PIPELINE_LEAD, outreachLeadStatusOptions } from '../../../lib/pipelineHelpers.js';
+import { isLostLeadStatus } from '../../../lib/statusHelpers.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon,
 } from '@heroicons/react/24/outline';
@@ -44,6 +45,7 @@ export default function LeadDetailPage() {
   const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
   const [sourceOptions, setSourceOptions] = useState([]);
+  const [lostReasonOptions, setLostReasonOptions] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
@@ -55,6 +57,7 @@ export default function LeadDetailPage() {
       .then((options) => setStatusOptions(outreachLeadStatusOptions(options)))
       .catch(() => setStatusOptions(outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES)));
     fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
+    fetchLostReasons().then(setLostReasonOptions).catch(() => setLostReasonOptions([]));
     if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, [canAssignLeads]);
 
@@ -167,7 +170,44 @@ export default function LeadDetailPage() {
                   { name: 'last_name', label: 'Last Name', required: true },
                   { name: 'company', label: 'Company', required: true },
                   { name: 'title', label: 'Job Title' },
-                  { name: 'lead_status', label: 'Lead Status', format: () => lead.status, render: (d, set) => select(statusOptions)(d, set, 'lead_status') },
+                  { name: 'lead_status', label: 'Lead Status', format: () => lead.status, render: (d, set) => (
+                    <select
+                      className="input"
+                      value={d.lead_status ?? ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        set((prev) => ({
+                          ...prev,
+                          lead_status: value,
+                          ...(isLostLeadStatus(value) ? {} : { lost_reason: '' }),
+                        }));
+                      }}
+                    >
+                      <option value="">--None--</option>
+                      {statusOptions.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  ) },
+                  {
+                    name: 'lost_reason',
+                    label: 'Lost Reason',
+                    visibleWhen: (d) => isLostLeadStatus(d.lead_status),
+                    requiredWhen: (d) => isLostLeadStatus(d.lead_status),
+                    format: (v) => lostReasonOptions.find((o) => o.value === v)?.label || v || null,
+                    render: (d, set) => (
+                      <select
+                        className="input"
+                        value={d.lost_reason ?? ''}
+                        onChange={(e) => set((prev) => ({ ...prev, lost_reason: e.target.value }))}
+                      >
+                        <option value="">Select lost reason</option>
+                        {lostReasonOptions.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    ),
+                  },
                   { name: 'source', label: 'Lead Source', render: (d, set) => select(sourceOptions)(d, set, 'source') },
                   { name: 'industry', label: 'Industry', render: (d, set) => (
                     <IndustrySelectControl

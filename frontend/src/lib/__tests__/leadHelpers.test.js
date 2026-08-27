@@ -108,4 +108,22 @@ describe('toLeadPayload lead_status', () => {
     expect(payload.lead_status).toBeNull();
     expect(payload.pipeline_stage).toBe('raw_prospect');
   });
+
+  it('includes lost_reason on PATCH when status is lost', () => {
+    const payload = toLeadPayload({
+      lead_status: 'lost',
+      lost_reason: 'not_interested',
+    }, { partial: true });
+    expect(payload.lead_status).toBe('lost');
+    expect(payload.lost_reason).toBe('not_interested');
+  });
+
+  it('clears lost_reason on PATCH when status is not lost', () => {
+    const payload = toLeadPayload({
+      lead_status: 'contacted',
+      lost_reason: 'not_interested',
+    }, { partial: true });
+    expect(payload.lead_status).toBe('contacted');
+    expect(payload.lost_reason).toBeNull();
+  });
 });

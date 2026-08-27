@@ -6,7 +6,7 @@ import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 
 /**
  * Section card that displays fields read-only with per-section Edit → Save/Cancel.
- * @param {{ name: string, label: string, required?: boolean, colSpan?: boolean, readOnly?: boolean, format?: (v) => string, render?: (draft, setDraft) => React.ReactNode }} fields
+ * @param {{ name: string, label: string, required?: boolean, requiredWhen?: (draft) => boolean, visibleWhen?: (draft) => boolean, colSpan?: boolean, readOnly?: boolean, format?: (v) => string, render?: (draft, setDraft) => React.ReactNode }} fields
  */
 export default function EditableFieldSection({
   title,
@@ -19,6 +19,9 @@ export default function EditableFieldSection({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
+
+  const isVisible = (f, ctx) => !f.visibleWhen || f.visibleWhen(ctx);
+  const isRequired = (f, ctx) => Boolean(f.required || (typeof f.requiredWhen === 'function' && f.requiredWhen(ctx)));
 
   const startEdit = () => {
     const initial = {};
@@ -39,7 +42,8 @@ export default function EditableFieldSection({
   const save = async () => {
     const requiredFields = {};
     fields.forEach((f) => {
-      if (f.required && !f.readOnly) requiredFields[f.name] = f.label;
+      if (f.readOnly || !isVisible(f, draft)) return;
+      if (isRequired(f, draft)) requiredFields[f.name] = f.label;
     });
     const errs = validateRequired(requiredFields, draft);
     setFieldErrors(errs);
@@ -60,6 +64,8 @@ export default function EditableFieldSection({
     return String(v);
   };
 
+  const visibleFields = fields.filter((f) => isVisible(f, editing ? draft : values));
+
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between mb-4">
@@ -74,7 +80,7 @@ export default function EditableFieldSection({
       {editing ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {fields.map((f) => (
+            {visibleFields.map((f) => (
               <div key={f.name} className={f.colSpan ? 'sm:col-span-2' : ''}>
                 {f.readOnly ? (
                   <>
@@ -82,7 +88,7 @@ export default function EditableFieldSection({
                     <p className="text-sm text-zoho-text">{display(f) ?? <span className="text-zoho-muted/50">—</span>}</p>
                   </>
                 ) : (
-                  <FormField label={f.label} required={f.required} error={fieldErrors[f.name]}>
+                  <FormField label={f.label} required={isRequired(f, draft)} error={fieldErrors[f.name]}>
                     {f.render
                       ? f.render(draft, (updater) => {
                         setDraft(updater);
@@ -113,7 +119,7 @@ export default function EditableFieldSection({
         </>
       ) : (
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-          {fields.map((f) => (
+          {visibleFields.map((f) => (
             <div key={f.name} className={f.colSpan ? 'sm:col-span-2' : ''}>
               <dt className="text-[11px] text-zoho-muted font-medium uppercase tracking-wider mb-1">{f.label}</dt>
               <dd className="text-zoho-text">{display(f) ?? <span className="text-zoho-muted/50">—</span>}</dd>

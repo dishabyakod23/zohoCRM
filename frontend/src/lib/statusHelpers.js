@@ -1,8 +1,14 @@
-/** Status values that require a lost reason on mass update */
-export const LOST_LEAD_STATUS_VALUES = new Set(['deal_lost', 'lost_lead', 'not_qualified', 'junk_lead']);
+/** Status values that require a lost reason (detail save + mass update) */
+export const LOST_LEAD_STATUS_VALUES = new Set([
+  'lost',
+  'deal_lost',
+  'lost_lead',
+  'not_qualified',
+  'junk_lead',
+]);
 
 export function isLostLeadStatus(value) {
-  return LOST_LEAD_STATUS_VALUES.has(String(value || '').toLowerCase());
+  return LOST_LEAD_STATUS_VALUES.has(String(value || '').toLowerCase().trim());
 }
 
 export function isLeadStatusMassField(field, fieldDef) {

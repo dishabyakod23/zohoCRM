@@ -20,8 +20,9 @@ import { getApiError } from '../../lib/api.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { fetchUsers, fetchLeadStatuses, fetchLeadSources, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import { fetchUsers, fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, proposalDealStatusLabel, proposalTypeLabel, resolveLeadPipelineStage, getLeadDetailPath, outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
+import { isLostLeadStatus } from '../../lib/statusHelpers.js';
 import { ownerFieldConfig } from '../forms/ownerField.js';
 import { trackRecentItem } from '../layout/BottomUtilityBar.js';
 import ReadOnlyRecordBanner from '../records/ReadOnlyRecordBanner.js';
@@ -55,6 +56,7 @@ export default function PipelineLeadDetail({ stage }) {
   const savingRef = useRef(false);
   const [statusOptions, setStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
   const [sourceOptions, setSourceOptions] = useState([]);
+  const [lostReasonOptions, setLostReasonOptions] = useState([]);
   const { campaignField, saveCampaignFromDraft, campaignValues } = useRecordCampaign(
     'lead',
     id,
@@ -66,6 +68,7 @@ export default function PipelineLeadDetail({ stage }) {
       .then((options) => setStatusOptions(outreachLeadStatusOptions(options)))
       .catch(() => setStatusOptions(outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES)));
     fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
+    fetchLostReasons().then(setLostReasonOptions).catch(() => setLostReasonOptions([]));
   }, []);
 
   useEffect(() => {
@@ -251,7 +254,44 @@ export default function PipelineLeadDetail({ stage }) {
               { name: 'last_name', label: 'Last Name', required: true },
               { name: 'company', label: 'Company', required: true },
               { name: 'title', label: 'Job Title' },
-              { name: 'lead_status', label: statusFieldLabel, format: () => lead.status, render: (d, set) => select(statusOptions)(d, set, 'lead_status') },
+              { name: 'lead_status', label: statusFieldLabel, format: () => lead.status, render: (d, set) => (
+                <select
+                  className="input"
+                  value={d.lead_status ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    set((prev) => ({
+                      ...prev,
+                      lead_status: value,
+                      ...(isLostLeadStatus(value) ? {} : { lost_reason: '' }),
+                    }));
+                  }}
+                >
+                  <option value="">--None--</option>
+                  {statusOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              ) },
+              {
+                name: 'lost_reason',
+                label: 'Lost Reason',
+                visibleWhen: (d) => isLostLeadStatus(d.lead_status),
+                requiredWhen: (d) => isLostLeadStatus(d.lead_status),
+                format: (v) => lostReasonOptions.find((o) => o.value === v)?.label || v || null,
+                render: (d, set) => (
+                  <select
+                    className="input"
+                    value={d.lost_reason ?? ''}
+                    onChange={(e) => set((prev) => ({ ...prev, lost_reason: e.target.value }))}
+                  >
+                    <option value="">Select lost reason</option>
+                    {lostReasonOptions.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                ),
+              },
               { name: 'source', label: 'Lead Source', render: (d, set) => select(sourceOptions)(d, set, 'source') },
               { name: 'industry', label: 'Industry', render: (d, set) => (
                 <IndustrySelectControl

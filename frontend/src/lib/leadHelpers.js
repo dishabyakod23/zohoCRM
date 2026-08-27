@@ -3,6 +3,7 @@ import { toDateOnly } from './activityHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
 import { ownerName } from './recordHelpers.js';
 import { SALUTATIONS } from './constants.js';
+import { isLostLeadStatus } from './statusHelpers.js';
 
 export function normalizeSalutation(value) {
   if (!value) return '';
@@ -32,6 +33,7 @@ const STATUS_LABELS = {
   qualified_lead: 'Qualified Lead',
   proposal: 'Proposal',
   deal_lost: 'Deal Lost',
+  lost: 'Lost',
   [PIPELINE_RAW]: 'Cold Lead',
   [PIPELINE_LEAD]: 'Warm Lead',
   [PIPELINE_QUALIFIED]: 'Qualified Lead',
@@ -132,6 +134,7 @@ export function normalizeLead(lead, statusOptions = []) {
     campaign_id: lead.campaign_id || null,
     campaign_name: lead.campaign_name || null,
     salutation: normalizeSalutation(lead.salutation || lead.prefix || ''),
+    lost_reason: lead.lost_reason || lead.lostReason || '',
   };
 }
 
@@ -168,6 +171,10 @@ export function toLeadPayload(form, { partial = false } = {}) {
     if (formHas(form, 'lead_status') || formHas(form, 'status')) {
       const rawStatus = form.lead_status || form.status;
       payload.lead_status = rawStatus ? resolveLeadStatusForApi(rawStatus) : null;
+    }
+    if (formHas(form, 'lost_reason')) {
+      const statusForReason = payload.lead_status || form.lead_status || form.status;
+      payload.lost_reason = isLostLeadStatus(statusForReason) ? (form.lost_reason || null) : null;
     }
     if (formHas(form, 'pipeline_stage')) {
       payload.pipeline_stage = form.pipeline_stage || null;
@@ -223,6 +230,9 @@ export function toLeadPayload(form, { partial = false } = {}) {
       ? resolveLeadStatusForApi(form.lead_status || form.status)
       : null,
     ...(form.pipeline_stage ? { pipeline_stage: form.pipeline_stage } : {}),
+    ...(isLostLeadStatus(form.lead_status || form.status)
+      ? { lost_reason: form.lost_reason || null }
+      : {}),
     description: form.description || null,
     website: form.website || null,
     annual_revenue: form.annual_revenue || null,

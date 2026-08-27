@@ -15,16 +15,17 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
-import { fetchLeadStatuses, fetchLeadSources, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import { fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
+import { isLostLeadStatus } from '../../lib/statusHelpers.js';
 
 export function emptyLeadForm() {
   return {
     salutation: '', first_name: '', last_name: '', email: '', phone: '', mobile: '',
-    company: '', title: '', lead_status: PIPELINE_LEAD, source: '', industry: '',
+    company: '', title: '', lead_status: PIPELINE_LEAD, lost_reason: '', source: '', industry: '',
     rating: '', website: '', annual_revenue: '', no_of_employees: '',
     proposal_amount: '',
     street: '', city: '', state: '', zip_code: '', country: 'India',
@@ -48,6 +49,7 @@ export default function CreateLeadForm() {
   const [saving, setSaving] = useState(false);
   const [statusOptions, setStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
   const [sourceOptions, setSourceOptions] = useState([]);
+  const [lostReasonOptions, setLostReasonOptions] = useState([]);
   const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
   const savingRef = useRef(false);
 
@@ -56,6 +58,7 @@ export default function CreateLeadForm() {
       .then((options) => setStatusOptions(outreachLeadStatusOptions(options)))
       .catch(() => setStatusOptions(outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES)));
     fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
+    fetchLostReasons().then(setLostReasonOptions).catch(() => setLostReasonOptions([]));
   }, []);
 
   const set = (field) => (e) => {
@@ -84,6 +87,9 @@ export default function CreateLeadForm() {
     if (!errs.email && form.email) {
       const uniqueErr = emailError || await validateEmailUnique(form.email);
       if (uniqueErr) errs.email = uniqueErr;
+    }
+    if (isLostLeadStatus(form.lead_status) && !form.lost_reason) {
+      errs.lost_reason = 'Select a lost reason.';
     }
     setErrors(errs);
     if (Object.keys(errs).length) {
@@ -152,10 +158,32 @@ export default function CreateLeadForm() {
               <input className="input" value={form.title} onChange={set('title')} />
             </FormField>
             <FormField label="Lead Status" required error={errors.lead_status} name="lead_status">
-              <select className={inputClass(errors.lead_status)} value={form.lead_status} onChange={set('lead_status')}>
+              <select
+                className={inputClass(errors.lead_status)}
+                value={form.lead_status}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    lead_status: value,
+                    ...(isLostLeadStatus(value) ? {} : { lost_reason: '' }),
+                  }));
+                  setErrors((er) => ({ ...er, lead_status: null, lost_reason: null }));
+                }}
+              >
                 {statusOptions.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </FormField>
+            {isLostLeadStatus(form.lead_status) && (
+              <FormField label="Lost Reason" required error={errors.lost_reason} name="lost_reason">
+                <select className={inputClass(errors.lost_reason)} value={form.lost_reason} onChange={set('lost_reason')}>
+                  <option value="">Select lost reason</option>
+                  {lostReasonOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </FormField>
+            )}
             <FormField label="Lead Source">
               <select className="input" value={form.source} onChange={set('source')}>
                 <option value="">--None--</option>

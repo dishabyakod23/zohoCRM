@@ -23,6 +23,7 @@ import {
   fetchUsers,
   fetchLeadStatuses,
   fetchLeadSources,
+  fetchLostReasons,
   FALLBACK_LEAD_STATUSES,
 } from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
@@ -35,6 +36,7 @@ import {
   PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL,
   outreachLeadStatusOptions,
 } from '../../../lib/pipelineHelpers.js';
+import { isLostLeadStatus } from '../../../lib/statusHelpers.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import PhoneDisplay from '../../../components/cloudtalk/PhoneDisplay.js';
 import CallRecordButton from '../../../components/cloudtalk/CallRecordButton.js';
@@ -90,6 +92,7 @@ export default function ContactDetailPage() {
   const [stageOptions, setStageOptions] = useState(FALLBACK_DEAL_STAGES);
   const [leadStatusOptions, setLeadStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
   const [leadSourceOptions, setLeadSourceOptions] = useState([]);
+  const [lostReasonOptions, setLostReasonOptions] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
@@ -119,6 +122,7 @@ export default function ContactDetailPage() {
       .then((options) => setLeadStatusOptions(outreachLeadStatusOptions(options)))
       .catch(() => setLeadStatusOptions(outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES)));
     fetchLeadSources().then(setLeadSourceOptions).catch(() => setLeadSourceOptions([]));
+    fetchLostReasons().then(setLostReasonOptions).catch(() => setLostReasonOptions([]));
     if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
   }, [canAssignLeads]);
 
@@ -306,13 +310,43 @@ export default function ContactDetailPage() {
                 </select>
               ) },
               { name: 'lead_status', label: 'Lead Status', render: (d, set) => (
-                <select className="input" value={d.lead_status ?? ''} onChange={(e) => set((p) => ({ ...p, lead_status: e.target.value }))}>
+                <select
+                  className="input"
+                  value={d.lead_status ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    set((p) => ({
+                      ...p,
+                      lead_status: value,
+                      ...(isLostLeadStatus(value) ? {} : { lost_reason: '' }),
+                    }));
+                  }}
+                >
                   <option value="">--None--</option>
                   {leadStatusOptions.map((s) => (
                     <option key={s.value} value={s.value}>{s.label}</option>
                   ))}
                 </select>
               ) },
+              {
+                name: 'lost_reason',
+                label: 'Lost Reason',
+                visibleWhen: (d) => isLostLeadStatus(d.lead_status),
+                requiredWhen: (d) => isLostLeadStatus(d.lead_status),
+                format: (v) => lostReasonOptions.find((o) => o.value === v)?.label || v || null,
+                render: (d, set) => (
+                  <select
+                    className="input"
+                    value={d.lost_reason ?? ''}
+                    onChange={(e) => set((p) => ({ ...p, lost_reason: e.target.value }))}
+                  >
+                    <option value="">Select lost reason</option>
+                    {lostReasonOptions.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                ),
+              },
               campaignField,
               ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: contact.owner_name }),
             ]}

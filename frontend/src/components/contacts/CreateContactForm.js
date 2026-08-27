@@ -19,9 +19,11 @@ import {
   fetchUsers,
   fetchLeadStatuses,
   fetchLeadSources,
+  fetchLostReasons,
   FALLBACK_LEAD_STATUSES,
 } from '../../lib/services/lookups.js';
 import { outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
+import { isLostLeadStatus } from '../../lib/statusHelpers.js';
 import AccountNameCombobox from '../forms/AccountNameCombobox.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { resolveContactCompanyFields } from '../../lib/resolveContactAccount.js';
@@ -30,7 +32,7 @@ import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRe
 export function emptyContactForm() {
   return {
     salutation: '', first_name: '', last_name: '', account_id: '', account_name: '',
-    title: '', department: '', lead_source: '', lead_status: '', owner_id: '', campaign_id: '', campaign_name: '',
+    title: '', department: '', lead_source: '', lead_status: '', lost_reason: '', owner_id: '', campaign_id: '', campaign_name: '',
     assistant: '', asst_phone: '', date_of_birth: '',
     email_opt_out: false,
     email: '', secondary_email: '', phone: '', other_phone: '', mobile: '',
@@ -122,6 +124,7 @@ export default function CreateContactForm() {
   const [users, setUsers] = useState([]);
   const [leadStatusOptions, setLeadStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
   const [leadSourceOptions, setLeadSourceOptions] = useState([]);
+  const [lostReasonOptions, setLostReasonOptions] = useState([]);
   const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
   const savingRef = useRef(false);
 
@@ -132,6 +135,7 @@ export default function CreateContactForm() {
       .then((options) => setLeadStatusOptions(outreachLeadStatusOptions(options)))
       .catch(() => setLeadStatusOptions(outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES)));
     fetchLeadSources().then(setLeadSourceOptions).catch(() => setLeadSourceOptions([]));
+    fetchLostReasons().then(setLostReasonOptions).catch(() => setLostReasonOptions([]));
   }, []);
 
   const set = (field) => (e) => {
@@ -177,6 +181,9 @@ export default function CreateContactForm() {
       if (!errs.email && form.email) {
         const uniqueErr = emailError || await validateEmailUnique(form.email);
         if (uniqueErr) errs.email = uniqueErr;
+      }
+      if (isLostLeadStatus(form.lead_status) && !form.lost_reason) {
+        errs.lost_reason = 'Select a lost reason.';
       }
       setErrors(errs);
       if (Object.keys(errs).length) {
@@ -312,13 +319,36 @@ export default function CreateContactForm() {
             </FormField>
 
             <FormField label="Lead Status" name="lead_status">
-              <select className="input" value={form.lead_status} onChange={set('lead_status')}>
+              <select
+                className="input"
+                value={form.lead_status}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    lead_status: value,
+                    ...(isLostLeadStatus(value) ? {} : { lost_reason: '' }),
+                  }));
+                  setErrors((er) => ({ ...er, lead_status: null, lost_reason: null }));
+                }}
+              >
                 <option value="">—None—</option>
                 {leadStatusOptions.map((s) => (
                   <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
               </select>
             </FormField>
+
+            {isLostLeadStatus(form.lead_status) && (
+              <FormField label="Lost Reason" required error={errors.lost_reason} name="lost_reason">
+                <select className={inputClass(errors.lost_reason)} value={form.lost_reason} onChange={set('lost_reason')}>
+                  <option value="">Select lost reason</option>
+                  {lostReasonOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </FormField>
+            )}
 
             <CampaignSelect
               value={form.campaign_id}

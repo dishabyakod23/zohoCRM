@@ -12,8 +12,9 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
-import { fetchUsers, fetchLeadStatuses, fetchLeadSources, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import { fetchUsers, fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
+import { isLostLeadStatus } from '../../lib/statusHelpers.js';
 import {
   SALUTATIONS, RATINGS,
 } from '../../lib/constants.js';
@@ -44,6 +45,7 @@ export function emptyRawLeadForm(ownerId = '') {
     fax: '',
     website: '',
     lead_status: '',
+    lost_reason: '',
     no_of_employees: '',
     rating: '',
     skype_id: '',
@@ -91,16 +93,18 @@ export default function CreateRawLeadForm() {
   const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
+  const [lostReasonOptions, setLostReasonOptions] = useState([]);
   const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
   const savingRef = useRef(false);
 
   useEffect(() => {
     if (user?.id) setForm((f) => ({ ...f, owner_id: f.owner_id || user.id }));
-    Promise.all([fetchUsers(), fetchLeadStatuses(), fetchLeadSources()])
-      .then(([u, s, sources]) => {
+    Promise.all([fetchUsers(), fetchLeadStatuses(), fetchLeadSources(), fetchLostReasons()])
+      .then(([u, s, sources, reasons]) => {
         setUsers(u);
         setStatusOptions(s);
         setSourceOptions(sources);
+        setLostReasonOptions(reasons);
       })
       .catch(() => {});
   }, [user?.id]);
@@ -147,6 +151,9 @@ export default function CreateRawLeadForm() {
     if (!errs.email && form.email) {
       const uniqueErr = emailError || await validateEmailUnique(form.email);
       if (uniqueErr) errs.email = uniqueErr;
+    }
+    if (isLostLeadStatus(form.lead_status) && !form.lost_reason) {
+      errs.lost_reason = 'Select a lost reason.';
     }
     setErrors(errs);
     if (Object.keys(errs).length) {
@@ -280,8 +287,35 @@ export default function CreateRawLeadForm() {
               <input className="input" placeholder="https://" value={form.website} onChange={set('website')} />
             </FormField>
             <FormField label="Lead Status" name="lead_status">
-              {noneSelect(form.lead_status, set('lead_status'), outreachLeadStatusOptions(statusOptions), '--None--')}
+              <select
+                className="input"
+                value={form.lead_status}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    lead_status: value,
+                    ...(isLostLeadStatus(value) ? {} : { lost_reason: '' }),
+                  }));
+                  setErrors((er) => ({ ...er, lead_status: null, lost_reason: null }));
+                }}
+              >
+                <option value="">--None--</option>
+                {outreachLeadStatusOptions(statusOptions).map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </FormField>
+            {isLostLeadStatus(form.lead_status) && (
+              <FormField label="Lost Reason" required error={errors.lost_reason} name="lost_reason">
+                <select className={inputClass(errors.lost_reason)} value={form.lost_reason} onChange={set('lost_reason')}>
+                  <option value="">Select lost reason</option>
+                  {lostReasonOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </FormField>
+            )}
             <FormField label="No. of Employees" name="no_of_employees">
               <input className="input" type="number" value={form.no_of_employees} onChange={set('no_of_employees')} />
             </FormField>
