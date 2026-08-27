@@ -118,10 +118,18 @@ describe('toLeadPayload lead_status', () => {
     expect(payload.lost_reason).toBe('not_interested');
   });
 
+  it('includes lost_reason on PATCH for budget_issue enum value', () => {
+    const payload = toLeadPayload({
+      lead_status: 'lost',
+      lost_reason: 'budget_issue',
+    }, { partial: true });
+    expect(payload.lost_reason).toBe('budget_issue');
+  });
+
   it('clears lost_reason on PATCH when status is not lost', () => {
     const payload = toLeadPayload({
       lead_status: 'contacted',
-      lost_reason: 'not_interested',
+      lost_reason: 'budget_issue',
     }, { partial: true });
     expect(payload.lead_status).toBe('contacted');
     expect(payload.lost_reason).toBeNull();

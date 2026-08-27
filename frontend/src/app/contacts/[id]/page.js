@@ -36,7 +36,7 @@ import {
   PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL,
   outreachLeadStatusOptions,
 } from '../../../lib/pipelineHelpers.js';
-import { isLostLeadStatus } from '../../../lib/statusHelpers.js';
+import { isLostLeadStatus, lostReasonLabel } from '../../../lib/statusHelpers.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
 import PhoneDisplay from '../../../components/cloudtalk/PhoneDisplay.js';
 import CallRecordButton from '../../../components/cloudtalk/CallRecordButton.js';
@@ -168,11 +168,16 @@ export default function ContactDetailPage() {
         delete contactPayload.account_name;
         fetchCompanyLookups().then(setAccounts).catch(() => {});
       }
-      await contactsApi.updateContact(id, contactPayload);
+      const updated = await contactsApi.updateContact(id, contactPayload);
       if (draftCampaignId !== undefined || draftCampaignName !== undefined) {
         await saveCampaignFromDraft({ campaign_id: draftCampaignId, campaign_name: draftCampaignName });
       }
-      loadContact();
+      const map = accountMapFromLookups(accounts);
+      const refreshed = await contactsApi.getContact(id, map).catch(() => updated);
+      setContact({
+        ...refreshed,
+        lost_reason: refreshed?.lost_reason || contactPayload.lost_reason || '',
+      });
       showToast('Contact updated', 'success');
     } catch (err) {
       showToast(getApiError(err) || err.message);
@@ -333,7 +338,7 @@ export default function ContactDetailPage() {
                 label: 'Lost Reason',
                 visibleWhen: (d) => isLostLeadStatus(d.lead_status),
                 requiredWhen: (d) => isLostLeadStatus(d.lead_status),
-                format: (v) => lostReasonOptions.find((o) => o.value === v)?.label || v || null,
+                format: (v) => lostReasonLabel(v, lostReasonOptions),
                 render: (d, set) => (
                   <select
                     className="input"

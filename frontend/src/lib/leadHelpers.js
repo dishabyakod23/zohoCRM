@@ -3,7 +3,7 @@ import { toDateOnly } from './activityHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
 import { ownerName } from './recordHelpers.js';
 import { SALUTATIONS } from './constants.js';
-import { isLostLeadStatus } from './statusHelpers.js';
+import { isLostLeadStatus, normalizeLostReasonValue } from './statusHelpers.js';
 
 export function normalizeSalutation(value) {
   if (!value) return '';
@@ -134,7 +134,9 @@ export function normalizeLead(lead, statusOptions = []) {
     campaign_id: lead.campaign_id || null,
     campaign_name: lead.campaign_name || null,
     salutation: normalizeSalutation(lead.salutation || lead.prefix || ''),
-    lost_reason: lead.lost_reason || lead.lostReason || '',
+    lost_reason: normalizeLostReasonValue(
+      lead.lost_reason ?? lead.lostReason ?? lead.lost_reason_code ?? lead.lost_reason_value,
+    ),
   };
 }
 
@@ -172,9 +174,17 @@ export function toLeadPayload(form, { partial = false } = {}) {
       const rawStatus = form.lead_status || form.status;
       payload.lead_status = rawStatus ? resolveLeadStatusForApi(rawStatus) : null;
     }
-    if (formHas(form, 'lost_reason')) {
+    if (formHas(form, 'lost_reason') || formHas(form, 'lead_status') || formHas(form, 'status')) {
       const statusForReason = payload.lead_status || form.lead_status || form.status;
-      payload.lost_reason = isLostLeadStatus(statusForReason) ? (form.lost_reason || null) : null;
+      if (isLostLeadStatus(statusForReason)) {
+        const reason = normalizeLostReasonValue(form.lost_reason);
+        // Always send when status is lost so detail save matches mass-update behavior.
+        if (formHas(form, 'lost_reason') || reason) {
+          payload.lost_reason = reason || null;
+        }
+      } else if (formHas(form, 'lost_reason')) {
+        payload.lost_reason = null;
+      }
     }
     if (formHas(form, 'pipeline_stage')) {
       payload.pipeline_stage = form.pipeline_stage || null;
@@ -231,7 +241,7 @@ export function toLeadPayload(form, { partial = false } = {}) {
       : null,
     ...(form.pipeline_stage ? { pipeline_stage: form.pipeline_stage } : {}),
     ...(isLostLeadStatus(form.lead_status || form.status)
-      ? { lost_reason: form.lost_reason || null }
+      ? { lost_reason: normalizeLostReasonValue(form.lost_reason) || null }
       : {}),
     description: form.description || null,
     website: form.website || null,

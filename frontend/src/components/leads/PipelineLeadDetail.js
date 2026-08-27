@@ -22,7 +22,7 @@ import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, proposalDealStatusLabel, proposalTypeLabel, resolveLeadPipelineStage, getLeadDetailPath, outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
-import { isLostLeadStatus } from '../../lib/statusHelpers.js';
+import { isLostLeadStatus, lostReasonLabel } from '../../lib/statusHelpers.js';
 import { ownerFieldConfig } from '../forms/ownerField.js';
 import { trackRecentItem } from '../layout/BottomUtilityBar.js';
 import ReadOnlyRecordBanner from '../records/ReadOnlyRecordBanner.js';
@@ -133,11 +133,26 @@ export default function PipelineLeadDetail({ stage }) {
         if (uniqueErr) throw new Error(uniqueErr);
       }
       const { campaign_id: draftCampaignId, campaign_name: draftCampaignName, ...leadPayload } = payload;
-      await leadsApi.updateLead(id, leadPayload);
+      const updated = await leadsApi.updateLead(id, leadPayload);
       if (draftCampaignId !== undefined || draftCampaignName !== undefined) {
         await saveCampaignFromDraft({ campaign_id: draftCampaignId, campaign_name: draftCampaignName });
       }
-      loadLead();
+      let refreshed = await leadsApi.getLead(id).catch(() => updated);
+      const savedReason = leadPayload.lost_reason || updated?.lost_reason || '';
+      const savedStatus = leadPayload.lead_status || refreshed?.lead_status || updated?.lead_status;
+      // If PATCH accepted lost_reason but GET still omits it, persist via mass-update (same as table).
+      if (savedReason && isLostLeadStatus(savedStatus) && !refreshed?.lost_reason) {
+        try {
+          await leadsApi.massUpdateLeads([id], 'lead_status', savedStatus, { lost_reason: savedReason });
+          refreshed = await leadsApi.getLead(id).catch(() => refreshed);
+        } catch {
+          // Keep local reason even if mass-update is unavailable.
+        }
+      }
+      setLead({
+        ...refreshed,
+        lost_reason: refreshed?.lost_reason || savedReason || '',
+      });
       showToast('Updated', 'success');
     } catch (err) {
       showToast(getApiError(err));
@@ -278,7 +293,7 @@ export default function PipelineLeadDetail({ stage }) {
                 label: 'Lost Reason',
                 visibleWhen: (d) => isLostLeadStatus(d.lead_status),
                 requiredWhen: (d) => isLostLeadStatus(d.lead_status),
-                format: (v) => lostReasonOptions.find((o) => o.value === v)?.label || v || null,
+                format: (v) => lostReasonLabel(v, lostReasonOptions),
                 render: (d, set) => (
                   <select
                     className="input"

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { validateRequired } from '../../lib/validators.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
@@ -19,6 +19,8 @@ export default function EditableFieldSection({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
 
   const isVisible = (f, ctx) => !f.visibleWhen || f.visibleWhen(ctx);
   const isRequired = (f, ctx) => Boolean(f.required || (typeof f.requiredWhen === 'function' && f.requiredWhen(ctx)));
@@ -29,6 +31,7 @@ export default function EditableFieldSection({
       if (f.readOnly) return;
       initial[f.name] = values[f.name] ?? '';
     });
+    draftRef.current = initial;
     setDraft(initial);
     setFieldErrors({});
     setEditing(true);
@@ -40,21 +43,31 @@ export default function EditableFieldSection({
   };
 
   const save = async () => {
+    // Use ref so a click immediately after changing a select doesn't save a stale draft.
+    const current = draftRef.current || draft;
     const requiredFields = {};
     fields.forEach((f) => {
-      if (f.readOnly || !isVisible(f, draft)) return;
-      if (isRequired(f, draft)) requiredFields[f.name] = f.label;
+      if (f.readOnly || !isVisible(f, current)) return;
+      if (isRequired(f, current)) requiredFields[f.name] = f.label;
     });
-    const errs = validateRequired(requiredFields, draft);
+    const errs = validateRequired(requiredFields, current);
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;
     try {
-      await onSave(draft);
+      await onSave(current);
       markRecordListStale();
       setEditing(false);
     } catch {
       // Stay in edit mode when save fails; onSave shows the error toast.
     }
+  };
+
+  const applyDraft = (updater) => {
+    setDraft((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      draftRef.current = next;
+      return next;
+    });
   };
 
   const display = (f) => {
@@ -91,7 +104,7 @@ export default function EditableFieldSection({
                   <FormField label={f.label} required={isRequired(f, draft)} error={fieldErrors[f.name]}>
                     {f.render
                       ? f.render(draft, (updater) => {
-                        setDraft(updater);
+                        applyDraft(updater);
                         setFieldErrors((er) => ({ ...er, [f.name]: null }));
                       })
                       : (
@@ -100,7 +113,7 @@ export default function EditableFieldSection({
                           value={draft[f.name] ?? ''}
                           onChange={(e) => {
                             const value = e.target.value;
-                            setDraft((d) => ({ ...d, [f.name]: value }));
+                            applyDraft((d) => ({ ...d, [f.name]: value }));
                             setFieldErrors((er) => ({ ...er, [f.name]: null }));
                           }}
                         />

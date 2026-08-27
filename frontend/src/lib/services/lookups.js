@@ -7,6 +7,7 @@ import { PIPELINE_RAW } from '../pipelineHelpers.js';
 import { cachedLookup } from '../lookupCache.js';
 import { fetchCampaignLookups } from '../campaignRecordHelpers.js';
 import { mergeStoredProfileImage } from '../profileImageHelpers.js';
+import { FALLBACK_LOST_REASONS } from '../statusHelpers.js';
 
 /** Fallback when GET /lookups/lead-sources is unavailable */
 export const FALLBACK_LEAD_SOURCES = LEAD_SOURCES.map((source) => ({
@@ -332,9 +333,13 @@ export async function fetchPipelineConvertTargets({ moduleKey, pipelineStage } =
 export async function fetchLostReasons() {
   try {
     const res = await api.get('/lookups/lost-reasons');
-    return parseLookupOptions(res.data.data);
+    const options = parseLookupOptions(res.data.data).map((o) => ({
+      ...o,
+      value: String(o.value),
+    }));
+    return options.length ? options : FALLBACK_LOST_REASONS;
   } catch {
-    return [];
+    return FALLBACK_LOST_REASONS;
   }
 }
 

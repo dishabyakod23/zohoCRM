@@ -11,6 +11,37 @@ export function isLostLeadStatus(value) {
   return LOST_LEAD_STATUS_VALUES.has(String(value || '').toLowerCase().trim());
 }
 
+/** Hosted API LostReason enum (GET /lookups/lost-reasons may be empty/unavailable). */
+export const FALLBACK_LOST_REASONS = [
+  { value: 'budget_issue', label: 'Budget Issue' },
+  { value: 'no_requirement', label: 'No Requirement' },
+  { value: 'competitor_selected', label: 'Competitor Selected' },
+  { value: 'timeline_delayed', label: 'Timeline Delayed' },
+  { value: 'not_decision_maker', label: 'Not Decision Maker' },
+  { value: 'no_response', label: 'No Response' },
+  { value: 'price_high', label: 'Price High' },
+  { value: 'requirement_not_fit', label: 'Requirement Not Fit' },
+];
+
+/** Normalize API / form lost_reason into a plain string code. */
+export function normalizeLostReasonValue(raw) {
+  if (raw == null || raw === '') return '';
+  if (typeof raw === 'object') {
+    return String(raw.value ?? raw.key ?? raw.code ?? raw.id ?? '').trim();
+  }
+  return String(raw).trim();
+}
+
+/** Display label for a lost reason code. */
+export function lostReasonLabel(value, options = []) {
+  const code = normalizeLostReasonValue(value);
+  if (!code) return null;
+  const list = Array.isArray(options) && options.length ? options : FALLBACK_LOST_REASONS;
+  const match = list.find((o) => String(o.value).toLowerCase() === code.toLowerCase());
+  if (match?.label) return match.label;
+  return code.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function isLeadStatusMassField(field, fieldDef) {
   const value = String(field || '').toLowerCase();
   const defValue = String(fieldDef?.value || '').toLowerCase();

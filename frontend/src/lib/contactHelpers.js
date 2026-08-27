@@ -4,7 +4,7 @@ import { coerceImportBool } from './importHelpers.js';
 import { leadStatusLabel, resolveLeadStatusForApi } from './leadHelpers.js';
 import { directoryLeadStatusValue } from './contactDirectoryHelpers.js';
 import { isPipelineStageStatus } from './pipelineHelpers.js';
-import { isLostLeadStatus } from './statusHelpers.js';
+import { isLostLeadStatus, normalizeLostReasonValue } from './statusHelpers.js';
 
 export function isImportUuid(value) {
   return /^[0-9a-f-]{36}$/i.test(String(value || '').trim());
@@ -41,6 +41,9 @@ export function normalizeContact(contact, companyMap = {}) {
     currency: contact.currency || DEFAULT_CURRENCY,
     lead_status: leadStatus,
     lead_status_label: leadStatus ? leadStatusLabel(leadStatus) : '—',
+    lost_reason: normalizeLostReasonValue(
+      contact.lost_reason ?? contact.lostReason ?? contact.lost_reason_code,
+    ),
   };
 }
 
@@ -89,7 +92,9 @@ export function toContactPayload(form, { partial = false } = {}) {
     }
     if (formHas(form, 'lost_reason')) {
       const statusForReason = payload.lead_status || form.lead_status || form.status;
-      payload.lost_reason = isLostLeadStatus(statusForReason) ? (form.lost_reason || null) : null;
+      payload.lost_reason = isLostLeadStatus(statusForReason)
+        ? (normalizeLostReasonValue(form.lost_reason) || null)
+        : null;
     }
     if (formHas(form, 'reports_to_id')) payload.reports_to_id = form.reports_to_id || null;
     if (formHas(form, 'assistant')) payload.assistant = form.assistant || null;
@@ -141,7 +146,7 @@ export function toContactPayload(form, { partial = false } = {}) {
     lead_source: form.lead_source || form.source || null,
     lead_status: contactOutreachLeadStatus(form.lead_status),
     ...(isLostLeadStatus(form.lead_status)
-      ? { lost_reason: form.lost_reason || null }
+      ? { lost_reason: normalizeLostReasonValue(form.lost_reason) || null }
       : {}),
     reports_to_id: form.reports_to_id || null,
     assistant: form.assistant || null,

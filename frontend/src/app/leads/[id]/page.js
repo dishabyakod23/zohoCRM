@@ -31,7 +31,7 @@ import {
 } from '../../../components/forms/AddressCountryStateFields.js';
 import { nextStateForCountry } from '../../../lib/addressRegions.js';
 import { PIPELINE_LEAD, outreachLeadStatusOptions } from '../../../lib/pipelineHelpers.js';
-import { isLostLeadStatus } from '../../../lib/statusHelpers.js';
+import { isLostLeadStatus, lostReasonLabel } from '../../../lib/statusHelpers.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon,
 } from '@heroicons/react/24/outline';
@@ -88,8 +88,22 @@ export default function LeadDetailPage() {
         const uniqueErr = await validateEmailUnique(payload.email, { excludeLeadId: id });
         if (uniqueErr) throw new Error(uniqueErr);
       }
-      await leadsApi.updateLead(id, payload);
-      loadLead();
+      const updated = await leadsApi.updateLead(id, payload);
+      let refreshed = await leadsApi.getLead(id).catch(() => updated);
+      const savedReason = payload.lost_reason || updated?.lost_reason || '';
+      const savedStatus = payload.lead_status || refreshed?.lead_status || updated?.lead_status;
+      if (savedReason && isLostLeadStatus(savedStatus) && !refreshed?.lost_reason) {
+        try {
+          await leadsApi.massUpdateLeads([id], 'lead_status', savedStatus, { lost_reason: savedReason });
+          refreshed = await leadsApi.getLead(id).catch(() => refreshed);
+        } catch {
+          // Keep local reason even if mass-update is unavailable.
+        }
+      }
+      setLead({
+        ...refreshed,
+        lost_reason: refreshed?.lost_reason || savedReason || '',
+      });
       showToast('Lead updated', 'success');
     } catch (err) {
       showToast(getApiError(err));
@@ -194,7 +208,7 @@ export default function LeadDetailPage() {
                     label: 'Lost Reason',
                     visibleWhen: (d) => isLostLeadStatus(d.lead_status),
                     requiredWhen: (d) => isLostLeadStatus(d.lead_status),
-                    format: (v) => lostReasonOptions.find((o) => o.value === v)?.label || v || null,
+                    format: (v) => lostReasonLabel(v, lostReasonOptions),
                     render: (d, set) => (
                       <select
                         className="input"
