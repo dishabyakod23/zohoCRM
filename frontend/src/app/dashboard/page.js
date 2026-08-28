@@ -18,6 +18,7 @@ import { formatCompactMoney, formatIndianRupees, DEFAULT_CURRENCY } from '../../
 import { avatarInitialClass } from '../../lib/tableStyles.js';
 import UserAvatar from '../../components/users/UserAvatar.js';
 import SalesTargetWidgets from '../../components/dashboard/SalesTargetWidgets.js';
+import DailyFollowUpsPanel from '../../components/sequences/DailyFollowUpsPanel.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 import {
   UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
@@ -191,6 +192,10 @@ export default function DashboardPage() {
             )}
 
             {showSalesTargetWidgets && <SalesTargetWidgets />}
+
+            <Widget title="Today's Follow-ups" className="col-span-12 lg:col-span-6">
+              <DailyFollowUpsPanel compact />
+            </Widget>
 
             <Widget title="Leads by Pipeline" className="col-span-12 lg:col-span-6">
               {stats.leadsByStatus?.length > 0 ? (

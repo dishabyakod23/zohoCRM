@@ -41,6 +41,7 @@ export const NAV_MODULES = [
   { href: '/accounts', label: 'Accounts', section: 'modules', icon: 'Accounts', permissionKey: 'accounts' },
   { href: '/calendar', label: 'Calendar', section: 'modules', icon: 'Calendar', permissionKey: 'calendar' },
   { href: '/campaigns', label: 'Campaigns', section: 'modules', icon: 'Campaigns', permissionKey: 'campaigns' },
+  { href: '/sequences', label: 'Sequences', section: 'modules', icon: 'Sequences', permissionKey: 'sequences' },
   { href: '/documents', label: 'Documents', section: 'modules', icon: 'Documents', permissionKey: 'documents' },
 ];
 
@@ -53,6 +54,7 @@ export const QUICK_CREATE = [
   { label: 'Account', href: '/accounts/create', group: 'Sales', permissionKey: 'accounts' },
   { label: 'Calendar Event', href: '/calendar', group: 'Sales', permissionKey: 'calendar' },
   { label: 'Campaign', href: '/campaigns/create', group: 'Marketing', permissionKey: 'campaigns' },
+  { label: 'Sequence', href: '/sequences/create', group: 'Marketing', permissionKey: 'sequences' },
 ];
 
 export const WORK_ITEM_VIEWS = ['All Work Items', 'Cold Leads', 'Warm Leads', 'Qualified Leads', 'Proposals'];

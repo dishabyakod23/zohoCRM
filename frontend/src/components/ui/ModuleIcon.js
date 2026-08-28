@@ -11,6 +11,7 @@ import {
   BuildingLibraryIcon,
   CalendarDaysIcon,
   MegaphoneIcon,
+  ArrowPathIcon,
   FolderIcon,
   ClipboardDocumentListIcon,
   PaperClipIcon,
@@ -33,6 +34,7 @@ const ICONS = {
   Accounts: BuildingOffice2Icon,
   Calendar: CalendarDaysIcon,
   Campaigns: MegaphoneIcon,
+  Sequences: ArrowPathIcon,
   Documents: PaperClipIcon,
   Projects: FolderIcon,
 };

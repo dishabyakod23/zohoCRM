@@ -22,6 +22,7 @@ export const MODULE_SORT_CONFIG = {
   meetings: { apiNameField: 'title', getLabel: (r) => r.title },
   calls: { apiNameField: 'subject', getLabel: (r) => r.subject },
   campaigns: { apiNameField: 'name', getLabel: (r) => r.name },
+  sequences: { apiNameField: 'name', getLabel: (r) => r.name },
   documents: { apiNameField: 'document_name', getLabel: (r) => r.document_name || r.name },
   visits: { apiNameField: 'title', getLabel: (r) => r.title || r.visit_name },
   projects: { apiNameField: 'name', getLabel: (r) => r.name },

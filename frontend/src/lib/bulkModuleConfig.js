@@ -7,6 +7,7 @@ import * as tasksApi from './services/tasks.js';
 import * as callsApi from './services/calls.js';
 import * as meetingsApi from './services/meetings.js';
 import * as campaignsApi from './services/campaigns.js';
+import * as sequencesApi from './services/sequences.js';
 import * as documentsApi from './services/documents.js';
 import * as visitsApi from './services/visits.js';
 import * as projectsApi from './services/projects.js';
@@ -175,6 +176,15 @@ export const BULK_MODULE_CONFIG = {
     update: (id, payload) => campaignsApi.updateCampaign(id, payload),
     deleteOne: (id) => campaignsApi.deleteCampaign(id),
     exportRow: (r) => ({ name: r.name, type: r.type, status: r.status }),
+    mailingLabel: (r) => r.name || '',
+  },
+  sequences: {
+    label: 'Records',
+    statusField: 'status',
+    massUpdateFields: ['status'],
+    update: (id, payload) => sequencesApi.updateSequence(id, payload),
+    deleteOne: (id) => sequencesApi.deleteSequence(id),
+    exportRow: (r) => ({ name: r.name, status: r.status, enrolled: r.enrollment_count }),
     mailingLabel: (r) => r.name || '',
   },
   documents: {

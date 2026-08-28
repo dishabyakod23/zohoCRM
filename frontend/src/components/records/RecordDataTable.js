@@ -20,6 +20,7 @@ import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchUsers, fetchMassUpdateFieldOptions, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
 import { fetchCampaignLookups, assignRecordsToCampaign, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 import { personRecordId, personCampaignMemberType, parsePersonRowId } from '../../lib/services/people.js';
+import EnrollMembersModal, { SEQUENCE_MEMBER_TYPES } from '../sequences/EnrollMembersModal.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
 import { logEmailSent } from '../../lib/outreachActivity.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -214,7 +215,10 @@ export default function RecordDataTable({
   const [taskForm, setTaskForm] = useState({ title: '', due_date: '', assigned_to: '', description: '' });
   const [savingTask, setSavingTask] = useState(false);
   const [savingCampaign, setSavingCampaign] = useState(false);
+  const [sequenceModal, setSequenceModal] = useState(false);
   const menuRef = useRef(null);
+
+  const canEnrollInSequence = can('sequences', 'enroll') && Boolean(SEQUENCE_MEMBER_TYPES[moduleKey]);
 
   const selectedRecords = useMemo(
     () => records.filter((r) => selected.includes(getRowId(r))),
@@ -659,6 +663,23 @@ export default function RecordDataTable({
     setMenuOpen(false);
   };
 
+  const openSequenceModal = () => {
+    setSequenceModal(true);
+    setMenuOpen(false);
+  };
+
+  const sequenceMembers = useMemo(() => {
+    const memberType = SEQUENCE_MEMBER_TYPES[moduleKey];
+    if (!memberType) return [];
+    if (moduleKey === 'contacts') {
+      return selectedRecords.map((record) => ({
+        member_type: personCampaignMemberType(record),
+        member_id: personRecordId(record) || parsePersonRowId(getRowId(record)).recordId,
+      }));
+    }
+    return selected.map((memberId) => ({ member_type: memberType, member_id: memberId }));
+  }, [moduleKey, selected, selectedRecords, getRowId]);
+
   const addToCampaign = async () => {
     const hasCampaign = !!(selectedCampaign.campaign_id || String(selectedCampaign.campaign_name || '').trim());
     if (!hasCampaign) return;
@@ -761,6 +782,7 @@ export default function RecordDataTable({
                   <div className="absolute right-0 top-full mt-1 bg-white border border-zoho-border rounded-xl shadow-card-hover py-1 w-52 z-40">
                     {canEdit && <button type="button" onClick={openTaskModal} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Create Task</button>}
                     {canEdit && <button type="button" onClick={openCampaignModal} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Add to Campaigns</button>}
+                    {canEnrollInSequence && <button type="button" onClick={openSequenceModal} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Add to Sequence</button>}
                     <button type="button" onClick={() => { handlePrintLabels(); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Print Mailing Labels</button>
                     {canDelete && <button type="button" onClick={() => { if (!canMassDeleteSelection) { showToast('You can only delete records you own.'); setMenuOpen(false); return; } setDeleteConfirm(true); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600">Delete</button>}
                     <button type="button" onClick={() => { handleExport(); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm hover:bg-brand-50">Export Selected Records</button>
@@ -932,6 +954,17 @@ export default function RecordDataTable({
           </div>
         </Modal>
       )}
+
+      <EnrollMembersModal
+        open={sequenceModal}
+        onClose={() => setSequenceModal(false)}
+        members={sequenceMembers}
+        memberType={SEQUENCE_MEMBER_TYPES[moduleKey]}
+        onEnrolled={() => {
+          setSequenceModal(false);
+          clearSelection();
+        }}
+      />
 
       <RecordNotesSidePanel
         open={!!panelRecord && showNotes}

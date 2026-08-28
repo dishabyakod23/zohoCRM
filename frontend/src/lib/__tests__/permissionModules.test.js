@@ -1,6 +1,7 @@
 import {
   PERMISSION_MODULES,
   PERMISSION_ACTIONS,
+  ALL_MODULE_ACTIONS,
   emptyModulePermissions,
   fullModulePermissions,
   applyPermissionDependencies,
@@ -68,8 +69,7 @@ describe('applyPermissionDependencies', () => {
     const twice = applyPermissionDependencies(once);
     expect(twice).toEqual(once);
     expect(twice.contacts).toEqual(Object.fromEntries(
-      ['view', 'create', 'edit', 'delete', 'import', 'export', 'restore', 'permanent_delete', 'upload', 'download']
-        .map((a) => [a, false]),
+      ALL_MODULE_ACTIONS.map((a) => [a, false]),
     ));
   });
 });

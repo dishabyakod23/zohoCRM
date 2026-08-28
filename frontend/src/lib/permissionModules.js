@@ -14,6 +14,7 @@ export const ALL_MODULE_ACTIONS = [
   'permanent_delete',
   'upload',
   'download',
+  'enroll',
 ];
 
 export const ACTION_LABELS = {
@@ -27,6 +28,7 @@ export const ACTION_LABELS = {
   permanent_delete: 'Permanent Delete',
   upload: 'Upload',
   download: 'Download',
+  enroll: 'Enroll',
 };
 
 /** Screens/modules a role can be granted access to, and which actions apply to each. */
@@ -45,6 +47,7 @@ export const PERMISSION_MODULES = [
   { key: 'deals', label: 'Deals', actions: ['view', 'create', 'edit', 'delete', 'export'] },
   { key: 'calendar', label: 'Calendar', actions: ['view', 'create', 'edit', 'delete'] },
   { key: 'campaigns', label: 'Campaigns', actions: ['view', 'create', 'edit', 'delete', 'import', 'export'] },
+  { key: 'sequences', label: 'Sequences', actions: ['view', 'create', 'edit', 'delete', 'enroll', 'export'] },
   { key: 'calls', label: 'Calls', actions: ['view', 'create', 'edit', 'delete', 'export'] },
   { key: 'tasks', label: 'Tasks', actions: ['view', 'create', 'edit', 'delete'] },
   { key: 'meetings', label: 'Meetings', actions: ['view', 'create', 'edit', 'delete'] },
@@ -108,7 +111,7 @@ export function applyPermissionDependencies(matrix) {
     const row = { ...emptyModulePermissions()[mod.key], ...(matrix[mod.key] || {}) };
     if (row.import) row.create = true;
     const impliesView = row.create || row.edit || row.delete || row.import || row.export
-      || row.restore || row.permanent_delete || row.upload || row.download;
+      || row.restore || row.permanent_delete || row.upload || row.download || row.enroll;
     if (impliesView) row.view = true;
     next[mod.key] = row;
   }
@@ -172,6 +175,7 @@ export const DEFAULT_ROLE_MODULE_PERMISSIONS = {
     deals: ['view', 'create', 'edit', 'delete', 'export'],
     calendar: ['view', 'create', 'edit', 'delete'],
     campaigns: ['view', 'create', 'edit', 'delete', 'import', 'export'],
+    sequences: ['view', 'create', 'edit', 'delete', 'enroll', 'export'],
     calls: ['view', 'create', 'edit', 'delete', 'export'],
     tasks: ['view', 'create', 'edit', 'delete'],
     meetings: ['view', 'create', 'edit', 'delete'],
@@ -202,6 +206,7 @@ export const DEFAULT_ROLE_MODULE_PERMISSIONS = {
     deals: ['view', 'create', 'edit'],
     calendar: ['view', 'create', 'edit', 'delete'],
     campaigns: ['view'],
+    sequences: ['view'],
     calls: ['view', 'create', 'edit'],
     tasks: ['view', 'create', 'edit', 'delete'],
     meetings: ['view', 'create', 'edit', 'delete'],
@@ -227,6 +232,7 @@ export const DEFAULT_ROLE_MODULE_PERMISSIONS = {
     deals: ['view'],
     calendar: ['view'],
     campaigns: ['view'],
+    sequences: ['view'],
     calls: ['view'],
     tasks: ['view'],
     meetings: ['view'],
