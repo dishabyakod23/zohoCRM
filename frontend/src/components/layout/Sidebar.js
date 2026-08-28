@@ -111,7 +111,7 @@ export default function Sidebar({ mobileOpen = false, onNavigate }) {
         </button>
       </div>
 
-      <nav className="flex-1 py-3 px-2.5 space-y-0.5 overflow-y-auto overflow-x-hidden" data-tour="sidebar-nav">
+      <nav className="flex-1 py-3 px-2.5 space-y-0.5 overflow-y-auto overflow-x-hidden">
         {!collapsed && <p className="px-2.5 py-1.5 text-[10px] font-bold text-white/35 uppercase tracking-widest">Workspace</p>}
         {mainNav.map(({ href, label, icon }) => navLink(href, label, icon))}
 

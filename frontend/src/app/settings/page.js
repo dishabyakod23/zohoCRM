@@ -24,8 +24,6 @@ import ManageRolesPanel from '../../components/settings/ManageRolesPanel.js';
 import SalesTargetsPanel from '../../components/settings/SalesTargetsPanel.js';
 import { slugifyStatusValue } from '../../lib/statusHelpers.js';
 import { normalizeLoginEmail } from '../../lib/authHelpers.js';
-import { ONBOARDING_RESTART_EVENT } from '../../lib/onboardingTour.js';
-
 const EMPTY_USER = {
   email: '',
   password: '',
@@ -391,19 +389,6 @@ function SettingsPageContent() {
         {tab === 'profile' && (
           <div className="space-y-6">
             <ProfileImageManager roleLabel={myRoleLabel} />
-            <div className="card p-5">
-              <h2 className="text-sm font-semibold mb-1">Product tour</h2>
-              <p className="text-sm text-zoho-muted mb-4">
-                Replay the guided walkthrough of navigation, search, quick create, and other key areas.
-              </p>
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new Event(ONBOARDING_RESTART_EVENT))}
-                className="btn-secondary text-xs"
-              >
-                Replay tour
-              </button>
-            </div>
             <div className="card p-5">
               <h2 className="text-sm font-semibold mb-1">Password</h2>
               <p className="text-sm text-zoho-muted mb-4">

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-/** Above sidebar (70), notes, and onboarding (200). */
+/** Above sidebar (70) and notes panels. */
 export const MODAL_Z_INDEX = 400;
 
 export default function Modal({ title, onClose, children, wide = false }) {

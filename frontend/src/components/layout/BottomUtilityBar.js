@@ -174,7 +174,7 @@ export default function BottomUtilityBar() {
 
   return (
     <>
-      <footer className="h-12 bg-white/80 backdrop-blur-md border-t border-zoho-border flex items-stretch shrink-0 z-40" data-tour="bottom-utility-bar">
+      <footer className="h-12 bg-white/80 backdrop-blur-md border-t border-zoho-border flex items-stretch shrink-0 z-40">
         {items.map((item, i) => (
           <button
             key={item.key}

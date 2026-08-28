@@ -81,7 +81,10 @@ export default function CreateSequenceForm() {
               </select>
             </FormField>
             <FormField label="Sending Email" required error={errors.sending_email} colSpan>
-              <input className={inputClass(errors.sending_email)} type="email" value={form.sending_email} onChange={(e) => setForm((f) => ({ ...f, sending_email: e.target.value }))} />
+              <input className={inputClass(errors.sending_email)} type="email" value={form.sending_email} onChange={(e) => setForm((f) => ({ ...f, sending_email: e.target.value }))} placeholder="outreach@yourcompany.com" />
+              <p className="text-xs text-zoho-muted mt-1.5">
+                Must use an address on a domain verified in Resend (SPF, DKIM, DMARC). See docs/RESEND_SETUP.md.
+              </p>
             </FormField>
             <FormField label="Description" colSpan>
               <textarea className="input min-h-[80px]" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />

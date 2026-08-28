@@ -8,7 +8,6 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import BottomUtilityBar from './BottomUtilityBar';
 import MeetingInvitePopup from '../meetings/MeetingInvitePopup.js';
-import OnboardingTour from '../onboarding/OnboardingTour.js';
 import { CloudTalkProvider } from '../cloudtalk/CloudTalkProvider.js';
 import { UserAvatarsProvider } from '../../hooks/useUserAvatars.js';
 import { loginHref } from '../../lib/safeRedirect.js';
@@ -50,13 +49,12 @@ export default function CRMLayout({ children }) {
           <Sidebar mobileOpen={mobileNavOpen} onNavigate={() => setMobileNavOpen(false)} />
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
             <Header onMenuClick={() => setMobileNavOpen(true)} />
-            <main className="flex-1 overflow-auto pb-16" data-tour="main-content">{children}</main>
+            <main className="flex-1 overflow-auto pb-16">{children}</main>
             <BottomUtilityBar />
           </div>
         </div>
         <MeetingInvitePopup />
         <WeeklyReportScheduler />
-        <OnboardingTour userId={user?.id} />
         </UserAvatarsProvider>
       </MeetingRemindersProvider>
     </CloudTalkProvider>
