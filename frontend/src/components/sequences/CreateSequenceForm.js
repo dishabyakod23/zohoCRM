@@ -12,6 +12,11 @@ import * as sequencesApi from '../../lib/services/sequences.js';
 import { emptySequenceForm, SEND_DAYS } from '../../lib/sequenceHelpers.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 
+const REQUIRED = {
+  name: 'Sequence Name',
+  sending_email: 'Sending Email',
+};
+
 function SectionTitle({ children }) {
   return (
     <h3 className="text-sm font-semibold text-zoho-text border-b border-zoho-border pb-3 mb-6 mt-10 first:mt-0">
@@ -45,7 +50,7 @@ export default function CreateSequenceForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const nextErrors = validateRequired(form, ['name', 'sending_email']);
+    const nextErrors = validateRequired(REQUIRED, form);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
 
