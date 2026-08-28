@@ -4,9 +4,12 @@ import {
   hasStoredAuthSession,
   isTransientRequestError,
   shouldAttemptTokenRefresh,
+  shouldProactivelyRefresh,
+  getAccessTokenExpiresAt,
   AUTH_TOKEN_KEY,
   AUTH_REFRESH_KEY,
   AUTH_USER_KEY,
+  AUTH_EXPIRES_KEY,
 } from '../authSession.js';
 
 beforeEach(() => {
@@ -43,15 +46,34 @@ describe('shouldAttemptTokenRefresh', () => {
   });
 });
 
+describe('shouldProactivelyRefresh', () => {
+  it('returns true when access token is near expiry', () => {
+    localStorage.setItem(AUTH_REFRESH_KEY, 'refresh');
+    localStorage.setItem(AUTH_TOKEN_KEY, 'access');
+    localStorage.setItem(AUTH_EXPIRES_KEY, String(Date.now() + 60_000));
+    expect(shouldProactivelyRefresh()).toBe(true);
+  });
+
+  it('returns false when access token is still fresh', () => {
+    localStorage.setItem(AUTH_REFRESH_KEY, 'refresh');
+    localStorage.setItem(AUTH_TOKEN_KEY, 'access');
+    localStorage.setItem(AUTH_EXPIRES_KEY, String(Date.now() + 60 * 60 * 1000));
+    expect(shouldProactivelyRefresh()).toBe(false);
+  });
+});
+
 describe('auth session storage', () => {
   it('keeps a stored session after persist', () => {
     persistAuthSession({
       access_token: 'a',
       refresh_token: 'b',
       user: { id: 'u1' },
+      expires_in: 3600,
     });
     expect(localStorage.getItem(AUTH_TOKEN_KEY)).toBe('a');
+    expect(localStorage.getItem(AUTH_EXPIRES_KEY)).toBeTruthy();
     expect(hasStoredAuthSession()).toBe(true);
+    expect(getAccessTokenExpiresAt()).toBeGreaterThan(Date.now());
   });
 
   it('clears only when logout is explicit', () => {
@@ -59,10 +81,12 @@ describe('auth session storage', () => {
       access_token: 'a',
       refresh_token: 'b',
       user: { id: 'u1' },
+      expires_in: 3600,
     });
     clearAuthSession();
     expect(localStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
     expect(localStorage.getItem(AUTH_USER_KEY)).toBeNull();
+    expect(localStorage.getItem(AUTH_EXPIRES_KEY)).toBeNull();
     expect(hasStoredAuthSession()).toBe(false);
   });
 });

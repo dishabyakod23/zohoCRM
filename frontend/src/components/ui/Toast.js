@@ -1,11 +1,12 @@
 'use client';
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { isPublicAuthPath, isStaleAuthToast } from '../../lib/authHelpers.js';
 
 const ToastContext = createContext(null);
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
+  const recentRef = useRef(new Map());
 
   const showToast = useCallback((message, type = 'error') => {
     if (
@@ -15,8 +16,14 @@ export function ToastProvider({ children }) {
     ) {
       return;
     }
-    const id = Date.now();
-    setToasts(t => [...t, { id, message, type }]);
+    const text = String(message || '');
+    const now = Date.now();
+    const lastShown = recentRef.current.get(text);
+    if (lastShown && now - lastShown < 3000) return;
+    recentRef.current.set(text, now);
+
+    const id = now + Math.random();
+    setToasts(t => [...t, { id, message: text, type }]);
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
   }, []);
 

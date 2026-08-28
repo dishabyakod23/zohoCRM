@@ -17,9 +17,17 @@ import {
   clearAuthSession,
   hasStoredAuthSession,
   refreshAuthSession,
+  registerSessionExpiredHandler,
+  resetSessionExpiredGuard,
+  shouldProactivelyRefresh,
+  isAuthFailureError,
+  isTransientRequestError,
+  ACCESS_TOKEN_REFRESH_BUFFER_MS,
+  getAccessTokenExpiresAt,
 } from '../lib/authSession.js';
+import { useToast } from '../components/ui/Toast.js';
 
-const SESSION_REFRESH_MS = 10 * 60 * 1000;
+const FALLBACK_REFRESH_MS = 10 * 60 * 1000;
 
 const AuthContext = createContext(null);
 
@@ -27,6 +35,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { showToast } = useToast();
 
   const applyUser = useCallback((nextUser) => {
     if (!nextUser?.id) return;
@@ -34,65 +43,111 @@ export function AuthProvider({ children }) {
     persistAuthSession({ user: nextUser });
   }, []);
 
+  const logout = useCallback((options = {}) => {
+    const { redirect = true, toastMessage = null } = options;
+    markSkipLoginNext();
+    clearAuthSession();
+    setUser(null);
+    if (toastMessage) showToast(toastMessage, 'error');
+    if (redirect) router.push('/login');
+  }, [router, showToast]);
+
+  useEffect(() => {
+    registerSessionExpiredHandler((message) => {
+      logout({ toastMessage: message });
+    });
+    return () => registerSessionExpiredHandler(null);
+  }, [logout]);
+
   const syncSession = useCallback(async () => {
-    try {
-      const auth = await refreshAuthSession();
-      if (auth?.user?.id) applyUser(parseAuthUserResponse(auth.user) || auth.user);
-    } catch {
-      // Keep the existing session if refresh is unavailable.
+    const refresh = hasStoredAuthSession();
+    if (!refresh) return false;
+
+    if (shouldProactivelyRefresh()) {
+      try {
+        const auth = await refreshAuthSession();
+        if (auth?.user?.id) {
+          applyUser(parseAuthUserResponse(auth.user) || auth.user);
+        }
+      } catch (err) {
+        if (isAuthFailureError(err)) {
+          logout({ toastMessage: 'Your session has expired. Please sign in again.' });
+          return false;
+        }
+      }
     }
 
     try {
       const res = await api.get('/auth/me');
       const me = parseAuthUserResponse(res.data);
-      if (me?.id) applyUser(me);
-      if (isInactiveUser(me)) {
-        clearAuthSession();
-        setUser(null);
+      if (me?.id) {
+        applyUser(me);
+        if (isInactiveUser(me)) {
+          logout({ toastMessage: INACTIVE_ACCOUNT_MESSAGE });
+          return false;
+        }
+        return true;
       }
-    } catch {
-      // Timeouts, 401s, and network errors must not force a logout.
+    } catch (err) {
+      if (isAuthFailureError(err)) {
+        logout({ toastMessage: 'Your session has expired. Please sign in again.' });
+        return false;
+      }
+      if (isTransientRequestError(err)) {
+        const cachedUser = readStoredAuthUser();
+        if (cachedUser?.id) applyUser(cachedUser);
+        return true;
+      }
     }
-  }, [applyUser]);
+    return Boolean(readStoredAuthUser()?.id);
+  }, [applyUser, logout]);
 
   useEffect(() => {
-    const cachedUser = readStoredAuthUser();
-    if (hasStoredAuthSession() && cachedUser?.id) {
-      persistAuthSession({});
-      setUser(cachedUser);
-      setLoading(false);
-      syncSession();
-      return;
-    }
-
+    resetSessionExpiredGuard();
     if (hasStoredAuthSession()) {
-      persistAuthSession({});
+      const cachedUser = readStoredAuthUser();
+      if (cachedUser?.id) setUser(cachedUser);
       syncSession().finally(() => setLoading(false));
       return;
     }
-
     setLoading(false);
   }, [syncSession]);
 
   useEffect(() => {
     if (!user?.id) return undefined;
 
-    const refreshQuietly = () => { syncSession(); };
-    const timer = window.setInterval(refreshQuietly, SESSION_REFRESH_MS);
+    let refreshTimer;
+
+    const scheduleRefresh = () => {
+      window.clearTimeout(refreshTimer);
+      const expiresAt = getAccessTokenExpiresAt();
+      const delay = expiresAt
+        ? Math.max(60000, expiresAt - Date.now() - ACCESS_TOKEN_REFRESH_BUFFER_MS)
+        : FALLBACK_REFRESH_MS;
+      refreshTimer = window.setTimeout(() => {
+        syncSession().finally(scheduleRefresh);
+      }, delay);
+    };
+
+    scheduleRefresh();
+
     const onVisible = () => {
-      if (document.visibilityState === 'visible') refreshQuietly();
+      if (document.visibilityState === 'visible' && shouldProactivelyRefresh()) {
+        syncSession();
+      }
     };
     document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('focus', refreshQuietly);
+    window.addEventListener('focus', onVisible);
 
     return () => {
-      window.clearInterval(timer);
+      window.clearTimeout(refreshTimer);
       document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('focus', refreshQuietly);
+      window.removeEventListener('focus', onVisible);
     };
   }, [user?.id, syncSession]);
 
   const login = async (email, password) => {
+    resetSessionExpiredGuard();
     const res = await postLogin(email, password);
     const auth = parseAuthTokenResponse(res.data);
     if (!auth?.access_token || !auth?.user) {
@@ -102,6 +157,7 @@ export function AuthProvider({ children }) {
       access_token: auth.access_token,
       refresh_token: auth.refresh_token,
       user: auth.user,
+      expires_in: auth.expires_in,
     });
     if (isInactiveUser(auth.user)) {
       clearAuthSession();
@@ -114,13 +170,6 @@ export function AuthProvider({ children }) {
       ? null
       : new URLSearchParams(window.location.search).get('next');
     router.replace(safeNextPath(next));
-  };
-
-  const logout = () => {
-    markSkipLoginNext();
-    clearAuthSession();
-    setUser(null);
-    router.push('/login');
   };
 
   const updateUser = useCallback((patch) => {

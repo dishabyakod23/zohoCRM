@@ -75,5 +75,5 @@ export function isInactiveUserError(message) {
 
 /** Toasts leftover from a previous session that should not appear on the login screen. */
 export function isStaleAuthToast(message) {
-  return /authentication required|not authenticated|unauthorized|lead not found|invalid token|token expired|please log in|session expired/i.test(String(message || ''));
+  return /authentication required|not authenticated|unauthorized|lead not found|invalid token|invalid or expired token|token expired|please log in|session expired|sign in again/i.test(String(message || ''));
 }

@@ -1,5 +1,13 @@
 import axios from 'axios';
-import { getStoredAccessToken, refreshAuthSession, shouldAttemptTokenRefresh } from './authSession.js';
+import {
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  refreshAuthSession,
+  ensureFreshAccessToken,
+  shouldAttemptTokenRefresh,
+  handleSessionExpired,
+  isAuthFailureError,
+} from './authSession.js';
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'https://salescrm-api.duckdns.org/api/v1';
@@ -10,10 +18,21 @@ const api = axios.create({
   timeout: 45000,
 });
 
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = getStoredAccessToken();
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+api.interceptors.request.use(async (config) => {
+  if (typeof window === 'undefined') return config;
+  const path = String(config.url || '');
+  if (path.includes('/auth/login') || path.includes('/auth/refresh')) return config;
+  try {
+    await ensureFreshAccessToken();
+  } catch (err) {
+    if (isAuthFailureError(err)) {
+      handleSessionExpired();
+    }
+  }
+  const token = getStoredAccessToken();
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -26,20 +45,51 @@ api.interceptors.response.use(
       original._retry = true;
       try {
         const auth = await refreshAuthSession();
-        if (!auth?.access_token) return Promise.reject(err);
+        if (!auth?.access_token) {
+          handleSessionExpired();
+          return Promise.reject(err);
+        }
         original.headers = original.headers || {};
         original.headers.Authorization = `Bearer ${auth.access_token}`;
         return api(original);
-      } catch {
+      } catch (refreshErr) {
+        if (isAuthFailureError(refreshErr)) {
+          handleSessionExpired();
+        }
         return Promise.reject(err);
       }
     }
+
+    if (err.response?.status === 401 && original && !isAuthUrl(original.url)) {
+      if (!getStoredRefreshToken() || original._retry) {
+        handleSessionExpired();
+      }
+    }
+
     return Promise.reject(err);
-  }
+  },
 );
+
+function isAuthUrl(url = '') {
+  const path = String(url);
+  return path.includes('/auth/login') || path.includes('/auth/refresh');
+}
+
+/** True when callers should skip error toasts (session redirect handles UX). */
+export function isSessionExpiredError(err) {
+  if (!err) return false;
+  if (err.__sessionExpired) return true;
+  if (err.response?.status !== 401) return false;
+  const detail = err.response?.data?.detail;
+  const message = typeof detail === 'string' ? detail : err.response?.data?.message;
+  return /invalid or expired token|authentication required|not authenticated|unauthorized|session expired/i.test(String(message || ''));
+}
 
 /** Parse FastAPI validation errors */
 export function getApiError(err) {
+  if (isSessionExpiredError(err)) {
+    return 'Your session has expired. Please sign in again.';
+  }
   if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
     return 'The server is taking too long to respond. Wait a moment and try again — this can happen when the API wakes from idle.';
   }

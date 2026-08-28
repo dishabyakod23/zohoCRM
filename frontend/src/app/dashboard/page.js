@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import AppLink from '../../components/ui/AppLink.js';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import { useToast } from '../../components/ui/Toast.js';
-import { getApiError } from '../../lib/api.js';
+import { getApiError, isSessionExpiredError } from '../../lib/api.js';
 import * as dashboardApi from '../../lib/services/dashboard.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import * as accountsApi from '../../lib/services/accounts.js';
@@ -123,6 +123,10 @@ export default function DashboardPage() {
       });
       setLoading(false);
     }).catch((err) => {
+      if (isSessionExpiredError(err)) {
+        setLoading(false);
+        return;
+      }
       showToast(getApiError(err));
       setLoading(false);
     });
