@@ -15,7 +15,7 @@ import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
-import { navigateToRecord } from '../../lib/recordNavigation.js';
+import { navigateToRecord, sequenceDetailHref } from '../../lib/recordNavigation.js';
 import { SEQUENCE_STATUSES, replyRatePercent } from '../../lib/sequenceHelpers.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
@@ -64,7 +64,7 @@ export default function SequencesPage() {
       id: 'name',
       header: 'Name',
       cell: (s) => (
-        <RecordDetailLink href={`/sequences/${s.id}`} className={tableLinkClass}>
+        <RecordDetailLink href={sequenceDetailHref(s.id)} className={tableLinkClass}>
           {s.name}
         </RecordDetailLink>
       ),

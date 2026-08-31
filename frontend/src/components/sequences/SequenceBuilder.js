@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import SequenceStepEditor from './SequenceStepEditor.js';
 import { emptyStepForm } from '../../lib/sequenceHelpers.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
@@ -16,6 +16,10 @@ export default function SequenceBuilder({
   const { showToast } = useToast();
   const [steps, setSteps] = useState(initialSteps);
   const [savingId, setSavingId] = useState(null);
+
+  useEffect(() => {
+    setSteps(initialSteps);
+  }, [initialSteps]);
 
   const syncSteps = (next) => {
     setSteps(next);

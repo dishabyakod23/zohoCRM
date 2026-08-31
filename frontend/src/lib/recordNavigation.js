@@ -36,6 +36,15 @@ export function companyDetailHref(id) {
   return appHref(`/companies/${id}`);
 }
 
+/** Sequence detail URL — static export serves /sequences/_/ with ?id= query. */
+export function sequenceDetailHref(id) {
+  if (!id) return '/sequences/';
+  if (isStaticExport) {
+    return `/sequences/_/?id=${encodeURIComponent(id)}`;
+  }
+  return appHref(`/sequences/${id}`);
+}
+
 /** Sales target edit URL — static export serves only /settings/sales-targets/_/edit/. */
 export function salesTargetEditHref(id) {
   if (!id) return '/settings/sales-targets/';

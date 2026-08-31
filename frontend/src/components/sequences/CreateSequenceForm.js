@@ -10,7 +10,7 @@ import { validateRequired } from '../../lib/validators.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
 import { emptySequenceForm, SEND_DAYS } from '../../lib/sequenceHelpers.js';
-import { navigateToRecord } from '../../lib/recordNavigation.js';
+import { navigateToRecord, sequenceDetailHref } from '../../lib/recordNavigation.js';
 
 const REQUIRED = {
   name: 'Sequence Name',
@@ -58,7 +58,7 @@ export default function CreateSequenceForm() {
     try {
       const created = await sequencesApi.createSequence(form);
       showToast('Sequence created', 'success');
-      navigateToRecord(`/sequences/${created.id}`);
+      navigateToRecord(sequenceDetailHref(created.id));
     } catch (err) {
       showToast(getApiError(err));
     } finally {

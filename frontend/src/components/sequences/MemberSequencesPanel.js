@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import AppLink from '../ui/AppLink.js';
+import { sequenceDetailHref } from '../../lib/recordNavigation.js';
 import Badge from '../ui/Badge.js';
 import EnrollMembersModal from './EnrollMembersModal.js';
 import { useToast } from '../ui/Toast.js';
@@ -66,7 +67,7 @@ export default function MemberSequencesPanel({ memberType, memberId, memberName 
         <ul className="space-y-2">
           {enrollments.map((e) => (
             <li key={e.id} className="flex flex-wrap items-center gap-2 text-sm border border-zoho-border rounded-lg px-3 py-2">
-              <AppLink href={`/sequences/${e.sequence_id}`} className={tableLinkClass}>
+              <AppLink href={sequenceDetailHref(e.sequence_id)} className={tableLinkClass}>
                 {e.sequence_name || e.name || 'Sequence'}
               </AppLink>
               <Badge label={enrollmentStatusLabel(e.status)} />

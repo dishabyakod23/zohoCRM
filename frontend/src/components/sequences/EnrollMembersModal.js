@@ -20,25 +20,31 @@ export default function EnrollMembersModal({
   onClose,
   members = [],
   memberType,
+  sequenceId: fixedSequenceId,
   onEnrolled,
 }) {
   const { showToast } = useToast();
   const [sequences, setSequences] = useState([]);
-  const [sequenceId, setSequenceId] = useState('');
+  const [sequenceId, setSequenceId] = useState(fixedSequenceId || '');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    if (fixedSequenceId) {
+      setSequenceId(fixedSequenceId);
+      return;
+    }
     setLoading(true);
     sequencesApi.listSequences({ status: 'ACTIVE', page_size: 100 })
       .then((res) => setSequences(res.data || []))
       .catch((err) => showToast(getApiError(err)))
       .finally(() => setLoading(false));
-  }, [open, showToast]);
+  }, [open, fixedSequenceId, showToast]);
 
   const enroll = async () => {
-    if (!sequenceId) {
+    const targetId = fixedSequenceId || sequenceId;
+    if (!targetId) {
       showToast('Select a sequence');
       return;
     }
@@ -49,12 +55,12 @@ export default function EnrollMembersModal({
       return memberRefFromRecord({ id }, type);
     });
     if (!payload.length) {
-      showToast('No members selected');
+      showToast('Select leads or contacts from their list, then use Add to Sequence');
       return;
     }
     setSaving(true);
     try {
-      await sequencesApi.enrollMembers(sequenceId, payload);
+      await sequencesApi.enrollMembers(targetId, payload);
       showToast(`Enrolled ${payload.length} member(s)`, 'success');
       onEnrolled?.();
       onClose();
@@ -69,28 +75,32 @@ export default function EnrollMembersModal({
 
   return (
     <Modal title="Add to Sequence" onClose={onClose}>
-      <FormField label="Sequence">
-        <select
-          className="input"
-          value={sequenceId}
-          onChange={(e) => setSequenceId(e.target.value)}
-          disabled={loading}
-        >
-          <option value="">{loading ? 'Loading…' : 'Select sequence'}</option>
-          {sequences.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-      </FormField>
+      {!fixedSequenceId && (
+        <FormField label="Sequence">
+          <select
+            className="input"
+            value={sequenceId}
+            onChange={(e) => setSequenceId(e.target.value)}
+            disabled={loading}
+          >
+            <option value="">{loading ? 'Loading…' : 'Select sequence'}</option>
+            {sequences.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </FormField>
+      )}
       <p className="text-xs text-zoho-muted mt-2">
-        {members.length} record(s) will be enrolled. Only active sequences are listed.
+        {members.length
+          ? `${members.length} record(s) will be enrolled.${fixedSequenceId ? '' : ' Only active sequences are listed.'}`
+          : 'Select leads or contacts from their list view, then use Add to Sequence from the bulk actions menu.'}
       </p>
       <div className="flex gap-2 justify-end pt-4">
         <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
         <button
           type="button"
           onClick={enroll}
-          disabled={!sequenceId || saving}
+          disabled={!(fixedSequenceId || sequenceId) || saving || !members.length}
           className="btn-primary"
         >
           {saving ? 'Enrolling…' : 'Enroll'}
