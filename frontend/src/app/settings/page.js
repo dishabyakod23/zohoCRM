@@ -374,8 +374,7 @@ function SettingsPageContent() {
   return (
     <CRMLayout>
       <div className="max-w-5xl mx-auto w-full">
-        <h1 className="text-lg font-semibold text-zoho-text mb-1">Settings</h1>
-        <p className="text-sm text-zoho-muted mb-6">Manage your profile, users, and organization settings</p>
+        <h1 className="text-lg font-semibold text-zoho-text mb-6">Settings</h1>
 
         <div className="flex gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
           {visibleTabs.map(t => (

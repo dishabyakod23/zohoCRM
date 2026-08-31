@@ -62,16 +62,21 @@ export default function SequenceBuilder({
 
   const saveStep = async (index) => {
     if (!sequenceId) return;
-    const step = { ...steps[index], step_order: index + 1 };
+    const step = {
+      ...steps[index],
+      step_order: index + 1,
+      timezone: steps[index].timezone || sequenceTimezone,
+    };
     if (!step.scheduled_date || !step.scheduled_time) {
       showToast('Each step needs a scheduled date and time');
       return;
     }
     setSavingId(step.id || `new-${index}`);
     try {
+      const saveOptions = { sequenceTimezone };
       const saved = step.id
-        ? await sequencesApi.updateSequenceStep(sequenceId, step.id, step)
-        : await sequencesApi.createSequenceStep(sequenceId, step);
+        ? await sequencesApi.updateSequenceStep(sequenceId, step.id, step, saveOptions)
+        : await sequencesApi.createSequenceStep(sequenceId, step, saveOptions);
       const next = steps.map((s, i) => (i === index ? { ...step, ...saved } : s));
       syncSteps(next);
       showToast('Step saved', 'success');

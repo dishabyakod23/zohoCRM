@@ -216,7 +216,6 @@ export default function DocumentsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Documents"
-          subtitle="Files attached to accounts, leads, contacts, and deals."
           primaryAction={canUpload ? (
             <button type="button" onClick={openUpload} className="btn-primary-sm">Upload Document</button>
           ) : null}

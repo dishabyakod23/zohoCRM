@@ -122,7 +122,6 @@ export default function CompaniesPage() {
       <div className="p-6">
         <ListPageHeader
           title="Companies"
-          subtitle="Organizations linked to your contacts. Add a company when creating a contact."
         />
 
         <ListSearchBar

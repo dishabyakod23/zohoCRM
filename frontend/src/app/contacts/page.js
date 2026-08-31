@@ -271,7 +271,6 @@ export default function ContactsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Contacts"
-          subtitle="Central pool of all people in the CRM — contacts, pipeline leads, deals, and accounts."
           secondaryActions={canImportContacts ? <BulkUpload onDone={fetchContacts} /> : null}
           primaryAction={canCreateContact ? (
             <button type="button" onClick={() => navigateToRecord('/contacts/create')} className="btn-primary-sm">

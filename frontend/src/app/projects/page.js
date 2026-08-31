@@ -118,7 +118,6 @@ export default function ProjectsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Projects"
-          subtitle="Track delivery work linked to accounts."
           primaryAction={canCreate ? (
             <button type="button" onClick={openCreate} className="btn-primary-sm">Create Project</button>
           ) : null}

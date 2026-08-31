@@ -159,7 +159,6 @@ export default function DealsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Deals"
-          subtitle="Track opportunities through your sales pipeline."
           secondaryActions={(
             <div className="flex border border-zoho-border rounded-lg overflow-hidden">
               <button type="button" onClick={() => setView('table')} className={`px-3 py-1.5 text-xs ${view === 'table' ? 'bg-brand-500 text-white' : 'bg-white text-zoho-muted hover:text-zoho-text'}`}>List</button>

@@ -88,7 +88,6 @@ export default function CampaignsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Campaigns"
-          subtitle="Manage marketing campaigns and outreach."
           primaryAction={canCreate ? (
             <button type="button" onClick={() => navigateToRecord('/campaigns/create')} className="btn-primary-sm">
               Create Campaign

@@ -91,6 +91,84 @@ export function formatSendDays(sendDays) {
   return labels.length ? labels.join(', ') : '—';
 }
 
+const TIMEZONE_ALIASES = {
+  'Asia/Calcutta': 'Asia/Kolkata',
+};
+
+/** Canonical IANA timezone (e.g. Asia/Calcutta → Asia/Kolkata). */
+export function normalizeSequenceTimezone(timezone) {
+  const value = String(timezone || 'UTC').trim() || 'UTC';
+  return TIMEZONE_ALIASES[value] || value;
+}
+
+/** HTML time input → HH:MM:SS for API. */
+export function normalizeScheduledTime(time) {
+  if (!time) return null;
+  const parts = String(time).trim().split(':');
+  if (parts.length < 2) return null;
+  const hh = parts[0].padStart(2, '0');
+  const mm = parts[1].padStart(2, '0');
+  const ss = (parts[2] || '00').padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
+/**
+ * Wall-clock date + time in an IANA timezone → UTC ISO string for the API.
+ * Example: 2026-08-31, 10:18, Asia/Kolkata → 2026-08-31T04:48:00.000Z
+ */
+export function buildScheduledAtIso(scheduledDate, scheduledTime, timezone) {
+  if (!scheduledDate || !scheduledTime) return null;
+  const time = normalizeScheduledTime(scheduledTime);
+  if (!time) return null;
+  const tz = normalizeSequenceTimezone(timezone);
+  const [year, month, day] = scheduledDate.split('-').map(Number);
+  const [hour, minute, second] = time.split(':').map(Number);
+  if (!year || !month || !day) return null;
+
+  let guessMs = Date.UTC(year, month - 1, day, hour, minute, second);
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  for (let i = 0; i < 4; i += 1) {
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(guessMs)).map((p) => [p.type, p.value]),
+    );
+    const asUtc = Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour),
+      Number(parts.minute),
+      Number(parts.second),
+    );
+    guessMs += Date.UTC(year, month - 1, day, hour, minute, second) - asUtc;
+  }
+
+  return new Date(guessMs).toISOString();
+}
+
+/** Display an API instant in the sequence/step timezone (not browser default). */
+export function formatDateTimeInTimezone(iso, timezone) {
+  if (!iso) return '—';
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      timeZone: normalizeSequenceTimezone(timezone),
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(iso));
+  } catch {
+    return new Date(iso).toLocaleString();
+  }
+}
+
 /** Primary schedule label — exact date/time per corrected plan. */
 export function formatStepSchedule(step, fallbackTimezone = 'UTC') {
   if (!step) return '—';
@@ -103,7 +181,7 @@ export function formatStepSchedule(step, fallbackTimezone = 'UTC') {
     }
     return '—';
   }
-  const tz = step.timezone || fallbackTimezone;
+  const tz = normalizeSequenceTimezone(step.timezone || fallbackTimezone);
   const timePart = time ? ` ${time}` : '';
   return `${date}${timePart} (${tz})`;
 }

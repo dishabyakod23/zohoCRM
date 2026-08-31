@@ -107,7 +107,6 @@ export default function AuditLogsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Audit Logs"
-          subtitle="Calls, emails, LinkedIn outreach, and CRM activity"
         />
 
         <div className="flex flex-wrap gap-3 mb-4">

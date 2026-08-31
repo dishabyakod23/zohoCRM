@@ -123,7 +123,6 @@ export default function TasksPage() {
       <div className="p-6">
         <ListPageHeader
           title="Tasks"
-          subtitle="Track to-dos and follow-ups across your team."
           primaryAction={canCreate ? (
             <button type="button" onClick={openCreate} className="btn-primary-sm">Create Task</button>
           ) : null}

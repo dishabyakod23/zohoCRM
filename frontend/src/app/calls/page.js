@@ -116,7 +116,6 @@ export default function CallsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Calls"
-          subtitle="Log and review phone conversations."
           primaryAction={canCreate ? (
             <button type="button" onClick={openCreate} className="btn-primary-sm">Create Call</button>
           ) : null}

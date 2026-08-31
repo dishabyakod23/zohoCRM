@@ -147,7 +147,6 @@ export default function RecycleBinPage() {
       <div className="p-6">
         <ListPageHeader
           title="Recycle Bin"
-          subtitle="Review, restore, or permanently delete records removed from the CRM."
         />
 
         <ListSearchBar

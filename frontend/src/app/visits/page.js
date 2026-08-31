@@ -118,7 +118,6 @@ export default function VisitsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Visits"
-          subtitle="Plan and track on-site customer visits."
           primaryAction={canCreate ? (
             <button type="button" onClick={openCreate} className="btn-primary-sm">Create Visit</button>
           ) : null}

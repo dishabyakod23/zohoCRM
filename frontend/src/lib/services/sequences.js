@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { assigneeName, listResult, omitEmpty } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
-import { sequenceStatusLabel, normalizeStepFromApi } from '../sequenceHelpers.js';
+import { sequenceStatusLabel, normalizeStepFromApi, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso } from '../sequenceHelpers.js';
 
 export function normalizeSequence(row) {
   if (!row) return row;
@@ -45,13 +45,20 @@ function toSequencePayload(form, { partial = false } = {}) {
   return partial ? omitEmpty(payload) : payload;
 }
 
-function toStepPayload(form, { partial = false } = {}) {
+function toStepPayload(form, { partial = false, sequenceTimezone } = {}) {
+  const timezone = normalizeSequenceTimezone(
+    form.timezone || sequenceTimezone || 'UTC',
+  );
+  const scheduled_time = normalizeScheduledTime(form.scheduled_time);
+  const scheduled_at = buildScheduledAtIso(form.scheduled_date, scheduled_time, timezone);
+
   const payload = {
     step_order: form.step_order != null ? Number(form.step_order) : undefined,
     type: form.type,
     scheduled_date: form.scheduled_date || null,
-    scheduled_time: form.scheduled_time || null,
-    timezone: form.timezone || null,
+    scheduled_time,
+    timezone,
+    scheduled_at,
     template_id: form.template_id || null,
     subject: form.subject || null,
     html_body: form.html_body || null,
@@ -116,13 +123,13 @@ export async function listSequenceSteps(sequenceId) {
   return rows.map(normalizeStepFromApi);
 }
 
-export async function createSequenceStep(sequenceId, form) {
-  const res = await api.post(`/sequences/${sequenceId}/steps`, toStepPayload(form));
+export async function createSequenceStep(sequenceId, form, options = {}) {
+  const res = await api.post(`/sequences/${sequenceId}/steps`, toStepPayload(form, options));
   return res.data.data ?? res.data;
 }
 
-export async function updateSequenceStep(sequenceId, stepId, form) {
-  const res = await api.patch(`/sequences/${sequenceId}/steps/${stepId}`, toStepPayload(form, { partial: true }));
+export async function updateSequenceStep(sequenceId, stepId, form, options = {}) {
+  const res = await api.patch(`/sequences/${sequenceId}/steps/${stepId}`, toStepPayload(form, { partial: true, ...options }));
   return res.data.data ?? res.data;
 }
 

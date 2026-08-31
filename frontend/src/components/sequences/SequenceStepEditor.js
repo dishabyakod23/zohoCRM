@@ -10,6 +10,7 @@ import {
   isLinkedInStep,
   isManualTaskStep,
   formatStepSchedule,
+  normalizeSequenceTimezone,
 } from '../../lib/sequenceHelpers.js';
 import { listEmailTemplates, templateLabel } from '../../lib/services/emailTemplates.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
@@ -166,7 +167,7 @@ export default function SequenceStepEditor({
           <input className="input" type="time" value={step.scheduled_time || ''} disabled={readOnly} onChange={(e) => update({ scheduled_time: e.target.value })} />
         </FormField>
         <FormField label="Timezone">
-          <input className="input" value={step.timezone || sequenceTimezone} disabled={readOnly} onChange={(e) => update({ timezone: e.target.value })} />
+          <input className="input" value={normalizeSequenceTimezone(step.timezone || sequenceTimezone)} disabled={readOnly} onChange={(e) => update({ timezone: e.target.value })} />
         </FormField>
       </div>
 

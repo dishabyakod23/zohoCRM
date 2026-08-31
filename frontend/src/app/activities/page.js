@@ -127,7 +127,6 @@ export default function ActivitiesPage() {
       <div className="p-6">
         <ListPageHeader
           title="Activities"
-          subtitle="Recent tasks, meetings, and calls."
           primaryAction={canCreate ? (
             <button
               type="button"

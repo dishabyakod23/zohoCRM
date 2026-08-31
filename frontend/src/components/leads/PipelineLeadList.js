@@ -287,7 +287,6 @@ export default function PipelineLeadList({ stage, description }) {
       <div className="p-6">
         <ListPageHeader
           title={config?.listTitle}
-          subtitle={description}
           secondaryActions={config?.allowUpload && canBulkUpload ? (
             <button type="button" onClick={() => setUploadOpen(true)} className="btn-secondary-sm">
               Bulk Upload

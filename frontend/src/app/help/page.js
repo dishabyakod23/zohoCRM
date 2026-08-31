@@ -66,7 +66,6 @@ export default function HelpPage() {
         <div className="page-header mb-6">
           <div>
             <h1 className="page-title">Help &amp; Documentation</h1>
-            <p className="page-subtitle">Guides for using your Sales CRM workspace.</p>
           </div>
         </div>
 

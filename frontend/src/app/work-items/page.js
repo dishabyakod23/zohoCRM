@@ -156,7 +156,6 @@ export default function WorkItemsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Work Items"
-          subtitle={`Warm and cold leads assigned to ${userName} across every pipeline stage.`}
         />
 
         <ListToolbar

@@ -72,7 +72,9 @@ Frontend client: `src/lib/services/sequences.js`
 
 **Create sequence body:** `name`, `description`, `sending_email`, `timezone`, `send_window_start/end`, `send_days` (bitmask Mon=1…Sun=64, default 62), `daily_send_limit`, `stop_on_reply/click/unsubscribe/bounce`, `allow_re_enrollment`, `owner_id`
 
-**Step body:** `step_order`, `type`, `scheduled_date`, `scheduled_time`, `timezone`, `subject`, `html_body`, `text_body`, `task_title`, `task_description`, `active`, `variants[]`
+**Step body:** `step_order`, `type`, `scheduled_date`, `scheduled_time`, `timezone`, `scheduled_at` (UTC ISO — frontend sends this from date/time/timezone), `subject`, `html_body`, `text_body`, `task_title`, `task_description`, `active`, `variants[]`
+
+When enrolling or scheduling, prefer `scheduled_at` over treating `scheduled_time` as UTC.
 
 ---
 

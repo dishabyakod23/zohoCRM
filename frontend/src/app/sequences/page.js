@@ -83,7 +83,6 @@ export default function SequencesPage() {
       <div className="p-6">
         <ListPageHeader
           title="Sequences"
-          subtitle="Automated multi-step outreach for leads and contacts."
           primaryAction={canCreate ? (
             <button type="button" onClick={() => navigateToRecord('/sequences/create')} className="btn-primary-sm">
               Create Sequence

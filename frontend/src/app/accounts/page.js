@@ -126,7 +126,6 @@ export default function AccountsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Accounts"
-          subtitle="Confirmed customers converted from proposals or created with an active deal."
           primaryAction={canCreate ? (
             <button type="button" onClick={() => navigateToRecord('/accounts/create')} className="btn-primary-sm">
               Create Account

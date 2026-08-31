@@ -127,7 +127,6 @@ export default function MeetingsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Meetings"
-          subtitle="Schedule and review customer meetings."
           primaryAction={canCreate ? (
             <button type="button" onClick={openCreate} className="btn-primary-sm">Create Meeting</button>
           ) : null}

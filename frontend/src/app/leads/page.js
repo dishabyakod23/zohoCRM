@@ -154,7 +154,6 @@ export default function LeadsPage() {
       <div className="p-6">
         <ListPageHeader
           title="Warm Leads"
-          subtitle="Manage and track warm leads through the pipeline."
           primaryAction={canCreate ? (
             <button type="button" onClick={() => navigateToRecord('/leads/create')} className="btn-primary-sm">
               Create Warm Lead

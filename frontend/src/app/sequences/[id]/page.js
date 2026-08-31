@@ -14,7 +14,7 @@ import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { getApiError } from '../../../lib/api.js';
 import * as sequencesApi from '../../../lib/services/sequences.js';
-import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel } from '../../../lib/sequenceHelpers.js';
+import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone } from '../../../lib/sequenceHelpers.js';
 
 const TABS = ['Steps', 'Enrollments', 'Analytics', 'Settings'];
 
@@ -183,8 +183,8 @@ export default function SequenceDetailPage() {
                     <td className="table-td capitalize">{e.member_type}</td>
                     <td className="table-td"><Badge label={enrollmentStatusLabel(e.status)} /></td>
                     <td className="table-td">{e.current_step_order != null ? `Step ${e.current_step_order}` : '—'}</td>
-                    <td className="table-td text-xs">{e.next_action_at ? new Date(e.next_action_at).toLocaleString() : '—'}</td>
-                    <td className="table-td text-xs">{e.last_action_at ? new Date(e.last_action_at).toLocaleString() : '—'}</td>
+                    <td className="table-td text-xs">{e.next_action_at ? formatDateTimeInTimezone(e.next_action_at, sequence.timezone) : '—'}</td>
+                    <td className="table-td text-xs">{e.last_action_at ? formatDateTimeInTimezone(e.last_action_at, sequence.timezone) : '—'}</td>
                   </tr>
                 ))}
               </tbody>
