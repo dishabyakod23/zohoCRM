@@ -171,7 +171,7 @@ export default function CreateRawLeadForm() {
     setSaving(true);
     try {
       if (!(await validate())) return;
-      const created = await leadsApi.createRawLead(form);
+      const created = await leadsApi.createRawLead(form, { currentUserId: user?.id });
       try {
         const canUseCampaigns = can('campaigns', 'view') || can('campaigns', 'create');
         let campaignId = form.campaign_id || null;

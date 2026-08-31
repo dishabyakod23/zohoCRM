@@ -1,4 +1,4 @@
-import { normalizeLead, toLeadPayload, resolveLeadStatusForApi } from '../leadHelpers.js';
+import { normalizeLead, toLeadPayload, resolveLeadOwnerId, resolveLeadStatusForApi } from '../leadHelpers.js';
 
 describe('AMC / IT Support on leads', () => {
   it('normalizes amc_it_support and amc_currency from the API', () => {
@@ -133,5 +133,16 @@ describe('toLeadPayload lead_status', () => {
     }, { partial: true });
     expect(payload.lead_status).toBe('contacted');
     expect(payload.lost_reason).toBeNull();
+  });
+});
+
+describe('resolveLeadOwnerId', () => {
+  it('uses form owner when present', () => {
+    expect(resolveLeadOwnerId({ owner_id: 'owner-1' }, 'rep-1')).toBe('owner-1');
+  });
+
+  it('falls back to the current user for non-assigners', () => {
+    expect(resolveLeadOwnerId({ owner_id: '' }, 'rep-1')).toBe('rep-1');
+    expect(resolveLeadOwnerId({}, 'rep-1')).toBe('rep-1');
   });
 });

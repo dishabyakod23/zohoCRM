@@ -1,4 +1,4 @@
-import { sortUsersNewestFirst, userInitials } from '../userHelpers.js';
+import { sortUsersNewestFirst, userInitials, enrichCreatedUser, mergeAdminUserLists } from '../userHelpers.js';
 
 describe('sortUsersNewestFirst', () => {
   it('puts the most recently created user first', () => {
@@ -8,6 +8,28 @@ describe('sortUsersNewestFirst', () => {
       { id: '3', created_at: '2026-03-01T00:00:00Z' },
     ];
     expect(sortUsersNewestFirst(users).map((u) => u.id)).toEqual(['2', '3', '1']);
+  });
+
+  it('falls back to numeric id when created_at is missing', () => {
+    const users = [{ id: '10' }, { id: '2' }, { id: '99' }];
+    expect(sortUsersNewestFirst(users).map((u) => u.id)).toEqual(['99', '10', '2']);
+  });
+});
+
+describe('mergeAdminUserLists', () => {
+  it('preserves local created_at after reload', () => {
+    const previous = [{ id: 'new-1', created_at: '2026-08-31T12:00:00Z', email: 'a@test.com' }];
+    const incoming = [{ id: 'new-1', email: 'a@test.com' }, { id: 'old-1', created_at: '2026-01-01T00:00:00Z' }];
+    const merged = mergeAdminUserLists(previous, incoming);
+    expect(merged[0].id).toBe('new-1');
+    expect(merged[0].created_at).toBe('2026-08-31T12:00:00Z');
+  });
+});
+
+describe('enrichCreatedUser', () => {
+  it('adds created_at when the API omits it', () => {
+    const enriched = enrichCreatedUser({ id: '1', email: 'a@test.com' });
+    expect(enriched.created_at).toBeTruthy();
   });
 });
 

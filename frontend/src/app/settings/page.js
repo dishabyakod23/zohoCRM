@@ -12,7 +12,7 @@ import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import ProfileImageManager from '../../components/users/ProfileImageManager.js';
 import UserAvatar from '../../components/users/UserAvatar.js';
-import { userDisplayName, sortUsersNewestFirst } from '../../lib/userHelpers.js';
+import { userDisplayName, sortUsersNewestFirst, enrichCreatedUser, mergeAdminUserLists } from '../../lib/userHelpers.js';
 import { mergeStoredProfileImage } from '../../lib/profileImageHelpers.js';
 import { USER_ROLES, ROLE_LABELS, ROLE_ACCESS, roleLabel, normalizeRole } from '../../lib/roles.js';
 import * as adminApi from '../../lib/services/admin.js';
@@ -120,7 +120,7 @@ function SettingsPageContent() {
         adminApi.listAdminUsers(),
         manageRolesApi.listAssignableRoles().catch(() => []),
       ]);
-      setUsers(sortUsersNewestFirst(userList));
+      setUsers((prev) => mergeAdminUserLists(prev, userList));
       setAssignableRoles(roleList);
     } catch (err) {
       showToast(getApiError(err));
@@ -211,13 +211,18 @@ function SettingsPageContent() {
         await adminApi.updateAdminUser(editingUser.id, payload);
         showToast('User updated', 'success');
       } else {
-        await adminApi.createAdminUser({
+        const created = await adminApi.createAdminUser({
           email: normalizeLoginEmail(userForm.email),
           password: userForm.password,
           first_name: userForm.first_name,
           last_name: userForm.last_name,
           role: userForm.role,
         });
+        const enriched = enrichCreatedUser(created);
+        setUsers((prev) => sortUsersNewestFirst([
+          enriched,
+          ...prev.filter((u) => String(u.id) !== String(enriched.id)),
+        ]));
         showToast('User created', 'success');
       }
       setUserModal(false);

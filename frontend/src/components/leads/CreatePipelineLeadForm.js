@@ -181,7 +181,7 @@ export default function CreatePipelineLeadForm({
     setSaving(true);
     try {
       if (!(await validate())) return;
-      const created = await createFn(form);
+      const created = await createFn(form, { currentUserId: user?.id });
       const campaignId = await resolveOrCreateCampaignId({
         campaign_id: form.campaign_id,
         campaign_name: form.campaign_name,

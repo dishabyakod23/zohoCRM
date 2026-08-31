@@ -45,8 +45,8 @@ export async function resolveLeadStatusCategory() {
   return resolvedLeadStatusCategory;
 }
 
-export async function listAdminUsers() {
-  const res = await api.get('/admin/users');
+export async function listAdminUsers({ sort_by = 'created_at', sort_order = 'desc' } = {}) {
+  const res = await api.get('/admin/users', { params: { sort_by, sort_order } });
   return res.data.data || [];
 }
 

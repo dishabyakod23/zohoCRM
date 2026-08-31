@@ -1,5 +1,5 @@
 import api from '../api.js';
-import { normalizeLead, toLeadPayload, resolveLeadStatusForApi } from '../leadHelpers.js';
+import { normalizeLead, toLeadPayload, resolveLeadOwnerId, resolveLeadStatusForApi } from '../leadHelpers.js';
 import { toConvertPayload } from '../dealHelpers.js';
 import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS } from '../importHelpers.js';
 import {
@@ -273,8 +273,9 @@ export async function getLead(id) {
   return normalizeLead(res.data.data);
 }
 
-export async function createLead(form) {
-  const res = await api.post('/leads', toLeadPayload(form));
+export async function createLead(form, { currentUserId } = {}) {
+  const owner_id = resolveLeadOwnerId(form, currentUserId);
+  const res = await api.post('/leads', toLeadPayload({ ...form, owner_id }));
   return normalizeLead(res.data.data);
 }
 
@@ -466,7 +467,7 @@ export async function assignLead(id, owner_id) {
   return normalizeLead(res.data.data);
 }
 
-export async function createRawLead(form) {
+export async function createRawLead(form, { currentUserId } = {}) {
   const outreachStatus = form.lead_status && !isPipelineStageStatus(form.lead_status)
     ? form.lead_status
     : null;
@@ -475,10 +476,10 @@ export async function createRawLead(form) {
     lead_status: outreachStatus,
     pipeline_stage: form.pipeline_stage || PIPELINE_RAW,
     source: form.source || form.lead_source || null,
-  });
+  }, { currentUserId });
 }
 
-export async function createQualifiedLead(form) {
+export async function createQualifiedLead(form, { currentUserId } = {}) {
   const outreachStatus = form.lead_status && !isPipelineStageStatus(form.lead_status)
     ? form.lead_status
     : null;
@@ -487,10 +488,10 @@ export async function createQualifiedLead(form) {
     lead_status: outreachStatus,
     pipeline_stage: form.pipeline_stage || PIPELINE_QUALIFIED,
     source: form.source || form.lead_source || null,
-  });
+  }, { currentUserId });
 }
 
-export async function createProposal(form) {
+export async function createProposal(form, { currentUserId } = {}) {
   const outreachStatus = form.lead_status && !isPipelineStageStatus(form.lead_status)
     ? form.lead_status
     : PROPOSAL_DEFAULT_LEAD_STATUS;
@@ -501,7 +502,7 @@ export async function createProposal(form) {
     // Never send lead_source: "Proposal" — source is a real Origami lookup or omitted.
     source: form.source || form.lead_source || null,
     deal_status: form.deal_status || 'active_proposal',
-  });
+  }, { currentUserId });
 }
 
 export async function countLeadsThisMonth() {

@@ -150,6 +150,12 @@ function optionalNumber(value) {
   return Number.isFinite(num) ? num : null;
 }
 
+/** Non-assigners must still send their own id so owned-record filters show the new lead. */
+export function resolveLeadOwnerId(form, currentUserId) {
+  if (form?.owner_id) return form.owner_id;
+  return currentUserId || null;
+}
+
 /** Build LeadCreate / LeadUpdate payload — lead_status must be snake_case */
 export function toLeadPayload(form, { partial = false } = {}) {
   const street = [form.building, form.street].filter(Boolean).join(', ') || form.street || null;
