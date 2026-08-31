@@ -10,33 +10,59 @@ function sameEmail(a, b) {
   return normalizeEmail(a) === normalizeEmail(b);
 }
 
+function isForbidden(err) {
+  return err?.response?.status === 403;
+}
+
+async function searchLeadsForEmail(params) {
+  try {
+    return await leadsApi.listLeads(params);
+  } catch (err) {
+    if (isForbidden(err)) return { data: [] };
+    throw err;
+  }
+}
+
+async function searchContactsForEmail(params) {
+  try {
+    return await contactsApi.listContacts(params);
+  } catch (err) {
+    if (isForbidden(err)) return { data: [] };
+    throw err;
+  }
+}
+
 /**
  * Find an existing lead or contact using this email (case-insensitive).
  *
  * - excludeLeadId: only check other leads (contacts may share a synced copy)
  * - excludeContactId: only check other contacts
- * - neither: check both
- * - both excludes: check both modules while skipping those ids
+ * - checkLeads / checkContacts: skip modules the user cannot list (avoids 403 on save)
  */
-export async function findEmailConflict(email, { excludeLeadId, excludeContactId } = {}) {
+export async function findEmailConflict(email, {
+  excludeLeadId,
+  excludeContactId,
+  checkLeads = true,
+  checkContacts = true,
+} = {}) {
   const needle = normalizeEmail(email);
   if (!needle) return null;
 
   const onlyLeads = !!excludeLeadId && !excludeContactId;
   const onlyContacts = !!excludeContactId && !excludeLeadId;
-  const checkLeads = onlyLeads || !onlyContacts;
-  const checkContacts = onlyContacts || !onlyLeads;
+  const shouldCheckLeads = checkLeads && (onlyLeads || !onlyContacts);
+  const shouldCheckContacts = checkContacts && (onlyContacts || !onlyLeads);
 
   const [leadsRes, contactsRes] = await Promise.all([
-    checkLeads
-      ? leadsApi.listLeads({ search: email.trim(), page_size: DEFAULT_PAGE_SIZE })
+    shouldCheckLeads
+      ? searchLeadsForEmail({ search: email.trim(), page_size: DEFAULT_PAGE_SIZE })
       : Promise.resolve({ data: [] }),
-    checkContacts
-      ? contactsApi.listContacts({ search: email.trim(), page_size: DEFAULT_PAGE_SIZE })
+    shouldCheckContacts
+      ? searchContactsForEmail({ search: email.trim(), page_size: DEFAULT_PAGE_SIZE })
       : Promise.resolve({ data: [] }),
   ]);
 
-  if (checkLeads) {
+  if (shouldCheckLeads) {
     const lead = leadsRes.data.find(
       (r) => sameEmail(r.email, needle) && String(r.id) !== String(excludeLeadId || ''),
     );
@@ -49,7 +75,7 @@ export async function findEmailConflict(email, { excludeLeadId, excludeContactId
     }
   }
 
-  if (checkContacts) {
+  if (shouldCheckContacts) {
     const contact = contactsRes.data.find(
       (r) => sameEmail(r.email, needle) && String(r.id) !== String(excludeContactId || ''),
     );
@@ -66,8 +92,8 @@ export async function findEmailConflict(email, { excludeLeadId, excludeContactId
 }
 
 /** Returns an error message when email is already in use, or null if available. */
-export async function validateEmailUnique(email, { excludeLeadId, excludeContactId } = {}) {
-  const conflict = await findEmailConflict(email, { excludeLeadId, excludeContactId });
+export async function validateEmailUnique(email, options = {}) {
+  const conflict = await findEmailConflict(email, options);
   if (!conflict) return null;
   const moduleLabel = conflict.module === 'lead' ? 'lead' : 'contact';
   return `A ${moduleLabel} with this email already exists.`;

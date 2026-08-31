@@ -87,6 +87,10 @@ export default function CreateRawLeadForm() {
   const { showToast } = useToast();
   const { user } = useAuth();
   const { canAssignLeads, can } = usePermissions();
+  const emailCheckOptions = {
+    checkContacts: can('contacts', 'view'),
+    checkLeads: can('raw_leads', 'view') || can('leads', 'view'),
+  };
   const [form, setForm] = useState(() => emptyRawLeadForm(user?.id || ''));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -94,7 +98,7 @@ export default function CreateRawLeadForm() {
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
   const [lostReasonOptions, setLostReasonOptions] = useState([]);
-  const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
+  const { emailError, checking: checkingEmail } = useEmailFieldError(form.email, emailCheckOptions);
   const savingRef = useRef(false);
 
   useEffect(() => {
@@ -149,7 +153,7 @@ export default function CreateRawLeadForm() {
       if (mobileErr) errs.mobile = mobileErr;
     }
     if (!errs.email && form.email) {
-      const uniqueErr = emailError || await validateEmailUnique(form.email);
+      const uniqueErr = emailError || await validateEmailUnique(form.email, emailCheckOptions);
       if (uniqueErr) errs.email = uniqueErr;
     }
     if (isLostLeadStatus(form.lead_status) && !form.lost_reason) {

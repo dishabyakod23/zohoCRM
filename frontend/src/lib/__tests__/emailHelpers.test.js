@@ -86,4 +86,15 @@ describe('validateEmailUnique', () => {
     contactsApi.listContacts.mockResolvedValue({ data: [contact({ email: 'taken@example.com' })] });
     expect(await validateEmailUnique('taken@example.com')).toBe('A contact with this email already exists.');
   });
+
+  it('skips contact lookup when checkContacts is false', async () => {
+    contactsApi.listContacts.mockResolvedValue({ data: [contact({ email: 'taken@example.com' })] });
+    expect(await validateEmailUnique('taken@example.com', { checkContacts: false })).toBeNull();
+    expect(contactsApi.listContacts).not.toHaveBeenCalled();
+  });
+
+  it('does not fail when contact list returns 403', async () => {
+    contactsApi.listContacts.mockRejectedValue({ response: { status: 403 } });
+    expect(await validateEmailUnique('free@example.com')).toBeNull();
+  });
 });
