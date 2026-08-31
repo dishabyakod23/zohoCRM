@@ -191,7 +191,14 @@ export default function SequenceDetailPage() {
                         canEdit={canEdit}
                         onUpdated={(updated) => {
                           setEnrollments((rows) => rows.map((row) => (
-                            row.id === updated.id ? { ...row, ...updated } : row
+                            row.id === e.id
+                              ? {
+                                ...row,
+                                ...updated,
+                                id: row.id,
+                                next_action_at: updated.next_action_at ?? row.next_action_at,
+                              }
+                              : row
                           )));
                         }}
                       />

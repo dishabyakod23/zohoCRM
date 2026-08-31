@@ -197,6 +197,15 @@ export function datetimeLocalInputToIso(localValue, timezone) {
   return buildScheduledAtIso(datePart, timePart, timezone);
 }
 
+/** Compare API timestamps (ISO strings) within one minute. */
+export function sameScheduleInstant(a, b) {
+  if (!a || !b) return false;
+  const aMs = new Date(a).getTime();
+  const bMs = new Date(b).getTime();
+  if (!Number.isFinite(aMs) || !Number.isFinite(bMs)) return false;
+  return Math.abs(aMs - bMs) < 60_000;
+}
+
 /** Primary schedule label — exact date/time per corrected plan. */
 export function formatStepSchedule(step, fallbackTimezone = 'UTC') {
   if (!step) return '—';

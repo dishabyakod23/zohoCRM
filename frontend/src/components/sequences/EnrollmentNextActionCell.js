@@ -1,10 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   formatDateTimeInTimezone,
   isoToDatetimeLocalInput,
   datetimeLocalInputToIso,
   normalizeSequenceTimezone,
+  sameScheduleInstant,
 } from '../../lib/sequenceHelpers.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
 import { useToast } from '../ui/Toast.js';
@@ -20,12 +21,17 @@ export default function EnrollmentNextActionCell({
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [displayAt, setDisplayAt] = useState(enrollment.next_action_at);
 
   const tz = normalizeSequenceTimezone(sequenceTimezone);
   const editable = canEdit && ['ACTIVE', 'PAUSED'].includes(enrollment.status);
 
+  useEffect(() => {
+    setDisplayAt(enrollment.next_action_at);
+  }, [enrollment.id, enrollment.next_action_at]);
+
   const startEdit = () => {
-    setValue(isoToDatetimeLocalInput(enrollment.next_action_at, tz) || '');
+    setValue(isoToDatetimeLocalInput(displayAt ?? enrollment.next_action_at, tz) || '');
     setEditing(true);
   };
 
@@ -44,11 +50,31 @@ export default function EnrollmentNextActionCell({
       showToast('Invalid date or time');
       return;
     }
+    const previousAt = displayAt ?? enrollment.next_action_at;
     setSaving(true);
     try {
       const updated = await sequencesApi.updateEnrollment(enrollment.id, { next_action_at });
-      showToast('Next action updated', 'success');
-      onUpdated?.(updated);
+      const serverAt = updated.__patch?.serverAt;
+      const serverIgnoredChange = serverAt
+        && previousAt
+        && sameScheduleInstant(serverAt, previousAt)
+        && !sameScheduleInstant(next_action_at, previousAt);
+      const persistedAt = (serverAt && sameScheduleInstant(serverAt, next_action_at))
+        ? serverAt
+        : next_action_at;
+      const { __patch, ...row } = updated;
+
+      setDisplayAt(persistedAt);
+      onUpdated?.({ ...enrollment, ...row, id: enrollment.id, next_action_at: persistedAt });
+
+      if (serverIgnoredChange) {
+        showToast(
+          'The server kept the previous time. Your backend must save next_action_at on PATCH /enrollments/{id}.',
+          'error',
+        );
+      } else {
+        showToast('Next action updated', 'success');
+      }
       setEditing(false);
     } catch (err) {
       showToast(getApiError(err));
@@ -83,8 +109,8 @@ export default function EnrollmentNextActionCell({
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <span className="text-xs">
-        {enrollment.next_action_at
-          ? formatDateTimeInTimezone(enrollment.next_action_at, tz)
+        {displayAt
+          ? formatDateTimeInTimezone(displayAt, tz)
           : '—'}
       </span>
       {editable && (

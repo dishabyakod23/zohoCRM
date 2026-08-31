@@ -17,9 +17,12 @@ export function normalizeSequence(row) {
 
 export function normalizeEnrollment(row) {
   if (!row) return row;
+  const next_action_at = row.next_action_at ?? row.nextActionAt ?? row.next_action ?? null;
   return {
     ...row,
+    id: row.id ?? row.enrollment_id,
     member_name: row.member_name || row.name || '—',
+    next_action_at,
   };
 }
 
@@ -154,7 +157,22 @@ export async function listEnrollments(sequenceId, params = {}) {
 
 export async function updateEnrollment(enrollmentId, payload) {
   const res = await api.patch(`/enrollments/${enrollmentId}`, payload);
-  return normalizeEnrollment(res.data.data ?? res.data);
+  const raw = res.data?.data ?? res.data?.enrollment ?? res.data;
+  const merged = raw && typeof raw === 'object' && !Array.isArray(raw)
+    ? { ...raw, id: raw.id ?? enrollmentId }
+    : { id: enrollmentId };
+  const fromApi = normalizeEnrollment(merged);
+  if (payload.next_action_at == null) return fromApi;
+
+  const serverAt = fromApi.next_action_at ?? null;
+  return {
+    ...fromApi,
+    next_action_at: serverAt ?? payload.next_action_at,
+    __patch: {
+      next_action_at: payload.next_action_at,
+      serverAt,
+    },
+  };
 }
 
 export async function listMemberEnrollments({ member_type, member_id }) {
