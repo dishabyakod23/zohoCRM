@@ -1,4 +1,4 @@
-import { pipelineStageLabel, PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, toApiLeadStatus, proposalDealStatusLabel, proposalTypeLabel } from './pipelineHelpers.js';
+import { pipelineStageLabel, PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, toApiLeadStatus, proposalDealStatusLabel, proposalTypeLabel, isPipelineStageStatus } from './pipelineHelpers.js';
 import { toDateOnly } from './activityHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
 import { ownerName } from './recordHelpers.js';
@@ -62,6 +62,21 @@ export function leadStatusLabel(status, options = []) {
   return STATUS_LABELS[status] || STATUS_LABELS[normalized] || pipelineStageLabel(status) || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+/** Outreach status for list/detail — pipeline stage values and unset status show as blank. */
+export function outreachLeadStatusLabel(status, options = []) {
+  if (!status || isPipelineStageStatus(status)) return '—';
+  const label = String(status).trim();
+  if (!label || label === '—' || label.toLowerCase() === 'none') return '—';
+  const normalized = label.toLowerCase();
+  if (['cold lead', 'warm lead', 'qualified lead', 'proposal'].includes(normalized)) return '—';
+  return leadStatusLabel(status, options);
+}
+
+export function hasOutreachStatusLabel(label) {
+  const trimmed = String(label || '').trim();
+  return trimmed && trimmed !== '—' && trimmed !== '-';
+}
+
 const STATUS_PLURALS = {
   'Contact in Future': 'Contacts in Future',
   'Warm Lead': 'Warm Leads',
@@ -111,7 +126,7 @@ export function normalizeLead(lead, statusOptions = []) {
   const pipelineStage = lead.pipeline_stage || null;
   return {
     ...lead,
-    status: leadStatusLabel(rawStatus, statusOptions),
+    status: outreachLeadStatusLabel(rawStatus, statusOptions),
     lead_status: rawStatus,
     pipeline_stage: pipelineStage,
     source: lead.lead_source || lead.source,

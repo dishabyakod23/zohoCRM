@@ -15,7 +15,7 @@ import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { LIST_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { normalizeLead } from '../../lib/leadHelpers.js';
+import { normalizeLead, hasOutreachStatusLabel } from '../../lib/leadHelpers.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchPipelineConvertTargets, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
@@ -144,7 +144,9 @@ export default function LeadsPage() {
     { id: 'email', header: 'Email', sortField: 'email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
     { id: 'phone', header: 'Phone', cell: (lead) => <PhoneCell value={lead.phone} label="Call lead" /> },
     { id: 'source', header: 'Source', cell: (lead) => lead.source || '—' },
-    { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
+    { id: 'status', header: 'Status', cell: (lead) => (
+      hasOutreachStatusLabel(lead.status) ? <Badge label={lead.status} /> : '—'
+    ) },
     { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || '—' },
     ...recordTimestampColumns(),
   ], []);

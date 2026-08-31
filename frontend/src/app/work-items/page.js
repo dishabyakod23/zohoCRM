@@ -21,6 +21,7 @@ import {
   getLeadDetailPath,
 } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import { hasOutreachStatusLabel } from '../../lib/leadHelpers.js';
 import { fetchLeadMassUpdateFields, fetchPipelineConvertTargets, FALLBACK_LEAD_STATUSES, fetchLeadSources } from '../../lib/services/lookups.js';
 import { tableLinkClass, tableEmailClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter, CampaignFilter } from '../../components/layout/ListFilterFields.js';
@@ -141,7 +142,9 @@ export default function WorkItemsPage() {
     { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
     { id: 'email', header: 'Email', sortField: 'email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
     { id: 'source', header: 'Source', cell: (lead) => lead.source || '—' },
-    { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
+    { id: 'status', header: 'Status', cell: (lead) => (
+      hasOutreachStatusLabel(lead.status) ? <Badge label={lead.status} /> : '—'
+    ) },
     {
       id: 'updated',
       header: 'Last Updated',

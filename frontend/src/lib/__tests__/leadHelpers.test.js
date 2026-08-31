@@ -1,4 +1,4 @@
-import { normalizeLead, toLeadPayload, resolveLeadOwnerId, resolveLeadStatusForApi } from '../leadHelpers.js';
+import { normalizeLead, toLeadPayload, resolveLeadOwnerId, resolveLeadStatusForApi, outreachLeadStatusLabel } from '../leadHelpers.js';
 
 describe('AMC / IT Support on leads', () => {
   it('normalizes amc_it_support and amc_currency from the API', () => {
@@ -144,5 +144,20 @@ describe('resolveLeadOwnerId', () => {
   it('falls back to the current user for non-assigners', () => {
     expect(resolveLeadOwnerId({ owner_id: '' }, 'rep-1')).toBe('rep-1');
     expect(resolveLeadOwnerId({}, 'rep-1')).toBe('rep-1');
+  });
+});
+
+describe('outreachLeadStatusLabel', () => {
+  it('shows blank when outreach status is unset or a pipeline stage default', () => {
+    expect(outreachLeadStatusLabel(null)).toBe('—');
+    expect(outreachLeadStatusLabel('')).toBe('—');
+    expect(outreachLeadStatusLabel('raw_prospect')).toBe('—');
+    expect(outreachLeadStatusLabel('qualified_lead')).toBe('—');
+    expect(outreachLeadStatusLabel('Cold Lead')).toBe('—');
+  });
+
+  it('shows outreach labels when set', () => {
+    expect(outreachLeadStatusLabel('not_contacted')).toBe('Not Contacted');
+    expect(outreachLeadStatusLabel('meeting_completed')).toBe('Meeting Completed');
   });
 });

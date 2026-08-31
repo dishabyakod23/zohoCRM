@@ -32,6 +32,7 @@ import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
 import { recordTimestampColumns } from '../../lib/listTimestampHelpers.js';
+import { hasOutreachStatusLabel } from '../../lib/leadHelpers.js';
 
 const STAGE_MODULE_KEY = {
   [PIPELINE_RAW]: 'raw-leads',
@@ -202,7 +203,9 @@ export default function PipelineLeadList({ stage, description }) {
       { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
       { id: 'email', header: 'Email', sortField: 'email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
       { id: 'phone', header: 'Phone', cell: (lead) => <PhoneCell value={lead.phone} label="Call lead" /> },
-      { id: 'status', header: 'Status', cell: (lead) => <Badge label={lead.status} /> },
+      { id: 'status', header: 'Status', cell: (lead) => (
+        hasOutreachStatusLabel(lead.status) ? <Badge label={lead.status} /> : '—'
+      ) },
       { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || 'Unassigned' },
       ...recordTimestampColumns(),
     ];
