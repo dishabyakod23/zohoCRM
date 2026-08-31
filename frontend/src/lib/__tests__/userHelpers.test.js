@@ -1,4 +1,4 @@
-import { sortUsersNewestFirst, userInitials, enrichCreatedUser, mergeAdminUserLists } from '../userHelpers.js';
+import { sortUsersNewestFirst, userInitials, enrichCreatedUser, mergeAdminUserLists, rememberUserCreatedAt } from '../userHelpers.js';
 
 describe('sortUsersNewestFirst', () => {
   it('puts the most recently created user first', () => {
@@ -27,9 +27,33 @@ describe('mergeAdminUserLists', () => {
 });
 
 describe('enrichCreatedUser', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it('adds created_at when the API omits it', () => {
     const enriched = enrichCreatedUser({ id: '1', email: 'a@test.com' });
     expect(enriched.created_at).toBeTruthy();
+  });
+
+  it('persists created_at in localStorage for hard refresh', () => {
+    enrichCreatedUser({ id: 'new-1', email: 'a@test.com' });
+    const merged = mergeAdminUserLists([], [{ id: 'new-1', email: 'a@test.com' }, { id: 'old-1' }]);
+    expect(merged[0].id).toBe('new-1');
+    expect(merged[0].created_at).toBeTruthy();
+  });
+});
+
+describe('rememberUserCreatedAt', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('stores API created_at without overwriting an earlier timestamp', () => {
+    rememberUserCreatedAt({ id: '1', created_at: '2026-08-31T12:00:00Z' });
+    rememberUserCreatedAt({ id: '1', created_at: '2026-01-01T00:00:00Z' });
+    const merged = mergeAdminUserLists([], [{ id: '1', email: 'a@test.com' }]);
+    expect(merged[0].created_at).toBe('2026-08-31T12:00:00Z');
   });
 });
 

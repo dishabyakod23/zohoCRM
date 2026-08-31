@@ -12,7 +12,7 @@ import { useToast } from '../../components/ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import ProfileImageManager from '../../components/users/ProfileImageManager.js';
 import UserAvatar from '../../components/users/UserAvatar.js';
-import { userDisplayName, sortUsersNewestFirst, enrichCreatedUser, mergeAdminUserLists } from '../../lib/userHelpers.js';
+import { userDisplayName, sortUsersNewestFirst, enrichCreatedUser, mergeAdminUserLists, rememberUserCreatedAt } from '../../lib/userHelpers.js';
 import { mergeStoredProfileImage } from '../../lib/profileImageHelpers.js';
 import { USER_ROLES, ROLE_LABELS, ROLE_ACCESS, roleLabel, normalizeRole } from '../../lib/roles.js';
 import * as adminApi from '../../lib/services/admin.js';
@@ -120,6 +120,7 @@ function SettingsPageContent() {
         adminApi.listAdminUsers(),
         manageRolesApi.listAssignableRoles().catch(() => []),
       ]);
+      userList.forEach((u) => rememberUserCreatedAt(u));
       setUsers((prev) => mergeAdminUserLists(prev, userList));
       setAssignableRoles(roleList);
     } catch (err) {
