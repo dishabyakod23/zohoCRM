@@ -10,11 +10,38 @@ export const AUTH_EXPIRES_KEY = 'crm_token_expires_at';
 const REFRESH_TIMEOUT_MS = 30000;
 /** Refresh access token this long before it expires (backend access tokens are short-lived). */
 export const ACCESS_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+/** When expiry is unknown, avoid hammering /auth/refresh on every API call. */
+const MIN_REFRESH_INTERVAL_MS = 30 * 1000;
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://salescrm-api.duckdns.org/api/v1';
 
 let refreshInflight = null;
 let sessionExpiredHandled = false;
 let onSessionExpiredCallback = null;
+let lastSuccessfulRefreshAt = 0;
+
+/** Read `exp` from a JWT access token (ms since epoch), when the API omits expires_in. */
+export function getAccessTokenExpiryMs(accessToken) {
+  if (!accessToken || typeof accessToken !== 'string') return null;
+  const parts = accessToken.split('.');
+  if (parts.length < 2) return null;
+  try {
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(base64));
+    if (payload.exp != null && Number.isFinite(Number(payload.exp))) {
+      return Number(payload.exp) * 1000;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function resolveAccessTokenExpiresAt(access_token, expires_in) {
+  if (expires_in != null && Number.isFinite(Number(expires_in))) {
+    return Date.now() + Number(expires_in) * 1000;
+  }
+  return getAccessTokenExpiryMs(access_token);
+}
 
 export function registerSessionExpiredHandler(handler) {
   onSessionExpiredCallback = handler;
@@ -29,9 +56,9 @@ export function persistAuthSession({ access_token, refresh_token, user, expires_
   if (access_token) localStorage.setItem(AUTH_TOKEN_KEY, access_token);
   if (refresh_token) localStorage.setItem(AUTH_REFRESH_KEY, refresh_token);
   if (user) localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
-  if (access_token && expires_in != null && Number.isFinite(Number(expires_in))) {
-    const expiresAt = Date.now() + Number(expires_in) * 1000;
-    localStorage.setItem(AUTH_EXPIRES_KEY, String(expiresAt));
+  if (access_token) {
+    const expiresAt = resolveAccessTokenExpiresAt(access_token, expires_in);
+    if (expiresAt) localStorage.setItem(AUTH_EXPIRES_KEY, String(expiresAt));
   }
   setAuthSessionCookie();
   resetSessionExpiredGuard();
@@ -99,6 +126,11 @@ export function isAuthFailureError(err) {
   return isAuthFailureStatus(err?.response?.status);
 }
 
+/** True when the access token is invalid/expired (not a generic permission denial). */
+export function isInvalidSessionError(err) {
+  return err?.response?.status === 401;
+}
+
 function isAuthUrl(url = '') {
   const path = String(url);
   return path.includes('/auth/login') || path.includes('/auth/refresh');
@@ -116,7 +148,9 @@ export function shouldProactivelyRefresh() {
   if (typeof window === 'undefined') return false;
   if (!getStoredRefreshToken()) return false;
   const expiresAt = getAccessTokenExpiresAt();
-  if (!expiresAt) return true;
+  if (!expiresAt) {
+    return Date.now() - lastSuccessfulRefreshAt >= MIN_REFRESH_INTERVAL_MS;
+  }
   return Date.now() >= expiresAt - ACCESS_TOKEN_REFRESH_BUFFER_MS;
 }
 
@@ -153,9 +187,21 @@ export async function refreshAuthSession() {
         user: auth.user,
         expires_in: auth.expires_in,
       });
+      lastSuccessfulRefreshAt = Date.now();
       return auth;
     } catch (err) {
-      if (isAuthFailureError(err)) throw err;
+      if (isAuthFailureError(err)) {
+        const rotatedRefresh = getStoredRefreshToken();
+        const access = getStoredAccessToken();
+        if (rotatedRefresh && rotatedRefresh !== refresh && access) {
+          return {
+            access_token: access,
+            refresh_token: rotatedRefresh,
+            user: safeParseUser(),
+          };
+        }
+        throw err;
+      }
       return null;
     }
   })().finally(() => {

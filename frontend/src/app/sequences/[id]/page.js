@@ -9,6 +9,7 @@ import RecordDetailSkeleton from '../../../components/records/RecordDetailSkelet
 import SequenceBuilder from '../../../components/sequences/SequenceBuilder.js';
 import SequenceAnalyticsPanel from '../../../components/sequences/SequenceAnalyticsPanel.js';
 import EnrollMembersModal from '../../../components/sequences/EnrollMembersModal.js';
+import EnrollmentNextActionCell from '../../../components/sequences/EnrollmentNextActionCell.js';
 import FormField from '../../../components/forms/FormField.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
@@ -183,7 +184,18 @@ export default function SequenceDetailPage() {
                     <td className="table-td capitalize">{e.member_type}</td>
                     <td className="table-td"><Badge label={enrollmentStatusLabel(e.status)} /></td>
                     <td className="table-td">{e.current_step_order != null ? `Step ${e.current_step_order}` : '—'}</td>
-                    <td className="table-td text-xs">{e.next_action_at ? formatDateTimeInTimezone(e.next_action_at, sequence.timezone) : '—'}</td>
+                    <td className="table-td">
+                      <EnrollmentNextActionCell
+                        enrollment={e}
+                        sequenceTimezone={sequence.timezone}
+                        canEdit={canEdit}
+                        onUpdated={(updated) => {
+                          setEnrollments((rows) => rows.map((row) => (
+                            row.id === updated.id ? { ...row, ...updated } : row
+                          )));
+                        }}
+                      />
+                    </td>
                     <td className="table-td text-xs">{e.last_action_at ? formatDateTimeInTimezone(e.last_action_at, sequence.timezone) : '—'}</td>
                   </tr>
                 ))}

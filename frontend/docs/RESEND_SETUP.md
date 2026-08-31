@@ -62,7 +62,7 @@ Frontend client: `src/lib/services/sequences.js`
 | DELETE | `/sequences/{id}/steps/{stepId}` | |
 | POST | `/sequences/{id}/enroll` | `{ members: [{ member_type, member_id }] }` |
 | GET | `/sequences/{id}/enrollments` | Paginated; resolve `member_name` |
-| PATCH | `/enrollments/{id}` | Pause/resume; `mark_replied: true` → REPLIED + optional stop |
+| PATCH | `/enrollments/{id}` | Pause/resume; `mark_replied: true` → REPLIED + optional stop; `next_action_at` (ISO UTC) to reschedule next send |
 | GET | `/sequences/enrollments/by-member` | `?member_type=&member_id=` |
 | POST | `/sequences/{id}/preview` | Render merge fields |
 | POST | `/sequences/{id}/send-test` | `{ to_email, step_id?, subject?, html_body? }` |

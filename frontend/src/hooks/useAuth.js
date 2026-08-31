@@ -21,9 +21,13 @@ import {
   resetSessionExpiredGuard,
   shouldProactivelyRefresh,
   isAuthFailureError,
+  isInvalidSessionError,
   isTransientRequestError,
   ACCESS_TOKEN_REFRESH_BUFFER_MS,
   getAccessTokenExpiresAt,
+  AUTH_TOKEN_KEY,
+  AUTH_REFRESH_KEY,
+  AUTH_EXPIRES_KEY,
 } from '../lib/authSession.js';
 import { useToast } from '../components/ui/Toast.js';
 
@@ -89,13 +93,18 @@ export function AuthProvider({ children }) {
         return true;
       }
     } catch (err) {
-      if (isAuthFailureError(err)) {
+      if (isInvalidSessionError(err)) {
         logout({ toastMessage: 'Your session has expired. Please sign in again.' });
         return false;
       }
       if (isTransientRequestError(err)) {
         const cachedUser = readStoredAuthUser();
         if (cachedUser?.id) applyUser(cachedUser);
+        return true;
+      }
+      const cachedUser = readStoredAuthUser();
+      if (cachedUser?.id && hasStoredAuthSession()) {
+        applyUser(cachedUser);
         return true;
       }
     }
@@ -112,6 +121,23 @@ export function AuthProvider({ children }) {
     }
     setLoading(false);
   }, [syncSession]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const onStorage = (event) => {
+      if (![AUTH_TOKEN_KEY, AUTH_REFRESH_KEY, AUTH_EXPIRES_KEY, 'crm_user'].includes(event.key)) return;
+      resetSessionExpiredGuard();
+      if (hasStoredAuthSession()) {
+        const cachedUser = readStoredAuthUser();
+        if (cachedUser?.id) setUser(cachedUser);
+      } else {
+        setUser(null);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return undefined;

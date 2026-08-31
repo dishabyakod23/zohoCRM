@@ -169,6 +169,34 @@ export function formatDateTimeInTimezone(iso, timezone) {
   }
 }
 
+/** ISO instant → value for `<input type="datetime-local">` in the given timezone. */
+export function isoToDatetimeLocalInput(iso, timezone) {
+  if (!iso) return '';
+  const tz = normalizeSequenceTimezone(timezone);
+  const date = new Date(iso);
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(date).map((p) => [p.type, p.value]),
+  );
+  const hour = parts.hour === '24' ? '00' : parts.hour;
+  return `${parts.year}-${parts.month}-${parts.day}T${hour}:${parts.minute}`;
+}
+
+/** `<input type="datetime-local">` wall time in timezone → UTC ISO for API. */
+export function datetimeLocalInputToIso(localValue, timezone) {
+  if (!localValue) return null;
+  const [datePart, timePart] = String(localValue).split('T');
+  if (!datePart || !timePart) return null;
+  return buildScheduledAtIso(datePart, timePart, timezone);
+}
+
 /** Primary schedule label — exact date/time per corrected plan. */
 export function formatStepSchedule(step, fallbackTimezone = 'UTC') {
   if (!step) return '—';

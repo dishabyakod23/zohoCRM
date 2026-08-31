@@ -11,9 +11,17 @@ export function normalizeLoginPassword(password) {
 /** Login + refresh responses may be flat or wrapped in `{ data }`. */
 export function parseAuthTokenResponse(body) {
   if (!body) return null;
-  if (body.access_token) return body;
-  if (body.data?.access_token) return body.data;
-  return null;
+  let raw = null;
+  if (body.access_token) raw = body;
+  else if (body.data?.access_token) raw = body.data;
+  if (!raw) return null;
+
+  if (raw.expires_in == null) {
+    const alt = raw.expiresIn ?? raw.access_token_expires_in;
+    if (alt != null) raw.expires_in = Number(alt);
+  }
+  if (!raw.refresh_token && raw.refreshToken) raw.refresh_token = raw.refreshToken;
+  return raw;
 }
 
 import { mergeStoredProfileImage } from './profileImageHelpers.js';
