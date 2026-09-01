@@ -64,10 +64,7 @@ export default function PipelineLeadList({ stage, description }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
-  // Proposals are a shared pipeline view — every role should see all proposal rows by default.
-  const { filters, setFilters, clearFilters } = useDefaultOwnerFilters(EMPTY_LEAD_FILTERS, {
-    applyDefaultOwner: stage !== PIPELINE_PROPOSAL,
-  });
+  const { filters, setFilters, clearFilters } = useDefaultOwnerFilters(EMPTY_LEAD_FILTERS);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -277,9 +274,7 @@ export default function PipelineLeadList({ stage, description }) {
         options={statusOptions}
         emptyLabel="All statuses"
       />
-      {canAssignLeads && (
-        <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
-      )}
+      <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
       <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => updateFilter('campaign_id', v)} />
       <CreatedUpdatedDateFilters filters={filters} onChange={updateFilter} />
     </>

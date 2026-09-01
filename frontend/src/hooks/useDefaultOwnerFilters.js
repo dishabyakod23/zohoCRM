@@ -8,7 +8,7 @@ import { withDefaultOwnerFilters, defaultOwnerFilterId } from '../lib/listRecord
  * List filter state with owner_id defaulting to the logged-in user.
  * Resets to the default owner when the user session loads or when clearFilters() is called.
  *
- * Pass `{ applyDefaultOwner: false }` for shared lists (e.g. Proposals) that every role should see.
+ * Pass `{ applyDefaultOwner: false }` only for lists that should never scope to the logged-in user.
  */
 export function useDefaultOwnerFilters(emptyFilters, { applyDefaultOwner = true } = {}) {
   const { user } = useAuth();
