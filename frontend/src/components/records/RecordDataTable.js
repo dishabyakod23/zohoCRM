@@ -183,6 +183,8 @@ export default function RecordDataTable({
   const { showToast } = useToast();
   const { user } = useAuth();
   const { canEdit, canDelete, canAssignLeads, canEditRecord, canDeleteRecord, can, isSuperAdmin } = usePermissions();
+  const canRef = useRef(can);
+  canRef.current = can;
   const config = useMemo(() => getBulkConfig(moduleKey), [moduleKey]);
   const currentStageTarget = MODULE_PIPELINE_STAGE[moduleKey] || null;
   const noteMeta = useMemo(() => getNoteMeta(moduleKey), [moduleKey]);
@@ -321,7 +323,7 @@ export default function RecordDataTable({
     const fallbackTargets = () => convertOptionsToLookup(
       getConvertOptions(currentStageTarget || MODULE_PIPELINE_STAGE[moduleKey], {
         isAdmin: isSuperAdmin,
-        can,
+        can: canRef.current,
       }),
     );
 
@@ -332,24 +334,25 @@ export default function RecordDataTable({
 
     if (!convertTargetsLoader) {
       setDynamicConvertTargets(fallbackTargets());
+      setLoadingMassValueOptions(false);
       return undefined;
     }
 
     let cancelled = false;
-    setLoadingMassValueOptions(true);
-    setDynamicConvertTargets([]);
+    const fallback = fallbackTargets();
+    setDynamicConvertTargets(fallback);
+    setLoadingMassValueOptions(false);
 
     convertTargetsLoader({ moduleKey, pipelineStage: currentStageTarget })
       .then((options) => {
         if (cancelled) return;
-        const permitted = filterConvertLookupOptions(options, can);
-        setDynamicConvertTargets(permitted.length ? permitted : fallbackTargets());
+        const permitted = filterConvertLookupOptions(options, canRef.current);
+        setDynamicConvertTargets(permitted.length ? permitted : fallback);
       })
-      .catch(() => { if (!cancelled) setDynamicConvertTargets(fallbackTargets()); })
-      .finally(() => { if (!cancelled) setLoadingMassValueOptions(false); });
+      .catch(() => { if (!cancelled) setDynamicConvertTargets(fallback); });
 
     return () => { cancelled = true; };
-  }, [massField, dynamicMassFields, convertTargetsLoader, moduleKey, currentStageTarget, can, isSuperAdmin]);
+  }, [massField, dynamicMassFields, convertTargetsLoader, moduleKey, currentStageTarget, isSuperAdmin]);
 
   useEffect(() => {
     if (!massField) {

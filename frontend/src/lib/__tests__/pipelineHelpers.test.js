@@ -1,5 +1,7 @@
 import {
   PIPELINE_RAW,
+  PIPELINE_LEAD,
+  PIPELINE_QUALIFIED,
   filterLeadsByPipelineStage,
   resolveLeadPipelineStage,
   outreachLeadStatusOptions,
@@ -125,5 +127,14 @@ describe('filterLeadsByPipelineStage — proposals', () => {
       { id: '2', lead_status: 'qualified_lead' },
     ];
     expect(filterLeadsByPipelineStage(leads, 'proposal')).toEqual([]);
+  });
+
+  it('excludes qualified-stage records from warm leads when lead_status is still contacted', () => {
+    const leads = [
+      { id: 'warm', pipeline_stage: 'contacted', lead_status: 'contacted' },
+      { id: 'qualified', pipeline_stage: 'qualified_lead', lead_status: 'contacted' },
+    ];
+    expect(filterLeadsByPipelineStage(leads, PIPELINE_LEAD).map((l) => l.id)).toEqual(['warm']);
+    expect(filterLeadsByPipelineStage(leads, PIPELINE_QUALIFIED).map((l) => l.id)).toEqual(['qualified']);
   });
 });

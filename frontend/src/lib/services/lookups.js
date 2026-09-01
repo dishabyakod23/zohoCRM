@@ -319,15 +319,17 @@ export function mergeContactConvertTarget(options = [], { moduleKey, pipelineSta
 }
 
 export async function fetchPipelineConvertTargets({ moduleKey, pipelineStage } = {}) {
-  try {
-    const res = await api.get('/lookups/pipeline-convert-targets');
-    const options = remapPipelineConvertTargetLabels(
-      filterPipelineConvertTargets(parseLookupOptions(res.data.data)),
-    );
-    return mergeContactConvertTarget(options, { moduleKey, pipelineStage });
-  } catch {
-    return mergeContactConvertTarget([], { moduleKey, pipelineStage });
-  }
+  const baseOptions = await cachedLookup('pipeline-convert-targets', async () => {
+    try {
+      const res = await api.get('/lookups/pipeline-convert-targets');
+      return remapPipelineConvertTargetLabels(
+        filterPipelineConvertTargets(parseLookupOptions(res.data.data)),
+      );
+    } catch {
+      return [];
+    }
+  });
+  return mergeContactConvertTarget(baseOptions, { moduleKey, pipelineStage });
 }
 
 export async function fetchLostReasons() {

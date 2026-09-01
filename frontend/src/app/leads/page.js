@@ -77,7 +77,8 @@ export default function LeadsPage() {
         page,
         page_size: limit,
         search: debouncedSearch || undefined,
-        lead_status: filters.status || PIPELINE_LEAD,
+        pipeline_stage: PIPELINE_LEAD,
+        lead_status: filters.status || undefined,
         filters,
       };
       if (activeView === 'My Warm Leads' && user?.id) params.owner_id = user.id;
@@ -111,7 +112,8 @@ export default function LeadsPage() {
   const leadListParams = useMemo(() => {
     const params = {
       search: debouncedSearch || undefined,
-      lead_status: filters.status || PIPELINE_LEAD,
+      pipeline_stage: PIPELINE_LEAD,
+      lead_status: filters.status || undefined,
       filters,
       campaignMemberIds,
       ...(activeView === 'Recently Modified'
