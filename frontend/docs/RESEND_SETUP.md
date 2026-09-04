@@ -68,13 +68,12 @@ Frontend client: `src/lib/services/sequences.js`
 | POST | `/sequences/{id}/send-test` | `{ to_email, step_id?, subject?, html_body? }` |
 | GET | `/sequences/{id}/stats` | Analytics (shape below) |
 | GET | `/sequences/{id}/steps/{stepId}/stats` | Per-step funnel |
+| GET | `/sequences/{id}/email-events` | Paginated email activity list (see below) |
 | GET | `/email-templates` | Optional template picker |
 
 **Create sequence body:** `name`, `description`, `sending_email`, `timezone`, `send_window_start/end`, `send_days` (bitmask Mon=1…Sun=64, default 62), `daily_send_limit`, `stop_on_reply/click/unsubscribe/bounce`, `allow_re_enrollment`, `owner_id`
 
-**Step body:** `step_order`, `type`, `scheduled_date`, `scheduled_time`, `timezone`, `scheduled_at` (UTC ISO — frontend sends this from date/time/timezone), `subject`, `html_body`, `text_body`, `task_title`, `task_description`, `active`, `variants[]`
-
-When enrolling or scheduling, prefer `scheduled_at` over treating `scheduled_time` as UTC.
+**Step body:** `step_order`, `type`, `scheduled_date`, `scheduled_time`, `timezone`, `subject`, `html_body`, `text_body`, `task_title`, `task_description`, `active`, `variants[]`
 
 ---
 
@@ -120,13 +119,64 @@ Frontend reads flexible keys; return at least:
 
 ---
 
+## Email events list (`GET /sequences/{id}/email-events`)
+
+Used by the Analytics tab: clicking **Sent / Delivered / Opened / Clicked / Replied / Bounced / Unsubscribed** loads matching rows below the stat cards.
+
+### Query params
+
+| Param | Required | Description |
+|--------|----------|-------------|
+| `event_type` | Yes | `SENT` \| `DELIVERED` \| `OPENED` \| `CLICKED` \| `REPLIED` \| `BOUNCED` \| `UNSUBSCRIBED` |
+| `page` | No | Default `1` |
+| `page_size` | No | Default `25`, max `100` |
+
+### Response
+
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "event_type": "OPENED",
+      "occurred_at": "2026-09-04T10:00:00Z",
+      "member_name": "Ada Lovelace",
+      "member_email": "ada@example.com",
+      "member_type": "contact",
+      "member_id": "uuid",
+      "step_order": 1,
+      "step_id": "uuid",
+      "subject": "Hello Ada",
+      "variant_key": "A",
+      "provider_message_id": "re_xxx"
+    }
+  ],
+  "meta": {
+    "total": 180,
+    "page": 1,
+    "page_size": 25
+  }
+}
+```
+
+### Implementation notes
+
+- Join `sequence_email_events` → enrollment (name/email) → `sequence_email_send_log` (subject / to / provider id).
+- Scope to the given `sequence_id`.
+- For `OPENED` / `CLICKED`, return **one row per send** (latest event of that type), not every duplicate webhook.
+- Order by `occurred_at` descending.
+- `404` if sequence missing; `403` if unauthorized.
+
+---
+
 ## Resend send (worker)
 
 When `next_action_at <= now` and enrollment is ACTIVE:
 
 1. Load lead/contact email + merge fields (`{{first_name}}`, `{{company}}`, etc.)
 2. For `AB_EMAIL`, pick variant A/B deterministically per enrollment (hash enrollment id)
-3. `POST https://api.resend.com/emails`:
+3. **HTML formatting:** If `html_body` is plain text (no HTML tags), convert newlines to `<p>` / `<br>` before send (frontend already does this on save; worker should still guard for older steps). Escape HTML entities when converting plain text. Always send a `text` part (plain) alongside `html`.
+4. `POST https://api.resend.com/emails`:
 
 ```json
 {

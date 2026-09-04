@@ -5,6 +5,7 @@ import {
   STEP_TYPES,
   TEMPLATE_VARIABLES,
   renderTemplatePreview,
+  ensureEmailHtmlBody,
   isEmailStep,
   isAbEmailStep,
   isLinkedInStep,
@@ -49,8 +50,9 @@ function VariantEditor({ variant, onChange, templates, readOnly }) {
       <FormField label="Subject">
         <input className="input" value={variant.subject || ''} disabled={readOnly} onChange={(e) => onChange({ ...variant, subject: e.target.value })} />
       </FormField>
-      <FormField label="HTML Body">
+      <FormField label="Email body">
         <textarea className="input min-h-[100px] font-mono text-xs" value={variant.html_body || ''} disabled={readOnly} onChange={(e) => onChange({ ...variant, html_body: e.target.value })} />
+        <p className="text-[11px] text-zoho-muted mt-1">Line breaks are kept when the email is sent. You can also paste HTML.</p>
       </FormField>
     </div>
   );
@@ -81,10 +83,12 @@ export default function SequenceStepEditor({
     () => renderTemplatePreview(step.subject || step.variants?.[0]?.subject),
     [step.subject, step.variants],
   );
-  const previewBody = useMemo(
-    () => renderTemplatePreview(step.html_body || step.text_body || step.variants?.[0]?.html_body),
-    [step.html_body, step.text_body, step.variants],
-  );
+  const previewBodyHtml = useMemo(() => {
+    const merged = renderTemplatePreview(
+      step.html_body || step.text_body || step.variants?.[0]?.html_body,
+    );
+    return ensureEmailHtmlBody(merged);
+  }, [step.html_body, step.text_body, step.variants]);
 
   const update = (patch) => onChange({ ...step, ...patch });
 
@@ -184,11 +188,12 @@ export default function SequenceStepEditor({
           <FormField label="Subject">
             <input className="input" value={step.subject || ''} disabled={readOnly} onChange={(e) => update({ subject: e.target.value })} />
           </FormField>
-          <FormField label="HTML Body">
+          <FormField label="Email body">
             <textarea className="input min-h-[120px] font-mono text-xs" value={step.html_body || ''} disabled={readOnly} onChange={(e) => update({ html_body: e.target.value })} />
+            <p className="text-[11px] text-zoho-muted mt-1">Use blank lines between paragraphs. Line breaks are preserved in the sent email (Outlook, Gmail, etc.).</p>
           </FormField>
-          <FormField label="Plain Text Body">
-            <textarea className="input min-h-[80px] font-mono text-xs" value={step.text_body || ''} disabled={readOnly} onChange={(e) => update({ text_body: e.target.value })} />
+          <FormField label="Plain Text Body (optional)">
+            <textarea className="input min-h-[80px] font-mono text-xs" value={step.text_body || ''} disabled={readOnly} onChange={(e) => update({ text_body: e.target.value })} placeholder="Leave blank to auto-generate from the email body" />
           </FormField>
         </>
       )}
@@ -225,9 +230,16 @@ export default function SequenceStepEditor({
 
       {isEmailStep(step.type) && (
         <div className="rounded-lg bg-gray-50 border border-zoho-border p-3">
-          <p className="text-xs font-semibold text-zoho-muted mb-2">Preview</p>
+          <p className="text-xs font-semibold text-zoho-muted mb-2">Email Preview</p>
           <p className="text-sm font-medium">{previewSubject || '—'}</p>
-          <pre className="text-xs whitespace-pre-wrap mt-2 text-zoho-text">{previewBody || '—'}</pre>
+          {previewBodyHtml ? (
+            <div
+              className="text-sm mt-3 text-zoho-text leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0"
+              dangerouslySetInnerHTML={{ __html: previewBodyHtml }}
+            />
+          ) : (
+            <p className="text-xs text-zoho-muted mt-2">—</p>
+          )}
         </div>
       )}
 

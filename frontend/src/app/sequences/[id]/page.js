@@ -98,7 +98,8 @@ export default function SequenceDetailPage() {
     return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
   }
 
-  const stepsEditable = canEdit && sequence.status === 'DRAFT';
+  // Allow adding/editing steps while active or paused (not draft-only).
+  const stepsEditable = canEdit && ['DRAFT', 'ACTIVE', 'PAUSED'].includes(sequence.status);
   const canActivate = canEdit && (sequence.status === 'DRAFT' || sequence.status === 'PAUSED');
   const canPause = canEdit && sequence.status === 'ACTIVE';
 

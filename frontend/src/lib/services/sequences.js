@@ -1,7 +1,8 @@
 import api from '../api.js';
 import { assigneeName, listResult, omitEmpty } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
-import { sequenceStatusLabel, normalizeStepFromApi, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso } from '../sequenceHelpers.js';
+import { sequenceStatusLabel, normalizeStepFromApi, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText } from '../sequenceHelpers.js';
+
 
 export function normalizeSequence(row) {
   if (!row) return row;
@@ -55,6 +56,13 @@ function toStepPayload(form, { partial = false, sequenceTimezone } = {}) {
   const scheduled_time = normalizeScheduledTime(form.scheduled_time);
   const scheduled_at = buildScheduledAtIso(form.scheduled_date, scheduled_time, timezone);
 
+  const htmlBody = form.html_body != null && form.html_body !== ''
+    ? ensureEmailHtmlBody(form.html_body)
+    : (partial ? undefined : null);
+  const textBody = form.text_body != null && form.text_body !== ''
+    ? form.text_body
+    : (form.html_body ? htmlToPlainText(form.html_body) : (partial ? undefined : null));
+
   const payload = {
     step_order: form.step_order != null ? Number(form.step_order) : undefined,
     type: form.type,
@@ -64,18 +72,23 @@ function toStepPayload(form, { partial = false, sequenceTimezone } = {}) {
     scheduled_at,
     template_id: form.template_id || null,
     subject: form.subject || null,
-    html_body: form.html_body || null,
-    text_body: form.text_body || null,
+    html_body: htmlBody,
+    text_body: textBody,
     task_title: form.task_title || null,
     task_description: form.task_description || null,
     active: form.active,
-    variants: form.variants?.length ? form.variants.map((v) => ({
-      variant_key: v.variant_key,
-      template_id: v.template_id || null,
-      subject: v.subject || null,
-      html_body: v.html_body || null,
-      text_body: v.text_body || null,
-    })) : undefined,
+    variants: form.variants?.length ? form.variants.map((v) => {
+      const variantHtml = v.html_body != null && v.html_body !== ''
+        ? ensureEmailHtmlBody(v.html_body)
+        : null;
+      return {
+        variant_key: v.variant_key,
+        template_id: v.template_id || null,
+        subject: v.subject || null,
+        html_body: variantHtml,
+        text_body: v.text_body || (v.html_body ? htmlToPlainText(v.html_body) : null),
+      };
+    }) : undefined,
   };
   return partial ? omitEmpty(payload) : payload;
 }
@@ -201,4 +214,41 @@ export async function getSequenceStats(sequenceId) {
 export async function getStepStats(sequenceId, stepId) {
   const res = await api.get(`/sequences/${sequenceId}/steps/${stepId}/stats`);
   return res.data.data ?? res.data;
+}
+
+export function normalizeEmailEvent(row) {
+  if (!row) return row;
+  return {
+    ...row,
+    id: row.id ?? row.event_id,
+    event_type: String(row.event_type || row.type || '').toUpperCase(),
+    occurred_at: row.occurred_at ?? row.event_at ?? row.created_at ?? null,
+    member_name: row.member_name || row.name || '—',
+    member_email: row.member_email || row.email || row.to_email || '—',
+    step_order: row.step_order ?? row.stepOrder ?? null,
+    subject: row.subject || '—',
+  };
+}
+
+/** List email activity rows for a sequence, filtered by event_type (SENT, OPENED, …). */
+export async function listSequenceEmailEvents(sequenceId, params = {}) {
+  const { page = 1, page_size = 25, event_type, ...rest } = params;
+  const res = await api.get(`/sequences/${sequenceId}/email-events`, {
+    params: {
+      ...rest,
+      event_type,
+      page,
+      page_size,
+    },
+  });
+  const payload = res.data?.data ?? res.data;
+  const rows = Array.isArray(payload)
+    ? payload
+    : payload?.events || payload?.items || [];
+  return {
+    data: rows.map(normalizeEmailEvent),
+    total: res.data?.meta?.total ?? payload?.total ?? rows.length,
+    page: res.data?.meta?.page ?? page,
+    page_size: res.data?.meta?.page_size ?? page_size,
+  };
 }

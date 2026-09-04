@@ -307,6 +307,56 @@ export function renderTemplatePreview(template, sample = {}) {
   return String(template).replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => ctx[key] ?? '');
 }
 
+export function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** True when the string already looks like HTML markup (not plain text with newlines). */
+export function looksLikeHtml(value) {
+  return /<\/?[a-z][\s\S]*>/i.test(String(value || ''));
+}
+
+/**
+ * Convert plain-text email bodies (with newlines) into HTML so clients like Outlook
+ * keep paragraph breaks. Leaves real HTML content unchanged.
+ */
+export function ensureEmailHtmlBody(value) {
+  const raw = String(value || '');
+  if (!raw.trim()) return '';
+  if (looksLikeHtml(raw)) return raw;
+
+  const escaped = escapeHtml(raw);
+  return escaped
+    .split(/\r?\n\r?\n/)
+    .map((para) => {
+      const withBreaks = para.replace(/\r?\n/g, '<br />');
+      return `<p style="margin:0 0 12px 0;">${withBreaks}</p>`;
+    })
+    .join('');
+}
+
+/** Rough HTML → plain text for the text/plain part of the email. */
+export function htmlToPlainText(value) {
+  if (!value) return '';
+  if (!looksLikeHtml(value)) return String(value);
+  return String(value)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function memberRefFromRecord(record, memberType) {
   return { member_type: memberType, member_id: record.id };
 }
