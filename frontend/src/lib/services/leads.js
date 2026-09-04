@@ -38,10 +38,11 @@ function resolvePipelineConvertMassValue(value, { proposal = false, clearProposa
   const target = String(value ?? '').toLowerCase().trim();
   if (target === 'contact') return 'contact';
   if (target === 'proposal' || target === PIPELINE_PROPOSAL) return 'proposal';
-  if (clearProposal || target === 'lead') return PIPELINE_LEAD;
   if (target === 'qualified' || target === 'qualified_lead') return PIPELINE_QUALIFIED;
   if (target === 'raw_prospect' || target === 'raw_lead' || target === 'cold_lead') return PIPELINE_RAW;
-  if (target === 'contacted' || target === 'warm_lead') return PIPELINE_LEAD;
+  if (target === 'contacted' || target === 'warm_lead' || target === 'lead') return PIPELINE_LEAD;
+  // Legacy path: clearProposal alone meant demote proposal → warm lead
+  if (clearProposal) return PIPELINE_LEAD;
   const mapped = resolveLeadStatusForApi(value);
   if (mapped && !isPipelineStageStatus(mapped)) return mapped;
   if (mapped) return mapped;

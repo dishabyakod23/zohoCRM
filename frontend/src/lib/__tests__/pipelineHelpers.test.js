@@ -87,6 +87,24 @@ describe('getConvertOptions', () => {
     const options = getConvertOptions(PIPELINE_RAW, { can });
     expect(options.map((o) => o.id)).toEqual(['lead']);
   });
+
+  it('lists all other modules for qualified leads', () => {
+    const options = getConvertOptions(PIPELINE_QUALIFIED);
+    expect(options.map((o) => o.label)).toEqual([
+      'Contact',
+      'Cold Lead',
+      'Warm Lead',
+      'Proposal',
+      'Account',
+    ]);
+  });
+
+  it('excludes the current stage from convert targets', () => {
+    const options = getConvertOptions(PIPELINE_LEAD);
+    expect(options.some((o) => o.target === PIPELINE_LEAD)).toBe(false);
+    expect(options.map((o) => o.id)).toContain('cold_lead');
+    expect(options.map((o) => o.id)).toContain('qualified_lead');
+  });
 });
 
 describe('filterLeadsByPipelineStage — proposals', () => {
