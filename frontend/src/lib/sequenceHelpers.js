@@ -95,10 +95,47 @@ const TIMEZONE_ALIASES = {
   'Asia/Calcutta': 'Asia/Kolkata',
 };
 
+/** Common IANA zones shown first; full browser list appended when available. */
+const PRIORITY_TIMEZONES = [
+  'UTC',
+  'Asia/Kolkata',
+  'Asia/Dubai',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Asia/Shanghai',
+  'Asia/Hong_Kong',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Sao_Paulo',
+  'Australia/Sydney',
+  'Pacific/Auckland',
+];
+
 /** Canonical IANA timezone (e.g. Asia/Calcutta → Asia/Kolkata). */
 export function normalizeSequenceTimezone(timezone) {
   const value = String(timezone || 'UTC').trim() || 'UTC';
   return TIMEZONE_ALIASES[value] || value;
+}
+
+/** Sorted IANA timezone options for sequence / step dropdowns. */
+export function listSequenceTimezones(extra) {
+  const set = new Set(PRIORITY_TIMEZONES);
+  try {
+    if (typeof Intl !== 'undefined' && typeof Intl.supportedValuesOf === 'function') {
+      for (const tz of Intl.supportedValuesOf('timeZone')) set.add(tz);
+    }
+  } catch {
+    /* older runtimes */
+  }
+  if (extra) set.add(normalizeSequenceTimezone(extra));
+  const priority = PRIORITY_TIMEZONES.filter((tz) => set.has(tz));
+  const rest = [...set].filter((tz) => !PRIORITY_TIMEZONES.includes(tz)).sort((a, b) => a.localeCompare(b));
+  return [...priority, ...rest];
 }
 
 /** HTML time input → HH:MM:SS for API. */
@@ -228,7 +265,9 @@ export function emptySequenceForm(ownerId = '') {
     name: '',
     description: '',
     sending_email: '',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    timezone: normalizeSequenceTimezone(
+      Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    ),
     send_window_start: '09:00',
     send_window_end: '18:00',
     send_days: DEFAULT_SEND_DAYS,

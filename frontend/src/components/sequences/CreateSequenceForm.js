@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import AppLink from '../ui/AppLink.js';
 import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
+import TimezoneSelect from '../forms/TimezoneSelect.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
@@ -99,7 +100,10 @@ export default function CreateSequenceForm() {
           <SectionTitle>Schedule</SectionTitle>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Timezone">
-              <input className="input" value={form.timezone} onChange={(e) => setForm((f) => ({ ...f, timezone: e.target.value }))} />
+              <TimezoneSelect
+                value={form.timezone}
+                onChange={(timezone) => setForm((f) => ({ ...f, timezone }))}
+              />
             </FormField>
             <FormField label="Send window start">
               <input className="input" type="time" value={form.send_window_start} onChange={(e) => setForm((f) => ({ ...f, send_window_start: e.target.value }))} />

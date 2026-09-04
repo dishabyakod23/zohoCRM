@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import FormField from '../forms/FormField.js';
+import TimezoneSelect from '../forms/TimezoneSelect.js';
 import {
   STEP_TYPES,
   TEMPLATE_VARIABLES,
@@ -171,7 +172,11 @@ export default function SequenceStepEditor({
           <input className="input" type="time" value={step.scheduled_time || ''} disabled={readOnly} onChange={(e) => update({ scheduled_time: e.target.value })} />
         </FormField>
         <FormField label="Timezone">
-          <input className="input" value={normalizeSequenceTimezone(step.timezone || sequenceTimezone)} disabled={readOnly} onChange={(e) => update({ timezone: e.target.value })} />
+          <TimezoneSelect
+            value={normalizeSequenceTimezone(step.timezone || sequenceTimezone)}
+            disabled={readOnly}
+            onChange={(timezone) => update({ timezone })}
+          />
         </FormField>
       </div>
 
