@@ -1,6 +1,10 @@
 'use client';
 import { useMemo } from 'react';
-import { listSequenceTimezones, normalizeSequenceTimezone } from '../../lib/sequenceHelpers.js';
+import {
+  listSequenceTimezones,
+  normalizeSequenceTimezone,
+  formatTimezoneLabel,
+} from '../../lib/sequenceHelpers.js';
 
 export default function TimezoneSelect({
   value,
@@ -23,7 +27,7 @@ export default function TimezoneSelect({
       onChange={(e) => onChange?.(e.target.value)}
     >
       {options.map((tz) => (
-        <option key={tz} value={tz}>{tz}</option>
+        <option key={tz} value={tz}>{formatTimezoneLabel(tz)}</option>
       ))}
     </select>
   );

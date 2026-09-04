@@ -100,7 +100,7 @@ export const BULK_MODULE_CONFIG = {
     emailField: 'email',
     statusField: 'lead_status',
     statusMassUpdateLabel: 'Lead Status',
-    massUpdateFields: ['status', 'convert', 'campaign'],
+    massUpdateFields: ['status', 'convert', 'campaign', 'linkedin_request_sent'],
     convertOptions: CONTACT_CONVERT_OPTIONS,
     update: (id, payload) => contactsApi.updateContact(id, payload),
     convert: (id, target = PIPELINE_RAW) => contactsApi.convertContact(id, target),

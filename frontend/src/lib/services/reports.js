@@ -64,8 +64,10 @@ export async function getAccountReport({ group_by = 'industry', date_from, date_
   return { rows: asRows(res.data.data) };
 }
 
-export async function getActivityReport({ date_from, date_to } = {}) {
-  const res = await api.get('/reports/activity-summary', { params: dateParams({ date_from, date_to }) });
+export async function getActivityReport({ date_from, date_to, owner_id } = {}) {
+  const params = dateParams({ date_from, date_to });
+  if (owner_id) params.owner_id = owner_id;
+  const res = await api.get('/reports/activity-summary', { params });
   return res.data.data || {};
 }
 

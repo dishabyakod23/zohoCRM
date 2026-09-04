@@ -195,7 +195,29 @@ When `next_action_at <= now` and enrollment is ACTIVE:
 
 4. Store Resend `id` in `sequence_email_send_log` + `provider_message_id`
 5. Insert `SENT` event; advance to next step / set `next_action_at` from step schedule
-6. Enforce `daily_send_limit`, send window, `send_days` bitmask
+6. Enforce `daily_send_limit`, **optional `hourly_send_limit`**, send window, `send_days` bitmask.
+   Same scheduled time ≠ blast all at once: the worker should dequeue within caps (pace/throttle), not send the entire due batch in one API burst.
+
+### Timezone rules (product)
+
+| Setting | Behavior |
+|---------|----------|
+| Sequence `timezone` | Default clock for step schedules + send window (e.g. 17:00–23:00 IST = `Asia/Kolkata`) |
+| `use_contact_timezone = false` (default) | Always use sequence timezone / window |
+| `use_contact_timezone = true` | If lead/contact has a `timezone` field, schedule that send in the contact’s zone; otherwise fall back to sequence timezone |
+
+Frontend exposes friendly labels (IST, US Eastern, UK, Europe, …) mapping to IANA IDs.
+
+### HTML vs plain text
+
+| Field | Use |
+|-------|-----|
+| `html_body` | What Outlook/Gmail render (formatting toolbar writes this) |
+| `text_body` | Optional `text/plain` fallback; auto-generated from HTML if blank |
+
+### Outlook Sent Items
+
+Resend sends via their API (`from` = sequence `sending_email`). Messages **do not** appear in the salesperson’s Outlook Sent folder unless you also sync via Microsoft Graph / mailbox send-as. Tracking lives in CRM Analytics (`sequence_email_events`), not Outlook.
 
 ---
 

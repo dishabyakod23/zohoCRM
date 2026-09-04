@@ -11,11 +11,12 @@ import SequenceAnalyticsPanel from '../../../components/sequences/SequenceAnalyt
 import EnrollMembersModal from '../../../components/sequences/EnrollMembersModal.js';
 import EnrollmentNextActionCell from '../../../components/sequences/EnrollmentNextActionCell.js';
 import FormField from '../../../components/forms/FormField.js';
+import TimezoneSelect from '../../../components/forms/TimezoneSelect.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { getApiError } from '../../../lib/api.js';
 import * as sequencesApi from '../../../lib/services/sequences.js';
-import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone } from '../../../lib/sequenceHelpers.js';
+import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel } from '../../../lib/sequenceHelpers.js';
 
 const TABS = ['Steps', 'Enrollments', 'Analytics', 'Settings'];
 
@@ -51,6 +52,10 @@ export default function SequenceDetailPage() {
         name: seq.name,
         description: seq.description || '',
         sending_email: seq.sending_email || '',
+        timezone: seq.timezone || 'UTC',
+        send_window_start: (seq.send_window_start || '09:00').slice(0, 5),
+        send_window_end: (seq.send_window_end || '18:00').slice(0, 5),
+        send_days: seq.send_days ?? 62,
         daily_send_limit: seq.daily_send_limit ?? 100,
         hourly_send_limit: seq.hourly_send_limit ?? '',
         use_contact_timezone: seq.use_contact_timezone ?? false,
@@ -212,7 +217,13 @@ export default function SequenceDetailPage() {
           </div>
         )}
 
-        {tab === 'Analytics' && <SequenceAnalyticsPanel sequenceId={id} steps={steps} />}
+        {tab === 'Analytics' && (
+          <SequenceAnalyticsPanel
+            sequenceId={id}
+            steps={steps}
+            sequenceTimezone={sequence.timezone || 'UTC'}
+          />
+        )}
 
         {tab === 'Settings' && settings && (
           <div className="space-y-4 max-w-2xl">
@@ -225,6 +236,42 @@ export default function SequenceDetailPage() {
             <FormField label="Sending email">
               <input className="input" type="email" value={settings.sending_email} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, sending_email: e.target.value }))} />
             </FormField>
+            <FormField label="Campaign timezone">
+              <TimezoneSelect
+                value={settings.timezone}
+                disabled={!canEdit}
+                onChange={(timezone) => setSettings((s) => ({ ...s, timezone }))}
+              />
+              <p className="text-xs text-zoho-muted mt-1.5">
+                Active timezone: {formatTimezoneLabel(settings.timezone)}. Send window times below are in this zone unless contact timezone is on.
+              </p>
+            </FormField>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField label="Send window start">
+                <input className="input" type="time" value={settings.send_window_start} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, send_window_start: e.target.value }))} />
+              </FormField>
+              <FormField label="Send window end">
+                <input className="input" type="time" value={settings.send_window_end} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, send_window_end: e.target.value }))} />
+              </FormField>
+            </div>
+            <FormField label="Send days">
+              <div className="flex flex-wrap gap-2">
+                {SEND_DAYS.map((d) => (
+                  <label key={d.bit} className="inline-flex items-center gap-1 text-xs border border-zoho-border rounded-lg px-2 py-1">
+                    <input
+                      type="checkbox"
+                      disabled={!canEdit}
+                      checked={Boolean(settings.send_days & d.bit)}
+                      onChange={() => setSettings((s) => ({
+                        ...s,
+                        send_days: s.send_days & d.bit ? s.send_days & ~d.bit : s.send_days | d.bit,
+                      }))}
+                    />
+                    {d.label}
+                  </label>
+                ))}
+              </div>
+            </FormField>
             <div className="grid grid-cols-2 gap-4">
               <FormField label="Daily limit">
                 <input className="input" type="number" value={settings.daily_send_limit} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, daily_send_limit: e.target.value }))} />
@@ -233,13 +280,24 @@ export default function SequenceDetailPage() {
                 <input className="input" type="number" placeholder="Optional" value={settings.hourly_send_limit} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, hourly_send_limit: e.target.value }))} />
               </FormField>
             </div>
-            <div className="space-y-2 text-sm">
+            <p className="text-xs text-zoho-muted">
+              Emails due at the same time are throttled by daily/hourly limits (not blasted all at once). Window: {formatSendDays(settings.send_days)}.
+            </p>
+            <div className="space-y-3 text-sm">
+              <label className="flex items-start gap-2">
+                <input type="checkbox" className="mt-0.5" disabled={!canEdit} checked={settings.use_contact_timezone} onChange={(e) => setSettings((s) => ({ ...s, use_contact_timezone: e.target.checked }))} />
+                <span>
+                  <span className="font-medium">Use contact timezone</span>
+                  <span className="block text-xs text-zoho-muted mt-0.5">
+                    Off: honor campaign timezone + send window. On: shift each send into the contact/lead timezone when that field is set.
+                  </span>
+                </span>
+              </label>
               {[
-                ['use_contact_timezone', 'Use contact timezone'],
                 ['stop_on_reply', 'Stop on reply'],
                 ['stop_on_click', 'Stop on click'],
               ].map(([key, label]) => (
-                <label key={key} className="inline-flex items-center gap-2 mr-4">
+                <label key={key} className="inline-flex items-center gap-2">
                   <input type="checkbox" disabled={!canEdit} checked={settings[key]} onChange={(e) => setSettings((s) => ({ ...s, [key]: e.target.checked }))} />
                   {label}
                 </label>

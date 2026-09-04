@@ -117,6 +117,12 @@ export function applyContactRecordFilters(contacts, filters = {}, { campaignMemb
     if (!includesText(contact.account_name, filters.company)) return false;
     if (!matchesOwner(contact, filters.owner_id)) return false;
     if (filters.campaign_id && campaignMemberIds && !campaignMemberIds.has(String(contact.id))) return false;
+    if (filters.notes_q) {
+      const blob = [contact.description, contact.notes, contact.follow_up_notes, contact.followup_notes]
+        .filter(Boolean)
+        .join(' ');
+      if (!includesText(blob, filters.notes_q)) return false;
+    }
     if (!matchesRecordTimestampFilters(contact, filters)) return false;
     return true;
   });
@@ -155,6 +161,7 @@ export function hasContactClientFilters(filters = {}) {
     || filters.designation
     || filters.current_status
     || filters.lead_status
+    || filters.notes_q
     || filters.activity_from
     || filters.activity_to
     || hasTimestampFilters(filters),
@@ -205,6 +212,7 @@ export const EMPTY_CONTACT_FILTERS = {
   designation: '',
   current_status: '',
   lead_status: '',
+  notes_q: '',
   activity_from: '',
   activity_to: '',
   ...TIMESTAMP_FILTER_KEYS,

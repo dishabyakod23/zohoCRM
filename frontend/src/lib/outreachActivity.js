@@ -46,6 +46,24 @@ export function setLinkedInRequestSent(contactId, { sent, user } = {}) {
   return entry;
 }
 
+/** Mark many contacts as LinkedIn-request-sent (same timestamp/user). Returns count updated. */
+export function bulkSetLinkedInRequestSent(contactIds, { sent = true, user } = {}) {
+  const ids = (contactIds || []).filter(Boolean);
+  if (!ids.length) return { updated: 0, sent_at: null };
+  let updated = 0;
+  let sent_at = null;
+  for (const id of ids) {
+    const entry = setLinkedInRequestSent(id, { sent, user });
+    if (sent && entry?.sent_at) {
+      sent_at = entry.sent_at;
+      updated += 1;
+    } else if (!sent) {
+      updated += 1;
+    }
+  }
+  return { updated, sent_at };
+}
+
 export function logEmailSent(contactId, { user } = {}) {
   if (!contactId) return null;
   const store = readStore();

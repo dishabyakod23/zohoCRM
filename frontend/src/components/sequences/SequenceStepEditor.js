@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import FormField from '../forms/FormField.js';
 import TimezoneSelect from '../forms/TimezoneSelect.js';
+import EmailHtmlEditor from '../forms/EmailHtmlEditor.js';
 import {
   STEP_TYPES,
   TEMPLATE_VARIABLES,
@@ -51,9 +52,13 @@ function VariantEditor({ variant, onChange, templates, readOnly }) {
       <FormField label="Subject">
         <input className="input" value={variant.subject || ''} disabled={readOnly} onChange={(e) => onChange({ ...variant, subject: e.target.value })} />
       </FormField>
-      <FormField label="Email body">
-        <textarea className="input min-h-[100px] font-mono text-xs" value={variant.html_body || ''} disabled={readOnly} onChange={(e) => onChange({ ...variant, html_body: e.target.value })} />
-        <p className="text-[11px] text-zoho-muted mt-1">Line breaks are kept when the email is sent. You can also paste HTML.</p>
+      <FormField label="HTML body (what recipients see)">
+        <EmailHtmlEditor
+          value={variant.html_body || ''}
+          disabled={readOnly}
+          minHeight={100}
+          onChange={(html_body) => onChange({ ...variant, html_body })}
+        />
       </FormField>
     </div>
   );
@@ -193,12 +198,19 @@ export default function SequenceStepEditor({
           <FormField label="Subject">
             <input className="input" value={step.subject || ''} disabled={readOnly} onChange={(e) => update({ subject: e.target.value })} />
           </FormField>
-          <FormField label="Email body">
-            <textarea className="input min-h-[120px] font-mono text-xs" value={step.html_body || ''} disabled={readOnly} onChange={(e) => update({ html_body: e.target.value })} />
-            <p className="text-[11px] text-zoho-muted mt-1">Use blank lines between paragraphs. Line breaks are preserved in the sent email (Outlook, Gmail, etc.).</p>
+          <FormField label="HTML body (what recipients see)">
+            <EmailHtmlEditor
+              value={step.html_body || ''}
+              disabled={readOnly}
+              minHeight={140}
+              onChange={(html_body) => update({ html_body })}
+            />
           </FormField>
-          <FormField label="Plain Text Body (optional)">
-            <textarea className="input min-h-[80px] font-mono text-xs" value={step.text_body || ''} disabled={readOnly} onChange={(e) => update({ text_body: e.target.value })} placeholder="Leave blank to auto-generate from the email body" />
+          <FormField label="Plain text body (optional fallback)">
+            <textarea className="input min-h-[80px] font-mono text-xs" value={step.text_body || ''} disabled={readOnly} onChange={(e) => update({ text_body: e.target.value })} placeholder="Leave blank to auto-generate from the HTML body" />
+            <p className="text-[11px] text-zoho-muted mt-1">
+              Used only as the text/plain part for clients that cannot show HTML. The formatted HTML body is what Outlook and Gmail display.
+            </p>
           </FormField>
         </>
       )}

@@ -116,10 +116,37 @@ const PRIORITY_TIMEZONES = [
   'Pacific/Auckland',
 ];
 
+/** Friendly labels for common zones (IST, US, UK, Europe, etc.). */
+export const TIMEZONE_LABELS = {
+  UTC: 'UTC (Coordinated Universal Time)',
+  'Asia/Kolkata': 'IST — India (Asia/Kolkata)',
+  'Asia/Dubai': 'GST — Dubai (Asia/Dubai)',
+  'Asia/Singapore': 'SGT — Singapore',
+  'Asia/Tokyo': 'JST — Tokyo',
+  'Asia/Shanghai': 'CST — China (Shanghai)',
+  'Asia/Hong_Kong': 'HKT — Hong Kong',
+  'Europe/London': 'UK — London (GMT/BST)',
+  'Europe/Paris': 'Europe — Paris (CET/CEST)',
+  'Europe/Berlin': 'Europe — Berlin (CET/CEST)',
+  'America/New_York': 'US Eastern — New York (EST/EDT)',
+  'America/Chicago': 'US Central — Chicago (CST/CDT)',
+  'America/Denver': 'US Mountain — Denver (MST/MDT)',
+  'America/Los_Angeles': 'US Pacific — Los Angeles (PST/PDT)',
+  'America/Sao_Paulo': 'Brazil — São Paulo',
+  'Australia/Sydney': 'Australia — Sydney (AEST/AEDT)',
+  'Pacific/Auckland': 'New Zealand — Auckland',
+};
+
 /** Canonical IANA timezone (e.g. Asia/Calcutta → Asia/Kolkata). */
 export function normalizeSequenceTimezone(timezone) {
   const value = String(timezone || 'UTC').trim() || 'UTC';
   return TIMEZONE_ALIASES[value] || value;
+}
+
+/** Dropdown / display label for an IANA timezone. */
+export function formatTimezoneLabel(timezone) {
+  const tz = normalizeSequenceTimezone(timezone);
+  return TIMEZONE_LABELS[tz] || tz;
 }
 
 /** Sorted IANA timezone options for sequence / step dropdowns. */
@@ -257,7 +284,7 @@ export function formatStepSchedule(step, fallbackTimezone = 'UTC') {
   }
   const tz = normalizeSequenceTimezone(step.timezone || fallbackTimezone);
   const timePart = time ? ` ${time}` : '';
-  return `${date}${timePart} (${tz})`;
+  return `${date}${timePart} (${formatTimezoneLabel(tz)})`;
 }
 
 export function emptySequenceForm(ownerId = '') {
@@ -272,6 +299,7 @@ export function emptySequenceForm(ownerId = '') {
     send_window_end: '18:00',
     send_days: DEFAULT_SEND_DAYS,
     daily_send_limit: 100,
+    use_contact_timezone: false,
     stop_on_reply: true,
     stop_on_click: false,
     stop_on_unsubscribe: true,

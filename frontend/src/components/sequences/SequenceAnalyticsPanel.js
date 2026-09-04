@@ -256,6 +256,10 @@ export default function SequenceAnalyticsPanel({
 
   return (
     <div className="space-y-6">
+      <p className="text-xs text-zoho-muted">
+        Tracking funnel: Sent → Delivered → Opened → Clicked → Replied / Bounced. Click a card to list matching emails.
+        Sequence mail is sent via Resend and will not appear in Outlook Sent Items — use this panel for send history.
+      </p>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Total Enrolled" value={stats.enrolled ?? stats.enrollment_count ?? stats.total} />
         <StatCard label="Eligible" value={stats.eligible ?? stats.active ?? stats.active_enrollment_count} />

@@ -98,6 +98,10 @@ export default function CreateSequenceForm() {
           </div>
 
           <SectionTitle>Schedule</SectionTitle>
+          <p className="text-xs text-zoho-muted -mt-2 mb-4">
+            Step times and the send window use this campaign timezone (e.g. 5 PM–11 PM IST) unless you enable contact timezone below.
+            Same-time sends are paced by the daily/hourly limits — not all at once.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Timezone">
               <TimezoneSelect
@@ -121,6 +125,23 @@ export default function CreateSequenceForm() {
                 ))}
               </div>
             </FormField>
+            <div className="md:col-span-2 space-y-1">
+              <label className="inline-flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={form.use_contact_timezone}
+                  onChange={(e) => setForm((f) => ({ ...f, use_contact_timezone: e.target.checked }))}
+                />
+                <span>
+                  <span className="font-medium">Use contact timezone</span>
+                  <span className="block text-xs text-zoho-muted mt-0.5">
+                    Off (default): schedule and send window stay in the campaign timezone above.
+                    On: each email is scheduled in the contact/lead timezone field when set; otherwise the campaign timezone is used.
+                  </span>
+                </span>
+              </label>
+            </div>
           </div>
 
           <SectionTitle>Limits &amp; Stop Rules</SectionTitle>

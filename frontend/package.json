@@ -8,6 +8,7 @@
     "start": "next start -p 3002",
     "test": "npm run test:smoke && npm run test:unit",
     "test:smoke": "node scripts/smoke-test.mjs",
+    "setup:sequence-test": "node scripts/setup-sequence-test.mjs",
     "test:unit": "jest",
     "test:coverage": "jest --coverage"
   },

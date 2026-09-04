@@ -14,6 +14,9 @@ import * as contactsApi from '../../lib/services/contacts.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import { fetchCampaignTypes, fetchCampaignStatuses, fetchUsers } from '../../lib/services/lookups.js';
 import { PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } from '../../lib/pipelineHelpers.js';
+import { defaultOwnerFilterId } from '../../lib/listRecordFilters.js';
+import { canAssignRecords } from '../../lib/roles.js';
+import { OwnerFilter } from '../layout/ListFilterFields.js';
 
 const RECIPIENT_MODULES = [
   { key: 'contacts', label: 'Contacts' },
@@ -32,12 +35,13 @@ const LEAD_STAGE_BY_MODULE = {
 };
 
 /** Fetch selectable {key, member_type, member_id, name, email, module} recipients for the chosen modules. */
-async function fetchRecipientPool(modules) {
+async function fetchRecipientPool(modules, { ownerId } = {}) {
   const tasks = [];
+  const ownerParams = ownerId ? { owner_id: ownerId } : {};
 
   if (modules.includes('contacts')) {
     tasks.push(
-      contactsApi.listAllContacts().then(({ data }) =>
+      contactsApi.listAllContacts(ownerParams).then(({ data }) =>
         (data || []).filter((c) => c.email).map((c) => ({
           key: `contact:${c.id}`,
           member_type: 'contact',
@@ -54,7 +58,7 @@ async function fetchRecipientPool(modules) {
     if (!modules.includes(key)) continue;
     const label = RECIPIENT_MODULES.find((m) => m.key === key)?.label || key;
     tasks.push(
-      leadsApi.listAllLeads({ pipeline_stage: stage }).then(({ data }) =>
+      leadsApi.listAllLeads({ pipeline_stage: stage, ...ownerParams }).then(({ data }) =>
         (data || []).filter((l) => l.email).map((l) => ({
           key: `lead:${l.id}`,
           member_type: 'lead',
@@ -69,7 +73,7 @@ async function fetchRecipientPool(modules) {
 
   if (modules.includes('accounts')) {
     tasks.push(
-      accountsApi.listAllAccounts().then(({ data }) =>
+      accountsApi.listAllAccounts(ownerParams).then(({ data }) =>
         (data || []).filter((a) => a.email).map((a) => ({
           key: `account:${a.id}`,
           member_type: 'account',
@@ -148,12 +152,20 @@ export default function CreateCampaignForm() {
   const [manualFormOpen, setManualFormOpen] = useState(false);
   const [manualForm, setManualForm] = useState({ email: '', name: '', company: '' });
   const [recipientSearch, setRecipientSearch] = useState('');
+  const [recipientOwnerId, setRecipientOwnerId] = useState(() => defaultOwnerFilterId(user) || user?.id || '');
+  const canPickAnyOwner = canAssignRecords(user?.role);
 
   useEffect(() => {
     if (user?.id && !form.owner_id) {
       setForm((f) => ({ ...f, owner_id: user.id }));
     }
   }, [user?.id, form.owner_id]);
+
+  useEffect(() => {
+    if (!recipientOwnerId && user?.id && !canPickAnyOwner) {
+      setRecipientOwnerId(defaultOwnerFilterId(user) || user.id);
+    }
+  }, [user, recipientOwnerId, canPickAnyOwner]);
 
   useEffect(() => {
     if (!recipientModules.length) {
@@ -163,7 +175,7 @@ export default function CreateCampaignForm() {
     }
     let cancelled = false;
     setRecipientsLoading(true);
-    fetchRecipientPool(recipientModules)
+    fetchRecipientPool(recipientModules, { ownerId: recipientOwnerId || undefined })
       .then((pool) => {
         if (cancelled) return;
         setRecipientPool(pool);
@@ -173,7 +185,7 @@ export default function CreateCampaignForm() {
       .catch(() => { if (!cancelled) setRecipientPool([]); })
       .finally(() => { if (!cancelled) setRecipientsLoading(false); });
     return () => { cancelled = true; };
-  }, [recipientModules]);
+  }, [recipientModules, recipientOwnerId]);
 
   const allModuleKeys = RECIPIENT_MODULES.map((m) => m.key);
   const allModulesSelected = allModuleKeys.every((k) => recipientModules.includes(k));
@@ -439,8 +451,22 @@ export default function CreateCampaignForm() {
 
           <SectionTitle>Campaign Recipients</SectionTitle>
           <p className="text-xs text-zoho-muted -mt-2 mb-3">
-            Choose which modules to pull recipients from, then select the emails that should be added to this campaign.
+            By default only your own Cold Leads / contacts load (faster, safer). Managers/admins can switch owner to see others.
           </p>
+          <div className="mb-4 max-w-xs">
+            {canPickAnyOwner ? (
+              <OwnerFilter
+                users={users}
+                value={recipientOwnerId}
+                onChange={setRecipientOwnerId}
+                label="Show records owned by"
+              />
+            ) : (
+              <p className="text-sm text-zoho-text">
+                Showing <span className="font-medium">your</span> leads and contacts only.
+              </p>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input

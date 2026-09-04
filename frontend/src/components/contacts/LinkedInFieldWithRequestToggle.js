@@ -8,6 +8,7 @@ import {
 } from '../../lib/outreachActivity.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
+import * as contactsApi from '../../lib/services/contacts.js';
 
 function LinkedInRequestCheckbox({ contactId, disabled }) {
   const { user } = useAuth();
@@ -20,7 +21,7 @@ function LinkedInRequestCheckbox({ contactId, disabled }) {
     setSentAt(entry?.sent_at || null);
   }, [contactId]);
 
-  const toggleSent = (checked) => {
+  const toggleSent = async (checked) => {
     const entry = setLinkedInRequestSent(contactId, {
       sent: checked,
       user: { id: user?.id, name: userDisplayName(user) },
@@ -28,6 +29,23 @@ function LinkedInRequestCheckbox({ contactId, disabled }) {
     setSent(checked);
     setSentAt(entry?.sent_at || null);
     markRecordListStale();
+    if (contactId) {
+      try {
+        await contactsApi.updateContact(contactId, checked
+          ? {
+            linkedin_request_sent: true,
+            linkedin_request_sent_at: entry?.sent_at || new Date().toISOString(),
+            linkedin_request_sent_by: user?.id || null,
+          }
+          : {
+            linkedin_request_sent: false,
+            linkedin_request_sent_at: null,
+            linkedin_request_sent_by: null,
+          });
+      } catch {
+        /* API may not support these fields yet — local flag still applies */
+      }
+    }
   };
 
   return (

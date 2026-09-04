@@ -22,11 +22,12 @@ import { fetchCampaignLookups, assignRecordsToCampaign, resolveOrCreateCampaignI
 import { personRecordId, personCampaignMemberType, parsePersonRowId } from '../../lib/services/people.js';
 import EnrollMembersModal, { SEQUENCE_MEMBER_TYPES } from '../sequences/EnrollMembersModal.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
-import { logEmailSent } from '../../lib/outreachActivity.js';
+import { logEmailSent, bulkSetLinkedInRequestSent } from '../../lib/outreachActivity.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
 import { missingRequiredMessage } from '../../lib/formValidation.js';
 import { getConvertOptions, convertOptionsToLookup, filterConvertLookupOptions } from '../../lib/pipelineHelpers.js';
+import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 
 const defaultGetRowId = (r) => r.id;
 
@@ -73,6 +74,9 @@ function MassUpdatePanel({
   const isCampaignField = String(field || '').toLowerCase() === 'campaign';
   const hasCampaignValue = !!(value || String(campaignName || '').trim());
 
+  const staticFields = massUpdateFields || ['status', 'convert'];
+  const isLinkedInField = field === 'linkedin_request_sent';
+
   let valueInput = null;
   if (field) {
     if (isCampaignField) {
@@ -87,6 +91,14 @@ function MassUpdatePanel({
             placeholder={loadingValueOptions ? 'Loading campaigns…' : 'Search or type campaign name'}
           />
         </div>
+      );
+    } else if (isLinkedInField) {
+      valueInput = (
+        <select className="input flex-1" value={value} onChange={(e) => onValueChange(e.target.value)}>
+          <option value="">Select value</option>
+          <option value="yes">Connection sent</option>
+          <option value="no">Clear / not sent</option>
+        </select>
       );
     } else if (loadingValueOptions) {
       valueInput = (
@@ -120,14 +132,12 @@ function MassUpdatePanel({
     }
   }
 
-  const staticFields = massUpdateFields || ['status', 'convert'];
-
   return (
     <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4">
       <div className="bg-white border border-zoho-border rounded-xl shadow-card-hover p-5 animate-scaleIn">
         <h3 className="text-sm font-semibold text-zoho-text mb-4">Mass Update</h3>
         <div className="flex flex-wrap gap-2 items-center">
-          <select className="input w-44" value={field} onChange={(e) => onFieldChange(e.target.value)} disabled={loadingFields}>
+          <select className="input w-52" value={field} onChange={(e) => onFieldChange(e.target.value)} disabled={loadingFields}>
             <option value="">{loadingFields ? 'Loading fields…' : 'Select a field'}</option>
             {isDynamic
               ? dynamicFields.map(f => <option key={f.value} value={f.value}>{f.label}</option>)
@@ -135,6 +145,7 @@ function MassUpdatePanel({
                   {staticFields.includes('status') && <option value="status">{statusMassUpdateLabel}</option>}
                   {staticFields.includes('convert') && <option value="convert">Convert</option>}
                   {staticFields.includes('campaign') && <option value="campaign">Campaign</option>}
+                  {staticFields.includes('linkedin_request_sent') && <option value="linkedin_request_sent">LinkedIn Connection Sent</option>}
                 </>
             }
           </select>
@@ -453,6 +464,9 @@ export default function RecordDataTable({
 
   const hasMassUpdate = massUpdateFieldsLoader
     || (config.massUpdateFields?.includes('status') && config.statusField)
+    || config.massUpdateFields?.includes('convert')
+    || config.massUpdateFields?.includes('campaign')
+    || config.massUpdateFields?.includes('linkedin_request_sent')
     || hasConvertField
     || hasCampaignField;
 
@@ -496,6 +510,37 @@ export default function RecordDataTable({
       onRefresh?.();
     };
     try {
+      if (massField === 'linkedin_request_sent') {
+        const sent = String(massValue).toLowerCase() === 'yes' || massValue === true || massValue === 'true';
+        const contactIds = selected.map((rowId) => {
+          const record = selectedRecords.find((r) => getRowId(r) === rowId);
+          const parsed = parsePersonRowId(rowId);
+          return personRecordId(record) || parsed.recordId || rowId;
+        }).filter(Boolean);
+        const { updated, sent_at } = bulkSetLinkedInRequestSent(contactIds, {
+          sent,
+          user: { id: user?.id, name: userDisplayName(user) },
+        });
+        // Best-effort persist when API supports the fields (ignored if unknown).
+        if (sent && sent_at) {
+          await Promise.allSettled(contactIds.map((id) => contactsApi.updateContact(id, {
+            linkedin_request_sent: true,
+            linkedin_request_sent_at: sent_at,
+            linkedin_request_sent_by: user?.id || null,
+          }).catch(() => null)));
+        } else if (!sent) {
+          await Promise.allSettled(contactIds.map((id) => contactsApi.updateContact(id, {
+            linkedin_request_sent: false,
+            linkedin_request_sent_at: null,
+            linkedin_request_sent_by: null,
+          }).catch(() => null)));
+        }
+        markRecordListStale();
+        showToast(`LinkedIn connection ${sent ? 'marked sent' : 'cleared'} for ${updated} contact(s)`, 'success');
+        finishMassUpdate();
+        return;
+      }
+
       if (isCampaignField) {
         const campaignId = await resolveOrCreateCampaignId({
           campaign_id: massValue,

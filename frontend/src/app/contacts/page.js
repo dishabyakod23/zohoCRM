@@ -93,7 +93,8 @@ export default function ContactsPage() {
   }, [canCreateContact]);
 
   const needsActivityData = Boolean(filters.activity_from || filters.activity_to);
-  const needsClientPagination = needsActivityData || hasTimestampFilters(filters);
+  const needsNotesFilter = Boolean(filters.notes_q?.trim());
+  const needsClientPagination = needsActivityData || needsNotesFilter || hasTimestampFilters(filters);
 
   const loadActivityCalls = useCallback(async () => {
     if (activityCallsLoadedRef.current && activityCallsRef.current.length) {
@@ -158,6 +159,17 @@ export default function ContactsPage() {
 
       if (directoryFilters.lead_status) {
         rows = rows.filter((row) => matchLeadStatus(row, directoryFilters.lead_status));
+      }
+
+      if (directoryFilters.notes_q?.trim()) {
+        const q = directoryFilters.notes_q.trim().toLowerCase();
+        rows = rows.filter((row) => {
+          const blob = [row.description, row.notes, row.follow_up_notes, row.followup_notes]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+          return blob.includes(q);
+        });
       }
 
       if (hasTimestampFilters(filters)) {
@@ -314,6 +326,12 @@ export default function ContactsPage() {
         >
           <TextFilter label="Company" value={filters.company} onChange={(v) => { setFilters((f) => ({ ...f, company: v })); setPage(1); }} />
           <TextFilter label="Designation" value={filters.designation} onChange={(v) => { setFilters((f) => ({ ...f, designation: v })); setPage(1); }} />
+          <TextFilter
+            label="Notes / Follow-up"
+            value={filters.notes_q}
+            onChange={(v) => { setFilters((f) => ({ ...f, notes_q: v })); setPage(1); }}
+            placeholder="e.g. follow up next week"
+          />
           <SelectFilter
             label="Current Status"
             value={filters.current_status}

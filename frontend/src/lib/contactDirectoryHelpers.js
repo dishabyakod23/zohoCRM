@@ -333,6 +333,12 @@ export function applyContactDirectoryFilters(rows = [], filters = {}) {
     if (!includesText(row.title, filters.designation)) return false;
     if (filters.current_status && row.current_status !== filters.current_status) return false;
     if (filters.lead_status && !matchLeadStatus(row, filters.lead_status)) return false;
+    if (filters.notes_q) {
+      const blob = [row.description, row.notes, row.follow_up_notes, row.followup_notes]
+        .filter(Boolean)
+        .join(' ');
+      if (!includesText(blob, filters.notes_q)) return false;
+    }
     if (!matchesRecordTimestampFilters(row, filters)) return false;
     return true;
   });

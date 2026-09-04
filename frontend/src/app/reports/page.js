@@ -12,6 +12,7 @@ import { formatWeeklyReportSchedule } from '../../lib/weeklyReportSchedule.js';
 import { roleLabel } from '../../lib/roles.js';
 import PerformanceReportsPanel from '../../components/reports/PerformanceReportsPanel.js';
 import SalesTargetReportsPanel from '../../components/reports/SalesTargetReportsPanel.js';
+import DailySalesActivityPanel from '../../components/reports/DailySalesActivityPanel.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -48,7 +49,7 @@ export default function ReportsPage() {
   };
 
   const loadReportData = useCallback(async () => {
-    if (tab === 'weekly' || tab === 'performance' || tab === 'sales_targets') return;
+    if (tab === 'weekly' || tab === 'performance' || tab === 'sales_targets' || tab === 'daily_activity') return;
     setLoading(true);
     try {
       if (tab === 'leads') {
@@ -194,6 +195,7 @@ export default function ReportsPage() {
   };
 
   const tabs = [
+    { id: 'daily_activity', label: 'Daily Sales Activity' },
     { id: 'leads', label: 'Lead Reports' },
     { id: 'accounts', label: 'Account Reports' },
     { id: 'campaigns', label: 'Campaign Reports' },
@@ -228,7 +230,7 @@ export default function ReportsPage() {
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-bold">Reports</h1>
-          {tab !== 'weekly' && tab !== 'performance' && tab !== 'sales_targets' && (
+          {tab !== 'weekly' && tab !== 'performance' && tab !== 'sales_targets' && tab !== 'daily_activity' && (
             <div className="flex gap-2 items-center">
               <input className="input w-36 text-xs" type="date" value={dateRange.start} onChange={e => setDateRange(d => ({ ...d, start: e.target.value }))} />
               <span className="text-gray-400">to</span>
@@ -249,8 +251,12 @@ export default function ReportsPage() {
           ))}
         </div>
 
-        {loading && tab !== 'weekly' && tab !== 'performance' && tab !== 'sales_targets' && (
+        {loading && tab !== 'weekly' && tab !== 'performance' && tab !== 'sales_targets' && tab !== 'daily_activity' && (
           <p className="text-sm text-gray-400 py-8 text-center">Loading report data...</p>
+        )}
+
+        {tab === 'daily_activity' && (
+          <DailySalesActivityPanel />
         )}
 
         {!loading && tab === 'leads' && (
