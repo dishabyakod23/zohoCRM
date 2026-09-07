@@ -19,6 +19,15 @@ function useFilterLayout() {
   return useContext(FilterLayoutContext);
 }
 
+/** Local calendar date as YYYY-MM-DD for <input type="date" max/min>. */
+export function todayDateInputValue(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export function FilterField({ label, children, className = '' }) {
   const layout = useFilterLayout();
   const isSidebar = layout === 'sidebar';
@@ -72,9 +81,18 @@ export function SelectFilter({
   );
 }
 
-export function DateFilter({ label, value, onChange, className = '' }) {
+export function DateFilter({
+  label,
+  value,
+  onChange,
+  className = '',
+  max,
+  min,
+  allowFuture = false,
+}) {
   const layout = useFilterLayout();
   const widthClass = layout === 'sidebar' ? 'w-full' : (className || 'w-36');
+  const maxDate = max ?? (allowFuture ? undefined : todayDateInputValue());
 
   return (
     <FilterField label={label}>
@@ -82,19 +100,27 @@ export function DateFilter({ label, value, onChange, className = '' }) {
         type="date"
         className={`input text-xs ${widthClass}`}
         value={value || ''}
-        onChange={(e) => onChange(e.target.value)}
+        min={min || undefined}
+        max={maxDate || undefined}
+        onChange={(e) => {
+          let next = e.target.value;
+          if (maxDate && next && next > maxDate) next = maxDate;
+          if (min && next && next < min) next = min;
+          onChange(next);
+        }}
       />
     </FilterField>
   );
 }
 
 export function CreatedUpdatedDateFilters({ filters, onChange }) {
+  const today = todayDateInputValue();
   return (
     <>
-      <DateFilter label="Created from" value={filters.created_from} onChange={(v) => onChange('created_from', v)} />
-      <DateFilter label="Created to" value={filters.created_to} onChange={(v) => onChange('created_to', v)} />
-      <DateFilter label="Updated from" value={filters.updated_from} onChange={(v) => onChange('updated_from', v)} />
-      <DateFilter label="Updated to" value={filters.updated_to} onChange={(v) => onChange('updated_to', v)} />
+      <DateFilter label="Created from" value={filters.created_from} max={today} onChange={(v) => onChange('created_from', v)} />
+      <DateFilter label="Created to" value={filters.created_to} max={today} onChange={(v) => onChange('created_to', v)} />
+      <DateFilter label="Updated from" value={filters.updated_from} max={today} onChange={(v) => onChange('updated_from', v)} />
+      <DateFilter label="Updated to" value={filters.updated_to} max={today} onChange={(v) => onChange('updated_to', v)} />
     </>
   );
 }

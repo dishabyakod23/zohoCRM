@@ -238,12 +238,12 @@ export default function PipelineLeadList({ stage, description }) {
   const proposalFilters = (
     <>
       <TextFilter label="Company" value={filters.company} onChange={(v) => updateFilter('company', v)} />
-      <DateFilter label="Proposal from" value={filters.proposal_date_from} onChange={(v) => updateFilter('proposal_date_from', v)} />
-      <DateFilter label="Proposal to" value={filters.proposal_date_to} onChange={(v) => updateFilter('proposal_date_to', v)} />
+      <DateFilter label="Proposal from" value={filters.proposal_date_from} allowFuture onChange={(v) => updateFilter('proposal_date_from', v)} />
+      <DateFilter label="Proposal to" value={filters.proposal_date_to} allowFuture onChange={(v) => updateFilter('proposal_date_to', v)} />
       <TextFilter label="Deal size min" value={filters.deal_size_min} onChange={(v) => updateFilter('deal_size_min', v)} placeholder="Min amount" className="w-28" />
       <TextFilter label="Deal size max" value={filters.deal_size_max} onChange={(v) => updateFilter('deal_size_max', v)} placeholder="Max amount" className="w-28" />
-      <DateFilter label="Closure from" value={filters.closure_date_from} onChange={(v) => updateFilter('closure_date_from', v)} />
-      <DateFilter label="Closure to" value={filters.closure_date_to} onChange={(v) => updateFilter('closure_date_to', v)} />
+      <DateFilter label="Closure from" value={filters.closure_date_from} allowFuture onChange={(v) => updateFilter('closure_date_from', v)} />
+      <DateFilter label="Closure to" value={filters.closure_date_to} allowFuture onChange={(v) => updateFilter('closure_date_to', v)} />
       <SelectFilter
         label="Deal Status"
         value={filters.deal_status}
