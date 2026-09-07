@@ -17,6 +17,12 @@ function initialSize(size) {
   return 'md';
 }
 
+function avatarKey(src) {
+  if (!src) return 'none';
+  if (src.startsWith('data:') || src.startsWith('blob:')) return `local-${src.length}-${src.slice(-24)}`;
+  return src;
+}
+
 export default function UserAvatar({
   user,
   name,
@@ -39,7 +45,7 @@ export default function UserAvatar({
   if (showImage) {
     return (
       <img
-        key={src}
+        key={avatarKey(src)}
         src={src}
         alt={resolvedName ? `${resolvedName} profile` : 'User profile'}
         title={title || resolvedName || undefined}

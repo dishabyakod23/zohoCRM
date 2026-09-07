@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { setAuthSessionCookie, clearAuthSessionCookie } from './authCookie.js';
 import { parseAuthUserResponse, parseAuthTokenResponse } from './authHelpers.js';
+import { sanitizeUserForStorage } from './profileImageHelpers.js';
 
 export const AUTH_TOKEN_KEY = 'crm_token';
 export const AUTH_REFRESH_KEY = 'crm_refresh_token';
@@ -55,7 +56,21 @@ export function persistAuthSession({ access_token, refresh_token, user, expires_
   if (typeof window === 'undefined') return;
   if (access_token) localStorage.setItem(AUTH_TOKEN_KEY, access_token);
   if (refresh_token) localStorage.setItem(AUTH_REFRESH_KEY, refresh_token);
-  if (user) localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  if (user) {
+    try {
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(sanitizeUserForStorage(user)));
+    } catch {
+      // Session user without avatar still keeps the app usable.
+      try {
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(sanitizeUserForStorage({
+          ...user,
+          profile_image_url: null,
+        })));
+      } catch {
+        /* ignore */
+      }
+    }
+  }
   if (access_token) {
     const expiresAt = resolveAccessTokenExpiresAt(access_token, expires_in);
     if (expiresAt) localStorage.setItem(AUTH_EXPIRES_KEY, String(expiresAt));

@@ -7,6 +7,7 @@ import {
   mergeStoredProfileImage,
   resolveProfileImageUrl,
   saveLocalProfileImage,
+  sanitizeUserForStorage,
   validateProfileImageFile,
 } from '../profileImageHelpers.js';
 import { userInitials } from '../userHelpers.js';
@@ -61,7 +62,7 @@ describe('profile image storage helpers', () => {
     expect(merged.profile_image_url).toBe('data:image/png;base64,xyz');
   });
 
-  it('prefers API profile image URLs over local storage', () => {
+  it('prefers API profile image URLs over non-forced local storage', () => {
     saveLocalProfileImage('user-3', 'data:image/png;base64,local');
     const merged = mergeStoredProfileImage({
       id: 'user-3',
@@ -69,6 +70,27 @@ describe('profile image storage helpers', () => {
     });
     expect(merged.profile_image_url).toContain('/uploads/avatar.png');
     expect(JSON.parse(localStorage.getItem(PROFILE_IMAGE_STORAGE_KEY))['user-3'].url).toContain('/uploads/avatar.png');
+  });
+
+  it('prefers forceLocal override over API profile image URLs', () => {
+    saveLocalProfileImage('user-4', 'data:image/jpeg;base64,newpic', { forceLocal: true });
+    const merged = mergeStoredProfileImage({
+      id: 'user-4',
+      profile_image_url: '/uploads/old.png',
+    });
+    expect(merged.profile_image_url).toBe('data:image/jpeg;base64,newpic');
+  });
+
+  it('sanitizeUserForStorage strips data URLs from persisted user', () => {
+    const cleaned = sanitizeUserForStorage({
+      id: 'u1',
+      email: 'a@b.com',
+      profile_image_url: 'data:image/png;base64,abc',
+      __profileImageLocalOnly: true,
+    });
+    expect(cleaned.profile_image_url).toBeUndefined();
+    expect(cleaned.__profileImageLocalOnly).toBeUndefined();
+    expect(cleaned.email).toBe('a@b.com');
   });
 });
 

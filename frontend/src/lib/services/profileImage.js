@@ -2,9 +2,9 @@ import api from '../api.js';
 import { parseAuthUserResponse, readStoredAuthUser } from '../authHelpers.js';
 import {
   clearLocalProfileImage,
+  compressImageForLocalAvatar,
   mergeStoredProfileImage,
   notifyProfileImageUpdated,
-  readFileAsDataUrl,
   saveLocalProfileImage,
   validateProfileImageFile,
   verifyImageFile,
@@ -57,7 +57,7 @@ export async function uploadMyProfileImage(file) {
     const user = publishProfileImageChange(unwrapUserResponse(res.data));
     if (user.profile_image_url) {
       const profile_image_url = withCacheBust(user.profile_image_url);
-      saveLocalProfileImage(user.id, profile_image_url);
+      saveLocalProfileImage(user.id, profile_image_url, { forceLocal: false });
       return { ...user, profile_image_url };
     }
     return user;
@@ -68,8 +68,10 @@ export async function uploadMyProfileImage(file) {
 
   const current = readStoredAuthUser();
   if (!current?.id) throw new Error('You must be signed in to upload a profile image.');
-  const dataUrl = await readFileAsDataUrl(file);
-  saveLocalProfileImage(current.id, dataUrl);
+  // Replace any previous local/server-cached avatar with a compressed copy.
+  clearLocalProfileImage(current.id);
+  const dataUrl = await compressImageForLocalAvatar(file);
+  saveLocalProfileImage(current.id, dataUrl, { forceLocal: true });
   const user = publishProfileImageChange({ ...current, profile_image_url: dataUrl });
   if (permissionDenied) {
     user.__profileImageLocalOnly = true;
@@ -106,7 +108,7 @@ export async function uploadUserProfileImage(userId, file) {
   const user = publishProfileImageChange(unwrapUserResponse(res.data));
   if (user.profile_image_url) {
     const profile_image_url = withCacheBust(user.profile_image_url);
-    saveLocalProfileImage(user.id, profile_image_url);
+    saveLocalProfileImage(user.id, profile_image_url, { forceLocal: false });
     return { ...user, profile_image_url };
   }
   return user;
