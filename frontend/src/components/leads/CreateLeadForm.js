@@ -9,7 +9,7 @@ import { SALUTATIONS, RATINGS } from '../../lib/constants.js';
 import IndustryField from '../forms/IndustryField.js';
 import { AddressCountryField, AddressStateField } from '../forms/AddressCountryStateFields.js';
 import { nextStateForCountry } from '../../lib/addressRegions.js';
-import { PIPELINE_LEAD, outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
+import { outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
 import { validateRequired, validateEmail, validatePhone, validationToastMessage } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
@@ -26,7 +26,7 @@ import { makeFieldSetter } from '../../lib/formInput.js';
 export function emptyLeadForm() {
   return {
     salutation: '', first_name: '', last_name: '', email: '', phone: '', mobile: '',
-    company: '', title: '', lead_status: PIPELINE_LEAD, lost_reason: '', source: '', industry: '',
+    company: '', title: '', lead_status: '', lost_reason: '', source: '', industry: '',
     rating: '', website: '', annual_revenue: '', no_of_employees: '',
     proposal_amount: '',
     street: '', city: '', state: '', zip_code: '', country: 'India',
@@ -106,7 +106,7 @@ export default function CreateLeadForm() {
     setSaving(true);
     try {
       if (!(await validate())) return;
-      const created = await leadsApi.createLead(form);
+      const created = await leadsApi.createWarmLead(form);
       const campaignId = await resolveOrCreateCampaignId({
         campaign_id: form.campaign_id,
         campaign_name: form.campaign_name,
@@ -169,6 +169,7 @@ export default function CreateLeadForm() {
                   setErrors((er) => ({ ...er, lead_status: null, lost_reason: null }));
                 }}
               >
+                <option value="">--None--</option>
                 {statusOptions.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </FormField>

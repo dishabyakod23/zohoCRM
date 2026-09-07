@@ -478,6 +478,18 @@ export async function createRawLead(form, { currentUserId } = {}) {
   }, { currentUserId });
 }
 
+export async function createWarmLead(form, { currentUserId } = {}) {
+  const outreachStatus = form.lead_status && !isPipelineStageStatus(form.lead_status)
+    ? form.lead_status
+    : null;
+  return createLead({
+    ...form,
+    lead_status: outreachStatus,
+    pipeline_stage: form.pipeline_stage || PIPELINE_LEAD,
+    source: form.source || form.lead_source || null,
+  }, { currentUserId });
+}
+
 export async function createQualifiedLead(form, { currentUserId } = {}) {
   const outreachStatus = form.lead_status && !isPipelineStageStatus(form.lead_status)
     ? form.lead_status

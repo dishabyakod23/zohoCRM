@@ -109,6 +109,19 @@ describe('toLeadPayload lead_status', () => {
     expect(payload.pipeline_stage).toBe('raw_prospect');
   });
 
+  it('includes pipeline_stage when creating a warm lead', () => {
+    const payload = toLeadPayload({
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      company: 'Acme',
+      email: 'ada@example.com',
+      lead_status: 'follow_up_required',
+      pipeline_stage: 'contacted',
+    });
+    expect(payload.lead_status).toBe('follow_up_required');
+    expect(payload.pipeline_stage).toBe('contacted');
+  });
+
   it('includes lost_reason on PATCH when status is lost', () => {
     const payload = toLeadPayload({
       lead_status: 'lost',
