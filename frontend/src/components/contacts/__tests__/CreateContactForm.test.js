@@ -30,6 +30,7 @@ jest.mock('../../../lib/services/lookups.js', () => ({
   fetchUsers: jest.fn(),
   fetchLeadStatuses: jest.fn(),
   fetchLeadSources: jest.fn(),
+  fetchLostReasons: jest.fn(),
   fetchCountries: jest.fn(),
   fetchStates: jest.fn(),
   FALLBACK_LEAD_STATUSES: [
@@ -90,6 +91,7 @@ beforeEach(() => {
   lookups.fetchUsers.mockResolvedValue([]);
   lookups.fetchLeadStatuses.mockResolvedValue([]);
   lookups.fetchLeadSources.mockResolvedValue([]);
+  lookups.fetchLostReasons.mockResolvedValue([]);
   lookups.fetchCountries.mockResolvedValue([]);
   lookups.fetchStates.mockResolvedValue([]);
   campaignRecordHelpers.fetchCampaignLookups.mockResolvedValue([]);
