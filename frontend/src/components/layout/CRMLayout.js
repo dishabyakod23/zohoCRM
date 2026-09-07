@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth.js';
 import { MeetingRemindersProvider } from '../../hooks/useMeetingReminders.js';
-import { WeeklyReportScheduler } from '../../hooks/useWeeklyReportScheduler.js';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import BottomUtilityBar from './BottomUtilityBar';
@@ -54,7 +53,6 @@ export default function CRMLayout({ children }) {
           </div>
         </div>
         <MeetingInvitePopup />
-        <WeeklyReportScheduler />
         </UserAvatarsProvider>
       </MeetingRemindersProvider>
     </CloudTalkProvider>

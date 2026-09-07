@@ -373,7 +373,7 @@ export default function ReportsPage() {
                   </div>
                   {weeklySettings?.enabled && (
                     <p className="text-xs text-gray-500 mt-3">
-                      Scheduled send: {formatWeeklyReportSchedule(weeklySettings)}. When enabled, reports are sent automatically at that time while an admin session is open.
+                      Scheduled send: {formatWeeklyReportSchedule(weeklySettings)}. When enabled, the server sends reports automatically at that time. Use the button above only for a manual send.
                     </p>
                   )}
                 </div>
