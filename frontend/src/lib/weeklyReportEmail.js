@@ -39,7 +39,7 @@ function pickMoney(row, keys) {
 export function normalizeWeeklyMemberRow(row = {}) {
   return {
     user_id: row.user_id || row.id || null,
-    name: row.user_name || row.name || row.full_name || '—',
+    name: row.name || row.user_name || row.full_name || '—',
     role: row.role || row.user_role || '',
     role_short: weeklyReportRoleShort(row.role || row.user_role),
     emails_sent: pickNumber(row, ['emails_sent', 'total_emails_sent', 'email_count']),
@@ -229,20 +229,18 @@ export function buildWeeklyReportHtml({
   periodStart,
   periodEnd,
   generatedOn,
+  teamLabel: teamLabelOverride,
   members = [],
   summary = {},
 } = {}) {
-  const memberRows = (members.length
-    ? members
-    : (summary.reports || summary.members || summary.team || [])
-  );
+  const memberRows = members.length ? members : [];
   const { all, bdes, bdms, others } = partitionWeeklyMembers(memberRows);
   const periodLabel = periodStart && periodEnd ? `${periodStart} to ${periodEnd}` : 'Current week (Mon–Fri)';
   const generatedLabel = generatedOn
     || new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
   const bdeCount = bdes.length;
   const bdmCount = bdms.length;
-  const teamLabel = [
+  const teamLabel = teamLabelOverride || [
     bdeCount ? `${bdeCount} BDE${bdeCount === 1 ? '' : 's'}` : null,
     bdmCount ? `${bdmCount} BDM${bdmCount === 1 ? '' : 's'}` : null,
     others.length ? `${others.length} other` : null,

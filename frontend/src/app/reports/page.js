@@ -166,9 +166,12 @@ export default function ReportsPage() {
         hour: weeklySettings.hour,
         minute: weeklySettings.minute,
         timezone: weeklySettings.timezone,
-        excluded_user_ids: weeklySettings.excluded_user_ids || [],
+        subject_user_ids: weeklySettings.subject_user_ids || [],
+        recipient_user_ids: Array.isArray(weeklySettings.recipient_user_ids)
+          ? weeklySettings.recipient_user_ids
+          : reportRecipients.map((u) => u.id),
       });
-      setWeeklySettings(updated.weekly_report);
+      setWeeklySettings(updated.weekly_report || updated);
       showToast('Weekly report settings saved', 'success');
     } catch (err) {
       showToast(getApiError(err));
@@ -215,19 +218,24 @@ export default function ReportsPage() {
     [adminUsers, weeklySettings],
   );
   const weeklyMembers = useMemo(
-    () => summary?.reports || summary?.members || summary?.team || weeklyPreview?.members || [],
-    [summary, weeklyPreview],
+    () => reportsApi.extractWeeklyMemberRows(weeklyPreview),
+    [weeklyPreview],
   );
   const teamPreviewHtml = useMemo(() => {
-    if (!weeklyMembers.length && !weeklyPreview) return '';
+    if (!weeklyMembers.length) return '';
     return buildWeeklyReportHtml({
       companyName: weeklyPreview?.company_name || 'Origami CRM',
       periodStart: weeklyPreview?.period_start || summary?.period_start,
       periodEnd: weeklyPreview?.period_end || summary?.period_end,
+      generatedOn: weeklyPreview?.generated_on || summary?.generated_on,
+      teamLabel: weeklyPreview?.team_label || summary?.team_label,
       members: weeklyMembers,
       summary: summary || {},
     });
   }, [weeklyMembers, weeklyPreview, summary]);
+  const emailPreviewHtml = weeklyMembers.length
+    ? teamPreviewHtml
+    : (weeklyPreview?.html_body || '');
 
   const applyRecommendedSchedule = () => {
     setWeeklySettings((s) => ({
@@ -238,7 +246,26 @@ export default function ReportsPage() {
   };
 
   const toggleRecipient = (userId, included) => {
-    setWeeklySettings(s => reportsApi.setUserReportIncluded(s, userId, included));
+    setWeeklySettings((s) => {
+      const base = Array.isArray(s.recipient_user_ids)
+        ? s
+        : { ...s, recipient_user_ids: reportRecipients.map((u) => u.id) };
+      return reportsApi.setUserReportIncluded(base, userId, included);
+    });
+  };
+
+  const toggleSubject = (userId, included) => {
+    setWeeklySettings((s) => {
+      const base = Array.isArray(s.subject_user_ids)
+        ? s
+        : {
+          ...s,
+          subject_user_ids: (adminUsers || [])
+            .filter((u) => reportsApi.isWeeklySubjectSelected(u, s))
+            .map((u) => u.id),
+        };
+      return reportsApi.setWeeklySubjectIncluded(base, userId, included);
+    });
   };
 
   if (!canAccessReports) {
@@ -410,13 +437,56 @@ export default function ReportsPage() {
                 </div>
 
                 <div className="card p-5">
-                  <h3 className="font-semibold mb-1">Email Recipients</h3>
+                  <h3 className="font-semibold mb-1">Report subjects</h3>
                   <p className="text-xs text-gray-500 mb-4">
-                    Who receives the team weekly sales performance email (Management / BDMs / Sales Head).
-                    BDEs still appear as rows in the report when backend includes them in team metrics.
+                    Who appears as rows in the weekly team performance report (`subject_user_ids`).
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="table-th w-10">Include</th>
+                          <th className="table-th">Name</th>
+                          <th className="table-th">Email</th>
+                          <th className="table-th">Role</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {adminUsers.length === 0 ? (
+                          <tr><td colSpan={4} className="table-td text-center py-6 text-gray-400">No users found</td></tr>
+                        ) : adminUsers.map((u) => {
+                          const included = reportsApi.isWeeklySubjectSelected(u, weeklySettings);
+                          return (
+                            <tr key={`subject-${u.id}`} className={!u.is_active ? 'opacity-50' : ''}>
+                              <td className="table-td">
+                                {u.is_active ? (
+                                  <input
+                                    type="checkbox"
+                                    checked={included}
+                                    onChange={(e) => toggleSubject(u.id, e.target.checked)}
+                                  />
+                                ) : (
+                                  <span className="text-xs text-gray-400">—</span>
+                                )}
+                              </td>
+                              <td className="table-td">{userDisplayName(u)}</td>
+                              <td className="table-td text-blue-600">{u.email || '—'}</td>
+                              <td className="table-td">{roleLabel(u.role)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="card p-5">
+                  <h3 className="font-semibold mb-1">Email recipients</h3>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Who receives the weekly email (`recipient_user_ids`). Separate from report subjects.
                     {reportRecipients.length > 0 && (
                       <span className="block mt-1 text-brand-700 font-medium">
-                        Will send to: {reportRecipients.map(u => u.email).join(', ')}
+                        Will send to: {reportRecipients.map((u) => u.email).join(', ')}
                       </span>
                     )}
                   </p>
@@ -433,24 +503,24 @@ export default function ReportsPage() {
                       <tbody className="divide-y">
                         {adminUsers.length === 0 ? (
                           <tr><td colSpan={4} className="table-td text-center py-6 text-gray-400">No users found</td></tr>
-                        ) : adminUsers.map(u => {
-                          const eligible = reportsApi.isWeeklyRecipientEligible(u, weeklySettings);
+                        ) : adminUsers.map((u) => {
+                          const canReceive = Boolean(u?.is_active && u.email);
                           const included = reportsApi.isUserIncludedInReports(u, weeklySettings);
                           return (
-                            <tr key={u.id} className={!u.is_active ? 'opacity-50' : ''}>
+                            <tr key={`recipient-${u.id}`} className={!u.is_active ? 'opacity-50' : ''}>
                               <td className="table-td">
-                                {eligible ? (
+                                {canReceive ? (
                                   <input
                                     type="checkbox"
                                     checked={included}
-                                    onChange={e => toggleRecipient(u.id, e.target.checked)}
+                                    onChange={(e) => toggleRecipient(u.id, e.target.checked)}
                                   />
                                 ) : (
                                   <span className="text-xs text-gray-400">—</span>
                                 )}
                               </td>
                               <td className="table-td">{userDisplayName(u)}</td>
-                              <td className="table-td text-blue-600">{u.email}</td>
+                              <td className="table-td text-blue-600">{u.email || '—'}</td>
                               <td className="table-td">{roleLabel(u.role)}</td>
                             </tr>
                           );
@@ -459,15 +529,23 @@ export default function ReportsPage() {
                     </table>
                   </div>
                   <p className="text-xs text-gray-400 mt-3">
-                    Super Admins and Business Development Managers are eligible when their role toggle is enabled above. Uncheck a user to exclude them via saved settings.
+                    Role toggles above still apply when the API has not returned `recipient_user_ids` yet. After you toggle anyone here, saves use explicit recipient IDs.
                   </p>
                 </div>
 
-                {summary && (
+                {(summary || weeklyPreview) && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {[['Team members', summary.team_member_count], ['Period start', summary.period_start], ['Period end', summary.period_end]].map(([l, v]) => (
-                        <div key={l} className="card p-4 text-center"><p className="text-xs text-gray-500">{l}</p><p className="text-lg font-bold mt-1">{v ?? '—'}</p></div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {[
+                        ['Team', weeklyPreview?.team_label || summary?.team_label || summary?.team_member_count],
+                        ['Generated on', weeklyPreview?.generated_on || summary?.generated_on],
+                        ['Period start', weeklyPreview?.period_start || summary?.period_start],
+                        ['Period end', weeklyPreview?.period_end || summary?.period_end],
+                      ].map(([l, v]) => (
+                        <div key={l} className="card p-4 text-center">
+                          <p className="text-xs text-gray-500">{l}</p>
+                          <p className="text-lg font-bold mt-1">{v ?? '—'}</p>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -478,26 +556,38 @@ export default function ReportsPage() {
                     members={weeklyMembers}
                     periodStart={weeklyPreview?.period_start || summary?.period_start}
                     periodEnd={weeklyPreview?.period_end || summary?.period_end}
+                    teamLabel={weeklyPreview?.team_label || summary?.team_label}
+                    generatedOn={weeklyPreview?.generated_on || summary?.generated_on}
                   />
                 )}
 
-                {(teamPreviewHtml || weeklyPreview?.html_body) && (
+                {emailPreviewHtml ? (
                   <div className="card p-5">
                     <h3 className="font-semibold mb-2">Email preview — {weeklyPreview?.company_name || 'Origami CRM'}</h3>
                     <p className="text-xs text-gray-500 mb-4">
-                      Team weekly sales performance format · {weeklyPreview?.period_start || summary?.period_start} to {weeklyPreview?.period_end || summary?.period_end}.
-                      Until backend ships the new template, the CRM builds this preview from member metrics when available.
+                      {weeklyMembers.length
+                        ? 'Built from preview `member_rows`.'
+                        : 'No `member_rows` — showing API `html_body`.'}
+                      {' '}
+                      {weeklyPreview?.team_label || summary?.team_label || ''}
+                      {(weeklyPreview?.generated_on || summary?.generated_on)
+                        ? ` · Generated ${weeklyPreview?.generated_on || summary?.generated_on}`
+                        : ''}
+                      {' · '}
+                      {weeklyPreview?.period_start || summary?.period_start || '—'}
+                      {' to '}
+                      {weeklyPreview?.period_end || summary?.period_end || '—'}
                     </p>
                     <div className="border rounded-lg overflow-hidden bg-white max-h-[520px] overflow-y-auto">
                       <iframe
                         title="Weekly report preview"
-                        srcDoc={teamPreviewHtml || weeklyPreview?.html_body || ''}
+                        srcDoc={emailPreviewHtml}
                         className="w-full min-h-[420px] border-0"
                         sandbox=""
                       />
                     </div>
                   </div>
-                )}
+                ) : null}
 
                 <div className="card overflow-x-auto">
                   <h3 className="font-semibold p-5 pb-0">Delivery Logs</h3>

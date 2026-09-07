@@ -89,6 +89,8 @@ export default function WeeklyTeamPerformancePreview({
   members = [],
   periodStart = '',
   periodEnd = '',
+  teamLabel = '',
+  generatedOn = '',
 }) {
   const { all, bdes, bdms } = partitionWeeklyMembers(members);
 
@@ -97,7 +99,9 @@ export default function WeeklyTeamPerformancePreview({
       <div>
         <h3 className="font-semibold text-brand-700">Weekly Sales Performance Preview</h3>
         <p className="text-xs text-gray-500 mt-1">
-          Report period: {periodStart || '—'} to {periodEnd || '—'} · Generated from Origami CRM
+          {teamLabel ? `${teamLabel} · ` : ''}
+          Report period: {periodStart || '—'} to {periodEnd || '—'}
+          {generatedOn ? ` · Generated ${generatedOn}` : ' · Generated from Origami CRM'}
         </p>
       </div>
       <MemberTable title="1. Weekly Team Summary" rows={all} includeRevenue totalLabel="Total" totalRole="Team" />

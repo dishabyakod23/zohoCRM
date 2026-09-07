@@ -119,21 +119,72 @@ export function isWeeklyRecipientEligible(user, settings) {
   return false;
 }
 
+/** Prefer explicit recipient_user_ids; fall back to legacy role toggles + excluded_user_ids. */
 export function getWeeklyReportRecipients(users, settings) {
+  if (Array.isArray(settings?.recipient_user_ids)) {
+    const allowed = new Set((settings.recipient_user_ids || []).map(String));
+    return (users || []).filter((u) => u?.is_active && u.email && allowed.has(String(u.id)));
+  }
   const excluded = new Set(settings?.excluded_user_ids || []);
-  return (users || []).filter(u => isWeeklyRecipientEligible(u, settings) && !excluded.has(u.id));
+  return (users || []).filter((u) => isWeeklyRecipientEligible(u, settings) && !excluded.has(u.id));
 }
 
 export function isUserIncludedInReports(user, settings) {
+  if (Array.isArray(settings?.recipient_user_ids)) {
+    return (settings.recipient_user_ids || []).map(String).includes(String(user.id));
+  }
   if (!isWeeklyRecipientEligible(user, settings)) return false;
   return !(settings?.excluded_user_ids || []).includes(user.id);
 }
 
+export function isWeeklySubjectSelected(user, settings) {
+  if (!user?.is_active) return false;
+  if (Array.isArray(settings?.subject_user_ids)) {
+    return (settings.subject_user_ids || []).map(String).includes(String(user.id));
+  }
+  // Legacy: subjects default to active BDE/BDM users.
+  const role = normalizeRole(user.role);
+  return role === 'sales_rep' || role === 'sales_manager';
+}
+
+export function setUserInIdList(ids, userId, included) {
+  const next = new Set((ids || []).map(String));
+  if (included) next.add(String(userId));
+  else next.delete(String(userId));
+  return [...next];
+}
+
 export function setUserReportIncluded(settings, userId, included) {
+  if (Array.isArray(settings?.recipient_user_ids)) {
+    return {
+      ...settings,
+      recipient_user_ids: setUserInIdList(settings.recipient_user_ids, userId, included),
+    };
+  }
   const excluded = new Set(settings?.excluded_user_ids || []);
   if (included) excluded.delete(userId);
   else excluded.add(userId);
   return { ...settings, excluded_user_ids: [...excluded] };
+}
+
+export function setWeeklySubjectIncluded(settings, userId, included) {
+  const current = Array.isArray(settings?.subject_user_ids)
+    ? settings.subject_user_ids
+    : [];
+  return {
+    ...settings,
+    subject_user_ids: setUserInIdList(current, userId, included),
+  };
+}
+
+/** Prefer member_rows from weekly preview; empty means fall back to html_body iframe. */
+export function extractWeeklyMemberRows(preview) {
+  if (!preview) return [];
+  if (Array.isArray(preview.member_rows) && preview.member_rows.length) return preview.member_rows;
+  if (Array.isArray(preview.summary?.member_rows) && preview.summary.member_rows.length) {
+    return preview.summary.member_rows;
+  }
+  return [];
 }
 
 export async function previewWeeklyReport() {

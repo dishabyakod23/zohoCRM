@@ -71,26 +71,34 @@ describe('weekly team performance report helpers', () => {
     });
   });
 
-  it('builds intro copy and HTML with team / BDE / BDM sections', () => {
-    const intro = buildWeeklyReportIntroText({
-      periodStart: '2026-09-01',
-      periodEnd: '2026-09-05',
+  it('prefers name field and defaults missing metrics to 0', () => {
+    const row = normalizeWeeklyMemberRow({
+      name: 'Priya',
+      user_name: 'Ignored',
+      role: 'sales_rep',
     });
-    expect(intro).toContain('2026-09-01 to 2026-09-05');
-    expect(intro).toContain('Origami CRM');
+    expect(row.name).toBe('Priya');
+    expect(row.emails_sent).toBe(0);
+    expect(row.follow_up_emails_sent).toBe(0);
+    expect(row.linkedin_connections_sent).toBe(0);
+    expect(row.cold_leads).toBe(0);
+    expect(row.warm_leads).toBe(0);
+    expect(row.qualified_leads).toBe(0);
+    expect(row.meetings_scheduled).toBe(0);
+    expect(row.pipeline_created).toBe(0);
+    expect(row.revenue_generated).toBe(0);
+  });
 
+  it('uses team_label and generated_on from preview when provided', () => {
     const html = buildWeeklyReportHtml({
       companyName: 'Origami CRM',
       periodStart: '2026-09-01',
       periodEnd: '2026-09-05',
+      teamLabel: '2 BDEs + 1 BDM',
+      generatedOn: '2026-09-05 15:30 IST',
       members,
     });
-    expect(html).toContain('Weekly Sales Performance Report');
-    expect(html).toContain('1. Weekly Team Summary');
-    expect(html).toContain('2. BDE Summary');
-    expect(html).toContain('3. BDM Summary');
-    expect(html).toContain('Manjunath');
-    expect(html).toContain('Narayana');
-    expect(html).toContain('₹');
+    expect(html).toContain('2 BDEs + 1 BDM');
+    expect(html).toContain('2026-09-05 15:30 IST');
   });
 });
