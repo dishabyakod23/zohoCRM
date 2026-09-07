@@ -36,6 +36,76 @@ export const EMAIL_EVENT_LABELS = {
   PENDING: 'Pending',
 };
 
+/** Normalize Resend-style bounce_type for display badges. */
+export function formatBounceTypeLabel(bounceType) {
+  if (bounceType == null || bounceType === '') return null;
+  const key = String(bounceType).trim().toLowerCase();
+  if (key === 'permanent' || key === 'hard') return 'Permanent';
+  if (key === 'transient' || key === 'temporary' || key === 'soft') return 'Transient';
+  const raw = String(bounceType).trim();
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+export function formatBounceSubtypeLabel(subtype) {
+  if (subtype == null || subtype === '') return null;
+  const raw = String(subtype).trim();
+  // NoEmail → No Email; MailboxFull → Mailbox Full
+  return raw
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function metadataBounceBlob(meta) {
+  if (!meta || typeof meta !== 'object') return {};
+  return meta.bounce || meta.data?.bounce || meta;
+}
+
+/** Prefer bounce_reason; fall back to nested event_metadata when API omits top-level fields. */
+export function resolveBounceReasonText(event) {
+  if (!event) return null;
+  const direct = event.bounce_reason ?? event.reason ?? null;
+  if (direct != null && String(direct).trim()) return String(direct).trim();
+
+  const meta = event.event_metadata || event.metadata || null;
+  const bounce = metadataBounceBlob(meta);
+  const nested = bounce.reason ?? bounce.message ?? meta?.reason ?? meta?.message ?? null;
+  if (nested != null && String(nested).trim()) return String(nested).trim();
+  return null;
+}
+
+/** Short UX hint for operators — optional, based on type/subtype/reason text. */
+export function bounceReasonHint(event) {
+  if (!event) return null;
+  const type = String(event.bounce_type || '').toLowerCase();
+  const subtype = String(event.bounce_subtype || '').toLowerCase().replace(/[_\s-]/g, '');
+  const reason = String(resolveBounceReasonText(event) || '').toLowerCase();
+
+  if (type.includes('suppress') || subtype.includes('suppress') || reason.includes('suppress')) {
+    return 'Suppressed — Resend blocked further sends to this address.';
+  }
+  if (
+    type.includes('transient')
+    || type.includes('soft')
+    || subtype.includes('mailboxfull')
+    || reason.includes('mailbox full')
+    || reason.includes('full')
+  ) {
+    return 'Temporary issue — try again later (e.g. mailbox full).';
+  }
+  if (
+    type.includes('permanent')
+    || type.includes('hard')
+    || subtype.includes('noemail')
+    || reason.includes('not found')
+    || reason.includes('does not exist')
+    || reason.includes('invalid')
+  ) {
+    return 'Likely a bad or invalid email address.';
+  }
+  return null;
+}
+
 export const TEMPLATE_VARIABLES = [
   { key: 'first_name', label: 'First Name' },
   { key: 'last_name', label: 'Last Name' },

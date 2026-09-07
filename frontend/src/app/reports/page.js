@@ -9,10 +9,15 @@ import { userDisplayName } from '../../lib/userHelpers.js';
 import { leadStatusLabel } from '../../lib/leadHelpers.js';
 import * as reportsApi from '../../lib/services/reports.js';
 import { formatWeeklyReportSchedule } from '../../lib/weeklyReportSchedule.js';
+import {
+  RECOMMENDED_WEEKLY_REPORT_SCHEDULE,
+  buildWeeklyReportHtml,
+} from '../../lib/weeklyReportEmail.js';
 import { roleLabel } from '../../lib/roles.js';
 import PerformanceReportsPanel from '../../components/reports/PerformanceReportsPanel.js';
 import SalesTargetReportsPanel from '../../components/reports/SalesTargetReportsPanel.js';
 import DailySalesActivityPanel from '../../components/reports/DailySalesActivityPanel.js';
+import WeeklyTeamPerformancePreview from '../../components/reports/WeeklyTeamPerformancePreview.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -209,6 +214,28 @@ export default function ReportsPage() {
     () => reportsApi.getWeeklyReportRecipients(adminUsers, weeklySettings),
     [adminUsers, weeklySettings],
   );
+  const weeklyMembers = useMemo(
+    () => summary?.reports || summary?.members || summary?.team || weeklyPreview?.members || [],
+    [summary, weeklyPreview],
+  );
+  const teamPreviewHtml = useMemo(() => {
+    if (!weeklyMembers.length && !weeklyPreview) return '';
+    return buildWeeklyReportHtml({
+      companyName: weeklyPreview?.company_name || 'Origami CRM',
+      periodStart: weeklyPreview?.period_start || summary?.period_start,
+      periodEnd: weeklyPreview?.period_end || summary?.period_end,
+      members: weeklyMembers,
+      summary: summary || {},
+    });
+  }, [weeklyMembers, weeklyPreview, summary]);
+
+  const applyRecommendedSchedule = () => {
+    setWeeklySettings((s) => ({
+      ...s,
+      ...RECOMMENDED_WEEKLY_REPORT_SCHEDULE,
+      enabled: true,
+    }));
+  };
 
   const toggleRecipient = (userId, included) => {
     setWeeklySettings(s => reportsApi.setUserReportIncluded(s, userId, included));
@@ -366,22 +393,27 @@ export default function ReportsPage() {
                       </div>
                     </div>
                   )}
-                  <div className="flex gap-2 mt-4">
+                  <div className="flex flex-wrap gap-2 mt-4">
                     <button onClick={saveWeeklySettings} disabled={savingSettings} className="btn-primary text-xs">{savingSettings ? 'Saving...' : 'Save Settings'}</button>
-                    <button onClick={handleTriggerWeekly} disabled={triggering || !reportRecipients.length} className="btn-secondary text-xs">{triggering ? 'Sending...' : `Send individual reports to ${reportRecipients.length} recipient(s)`}</button>
+                    <button type="button" onClick={applyRecommendedSchedule} className="btn-secondary text-xs">
+                      Use recommended: Fri 3:30 PM IST
+                    </button>
+                    <button onClick={handleTriggerWeekly} disabled={triggering || !reportRecipients.length} className="btn-secondary text-xs">{triggering ? 'Sending...' : `Send report now to ${reportRecipients.length} recipient(s)`}</button>
                     <button onClick={() => { loadWeeklySettings(); loadWeeklyLogs(); }} className="btn-secondary text-xs">Refresh Preview</button>
                   </div>
-                  {weeklySettings?.enabled && (
-                    <p className="text-xs text-gray-500 mt-3">
-                      Scheduled send: {formatWeeklyReportSchedule(weeklySettings)}. When enabled, the server sends reports automatically at that time. Use the button above only for a manual send.
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-500 mt-3">
+                    Recommended: every Friday at 3:30 PM IST (Asia/Kolkata), covering Monday–Friday activity, before the weekly sales review.
+                    {weeklySettings?.enabled
+                      ? ` Currently scheduled: ${formatWeeklyReportSchedule(weeklySettings)}. The server sends automatically at that time — use Send report now only for a manual send.`
+                      : ' Enable the schedule above and save settings for automatic delivery.'}
+                  </p>
                 </div>
 
                 <div className="card p-5">
                   <h3 className="font-semibold mb-1">Email Recipients</h3>
                   <p className="text-xs text-gray-500 mb-4">
-                    Choose which users receive individual performance reports. Reports are sent to the email addresses of included users.
+                    Who receives the team weekly sales performance email (Management / BDMs / Sales Head).
+                    BDEs still appear as rows in the report when backend includes them in team metrics.
                     {reportRecipients.length > 0 && (
                       <span className="block mt-1 text-brand-700 font-medium">
                         Will send to: {reportRecipients.map(u => u.email).join(', ')}
@@ -438,44 +470,31 @@ export default function ReportsPage() {
                         <div key={l} className="card p-4 text-center"><p className="text-xs text-gray-500">{l}</p><p className="text-lg font-bold mt-1">{v ?? '—'}</p></div>
                       ))}
                     </div>
-
-                    {(summary.reports || []).length > 0 && (
-                      <div className="card p-5">
-                        <h3 className="font-semibold mb-1 text-brand-700">Individual reports included</h3>
-                        <p className="text-xs text-gray-500 mb-4">Weekly sales status report per team member · {weeklyPreview?.period_start} – {weeklyPreview?.period_end}</p>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="table-th">Team member</th>
-                                <th className="table-th text-right">New leads</th>
-                                <th className="table-th text-right">Deals won</th>
-                                <th className="table-th text-right">Conversion</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                              {summary.reports.map((row) => (
-                                <tr key={row.user_id}>
-                                  <td className="table-td">{row.user_name}</td>
-                                  <td className="table-td text-right font-medium">{row.new_leads ?? 0}</td>
-                                  <td className="table-td text-right font-medium">{row.deals_won ?? 0}</td>
-                                  <td className="table-td text-right font-medium">{row.conversion_rate ?? 0}%</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
 
-                {weeklyPreview && (
+                {weeklyMembers.length > 0 && (
+                  <WeeklyTeamPerformancePreview
+                    members={weeklyMembers}
+                    periodStart={weeklyPreview?.period_start || summary?.period_start}
+                    periodEnd={weeklyPreview?.period_end || summary?.period_end}
+                  />
+                )}
+
+                {(teamPreviewHtml || weeklyPreview?.html_body) && (
                   <div className="card p-5">
-                    <h3 className="font-semibold mb-2">Email preview — {weeklyPreview.company_name}</h3>
-                    <p className="text-xs text-gray-500 mb-4">Individual weekly performance reports sent to admins and Business Development Managers · {weeklyPreview.period_start} to {weeklyPreview.period_end}</p>
-                    <div className="border rounded-lg overflow-hidden bg-white max-h-[480px] overflow-y-auto">
-                      <iframe title="Weekly report preview" srcDoc={weeklyPreview.html_body} className="w-full min-h-[400px] border-0" sandbox="" />
+                    <h3 className="font-semibold mb-2">Email preview — {weeklyPreview?.company_name || 'Origami CRM'}</h3>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Team weekly sales performance format · {weeklyPreview?.period_start || summary?.period_start} to {weeklyPreview?.period_end || summary?.period_end}.
+                      Until backend ships the new template, the CRM builds this preview from member metrics when available.
+                    </p>
+                    <div className="border rounded-lg overflow-hidden bg-white max-h-[520px] overflow-y-auto">
+                      <iframe
+                        title="Weekly report preview"
+                        srcDoc={teamPreviewHtml || weeklyPreview?.html_body || ''}
+                        className="w-full min-h-[420px] border-0"
+                        sandbox=""
+                      />
                     </div>
                   </div>
                 )}

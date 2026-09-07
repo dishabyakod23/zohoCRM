@@ -8,6 +8,10 @@ import {
   stepTypeLabel,
   EMAIL_EVENT_LABELS,
   formatDateTimeInTimezone,
+  formatBounceTypeLabel,
+  formatBounceSubtypeLabel,
+  resolveBounceReasonText,
+  bounceReasonHint,
 } from '../../lib/sequenceHelpers.js';
 
 const EMAIL_STAT_KEYS = [
@@ -133,12 +137,21 @@ function EmailActivityList({
 
   const label = EMAIL_EVENT_LABELS[eventType] || eventType;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const showBounceReason = eventType === 'BOUNCED';
 
   return (
     <div className="rounded-xl border border-zoho-border overflow-hidden">
       <div className="px-4 py-3 border-b border-zoho-border bg-gray-50 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-zoho-text">{label} emails</h3>
-        <span className="text-xs text-zoho-muted">{total} total</span>
+        <div>
+          <h3 className="text-sm font-semibold text-zoho-text">{label} emails</h3>
+          {showBounceReason && (
+            <p className="text-[11px] text-zoho-muted mt-1">
+              Reason comes from Resend bounce webhooks (CRM API). Permanent / “not found” ≈ invalid email;
+              Transient / MailboxFull ≈ temporary; Suppressed ≈ Resend blocked resend.
+            </p>
+          )}
+        </div>
+        <span className="text-xs text-zoho-muted shrink-0">{total} total</span>
       </div>
 
       {loading ? (
@@ -154,27 +167,54 @@ function EmailActivityList({
                 <th className="table-th text-left">Email</th>
                 <th className="table-th text-left">Step</th>
                 <th className="table-th text-left">Subject</th>
+                {showBounceReason && <th className="table-th text-left">Reason</th>}
                 <th className="table-th text-left">When</th>
                 <th className="table-th text-left">Status</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.id || `${row.member_email}-${row.occurred_at}`} className="border-b border-zoho-border last:border-0">
-                  <td className="table-td">{row.member_name}</td>
-                  <td className="table-td">{row.member_email}</td>
-                  <td className="table-td">{row.step_order != null ? `Step ${row.step_order}` : '—'}</td>
-                  <td className="table-td max-w-[220px] truncate" title={row.subject}>{row.subject}</td>
-                  <td className="table-td text-xs whitespace-nowrap">
-                    {row.occurred_at
-                      ? formatDateTimeInTimezone(row.occurred_at, sequenceTimezone)
-                      : '—'}
-                  </td>
-                  <td className="table-td">
-                    <Badge label={EMAIL_EVENT_LABELS[row.event_type] || row.event_type || label} />
-                  </td>
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const reasonText = showBounceReason ? resolveBounceReasonText(row) : null;
+                const typeLabel = showBounceReason ? formatBounceTypeLabel(row.bounce_type) : null;
+                const subtypeLabel = showBounceReason ? formatBounceSubtypeLabel(row.bounce_subtype) : null;
+                const hint = showBounceReason ? bounceReasonHint(row) : null;
+                return (
+                  <tr key={row.id || `${row.member_email}-${row.occurred_at}`} className="border-b border-zoho-border last:border-0">
+                    <td className="table-td">{row.member_name}</td>
+                    <td className="table-td">{row.member_email}</td>
+                    <td className="table-td">{row.step_order != null ? `Step ${row.step_order}` : '—'}</td>
+                    <td className="table-td max-w-[220px] truncate" title={row.subject}>{row.subject}</td>
+                    {showBounceReason && (
+                      <td className="table-td max-w-[280px]" title={hint || reasonText || undefined}>
+                        {reasonText || typeLabel || subtypeLabel ? (
+                          <div className="space-y-1">
+                            <p className="text-zoho-text leading-snug">{reasonText || '—'}</p>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {typeLabel && <Badge label={typeLabel} />}
+                              {subtypeLabel && (
+                                <span className="text-[11px] text-zoho-muted">{subtypeLabel}</span>
+                              )}
+                            </div>
+                            {hint && (
+                              <p className="text-[11px] text-zoho-muted leading-snug">{hint}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-zoho-muted">—</span>
+                        )}
+                      </td>
+                    )}
+                    <td className="table-td text-xs whitespace-nowrap">
+                      {row.occurred_at
+                        ? formatDateTimeInTimezone(row.occurred_at, sequenceTimezone)
+                        : '—'}
+                    </td>
+                    <td className="table-td">
+                      <Badge label={EMAIL_EVENT_LABELS[row.event_type] || row.event_type || label} />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

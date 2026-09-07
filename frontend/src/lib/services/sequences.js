@@ -218,6 +218,19 @@ export async function getStepStats(sequenceId, stepId) {
 
 export function normalizeEmailEvent(row) {
   if (!row) return row;
+  const event_metadata = row.event_metadata ?? row.metadata ?? null;
+  const bounceBlob = (event_metadata && typeof event_metadata === 'object')
+    ? (event_metadata.bounce || event_metadata.data?.bounce || event_metadata)
+    : {};
+  const bounce_reason = row.bounce_reason
+    ?? bounceBlob.reason
+    ?? bounceBlob.message
+    ?? null;
+  const bounce_type = row.bounce_type ?? bounceBlob.type ?? null;
+  const bounce_subtype = row.bounce_subtype
+    ?? bounceBlob.subType
+    ?? bounceBlob.subtype
+    ?? null;
   return {
     ...row,
     id: row.id ?? row.event_id,
@@ -227,6 +240,16 @@ export function normalizeEmailEvent(row) {
     member_email: row.member_email || row.email || row.to_email || '—',
     step_order: row.step_order ?? row.stepOrder ?? null,
     subject: row.subject || '—',
+    bounce_reason: bounce_reason != null && String(bounce_reason).trim()
+      ? String(bounce_reason).trim()
+      : null,
+    bounce_type: bounce_type != null && String(bounce_type).trim()
+      ? String(bounce_type).trim()
+      : null,
+    bounce_subtype: bounce_subtype != null && String(bounce_subtype).trim()
+      ? String(bounce_subtype).trim()
+      : null,
+    event_metadata,
   };
 }
 
