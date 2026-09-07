@@ -1,5 +1,6 @@
 import { ownerName } from './recordHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
+import { trimStringFields } from './formInput.js';
 
 const ACCOUNT_CURRENCY_KEY = 'crm_account_currency';
 
@@ -38,6 +39,7 @@ export function normalizeAccount(account) {
 }
 
 export function toAccountPayload(form, { partial = false } = {}) {
+  form = trimStringFields(form) || form;
   const payload = {
     account_name: form.account_name || form.name,
     account_number: form.account_number || null,

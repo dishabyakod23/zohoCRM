@@ -15,6 +15,7 @@ import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { fetchUsers, fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
 import { isLostLeadStatus } from '../../lib/statusHelpers.js';
+import { makeFieldSetter } from '../../lib/formInput.js';
 import {
   SALUTATIONS, RATINGS,
 } from '../../lib/constants.js';
@@ -113,11 +114,7 @@ export default function CreateRawLeadForm() {
       .catch(() => {});
   }, [user?.id]);
 
-  const set = (field) => (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setForm((f) => ({ ...f, [field]: value }));
-    setErrors((er) => ({ ...er, [field]: null }));
-  };
+  const set = makeFieldSetter(setForm, setErrors);
 
   const setCountry = (country) => {
     setForm((f) => ({ ...f, country, state: nextStateForCountry(country, f.state) }));

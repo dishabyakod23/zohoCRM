@@ -20,6 +20,7 @@ import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
+import { makeFieldSetter } from '../../lib/formInput.js';
 
 const OWNERSHIP_OPTIONS = ['Public', 'Private', 'Subsidiary', 'Other'];
 
@@ -134,10 +135,7 @@ export default function CreateAccountForm() {
     fetchContactLookups().then(setContactOptions).catch(() => setContactOptions([]));
   }, []);
 
-  const set = (field) => (e) => {
-    setForm((f) => ({ ...f, [field]: e.target.value }));
-    setErrors((er) => ({ ...er, [field]: null }));
-  };
+  const set = makeFieldSetter(setForm, setErrors);
 
   const copyBillingToShipping = () => {
     setForm(f => ({
@@ -163,9 +161,10 @@ export default function CreateAccountForm() {
   };
 
   const updateProject = (index, field, value) => {
+    const nextValue = typeof value === 'string' ? value.trimStart() : value;
     setForm((f) => ({
       ...f,
-      projects: f.projects.map((row, i) => (i === index ? { ...row, [field]: value } : row)),
+      projects: f.projects.map((row, i) => (i === index ? { ...row, [field]: nextValue } : row)),
     }));
   };
 

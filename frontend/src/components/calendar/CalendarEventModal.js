@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { ASSIGN_TO_ALL, ASSIGN_TO_ME, EVENT_TYPES, emptyEventForm, toDateKey } from '../../lib/calendarHelpers.js';
 import { MODAL_Z_INDEX } from '../ui/Modal.js';
+import { makeFieldSetter } from '../../lib/formInput.js';
 
 export default function CalendarEventModal({
   open,
@@ -58,10 +59,7 @@ export default function CalendarEventModal({
 
   if (!open || !mounted) return null;
 
-  const set = (field) => (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setForm((f) => ({ ...f, [field]: value }));
-  };
+  const set = makeFieldSetter(setForm);
 
   const handleSubmit = () => {
     if (!form.title.trim()) return;

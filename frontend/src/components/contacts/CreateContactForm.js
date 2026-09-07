@@ -23,6 +23,7 @@ import {
   FALLBACK_LEAD_STATUSES,
 } from '../../lib/services/lookups.js';
 import { outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
+import { makeFieldSetter } from '../../lib/formInput.js';
 import { isLostLeadStatus } from '../../lib/statusHelpers.js';
 import AccountNameCombobox from '../forms/AccountNameCombobox.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
@@ -138,11 +139,7 @@ export default function CreateContactForm() {
     fetchLostReasons().then(setLostReasonOptions).catch(() => setLostReasonOptions([]));
   }, []);
 
-  const set = (field) => (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setForm((f) => ({ ...f, [field]: value }));
-    setErrors((er) => ({ ...er, [field]: null }));
-  };
+  const set = makeFieldSetter(setForm, setErrors);
 
   const copyMailingToOther = () => {
     setForm(f => ({

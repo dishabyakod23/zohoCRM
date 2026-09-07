@@ -4,6 +4,7 @@ import { DEFAULT_CURRENCY } from './currencies.js';
 import { ownerName } from './recordHelpers.js';
 import { SALUTATIONS } from './constants.js';
 import { isLostLeadStatus, normalizeLostReasonValue } from './statusHelpers.js';
+import { trimStringFields } from './formInput.js';
 
 export function normalizeSalutation(value) {
   if (!value) return '';
@@ -173,6 +174,7 @@ export function resolveLeadOwnerId(form, currentUserId) {
 
 /** Build LeadCreate / LeadUpdate payload — lead_status must be snake_case */
 export function toLeadPayload(form, { partial = false } = {}) {
+  form = trimStringFields(form) || form;
   const street = [form.building, form.street].filter(Boolean).join(', ') || form.street || null;
 
   if (partial) {

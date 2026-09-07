@@ -21,6 +21,7 @@ import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 import { isLostLeadStatus } from '../../lib/statusHelpers.js';
+import { makeFieldSetter } from '../../lib/formInput.js';
 
 export function emptyLeadForm() {
   return {
@@ -61,10 +62,7 @@ export default function CreateLeadForm() {
     fetchLostReasons().then(setLostReasonOptions).catch(() => setLostReasonOptions([]));
   }, []);
 
-  const set = (field) => (e) => {
-    setForm((f) => ({ ...f, [field]: e.target.value }));
-    setErrors((er) => ({ ...er, [field]: null }));
-  };
+  const set = makeFieldSetter(setForm, setErrors);
 
   const setCountry = (country) => {
     setForm((f) => ({ ...f, country, state: nextStateForCountry(country, f.state) }));

@@ -28,6 +28,7 @@ import { trackRecentItem } from '../layout/BottomUtilityBar.js';
 import ReadOnlyRecordBanner from '../records/ReadOnlyRecordBanner.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { useRecordCampaign } from '../../hooks/useRecordCampaign.js';
+import { trimStartValue } from '../../lib/formInput.js';
 import { IndustrySelectControl } from '../forms/IndustryField.js';
 import {
   AddressCountrySelect,
@@ -317,7 +318,7 @@ export default function PipelineLeadDetail({ stage }) {
               campaignField,
               ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: lead.owner_name }),
               { name: 'description', label: 'Description', colSpan: true, render: (d, set) => (
-                <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: e.target.value }))} />
+                <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: trimStartValue(e.target.value) }))} />
               ) },
             ]}
           />
@@ -369,7 +370,7 @@ export default function PipelineLeadDetail({ stage }) {
               { name: 'email', label: 'Email', render: (d, set) => (
                 <EditableEmailField
                   value={d.email}
-                  onChange={(e) => set((p) => ({ ...p, email: e.target.value }))}
+                  onChange={(e) => set((p) => ({ ...p, email: trimStartValue(e.target.value) }))}
                   excludeLeadId={id}
                 />
               ) },

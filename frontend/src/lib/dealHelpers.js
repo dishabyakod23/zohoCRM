@@ -1,5 +1,6 @@
 import { ownerName } from './recordHelpers.js';
 import { DEFAULT_CURRENCY } from './currencies.js';
+import { trimStringFields } from './formInput.js';
 
 const STAGE_LABELS = {
   qualification: 'Qualification',
@@ -53,6 +54,7 @@ export function normalizeDeal(deal, accountMap = {}, stageOptions = []) {
 }
 
 export function toDealPayload(form, { partial = false } = {}) {
+  form = trimStringFields(form) || form;
   const payload = {
     deal_name: form.deal_name || form.name,
     account_id: form.account_id,

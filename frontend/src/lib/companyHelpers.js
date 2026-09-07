@@ -1,6 +1,7 @@
 import * as dealsApi from './services/deals.js';
 import { ownerName } from './recordHelpers.js';
 import { cachedRequest } from './requestCache.js';
+import { trimStringFields } from './formInput.js';
 
 const ACCOUNT_KIND_CACHE_MS = 5 * 60 * 1000;
 
@@ -40,6 +41,7 @@ export function normalizeCompany(company) {
 }
 
 export function toCompanyPayload(form, { partial = false } = {}) {
+  form = trimStringFields(form) || form;
   const payload = {
     company_name: form.company_name || form.account_name || form.name,
     industry: form.industry || null,

@@ -5,6 +5,7 @@ import { leadStatusLabel, resolveLeadStatusForApi } from './leadHelpers.js';
 import { directoryLeadStatusValue } from './contactDirectoryHelpers.js';
 import { isPipelineStageStatus } from './pipelineHelpers.js';
 import { isLostLeadStatus, normalizeLostReasonValue } from './statusHelpers.js';
+import { trimStringFields } from './formInput.js';
 
 export function isImportUuid(value) {
   return /^[0-9a-f-]{36}$/i.test(String(value || '').trim());
@@ -66,6 +67,7 @@ function applyCompanyLinkFields(payload, form) {
 }
 
 export function toContactPayload(form, { partial = false } = {}) {
+  form = trimStringFields(form) || form;
   if (partial) {
     const payload = {};
     if (formHas(form, 'salutation')) payload.salutation = form.salutation || null;

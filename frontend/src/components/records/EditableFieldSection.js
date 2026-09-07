@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { validateRequired } from '../../lib/validators.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
+import { trimStartValue, trimStringFields } from '../../lib/formInput.js';
 
 /**
  * Section card that displays fields read-only with per-section Edit → Save/Cancel.
@@ -44,7 +45,9 @@ export default function EditableFieldSection({
 
   const save = async () => {
     // Use ref so a click immediately after changing a select doesn't save a stale draft.
-    const current = draftRef.current || draft;
+    const current = trimStringFields(draftRef.current || draft);
+    draftRef.current = current;
+    setDraft(current);
     const requiredFields = {};
     fields.forEach((f) => {
       if (f.readOnly || !isVisible(f, current)) return;
@@ -112,7 +115,7 @@ export default function EditableFieldSection({
                           className={inputClass(fieldErrors[f.name])}
                           value={draft[f.name] ?? ''}
                           onChange={(e) => {
-                            const value = e.target.value;
+                            const value = trimStartValue(e.target.value);
                             applyDraft((d) => ({ ...d, [f.name]: value }));
                             setFieldErrors((er) => ({ ...er, [f.name]: null }));
                           }}

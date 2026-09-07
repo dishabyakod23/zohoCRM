@@ -17,6 +17,7 @@ import { PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL } fr
 import { defaultOwnerFilterId } from '../../lib/listRecordFilters.js';
 import { canAssignRecords } from '../../lib/roles.js';
 import { OwnerFilter } from '../layout/ListFilterFields.js';
+import { makeFieldSetter } from '../../lib/formInput.js';
 
 const RECIPIENT_MODULES = [
   { key: 'contacts', label: 'Contacts' },
@@ -272,10 +273,7 @@ export default function CreateCampaignForm() {
       .catch(() => {});
   }, []);
 
-  const set = (field) => (e) => {
-    setForm((f) => ({ ...f, [field]: e.target.value }));
-    setErrors((er) => ({ ...er, [field]: null }));
-  };
+  const set = makeFieldSetter(setForm, setErrors);
 
   const handleSave = async () => {
     const errs = validateRequired(
