@@ -13,7 +13,13 @@ import { invalidateLookup } from '../lookupCache.js';
 
 function shouldUseLocalFallback(err) {
   const status = err?.response?.status;
-  return status === 404 || status === 405 || status === 501;
+  // 403: some roles are blocked by backend permission checks on /auth/me/profile-image.
+  // Keep a same-browser avatar so the UI still works until API allows self-upload for all users.
+  return status === 403 || status === 404 || status === 405 || status === 501;
+}
+
+function isPermissionDenied(err) {
+  return err?.response?.status === 403;
 }
 
 /** Avoid showing a stale cached avatar after replace. */
@@ -43,6 +49,7 @@ export async function uploadMyProfileImage(file) {
   if (validationError) throw new Error(validationError);
   await verifyImageFile(file);
 
+  let permissionDenied = false;
   try {
     const formData = new FormData();
     formData.append('file', file, file.name || 'profile.jpg');
@@ -56,6 +63,7 @@ export async function uploadMyProfileImage(file) {
     return user;
   } catch (err) {
     if (!shouldUseLocalFallback(err)) throw err;
+    permissionDenied = isPermissionDenied(err);
   }
 
   const current = readStoredAuthUser();
@@ -63,6 +71,9 @@ export async function uploadMyProfileImage(file) {
   const dataUrl = await readFileAsDataUrl(file);
   saveLocalProfileImage(current.id, dataUrl);
   const user = publishProfileImageChange({ ...current, profile_image_url: dataUrl });
+  if (permissionDenied) {
+    user.__profileImageLocalOnly = true;
+  }
   return user;
 }
 

@@ -34,8 +34,17 @@ export default function ProfileImageManager({ roleLabel }) {
     setUploading(true);
     try {
       const updated = await uploadMyProfileImage(file);
-      updateUser(updated);
-      showToast(hasImage ? 'Profile image updated successfully.' : 'Profile image uploaded successfully.', 'success');
+      const localOnly = Boolean(updated?.__profileImageLocalOnly);
+      const { __profileImageLocalOnly, ...userPatch } = updated || {};
+      updateUser(userPatch);
+      if (localOnly) {
+        showToast(
+          'Image saved on this browser only. Server blocked upload (permission). Ask admin to allow Settings → My Profile → Edit for your role.',
+          'error',
+        );
+      } else {
+        showToast(hasImage ? 'Profile image updated successfully.' : 'Profile image uploaded successfully.', 'success');
+      }
     } catch (err) {
       showToast(err.message || getApiError(err));
     } finally {
