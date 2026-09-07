@@ -16,7 +16,6 @@ import * as companiesApi from '../../../lib/services/companies.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import { fetchUsers } from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
-import { DEFAULT_PAGE_SIZE } from '../../../lib/constants.js';
 import { IndustrySelectControl } from '../../../components/forms/IndustryField.js';
 import {
   AddressCountrySelect,
@@ -41,9 +40,10 @@ export default function CompanyDetailPage() {
   const loadCompany = useCallback(async () => {
     if (!ready) return;
     try {
+      // Companies are Prospect rows in the accounts table; GET /contacts filters by account_id.
       const [record, contactResult] = await Promise.all([
         companiesApi.getCompany(id),
-        contactsApi.listContacts({ company_id: id, page_size: DEFAULT_PAGE_SIZE }),
+        contactsApi.listAllContacts({ account_id: id, company_id: id }),
       ]);
       setCompany({ ...record, account_name: record.name || record.account_name });
       setContacts(contactResult.data || []);
@@ -149,7 +149,9 @@ export default function CompanyDetailPage() {
           />
 
           <div className="card p-4">
-            <h3 className="text-sm font-semibold text-zoho-text mb-3">Contacts</h3>
+            <h3 className="text-sm font-semibold text-zoho-text mb-3">
+              Contacts{contacts.length > 0 ? ` (${contacts.length})` : ''}
+            </h3>
             {contacts.length === 0 ? (
               <p className="text-sm text-zoho-muted">No contacts linked to this company yet.</p>
             ) : (

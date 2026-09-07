@@ -10,7 +10,7 @@ import IndustryField from '../forms/IndustryField.js';
 import { AddressCountryField, AddressStateField } from '../forms/AddressCountryStateFields.js';
 import { nextStateForCountry } from '../../lib/addressRegions.js';
 import { PIPELINE_LEAD, outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
-import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
+import { validateRequired, validateEmail, validatePhone, validationToastMessage } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
@@ -91,7 +91,7 @@ export default function CreateLeadForm() {
     }
     setErrors(errs);
     if (Object.keys(errs).length) {
-      showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in all required fields before saving.');
+      showToast(validationToastMessage(errs));
       document.querySelector(`[data-field="${Object.keys(errs)[0]}"]`)?.scrollIntoView({ behavior: 'smooth' });
       return false;
     }

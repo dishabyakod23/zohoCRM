@@ -9,7 +9,7 @@ import { getApiError } from '../../lib/api.js';
 import { SALUTATIONS } from '../../lib/constants.js';
 import { AddressCountryField, AddressStateField } from '../forms/AddressCountryStateFields.js';
 import { nextStateForCountry } from '../../lib/addressRegions.js';
-import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
+import { validateRequired, validateEmail, validatePhone, validationToastMessage } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as contactsApi from '../../lib/services/contacts.js';
@@ -184,7 +184,7 @@ export default function CreateContactForm() {
       }
       setErrors(errs);
       if (Object.keys(errs).length) {
-        showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in all required fields before saving.');
+        showToast(validationToastMessage(errs));
         return;
       }
       const { company_id, company_name, account_id } = await resolveContactCompanyFields({

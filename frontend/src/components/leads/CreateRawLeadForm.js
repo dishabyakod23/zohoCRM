@@ -7,7 +7,7 @@ import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
-import { validateRequired, validateEmail, validatePhone } from '../../lib/validators.js';
+import { validateRequired, validateEmail, validatePhone, validationToastMessage } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
@@ -158,7 +158,7 @@ export default function CreateRawLeadForm() {
     }
     setErrors(errs);
     if (Object.keys(errs).length) {
-      showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in required fields.');
+      showToast(validationToastMessage(errs, 'Please fill in required fields.'));
       return false;
     }
     return true;

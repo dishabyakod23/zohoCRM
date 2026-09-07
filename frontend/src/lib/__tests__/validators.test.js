@@ -1,4 +1,4 @@
-import { validateEmail, validatePhone, validateRequired, validatePastDate } from '../validators.js';
+import { validateEmail, validatePhone, validateRequired, validatePastDate, validationToastMessage } from '../validators.js';
 
 describe('validateEmail', () => {
   it('returns null for empty input (field is optional at this layer)', () => {
@@ -12,14 +12,39 @@ describe('validateEmail', () => {
   });
 
   it('rejects addresses missing @ or domain', () => {
-    expect(validateEmail('not-an-email')).toMatch(/valid email/i);
-    expect(validateEmail('a@b')).toMatch(/valid email/i);
-    expect(validateEmail('a@')).toMatch(/valid email/i);
-    expect(validateEmail('@b.com')).toMatch(/valid email/i);
+    expect(validateEmail('not-an-email')).toMatch(/correct format/i);
+    expect(validateEmail('a@b')).toMatch(/correct format/i);
+    expect(validateEmail('a@')).toMatch(/correct format/i);
+    expect(validateEmail('@b.com')).toMatch(/correct format/i);
   });
 
   it('rejects addresses with whitespace', () => {
-    expect(validateEmail('a b@c.com')).toMatch(/valid email/i);
+    expect(validateEmail('a b@c.com')).toMatch(/correct format/i);
+  });
+
+  it('rejects addresses with invalid characters like semicolon', () => {
+    expect(validateEmail('sudeep122@gami;.com')).toMatch(/correct format/i);
+  });
+});
+
+describe('validationToastMessage', () => {
+  it('surfaces email format errors instead of the generic required-fields toast', () => {
+    expect(validationToastMessage({
+      email: 'The entered email is not in the correct format.',
+    })).toBe('The entered email is not in the correct format.');
+  });
+
+  it('surfaces uniqueness errors', () => {
+    expect(validationToastMessage({
+      email: 'A lead with this email already exists.',
+    })).toBe('A lead with this email already exists.');
+  });
+
+  it('falls back for empty required-field errors', () => {
+    expect(validationToastMessage({
+      first_name: 'First Name is required.',
+      email: 'Email is required.',
+    })).toBe('Please fill in all required fields before saving.');
   });
 });
 
@@ -29,20 +54,23 @@ describe('validatePhone', () => {
     expect(validatePhone(null)).toBeNull();
   });
 
-  it('accepts numbers with at least 7 digits, ignoring formatting characters', () => {
-    expect(validatePhone('123-456-7890')).toBeNull();
-    expect(validatePhone('+1 (234) 567-8900')).toBeNull();
+  it('accepts digit-only numbers with at least 7 digits', () => {
+    expect(validatePhone('1234567890')).toBeNull();
     expect(validatePhone('1234567')).toBeNull();
+  });
+
+  it('rejects letters and special characters', () => {
+    expect(validatePhone('uydfutdutdyutd')).toMatch(/digits/i);
+    expect(validatePhone('123-456-7890')).toMatch(/digits/i);
+    expect(validatePhone('+1 (234) 567-8900')).toMatch(/digits/i);
   });
 
   it('rejects numbers with fewer than 7 digits', () => {
     expect(validatePhone('12345')).toMatch(/valid phone/i);
-    expect(validatePhone('abc-def')).toMatch(/valid phone/i);
   });
 
   it('rejects numbers with more than 15 digits (E.164 max)', () => {
     expect(validatePhone('1234567890123456')).toMatch(/15 digits/i);
-    expect(validatePhone('+1 (234) 567-8901 23456')).toMatch(/15 digits/i);
   });
 
   it('accepts numbers with exactly 15 digits', () => {

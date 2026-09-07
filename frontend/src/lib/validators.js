@@ -1,13 +1,36 @@
 export function validateEmail(email) {
   if (!email) return null;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? null : 'Please enter a valid email address.';
+  const value = String(email).trim();
+  // Reject clearly invalid characters (e.g. `;`) that a naïve @/. check still allows.
+  const looksValid =
+    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(
+      value,
+    );
+  return looksValid ? null : 'The entered email is not in the correct format.';
+}
+
+/** Prefer specific field errors (format, uniqueness) over a generic required-fields toast. */
+export function validationToastMessage(
+  errs,
+  fallback = 'Please fill in all required fields before saving.',
+) {
+  if (!errs || typeof errs !== 'object') return fallback;
+  const preferredKeys = ['email', 'secondary_email', 'phone', 'mobile', 'lost_reason'];
+  for (const key of preferredKeys) {
+    const msg = errs[key];
+    if (msg && !/is required\.?$/i.test(String(msg))) return msg;
+  }
+  return fallback;
 }
 
 export function validatePhone(phone) {
   if (!phone) return null;
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length < 7) return 'Please enter a valid phone number.';
-  if (digits.length > 15) return 'Phone number cannot exceed 15 digits.';
+  const value = String(phone).trim();
+  if (/\D/.test(value)) {
+    return 'Phone/mobile can only contain digits.';
+  }
+  if (value.length < 7) return 'Please enter a valid phone number.';
+  if (value.length > 15) return 'Phone number cannot exceed 15 digits.';
   return null;
 }
 

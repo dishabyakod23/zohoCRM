@@ -7,7 +7,7 @@ import { useToast } from '../ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
-import { validateRequired, validateEmail } from '../../lib/validators.js';
+import { validateRequired, validateEmail, validationToastMessage } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import { fetchUsers, fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
@@ -164,7 +164,7 @@ export default function CreatePipelineLeadForm({
     }
     setErrors(errs);
     if (Object.keys(errs).length) {
-      showToast(errs.email?.includes('already exists') ? errs.email : 'Please fill in required fields.');
+      showToast(validationToastMessage(errs, 'Please fill in required fields.'));
       return false;
     }
     return true;

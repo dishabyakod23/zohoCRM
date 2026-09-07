@@ -1,4 +1,4 @@
-import { makeFieldSetter, trimStartValue, trimStringFields } from '../formInput.js';
+import { makeFieldSetter, trimStartValue, trimStringFields, sanitizePhoneDigits } from '../formInput.js';
 
 describe('formInput helpers', () => {
   it('trimStartValue removes leading whitespace only', () => {
@@ -28,5 +28,21 @@ describe('formInput helpers', () => {
     set('first_name')({ target: { value: '  Jane' } });
     expect(form.first_name).toBe('Jane');
     expect(errors.first_name).toBeNull();
+  });
+
+  it('sanitizePhoneDigits strips letters and special characters', () => {
+    expect(sanitizePhoneDigits('uydfutdutdyutd')).toBe('');
+    expect(sanitizePhoneDigits('+91-98765 43210')).toBe('919876543210');
+    expect(sanitizePhoneDigits('123abc456')).toBe('123456');
+  });
+
+  it('makeFieldSetter keeps only digits for phone and mobile', () => {
+    let form = { phone: '', mobile: '' };
+    const setForm = (updater) => { form = updater(form); };
+    const set = makeFieldSetter(setForm);
+    set('phone')({ target: { value: 'uydfutdutdyutd' } });
+    set('mobile')({ target: { value: '98ab#76' } });
+    expect(form.phone).toBe('');
+    expect(form.mobile).toBe('9876');
   });
 });

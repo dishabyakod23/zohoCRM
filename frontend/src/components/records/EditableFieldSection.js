@@ -1,9 +1,14 @@
 'use client';
 import { useRef, useState } from 'react';
 import FormField, { inputClass } from '../forms/FormField.js';
-import { validateRequired } from '../../lib/validators.js';
+import { validateRequired, validatePhone } from '../../lib/validators.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
-import { trimStartValue, trimStringFields } from '../../lib/formInput.js';
+import {
+  trimStartValue,
+  trimStringFields,
+  sanitizePhoneDigits,
+  isPhoneDigitField,
+} from '../../lib/formInput.js';
 
 /**
  * Section card that displays fields read-only with per-section Edit → Save/Cancel.
@@ -30,7 +35,8 @@ export default function EditableFieldSection({
     const initial = {};
     fields.forEach((f) => {
       if (f.readOnly) return;
-      initial[f.name] = values[f.name] ?? '';
+      const raw = values[f.name] ?? '';
+      initial[f.name] = isPhoneDigitField(f.name) ? sanitizePhoneDigits(raw) : raw;
     });
     draftRef.current = initial;
     setDraft(initial);
@@ -54,6 +60,11 @@ export default function EditableFieldSection({
       if (isRequired(f, current)) requiredFields[f.name] = f.label;
     });
     const errs = validateRequired(requiredFields, current);
+    fields.forEach((f) => {
+      if (f.readOnly || !isVisible(f, current) || !isPhoneDigitField(f.name)) return;
+      const phoneErr = validatePhone(current[f.name]);
+      if (phoneErr) errs[f.name] = phoneErr;
+    });
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;
     try {
@@ -113,9 +124,14 @@ export default function EditableFieldSection({
                       : (
                         <input
                           className={inputClass(fieldErrors[f.name])}
+                          type={isPhoneDigitField(f.name) ? 'tel' : 'text'}
+                          inputMode={isPhoneDigitField(f.name) ? 'numeric' : undefined}
+                          autoComplete={isPhoneDigitField(f.name) ? 'tel' : undefined}
+                          maxLength={isPhoneDigitField(f.name) ? 15 : undefined}
                           value={draft[f.name] ?? ''}
                           onChange={(e) => {
-                            const value = trimStartValue(e.target.value);
+                            let value = trimStartValue(e.target.value);
+                            if (isPhoneDigitField(f.name)) value = sanitizePhoneDigits(value);
                             applyDraft((d) => ({ ...d, [f.name]: value }));
                             setFieldErrors((er) => ({ ...er, [f.name]: null }));
                           }}
