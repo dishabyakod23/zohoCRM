@@ -9,7 +9,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import { getBulkConfig, bulkDeleteRecords, exportRecordsCsv, printMailingLabels, sendBulkEmail,
 } from '../../lib/bulkModuleConfig.js';
-import { getNoteMeta, notesApiSupported } from '../../lib/noteHelpers.js';
+import { getNoteMeta, notesApiSupported, resolveListNoteTarget } from '../../lib/noteHelpers.js';
 import RecordNoteRowIcon from './RecordNoteRowIcon.js';
 import RecordNotesSidePanel from './RecordNotesSidePanel.js';
 import SortableEmailHeader from './SortableEmailHeader.js';
@@ -882,46 +882,29 @@ export default function RecordDataTable({
               ) : records.map((record) => {
                 const id = getRowId(record);
                 const recordLabel = noteMeta.getLabel(record);
+                const noteTarget = resolveListNoteTarget({
+                  moduleKey,
+                  record,
+                  rowId: id,
+                  noteMeta,
+                  parseRowId: parsePersonRowId,
+                  getRecordId: personRecordId,
+                });
                 return (
                   <tr key={id} className="list-table-row">
                     <td className="table-td">
                       <div className="flex items-center gap-2">
                         {showNotes && (
                           <RecordNoteRowIcon
-                            relatedType={noteMeta.relatedType}
-                            recordId={id}
+                            relatedType={noteTarget.relatedType}
+                            recordId={noteTarget.recordId}
                             moduleLabel={noteMeta.moduleLabel}
                             recordLabel={recordLabel}
                             onOpen={() => {
-                              const parsed = parsePersonRowId(id);
-                              // parsePersonRowId defaults bare ids to "contact" — only trust an
-                              // explicit entity from the record or a prefixed row id (type:uuid).
-                              const explicitEntity = String(
-                                record.entity_type || record._entityType || record.record_type || '',
-                              ).toLowerCase();
-                              const prefixedEntity = String(id).includes(':')
-                                ? String(parsed.entityType || '').toLowerCase()
-                                : '';
-                              const entity = explicitEntity || prefixedEntity;
-
-                              let relatedType = noteMeta.relatedType;
-                              if (LEAD_MODULE_KEYS.has(moduleKey)) {
-                                relatedType = 'lead';
-                              } else if (entity.includes('lead')
-                                || ['lead', 'raw_lead', 'qualified_lead', 'proposal'].includes(entity)) {
-                                relatedType = 'lead';
-                              } else if (entity === 'deal') {
-                                relatedType = 'deal';
-                              } else if (entity === 'account') {
-                                relatedType = 'account';
-                              } else if (entity === 'contact') {
-                                relatedType = 'contact';
-                              }
-
                               setPanelRecord({
-                                id: parsed.recordId || personRecordId(record) || id,
+                                id: noteTarget.recordId,
                                 label: recordLabel,
-                                relatedType,
+                                relatedType: noteTarget.relatedType,
                               });
                             }}
                           />

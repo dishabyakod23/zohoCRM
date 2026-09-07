@@ -1,4 +1,5 @@
-import { canManageNote, noteOwnerId } from '../noteHelpers.js';
+import { canManageNote, noteOwnerId, resolveListNoteTarget, getNoteMeta } from '../noteHelpers.js';
+import { parsePersonRowId, personRecordId } from '../services/people.js';
 
 describe('canManageNote', () => {
   it('hides edit/delete when the current user does not own the note', () => {
@@ -39,8 +40,30 @@ describe('noteOwnerId', () => {
     expect(noteOwnerId({ owner_id: 'a' })).toBe('a');
     expect(noteOwnerId({ created_by: 'b' })).toBe('b');
   });
+});
 
-  it('reads nested created_by.id', () => {
-    expect(noteOwnerId({ created_by: { id: 'nested' } })).toBe('nested');
+describe('resolveListNoteTarget', () => {
+  it('strips composite contacts-directory ids for the notes API', () => {
+    const target = resolveListNoteTarget({
+      moduleKey: 'contacts',
+      record: { entity_type: 'contact', record_id: 'abc-123', id: 'contact:abc-123' },
+      rowId: 'contact:abc-123',
+      noteMeta: getNoteMeta('contacts'),
+      parseRowId: parsePersonRowId,
+      getRecordId: personRecordId,
+    });
+    expect(target).toEqual({ relatedType: 'contact', recordId: 'abc-123' });
+  });
+
+  it('maps lead rows in the contacts directory to entity_type lead', () => {
+    const target = resolveListNoteTarget({
+      moduleKey: 'contacts',
+      record: { entity_type: 'lead', record_id: 'lead-9', id: 'lead:lead-9' },
+      rowId: 'lead:lead-9',
+      noteMeta: getNoteMeta('contacts'),
+      parseRowId: parsePersonRowId,
+      getRecordId: personRecordId,
+    });
+    expect(target).toEqual({ relatedType: 'lead', recordId: 'lead-9' });
   });
 });

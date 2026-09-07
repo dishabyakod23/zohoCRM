@@ -9,7 +9,16 @@ function NotesBadge() {
   );
 }
 
-export default function RecordNoteHoverPreview({ note, moduleLabel, recordLabel }) {
+export default function RecordNoteHoverPreview({ note, moduleLabel, recordLabel, loading = false }) {
+  if (loading) {
+    return (
+      <div className="w-72 bg-white border border-zoho-border rounded-lg shadow-card-hover px-4 pt-3 pb-4 text-sm">
+        <NotesBadge />
+        <p className="text-zoho-muted mt-3">Loading notes…</p>
+      </div>
+    );
+  }
+
   if (!note) {
     return (
       <div className="w-72 bg-white border border-zoho-border rounded-lg shadow-card-hover px-4 pt-3 pb-4 text-sm">

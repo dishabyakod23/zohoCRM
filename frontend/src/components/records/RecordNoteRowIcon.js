@@ -13,6 +13,14 @@ function NoteIconSvg({ className }) {
   );
 }
 
+/** Strip `entity:uuid` row ids so notes API gets a bare record id. */
+function bareRecordId(value) {
+  const raw = String(value || '');
+  const splitAt = raw.indexOf(':');
+  if (splitAt > 0) return raw.slice(splitAt + 1);
+  return raw;
+}
+
 export default function RecordNoteRowIcon({
   relatedType,
   recordId,
@@ -28,36 +36,50 @@ export default function RecordNoteRowIcon({
   const [latestNote, setLatestNote] = useState(latestNoteProp || null);
   const [noteCount, setNoteCount] = useState(noteCountProp);
   const [loading, setLoading] = useState(false);
-  const loadedRef = useRef(false);
+  const [loaded, setLoaded] = useState(false);
+  const requestIdRef = useRef(0);
+  const notesRecordId = bareRecordId(recordId);
 
   const loadNotes = useCallback(async (force = false) => {
-    if (!force && loadedRef.current) return;
-    if (!relatedType || !recordId) return;
-    loadedRef.current = true;
+    if (!force && loaded) return;
+    if (!relatedType || !notesRecordId) return;
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     try {
-      const notes = await notesApi.listNotes(relatedType, recordId);
-      setLatestNote(notes[0] || null);
-      setNoteCount(notes.length);
+      const notes = await notesApi.listNotes(relatedType, notesRecordId);
+      if (requestId !== requestIdRef.current) return;
+      const sorted = [...notes].sort(
+        (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
+      );
+      setLatestNote(sorted[0] || null);
+      setNoteCount(sorted.length);
+      setLoaded(true);
     } catch {
+      if (requestId !== requestIdRef.current) return;
       setLatestNote(null);
       setNoteCount(0);
-      loadedRef.current = false;
+      setLoaded(false);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
-  }, [relatedType, recordId]);
+  }, [relatedType, notesRecordId, loaded]);
+
+  useEffect(() => {
+    setLatestNote(latestNoteProp || null);
+    setNoteCount(noteCountProp);
+    setLoaded(false);
+  }, [relatedType, notesRecordId, latestNoteProp, noteCountProp]);
 
   useEffect(() => {
     const onNotesChanged = (event) => {
       const { relatedType: type, recordId: id } = event.detail || {};
-      if (type !== relatedType || String(id) !== String(recordId)) return;
-      loadedRef.current = false;
+      if (type !== relatedType || String(id) !== String(notesRecordId)) return;
+      setLoaded(false);
       loadNotes(true);
     };
     window.addEventListener(RECORD_NOTES_CHANGED_EVENT, onNotesChanged);
     return () => window.removeEventListener(RECORD_NOTES_CHANGED_EVENT, onNotesChanged);
-  }, [relatedType, recordId, loadNotes]);
+  }, [relatedType, notesRecordId, loadNotes]);
 
   const showPreview = () => {
     loadNotes();
@@ -81,7 +103,7 @@ export default function RecordNoteRowIcon({
         onClick={handleOpen}
         onMouseEnter={showPreview}
         onMouseLeave={() => setHover(false)}
-        onFocus={loadNotes}
+        onFocus={() => loadNotes()}
         className={`w-7 h-7 rounded border flex items-center justify-center transition-colors shrink-0 ${
           displayCount > 0
             ? 'border-brand-200 bg-brand-50 text-brand-600 hover:bg-brand-100'
@@ -94,7 +116,12 @@ export default function RecordNoteRowIcon({
       </button>
       {hover && pos && typeof document !== 'undefined' && createPortal(
         <div className="fixed z-[100] pointer-events-none" style={{ top: pos.top, left: pos.left }}>
-          <RecordNoteHoverPreview note={latestNote} moduleLabel={moduleLabel} recordLabel={recordLabel} />
+          <RecordNoteHoverPreview
+            note={latestNote}
+            loading={loading && !loaded}
+            moduleLabel={moduleLabel}
+            recordLabel={recordLabel}
+          />
         </div>,
         document.body,
       )}

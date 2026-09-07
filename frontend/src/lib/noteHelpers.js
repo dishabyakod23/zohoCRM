@@ -62,6 +62,55 @@ export function getNoteMeta(moduleKey) {
   return MODULE_NOTE_META[moduleKey] || MODULE_NOTE_META.leads;
 }
 
+const LEAD_NOTE_ENTITIES = new Set(['lead', 'raw_lead', 'qualified_lead', 'proposal']);
+const LEAD_NOTE_MODULES = new Set(['leads', 'raw-leads', 'qualified-leads', 'proposals']);
+
+/**
+ * Resolve notes API entity_type + bare record id for a list row.
+ * Contacts directory rows often use composite ids like `contact:<uuid>`.
+ */
+export function resolveListNoteTarget({
+  moduleKey,
+  record,
+  rowId,
+  noteMeta,
+  parseRowId,
+  getRecordId,
+} = {}) {
+  const meta = noteMeta || getNoteMeta(moduleKey);
+  const parsed = typeof parseRowId === 'function'
+    ? parseRowId(rowId)
+    : { entityType: '', recordId: rowId };
+  const explicitEntity = String(
+    record?.entity_type || record?._entityType || record?.record_type || '',
+  ).toLowerCase();
+  const prefixedEntity = String(rowId || '').includes(':')
+    ? String(parsed?.entityType || '').toLowerCase()
+    : '';
+  const entity = explicitEntity || prefixedEntity;
+
+  let relatedType = meta.relatedType;
+  if (LEAD_NOTE_MODULES.has(moduleKey)) {
+    relatedType = 'lead';
+  } else if (entity.includes('lead') || LEAD_NOTE_ENTITIES.has(entity)) {
+    relatedType = 'lead';
+  } else if (entity === 'deal') {
+    relatedType = 'deal';
+  } else if (entity === 'account') {
+    relatedType = 'account';
+  } else if (entity === 'contact') {
+    relatedType = 'contact';
+  }
+
+  const recordId = parsed?.recordId
+    || (typeof getRecordId === 'function' ? getRecordId(record) : null)
+    || record?.record_id
+    || record?.entity_id
+    || rowId;
+
+  return { relatedType, recordId: recordId ? String(recordId) : '' };
+}
+
 function asUserId(value) {
   if (value == null || value === '') return '';
   if (typeof value === 'object') return value.id || value.user_id || '';
