@@ -386,9 +386,7 @@ export async function listLeadAttachments(id) {
 export async function uploadLeadAttachment(id, file) {
   const formData = new FormData();
   formData.append('file', file);
-  const res = await api.post(`/leads/${id}/attachments`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const res = await api.post(`/leads/${id}/attachments`, formData);
   return res.data.data;
 }
 

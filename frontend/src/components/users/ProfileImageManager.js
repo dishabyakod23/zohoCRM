@@ -101,6 +101,9 @@ export default function ProfileImageManager({ roleLabel }) {
             )}
           </div>
         </div>
+        <p className="text-[11px] text-zoho-muted mt-4">
+          Accepted formats: JPG, PNG, or WEBP · max 2 MB.
+        </p>
       </div>
 
       <input

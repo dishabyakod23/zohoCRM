@@ -20,6 +20,15 @@ const api = axios.create({
 
 api.interceptors.request.use(async (config) => {
   if (typeof window === 'undefined') return config;
+
+  // Let the browser set multipart boundary; default JSON Content-Type breaks FormData uploads.
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    if (config.headers) {
+      delete config.headers['Content-Type'];
+      delete config.headers['content-type'];
+    }
+  }
+
   const path = String(config.url || '');
   if (path.includes('/auth/login') || path.includes('/auth/refresh')) return config;
   try {

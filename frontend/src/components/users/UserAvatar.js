@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { avatarInitialClass } from '../../lib/tableStyles.js';
 import { userDisplayName, userInitials, userProfileImageUrl } from '../../lib/userHelpers.js';
 
@@ -31,9 +31,15 @@ export default function UserAvatar({
   const showImage = Boolean(src) && !broken;
   const sizeClass = SIZE_CLASSES[size] || SIZE_CLASSES.md;
 
+  // Re-try the image whenever the URL changes (e.g. after upload/replace).
+  useEffect(() => {
+    setBroken(false);
+  }, [src]);
+
   if (showImage) {
     return (
       <img
+        key={src}
         src={src}
         alt={resolvedName ? `${resolvedName} profile` : 'User profile'}
         title={title || resolvedName || undefined}

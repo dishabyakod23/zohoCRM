@@ -272,9 +272,7 @@ export async function uploadDocument({ file, document_name, name, related_entity
   if (folder) formData.append('folder', folder);
   if (owner_id) formData.append('owner_id', owner_id);
 
-  const res = await api.post('/documents', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const res = await api.post('/documents', formData);
   return normalizeDocument(res.data.data ?? res.data);
 }
 

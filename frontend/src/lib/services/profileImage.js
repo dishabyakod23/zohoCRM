@@ -16,6 +16,15 @@ function shouldUseLocalFallback(err) {
   return status === 404 || status === 405 || status === 501;
 }
 
+/** Avoid showing a stale cached avatar after replace. */
+function withCacheBust(url) {
+  if (!url || String(url).startsWith('data:')) return url;
+  const raw = String(url);
+  const cleaned = raw.replace(/([?&])t=\d+/g, '').replace(/[?&]$/, '');
+  const sep = cleaned.includes('?') ? '&' : '?';
+  return `${cleaned}${sep}t=${Date.now()}`;
+}
+
 function unwrapUserResponse(data) {
   const user = parseAuthUserResponse(data);
   if (!user?.id) throw new Error('Invalid response from server.');
@@ -36,12 +45,14 @@ export async function uploadMyProfileImage(file) {
 
   try {
     const formData = new FormData();
-    formData.append('file', file);
-    const res = await api.post('/auth/me/profile-image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    formData.append('file', file, file.name || 'profile.jpg');
+    const res = await api.post('/auth/me/profile-image', formData);
     const user = publishProfileImageChange(unwrapUserResponse(res.data));
-    if (user.profile_image_url) saveLocalProfileImage(user.id, user.profile_image_url);
+    if (user.profile_image_url) {
+      const profile_image_url = withCacheBust(user.profile_image_url);
+      saveLocalProfileImage(user.id, profile_image_url);
+      return { ...user, profile_image_url };
+    }
     return user;
   } catch (err) {
     if (!shouldUseLocalFallback(err)) throw err;
@@ -79,12 +90,14 @@ export async function uploadUserProfileImage(userId, file) {
   await verifyImageFile(file);
 
   const formData = new FormData();
-  formData.append('file', file);
-  const res = await api.post(`/admin/users/${userId}/profile-image`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  formData.append('file', file, file.name || 'profile.jpg');
+  const res = await api.post(`/admin/users/${userId}/profile-image`, formData);
   const user = publishProfileImageChange(unwrapUserResponse(res.data));
-  if (user.profile_image_url) saveLocalProfileImage(user.id, user.profile_image_url);
+  if (user.profile_image_url) {
+    const profile_image_url = withCacheBust(user.profile_image_url);
+    saveLocalProfileImage(user.id, profile_image_url);
+    return { ...user, profile_image_url };
+  }
   return user;
 }
 
