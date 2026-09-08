@@ -20,7 +20,8 @@ export function validationToastMessage(
     const msg = errs[key];
     if (msg && !/is required\.?$/i.test(String(msg))) return msg;
   }
-  return fallback;
+  const first = Object.values(errs).find(Boolean);
+  return first ? String(first) : fallback;
 }
 
 export function validatePhone(phone) {

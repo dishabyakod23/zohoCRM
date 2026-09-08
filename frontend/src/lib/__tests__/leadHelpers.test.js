@@ -35,6 +35,34 @@ describe('AMC / IT Support on leads', () => {
     expect(normalizeLead({ prefix: 'Mrs' }).salutation).toBe('Mrs.');
   });
 
+  it('sends salutation and prefix on create and patch', () => {
+    expect(toLeadPayload({
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      company: 'Acme',
+      email: 'ada@example.com',
+      salutation: 'Ms',
+    }).salutation).toBe('Ms.');
+    expect(toLeadPayload({
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      company: 'Acme',
+      email: 'ada@example.com',
+      salutation: 'Ms',
+    }).prefix).toBe('Ms.');
+    expect(toLeadPayload({ salutation: 'Dr.' }, { partial: true })).toEqual({
+      salutation: 'Dr.',
+      prefix: 'Dr.',
+    });
+  });
+
+  it('detects when the Lead API drops salutation', () => {
+    const { wasLeadSalutationDropped, withClientSalutation } = require('../leadHelpers.js');
+    expect(wasLeadSalutationDropped({ salutation: 'Ms.' }, { first_name: 'Diya' })).toBe(true);
+    expect(wasLeadSalutationDropped({ salutation: 'Ms.' }, { salutation: 'Ms.' })).toBe(false);
+    expect(withClientSalutation({ first_name: 'Diya' }, { salutation: 'Ms.' }).salutation).toBe('Ms.');
+  });
+
   it('clears amc_it_support when empty on patch', () => {
     const payload = toLeadPayload({ amc_it_support: '' }, { partial: true });
     expect(payload.amc_it_support).toBeNull();

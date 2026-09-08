@@ -69,7 +69,7 @@ export default function CreateSequenceForm() {
 
   return (
     <CRMLayout>
-      <div className="p-6 max-w-3xl mx-auto">
+      <div className="p-6 max-w-5xl mx-auto w-full">
         <AppLink href="/sequences" className="text-xs text-brand-600 hover:underline">← Sequences</AppLink>
         <h1 className="text-xl font-semibold text-zoho-text mt-2">Create Sequence</h1>
         <p className="text-sm text-zoho-muted mt-1">Configure sending rules, then add steps on the next screen.</p>
@@ -89,7 +89,7 @@ export default function CreateSequenceForm() {
             <FormField label="Sending Email" required error={errors.sending_email} colSpan>
               <input className={inputClass(errors.sending_email)} type="email" value={form.sending_email} onChange={(e) => setForm((f) => ({ ...f, sending_email: e.target.value }))} placeholder="outreach@yourcompany.com" />
               <p className="text-xs text-zoho-muted mt-1.5">
-                Must use an address on a domain verified in Resend (SPF, DKIM, DMARC). See docs/RESEND_SETUP.md.
+                Must use an address on a domain verified in Resend (SPF, DKIM, DMARC).
               </p>
             </FormField>
             <FormField label="Description" colSpan>

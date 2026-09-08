@@ -185,6 +185,14 @@ export default function CreateContactForm() {
       setErrors(errs);
       if (Object.keys(errs).length) {
         showToast(validationToastMessage(errs));
+        // Save is at the bottom — scroll so required-field alerts under inputs are visible.
+        const firstKey = Object.keys(errs)[0];
+        requestAnimationFrame(() => {
+          document.querySelector(`[data-field="${firstKey}"]`)?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        });
         return;
       }
       const { company_id, company_name, account_id } = await resolveContactCompanyFields({
@@ -225,15 +233,7 @@ export default function CreateContactForm() {
           Contacts
         </AppLink>
 
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-lg font-semibold text-zoho-text">Create Contact</h1>
-          <div className="flex gap-2">
-            <AppLink href="/contacts" className="btn-secondary">Cancel</AppLink>
-            <button type="button" onClick={handleSave} disabled={saving || checkingEmail || !!emailError} className="btn-primary">
-              {saving ? 'Saving…' : 'Save Contact'}
-            </button>
-          </div>
-        </div>
+        <h1 className="text-lg font-semibold text-zoho-text mb-6">Create Contact</h1>
 
         <div className="card p-6 space-y-0">
 

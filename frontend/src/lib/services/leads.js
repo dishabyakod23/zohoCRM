@@ -1,5 +1,5 @@
 import api from '../api.js';
-import { normalizeLead, toLeadPayload, resolveLeadOwnerId, resolveLeadStatusForApi } from '../leadHelpers.js';
+import { normalizeLead, toLeadPayload, resolveLeadOwnerId, resolveLeadStatusForApi, withClientSalutation, wasLeadSalutationDropped } from '../leadHelpers.js';
 import { toConvertPayload } from '../dealHelpers.js';
 import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS } from '../importHelpers.js';
 import {
@@ -276,13 +276,19 @@ export async function getLead(id) {
 
 export async function createLead(form, { currentUserId } = {}) {
   const owner_id = resolveLeadOwnerId(form, currentUserId);
-  const res = await api.post('/leads', toLeadPayload({ ...form, owner_id }));
-  return normalizeLead(res.data.data);
+  const payload = toLeadPayload({ ...form, owner_id });
+  const res = await api.post('/leads', payload);
+  return withClientSalutation(normalizeLead(res.data.data), payload);
 }
 
 export async function updateLead(id, form) {
-  const res = await api.patch(`/leads/${id}`, toLeadPayload(form, { partial: true }));
-  return normalizeLead(res.data.data);
+  const payload = toLeadPayload(form, { partial: true });
+  const res = await api.patch(`/leads/${id}`, payload);
+  return withClientSalutation(normalizeLead(res.data.data), payload);
+}
+
+export function didLeadApiDropSalutation(payload, response) {
+  return wasLeadSalutationDropped(payload, response);
 }
 
 export async function deleteLead(id) {

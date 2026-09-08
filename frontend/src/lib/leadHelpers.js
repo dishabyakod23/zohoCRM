@@ -15,6 +15,32 @@ export function normalizeSalutation(value) {
   return match || raw;
 }
 
+/**
+ * Lead OpenAPI schemas (LeadCreate/LeadUpdate/LeadOut) currently omit salutation,
+ * while Contact schemas include it. PATCH may accept and silently drop the field.
+ * Returns true when the client sent a salutation that the API did not echo back.
+ */
+export function wasLeadSalutationDropped(payload, response) {
+  if (!payload || !Object.prototype.hasOwnProperty.call(payload, 'salutation')) return false;
+  const sent = normalizeSalutation(payload.salutation || '');
+  if (!sent) return false;
+  const got = normalizeSalutation(response?.salutation || response?.prefix || '');
+  return got !== sent;
+}
+
+/** Keep the user-entered salutation in UI state when the Lead API drops it. */
+export function withClientSalutation(response, payload) {
+  if (!wasLeadSalutationDropped(payload, response)) return response;
+  return {
+    ...response,
+    salutation: normalizeSalutation(payload.salutation),
+  };
+}
+
+export const LEAD_SALUTATION_BACKEND_MESSAGE =
+  'Salutation was not saved. The Lead API does not support salutation yet (Contacts do). Backend must add salutation to LeadCreate, LeadUpdate, LeadOut, and the leads table.';
+
+
 /** Map API snake_case lead_status to display label (fallback when lookups unavailable) */
 const STATUS_LABELS = {
   none: 'None',
@@ -179,7 +205,12 @@ export function toLeadPayload(form, { partial = false } = {}) {
 
   if (partial) {
     const payload = {};
-    if (formHas(form, 'salutation')) payload.salutation = form.salutation || null;
+    if (formHas(form, 'salutation')) {
+      const salutation = normalizeSalutation(form.salutation) || null;
+      payload.salutation = salutation;
+      // Some Lead APIs historically used prefix; send both until salutation is in OpenAPI.
+      payload.prefix = salutation;
+    }
     if (formHas(form, 'latitude')) payload.latitude = form.latitude != null && form.latitude !== '' ? Number(form.latitude) : null;
     if (formHas(form, 'longitude')) payload.longitude = form.longitude != null && form.longitude !== '' ? Number(form.longitude) : null;
     if (formHas(form, 'first_name')) payload.first_name = form.first_name || null;
@@ -247,7 +278,8 @@ export function toLeadPayload(form, { partial = false } = {}) {
   }
 
   return {
-    salutation: form.salutation || null,
+    salutation: normalizeSalutation(form.salutation) || null,
+    prefix: normalizeSalutation(form.salutation) || null,
     latitude: form.latitude != null && form.latitude !== '' ? Number(form.latitude) : null,
     longitude: form.longitude != null && form.longitude !== '' ? Number(form.longitude) : null,
     first_name: form.first_name,

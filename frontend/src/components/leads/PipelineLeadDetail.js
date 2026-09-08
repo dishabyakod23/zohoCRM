@@ -39,6 +39,10 @@ import { formatMoney, CURRENCIES, DEFAULT_CURRENCY } from '../../lib/currencies.
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import { SALUTATIONS } from '../../lib/constants.js';
 import {
+  normalizeSalutation,
+  LEAD_SALUTATION_BACKEND_MESSAGE,
+} from '../../lib/leadHelpers.js';
+import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon, UserIcon,
 } from '@heroicons/react/24/outline';
 
@@ -150,11 +154,21 @@ export default function PipelineLeadDetail({ stage }) {
           // Keep local reason even if mass-update is unavailable.
         }
       }
+      const salutationDropped = Object.prototype.hasOwnProperty.call(leadPayload, 'salutation')
+        && Boolean(leadPayload.salutation)
+        && !normalizeSalutation(refreshed?.salutation || refreshed?.prefix || '');
       setLead({
         ...refreshed,
         lost_reason: refreshed?.lost_reason || savedReason || '',
+        ...(salutationDropped
+          ? { salutation: normalizeSalutation(leadPayload.salutation || updated?.salutation) }
+          : {}),
       });
-      showToast('Updated', 'success');
+      if (salutationDropped) {
+        showToast(LEAD_SALUTATION_BACKEND_MESSAGE, 'error');
+      } else {
+        showToast('Updated', 'success');
+      }
     } catch (err) {
       showToast(getApiError(err));
       throw err;

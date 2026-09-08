@@ -24,6 +24,10 @@ import * as leadsApi from '../../../lib/services/leads.js';
 import { fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES, fetchUsers } from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
 import { SALUTATIONS, RATINGS } from '../../../lib/constants.js';
+import {
+  normalizeSalutation,
+  LEAD_SALUTATION_BACKEND_MESSAGE,
+} from '../../../lib/leadHelpers.js';
 import { IndustrySelectControl } from '../../../components/forms/IndustryField.js';
 import {
   AddressCountrySelect,
@@ -100,11 +104,21 @@ export default function LeadDetailPage() {
           // Keep local reason even if mass-update is unavailable.
         }
       }
+      const salutationDropped = Object.prototype.hasOwnProperty.call(payload, 'salutation')
+        && Boolean(payload.salutation)
+        && !normalizeSalutation(refreshed?.salutation || refreshed?.prefix || '');
       setLead({
         ...refreshed,
         lost_reason: refreshed?.lost_reason || savedReason || '',
+        ...(salutationDropped
+          ? { salutation: normalizeSalutation(payload.salutation || updated?.salutation) }
+          : {}),
       });
-      showToast('Lead updated', 'success');
+      if (salutationDropped) {
+        showToast(LEAD_SALUTATION_BACKEND_MESSAGE, 'error');
+      } else {
+        showToast('Lead updated', 'success');
+      }
     } catch (err) {
       showToast(getApiError(err));
       throw err;

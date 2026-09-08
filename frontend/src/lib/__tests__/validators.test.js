@@ -40,11 +40,11 @@ describe('validationToastMessage', () => {
     })).toBe('A lead with this email already exists.');
   });
 
-  it('falls back for empty required-field errors', () => {
+  it('surfaces the first required-field error so users see which field is missing', () => {
     expect(validationToastMessage({
       first_name: 'First Name is required.',
       email: 'Email is required.',
-    })).toBe('Please fill in all required fields before saving.');
+    })).toBe('First Name is required.');
   });
 });
 
