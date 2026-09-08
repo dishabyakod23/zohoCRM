@@ -108,7 +108,11 @@ export function toContactPayload(form, { partial = false } = {}) {
     if (formHas(form, 'secondary_email')) payload.secondary_email = form.secondary_email || null;
     if (formHas(form, 'skype_id')) payload.skype_id = form.skype_id || null;
     if (formHas(form, 'twitter')) payload.twitter = form.twitter || null;
-    // Directory "LinkedIn Request" column reads these from the API.
+    // Backend creates outreach_activities from this boolean (weekly LinkedIn Connections).
+    if (formHas(form, 'linkedin_request_sent')) {
+      payload.linkedin_request_sent = !!form.linkedin_request_sent;
+    }
+    // Optional timestamps — kept for forward compatibility; backend may ignore today.
     if (formHas(form, 'linkedin_request_sent_at')) {
       payload.linkedin_request_sent_at = form.linkedin_request_sent_at || null;
     }

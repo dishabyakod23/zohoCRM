@@ -42,18 +42,25 @@ describe('contactHelpers company linkage', () => {
   it('includes LinkedIn request fields on partial contact PATCH', () => {
     const payload = toContactPayload(
       {
+        linkedin_request_sent: true,
         linkedin_request_sent_at: '2026-09-08T10:00:00.000Z',
         linkedin_request_sent_by: 'u1',
       },
       { partial: true },
     );
+    expect(payload.linkedin_request_sent).toBe(true);
     expect(payload.linkedin_request_sent_at).toBe('2026-09-08T10:00:00.000Z');
     expect(payload.linkedin_request_sent_by).toBe('u1');
 
     const cleared = toContactPayload(
-      { linkedin_request_sent_at: null, linkedin_request_sent_by: null },
+      {
+        linkedin_request_sent: false,
+        linkedin_request_sent_at: null,
+        linkedin_request_sent_by: null,
+      },
       { partial: true },
     );
+    expect(cleared.linkedin_request_sent).toBe(false);
     expect(cleared.linkedin_request_sent_at).toBeNull();
     expect(cleared.linkedin_request_sent_by).toBeNull();
   });
