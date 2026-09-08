@@ -31,13 +31,17 @@ export async function resolveOrCreateCampaignId({
   campaign_name,
   campaigns,
 } = {}) {
+  const typedName = String(campaign_name || '').trim();
+  const rawId = String(campaign_id || '').trim();
+  // No campaign selected — do not call campaigns APIs (many roles lack campaigns.view).
+  if (!typedName && !rawId) return '';
+
   const list = campaigns ?? await fetchCampaignLookups();
   const resolvedId = resolveCampaignId(campaign_id, list);
   if (resolvedId) return resolvedId;
 
-  const typedName = String(campaign_name || '').trim();
-  const nameFromId = campaign_id && !resolvedId
-    ? String(campaign_id).trim()
+  const nameFromId = rawId && !resolvedId
+    ? rawId
     : '';
   const name = typedName || (nameFromId && !/^[0-9a-f-]{36}$/i.test(nameFromId) ? nameFromId : '');
   if (!name) return '';
@@ -91,6 +95,27 @@ export function attachCampaignIdsToImportRecords(records, { defaultCampaignId, c
 export async function afterRecordSave({ campaignId, memberType, recordId }) {
   if (campaignId && recordId) {
     await assignRecordToCampaign(campaignId, memberType, recordId);
+  }
+}
+
+/**
+ * Link a newly created record to a campaign without failing the create flow.
+ * Returns an Error when linking fails (e.g. missing campaigns permission); otherwise null.
+ */
+export async function tryAttachCampaignAfterCreate({
+  campaign_id,
+  campaign_name,
+  memberType,
+  recordId,
+} = {}) {
+  if (!recordId) return null;
+  if (!String(campaign_id || '').trim() && !String(campaign_name || '').trim()) return null;
+  try {
+    const campaignId = await resolveOrCreateCampaignId({ campaign_id, campaign_name });
+    await afterRecordSave({ campaignId, memberType, recordId });
+    return null;
+  } catch (err) {
+    return err;
   }
 }
 

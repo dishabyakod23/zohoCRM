@@ -1,5 +1,5 @@
 import api from '../api.js';
-import { normalizeContact, toContactPayload, normalizeBulkUploadContactRecords } from '../contactHelpers.js';
+import { normalizeContact, toContactPayload, normalizeBulkUploadContactRecords, enrichContactReadyRecordsFromCsv, resolveContactLinkedInUrl } from '../contactHelpers.js';
 import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS } from '../importHelpers.js';
 import {
   applyContactRecordFilters,
@@ -150,7 +150,9 @@ export async function importContactsFile(file, { dry_run = true, campaignId, onP
   }
 
   const defaultCampaignId = await resolveImportCampaignId(campaignId);
-  const processedRecords = normalizeBulkUploadContactRecords(readyRecords);
+  const processedRecords = normalizeBulkUploadContactRecords(
+    enrichContactReadyRecordsFromCsv(readyRecords, csv),
+  );
 
   const records = attachCampaignIdsToImportRecords(processedRecords, {
     defaultCampaignId,
@@ -163,6 +165,9 @@ export async function importContactsFile(file, { dry_run = true, campaignId, onP
     onProgress,
   });
 
+  // bulk-upload/bulk-import whitelist drops LinkedIn (skype_id); restore via PATCH.
+  await persistImportedContactLinkedInUrls(result, processedRecords);
+
   return normalizeImportResult({
     imported_count: result.imported ?? result.imported_count ?? records.length,
     skipped_count: result.skipped ?? result.skipped_count,
@@ -172,6 +177,35 @@ export async function importContactsFile(file, { dry_run = true, campaignId, onP
     records: result.records,
     skip_messages: result.skip_messages,
   });
+}
+
+/** After bulk-import, PATCH skype_id for rows that had a LinkedIn URL in the CSV. */
+export async function persistImportedContactLinkedInUrls(importResult = {}, processedRecords = []) {
+  const created = Array.isArray(importResult?.records) ? importResult.records : [];
+  if (!created.length || !processedRecords?.length) return { patched: 0 };
+
+  const byEmail = new Map();
+  for (const record of processedRecords) {
+    const email = String(record?.email || '').trim().toLowerCase();
+    const linkedIn = resolveContactLinkedInUrl(record);
+    if (email && linkedIn) byEmail.set(email, linkedIn);
+  }
+  if (!byEmail.size) return { patched: 0 };
+
+  let patched = 0;
+  await Promise.allSettled(created.map(async (row) => {
+    const id = row?.id;
+    const email = String(row?.email || '').trim().toLowerCase();
+    const skype_id = email ? byEmail.get(email) : null;
+    if (!id || !skype_id) return;
+    try {
+      await api.patch(`/contacts/${id}`, { skype_id });
+      patched += 1;
+    } catch {
+      // Non-fatal — contact was created; LinkedIn can be edited manually.
+    }
+  }));
+  return { patched };
 }
 
 /** Only contact conversion endpoint exposed by the API. */

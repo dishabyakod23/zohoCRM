@@ -233,9 +233,8 @@ export default function ReportsPage() {
       summary: summary || {},
     });
   }, [weeklyMembers, weeklyPreview, summary]);
-  const emailPreviewHtml = weeklyMembers.length
-    ? teamPreviewHtml
-    : (weeklyPreview?.html_body || '');
+  // Prefer authoritative backend digest HTML; fall back to FE build from member_rows.
+  const emailPreviewHtml = weeklyPreview?.html_body || teamPreviewHtml;
 
   const applyRecommendedSchedule = () => {
     setWeeklySettings((s) => ({
@@ -256,14 +255,16 @@ export default function ReportsPage() {
 
   const toggleSubject = (userId, included) => {
     setWeeklySettings((s) => {
-      const base = Array.isArray(s.subject_user_ids)
-        ? s
-        : {
+      // Empty list means “default BDE/BDM”; seed explicit IDs before the first toggle.
+      const needsSeed = !Array.isArray(s.subject_user_ids) || s.subject_user_ids.length === 0;
+      const base = needsSeed
+        ? {
           ...s,
           subject_user_ids: (adminUsers || [])
-            .filter((u) => reportsApi.isWeeklySubjectSelected(u, s))
+            .filter((u) => reportsApi.isWeeklySubjectSelected(u, { ...s, subject_user_ids: undefined }))
             .map((u) => u.id),
-        };
+        }
+        : s;
       return reportsApi.setWeeklySubjectIncluded(base, userId, included);
     });
   };
@@ -429,9 +430,9 @@ export default function ReportsPage() {
                     <button onClick={() => { loadWeeklySettings(); loadWeeklyLogs(); }} className="btn-secondary text-xs">Refresh Preview</button>
                   </div>
                   <p className="text-xs text-gray-500 mt-3">
-                    Recommended: every Friday at 3:30 PM IST (Asia/Kolkata), covering Monday–Friday activity, before the weekly sales review.
+                    Recommended: every Friday at 3:30 PM IST (Asia/Kolkata), covering Saturday–Friday activity (mid-week preview ends today), before the weekly sales review.
                     {weeklySettings?.enabled
-                      ? ` Currently scheduled: ${formatWeeklyReportSchedule(weeklySettings)}. The server sends automatically at that time — use Send report now only for a manual send.`
+                      ? ` Currently scheduled: ${formatWeeklyReportSchedule(weeklySettings)}. The server cron sends automatically — use Send report now only for a manual send (can duplicate emails).`
                       : ' Enable the schedule above and save settings for automatic delivery.'}
                   </p>
                 </div>
@@ -439,7 +440,8 @@ export default function ReportsPage() {
                 <div className="card p-5">
                   <h3 className="font-semibold mb-1">Report subjects</h3>
                   <p className="text-xs text-gray-500 mb-4">
-                    Who appears as rows in the weekly team performance report (`subject_user_ids`).
+                    Who appears as rows in the digest table (`subject_user_ids`). Separate from email recipients.
+                    Empty selection falls back to all active BDE/BDM.
                   </p>
                   <div className="overflow-x-auto">
                     <table className="w-full">
@@ -565,15 +567,17 @@ export default function ReportsPage() {
                   <div className="card p-5">
                     <h3 className="font-semibold mb-2">Email preview — {weeklyPreview?.company_name || 'Origami CRM'}</h3>
                     <p className="text-xs text-gray-500 mb-4">
-                      {weeklyMembers.length
-                        ? 'Built from preview `member_rows`.'
-                        : 'No `member_rows` — showing API `html_body`.'}
+                      {weeklyPreview?.html_body
+                        ? 'Showing API `html_body` (full team digest).'
+                        : weeklyMembers.length
+                          ? 'No `html_body` — built from `member_rows`.'
+                          : 'No preview HTML available.'}
                       {' '}
                       {weeklyPreview?.team_label || summary?.team_label || ''}
                       {(weeklyPreview?.generated_on || summary?.generated_on)
                         ? ` · Generated ${weeklyPreview?.generated_on || summary?.generated_on}`
                         : ''}
-                      {' · '}
+                      {' · Saturday–Friday '}
                       {weeklyPreview?.period_start || summary?.period_start || '—'}
                       {' to '}
                       {weeklyPreview?.period_end || summary?.period_end || '—'}

@@ -120,6 +120,16 @@ export function getApiError(err) {
   }
 
   const detail = data.detail;
+  if (Array.isArray(data.errors) && data.errors.length) {
+    const fieldMsgs = data.errors.map((e) => e.message || e.msg || String(e)).filter(Boolean);
+    if (fieldMsgs.length) {
+      // Prefer concrete field errors over a generic "required fields" detail.
+      if (typeof detail !== 'string' || /required fields before saving/i.test(detail)) {
+        return fieldMsgs.join('; ');
+      }
+    }
+  }
+
   if (typeof detail === 'string') return detail;
 
   if (Array.isArray(detail)) {

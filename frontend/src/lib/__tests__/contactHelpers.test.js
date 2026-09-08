@@ -1,4 +1,10 @@
-import { normalizeContact, toContactPayload, normalizeBulkUploadContactRecords } from '../contactHelpers.js';
+import {
+  normalizeContact,
+  toContactPayload,
+  normalizeBulkUploadContactRecords,
+  enrichContactReadyRecordsFromCsv,
+  resolveContactLinkedInUrl,
+} from '../contactHelpers.js';
 
 describe('contactHelpers company linkage', () => {
   it('maps company_id to display name from company lookups', () => {
@@ -52,11 +58,53 @@ describe('contactHelpers company linkage', () => {
     const [payload] = normalizeBulkUploadContactRecords([
       {
         first_name: 'Ada',
-        last_name: 'Lovelace',
         email: 'ada@example.com',
         company_id: '550e8400-e29b-41d4-a716-446655440001',
       },
     ]);
     expect(payload.account_id).toBe('550e8400-e29b-41d4-a716-446655440001');
+  });
+});
+
+describe('contact LinkedIn / skype_id import', () => {
+  it('resolves LinkedIn URL from common aliases', () => {
+    expect(resolveContactLinkedInUrl({ linkedin_url: 'https://linkedin.com/in/a' }))
+      .toBe('https://linkedin.com/in/a');
+    expect(resolveContactLinkedInUrl({ skype_id: 'https://linkedin.com/in/b' }))
+      .toBe('https://linkedin.com/in/b');
+  });
+
+  it('maps linkedin alias onto skype_id for bulk-import', () => {
+    const [payload] = normalizeBulkUploadContactRecords([
+      { email: 'a@example.com', linkedin: 'https://linkedin.com/in/ada' },
+    ]);
+    expect(payload.skype_id).toBe('https://linkedin.com/in/ada');
+  });
+
+  it('rehydrates skype_id from CSV when bulk-upload dropped LinkedIn', () => {
+    const ready = [{
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      email: 'ada@example.com',
+      account_id: '550e8400-e29b-41d4-a716-446655440000',
+      account_name: 'Acme',
+    }];
+    const csv = [
+      'first_name,last_name,email,account_name,LinkedIn URL',
+      'Ada,Lovelace,ada@example.com,Acme,https://www.linkedin.com/in/ada-lovelace',
+    ].join('\n');
+
+    const [enriched] = normalizeBulkUploadContactRecords(
+      enrichContactReadyRecordsFromCsv(ready, csv),
+    );
+    expect(enriched.skype_id).toBe('https://www.linkedin.com/in/ada-lovelace');
+  });
+
+  it('exposes LinkedIn aliases on normalizeContact for detail pages', () => {
+    const contact = normalizeContact({
+      id: 'c1',
+      linkedin_url: 'https://linkedin.com/in/shown',
+    });
+    expect(contact.skype_id).toBe('https://linkedin.com/in/shown');
   });
 });

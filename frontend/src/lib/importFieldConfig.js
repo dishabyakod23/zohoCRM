@@ -38,7 +38,7 @@ export const CONTACT_IMPORT_FIELDS = [
   { key: 'department', label: 'Department', aliases: ['dept'] },
   { key: 'date_of_birth', label: 'Date of Birth', aliases: ['dob', 'birthday', 'birth_date', 'dateofbirth'] },
   { key: 'email_opt_out', label: 'Email Opt Out', aliases: ['opt_out', 'emailoptout', 'do_not_email'] },
-  { key: 'skype_id', label: 'LinkedIn', aliases: ['linkedin', 'linkedin_url', 'linkedin_profile', 'skype'] },
+  { key: 'skype_id', label: 'LinkedIn', aliases: ['linkedin', 'linkedin_url', 'linkedin_profile', 'linkedin url', 'li_url', 'profile_url', 'skype'] },
   { key: 'secondary_email', label: 'Secondary Email', aliases: ['alt_email', 'alternate_email', 'email2'] },
   { key: 'twitter', label: 'Twitter', aliases: ['twitter_handle', 'x', 'x_handle'] },
   { key: 'website', label: 'Website', aliases: ['web', 'url', 'homepage', 'site'] },

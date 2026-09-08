@@ -19,7 +19,7 @@ import { fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_ST
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
-import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
+import { tryAttachCampaignAfterCreate } from '../../lib/campaignRecordHelpers.js';
 import { isLostLeadStatus } from '../../lib/statusHelpers.js';
 import { makeFieldSetter } from '../../lib/formInput.js';
 
@@ -107,12 +107,20 @@ export default function CreateLeadForm() {
     try {
       if (!(await validate())) return;
       const created = await leadsApi.createWarmLead(form);
-      const campaignId = await resolveOrCreateCampaignId({
+      const campaignErr = await tryAttachCampaignAfterCreate({
         campaign_id: form.campaign_id,
         campaign_name: form.campaign_name,
+        memberType: 'lead',
+        recordId: created?.id,
       });
-      await afterRecordSave({ campaignId, memberType: 'lead', recordId: created?.id });
-      showToast('Lead saved', 'success');
+      if (campaignErr) {
+        showToast(
+          `Warm lead saved, but campaign could not be linked: ${getApiError(campaignErr)}`,
+          'error',
+        );
+      } else {
+        showToast('Lead saved', 'success');
+      }
       navigateToRecord(created?.id ? `/leads/${created.id}` : '/leads');
     } catch (err) {
       showToast(getApiError(err));

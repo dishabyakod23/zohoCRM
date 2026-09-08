@@ -3,11 +3,12 @@ import { leadStatusLabel } from '../leadHelpers.js';
 import { dealStageLabel, FALLBACK_DEAL_STAGES } from '../dealHelpers.js';
 import { parseLookupOptions } from '../recordHelpers.js';
 import { LEAD_SOURCES, RATINGS } from '../constants.js';
-import { PIPELINE_RAW } from '../pipelineHelpers.js';
-import { cachedLookup } from '../lookupCache.js';
+import { PIPELINE_RAW, outreachLeadStatusOptions } from '../pipelineHelpers.js';
+import { cachedLookup, invalidateLookup } from '../lookupCache.js';
 import { fetchCampaignLookups } from '../campaignRecordHelpers.js';
 import { mergeStoredProfileImage } from '../profileImageHelpers.js';
-import { FALLBACK_LOST_REASONS } from '../statusHelpers.js';
+import { FALLBACK_LOST_REASONS, mergeLeadStatusOptions } from '../statusHelpers.js';
+import { listAdminLeadStatuses } from './admin.js';
 
 /** Fallback when GET /lookups/lead-sources is unavailable */
 export const FALLBACK_LEAD_SOURCES = LEAD_SOURCES.map((source) => ({
@@ -52,14 +53,34 @@ export function parseLeadStatusLookups(data) {
 
 export async function fetchLeadStatuses() {
   return cachedLookup('lead-statuses', async () => {
+    let fromLookups = [];
     try {
       const res = await api.get('/lookups/lead-statuses');
-      const options = parseLeadStatusLookups(res.data.data);
-      return options.length ? options : FALLBACK_LEAD_STATUSES;
+      fromLookups = parseLeadStatusLookups(res.data.data);
     } catch {
-      return FALLBACK_LEAD_STATUSES;
+      fromLookups = [];
     }
+
+    // Custom statuses are stored under admin lookup-options (lead_status) and are often
+    // missing from GET /lookups/lead-statuses. Merge active admin options when allowed.
+    let fromAdmin = [];
+    try {
+      const adminRows = await listAdminLeadStatuses();
+      fromAdmin = (adminRows || [])
+        .filter((row) => row?.value && row.is_active !== false)
+        .map((row) => ({ value: row.value, label: row.label || row.value }));
+    } catch {
+      fromAdmin = [];
+    }
+
+    const merged = mergeLeadStatusOptions(fromLookups, fromAdmin);
+    return merged.length ? merged : FALLBACK_LEAD_STATUSES;
   });
+}
+
+/** Drop cached lead statuses after admin create/edit/delete. */
+export function invalidateLeadStatusLookups() {
+  invalidateLookup('lead-statuses');
 }
 
 export async function fetchUsers() {
@@ -364,9 +385,9 @@ export async function fetchMassUpdateFieldOptions(fieldDef) {
     return fetchCampaignLookups();
   }
 
-  // Always load full lead status list (includes admin custom statuses).
+  // Always load full lead status list (includes admin custom statuses), outreach-only.
   if (isLeadStatusMassUpdateField(field)) {
-    return fetchLeadStatuses();
+    return outreachLeadStatusOptions(await fetchLeadStatuses());
   }
 
   if (Array.isArray(field.options) && field.options.length) {

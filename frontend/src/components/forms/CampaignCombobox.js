@@ -34,10 +34,8 @@ export default function CampaignCombobox({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return options.slice(0, 50);
-    return options
-      .filter((c) => String(c.label || '').toLowerCase().includes(q))
-      .slice(0, 50);
+    if (!q) return options;
+    return options.filter((c) => String(c.label || '').toLowerCase().includes(q));
   }, [options, query]);
 
   const exactMatch = useMemo(() => {

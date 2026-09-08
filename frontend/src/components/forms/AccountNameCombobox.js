@@ -2,6 +2,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { inputClass } from './FormField.js';
 
+function sortByLabel(rows) {
+  return [...(rows || [])].sort((a, b) =>
+    String(a.label || '').localeCompare(String(b.label || ''), undefined, { sensitivity: 'base' }),
+  );
+}
+
 /**
  * Searchable account name field: pick an existing account or type a new name.
  * @param {Array<{ value: string, label: string }>} options
@@ -24,9 +30,17 @@ export default function AccountNameCombobox({
   const [userTyped, setUserTyped] = useState(false);
   const rootRef = useRef(null);
   const listRef = useRef(null);
+  const queryRef = useRef(query);
+  queryRef.current = query;
+
+  const sortedOptions = useMemo(() => sortByLabel(options), [options]);
 
   useEffect(() => {
-    setQuery(valueLabel || '');
+    const next = valueLabel || '';
+    // Parent echoes account_name on every keystroke — don't treat that as an
+    // external reset or filtering breaks while typing.
+    if (queryRef.current === next) return;
+    setQuery(next);
     setUserTyped(false);
   }, [valueLabel, valueId]);
 
@@ -39,20 +53,16 @@ export default function AccountNameCombobox({
   }, []);
 
   const filtered = useMemo(() => {
-    // On focus/open with a selected value, show the broad list until the user types.
-    if (!userTyped) return options.slice(0, 50);
-    const q = query.trim().toLowerCase();
-    if (!q) return options.slice(0, 50);
-    return options
-      .filter((a) => String(a.label || '').toLowerCase().includes(q))
-      .slice(0, 50);
-  }, [options, query, userTyped]);
+    const q = userTyped ? query.trim().toLowerCase() : '';
+    if (!q) return sortedOptions;
+    return sortedOptions.filter((a) => String(a.label || '').toLowerCase().includes(q));
+  }, [sortedOptions, query, userTyped]);
 
   const exactMatch = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return null;
-    return options.find((a) => String(a.label || '').toLowerCase() === q) || null;
-  }, [options, query]);
+    return sortedOptions.find((a) => String(a.label || '').toLowerCase() === q) || null;
+  }, [sortedOptions, query]);
 
   const showCreateOption = userTyped && query.trim() && !exactMatch;
 
@@ -103,7 +113,7 @@ export default function AccountNameCombobox({
             setQuery(next);
             setUserTyped(true);
             setOpen(true);
-            const match = options.find(
+            const match = sortedOptions.find(
               (a) => String(a.label || '').toLowerCase() === next.trim().toLowerCase(),
             );
             if (match) emit(match.value, match.label);
@@ -160,10 +170,10 @@ export default function AccountNameCombobox({
       {open && !disabled && (
         <div
           ref={listRef}
-          className="absolute z-40 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-zoho-border rounded-xl shadow-card-hover py-1"
+          className="absolute z-40 left-0 right-0 mt-1 max-h-72 overflow-y-auto bg-white border border-zoho-border rounded-xl shadow-card-hover py-1"
         >
           {filtered.length === 0 && !showCreateOption && (
-            <p className="px-3 py-2 text-xs text-zoho-muted">No accounts found</p>
+            <p className="px-3 py-2 text-xs text-zoho-muted">No companies found</p>
           )}
           {filtered.map((a) => (
             <button
@@ -191,8 +201,13 @@ export default function AccountNameCombobox({
                 setOpen(false);
               }}
             >
-              Use “{query.trim()}” as new account
+              Use “{query.trim()}” as new company
             </button>
+          )}
+          {!userTyped && sortedOptions.length > 0 && (
+            <p className="px-3 py-1.5 text-[11px] text-zoho-muted border-t border-zoho-border">
+              {sortedOptions.length} compan{sortedOptions.length === 1 ? 'y' : 'ies'} — type to search
+            </p>
           )}
         </div>
       )}

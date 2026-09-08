@@ -6,9 +6,32 @@ import { directoryLeadStatusValue } from './contactDirectoryHelpers.js';
 import { isPipelineStageStatus } from './pipelineHelpers.js';
 import { isLostLeadStatus, normalizeLostReasonValue } from './statusHelpers.js';
 import { trimStringFields } from './formInput.js';
+import { CONTACT_IMPORT_FIELDS } from './importFieldConfig.js';
+import { applyColumnMapping, parseCsvText, suggestColumnMapping } from './csvHelpers.js';
 
 export function isImportUuid(value) {
   return /^[0-9a-f-]{36}$/i.test(String(value || '').trim());
+}
+
+/** LinkedIn is stored as skype_id in the API; CSV/backends may use several aliases. */
+export function resolveContactLinkedInUrl(record = {}) {
+  const candidates = [
+    record.skype_id,
+    record.linkedin,
+    record.linkedin_url,
+    record.linkedin_profile,
+    record.linkedinUrl,
+    record.LinkedIn,
+    record['LinkedIn URL'],
+    record['linkedin url'],
+    record.li_url,
+    record.profile_url,
+  ];
+  for (const candidate of candidates) {
+    const value = String(candidate || '').trim();
+    if (value) return value;
+  }
+  return null;
 }
 
 /** Contact Lead Status is outreach-only — never send pipeline stage values. */
@@ -33,6 +56,7 @@ export function normalizeContact(contact, companyMap = {}) {
     || company?.name
     || contact.account_name;
   const leadStatus = directoryLeadStatusValue(contact);
+  const linkedIn = resolveContactLinkedInUrl(contact);
   return {
     ...contact,
     company_id: companyId,
@@ -45,6 +69,7 @@ export function normalizeContact(contact, companyMap = {}) {
     lost_reason: normalizeLostReasonValue(
       contact.lost_reason ?? contact.lostReason ?? contact.lost_reason_code,
     ),
+    skype_id: linkedIn || contact.skype_id || null,
   };
 }
 
@@ -184,8 +209,54 @@ export function normalizeBulkUploadContactRecords(readyRecords = []) {
     ...record,
     account_id: record.account_id || record.company_id || null,
     email_opt_out: coerceImportBool(record.email_opt_out),
-    skype_id: record.skype_id || record.linkedin || null,
+    skype_id: resolveContactLinkedInUrl(record),
   }));
+}
+
+/**
+ * Backend /contacts/bulk-upload only returns a whitelist of fields and drops LinkedIn/skype_id.
+ * Re-apply mapped CSV columns (by email) onto readyRecords before bulk-import.
+ */
+export function enrichContactReadyRecordsFromCsv(readyRecords = [], csvText = '') {
+  if (!readyRecords?.length || !csvText) return readyRecords || [];
+
+  const { headers, rows } = parseCsvText(csvText);
+  if (!headers.length || !rows.length) return readyRecords;
+
+  const mapping = suggestColumnMapping(headers, CONTACT_IMPORT_FIELDS);
+  const mappedRows = applyColumnMapping(rows, mapping);
+  const byEmail = new Map();
+  for (const row of mappedRows) {
+    const email = String(row.email || '').trim().toLowerCase();
+    if (!email) continue;
+    if (!byEmail.has(email)) byEmail.set(email, []);
+    byEmail.get(email).push(row);
+  }
+
+  return readyRecords.map((record) => {
+    const email = String(record.email || '').trim().toLowerCase();
+    const queue = email ? byEmail.get(email) : null;
+    const csvRow = queue?.length ? queue.shift() : null;
+    if (!csvRow) {
+      return {
+        ...record,
+        skype_id: resolveContactLinkedInUrl(record),
+      };
+    }
+
+    const merged = { ...record };
+    for (const field of CONTACT_IMPORT_FIELDS) {
+      const key = field.key;
+      const csvVal = csvRow[key];
+      if (csvVal == null || String(csvVal).trim() === '') continue;
+      const existing = merged[key];
+      if (existing == null || String(existing).trim() === '') {
+        merged[key] = String(csvVal).trim();
+      }
+    }
+    merged.skype_id = resolveContactLinkedInUrl(merged) || resolveContactLinkedInUrl(csvRow) || null;
+    return merged;
+  });
 }
 
 /** Fallback for lead-sync contact creation when bulk-upload did not resolve links. */

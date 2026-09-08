@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import ListSearchBar from '../../components/layout/ListSearchBar.js';
@@ -27,6 +27,14 @@ function isNameSort(sort) {
   return sort === 'name_asc' || sort === 'name_desc';
 }
 
+function filterByEntityType(rows, entityType) {
+  if (!entityType) return rows || [];
+  const wanted = String(entityType).toLowerCase();
+  return (rows || []).filter(
+    (row) => String(row.entity_type || row.record_type || '').toLowerCase() === wanted,
+  );
+}
+
 export default function RecycleBinPage() {
   const { showToast } = useToast();
   const { can } = usePermissions();
@@ -34,7 +42,8 @@ export default function RecycleBinPage() {
   const canRestore = can('recycle_bin', 'restore');
   const canPermanentDelete = can('recycle_bin', 'permanent_delete');
   const [items, setItems] = useState([]);
-  const [allNameSorted, setAllNameSorted] = useState(null);
+  /** Full recycle-bin dump used only for name sorting (API name sort is unreliable). */
+  const [nameSortCache, setNameSortCache] = useState(null);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -44,27 +53,24 @@ export default function RecycleBinPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
 
-  const fetchItems = useCallback(async () => {
+  const nameSortedRows = useMemo(() => {
+    if (!isNameSort(sort) || nameSortCache == null) return null;
+    const filtered = filterByEntityType(nameSortCache, entityType);
+    return sortRecords(filtered, sort, 'recycle-bin');
+  }, [nameSortCache, entityType, sort]);
+
+  const fetchServerPage = useCallback(async () => {
     setLoading(true);
     try {
-      if (isNameSort(sort)) {
-        const result = await recycleBinApi.listAllRecycleBin({
-          entity_type: entityType || undefined,
-        });
-        const sorted = sortRecords(result.data, sort, 'recycle-bin');
-        setAllNameSorted(sorted);
-        setTotal(sorted.length);
-      } else {
-        setAllNameSorted(null);
-        const result = await recycleBinApi.listRecycleBin({
-          page,
-          page_size: LIMIT,
-          entity_type: entityType || undefined,
-          ...getSortApiParams(sort, 'recycle-bin'),
-        });
-        setItems(sortRecords(result.data, sort, 'recycle-bin'));
-        setTotal(result.total);
-      }
+      setNameSortCache(null);
+      const result = await recycleBinApi.listRecycleBin({
+        page,
+        page_size: LIMIT,
+        entity_type: entityType || undefined,
+        ...getSortApiParams(sort, 'recycle-bin'),
+      });
+      setItems(sortRecords(result.data, sort, 'recycle-bin'));
+      setTotal(result.total);
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -72,17 +78,46 @@ export default function RecycleBinPage() {
     }
   }, [page, entityType, sort, showToast]);
 
-  useEffect(() => {
-    // Name sort: reload full list only when sort/filter changes (not on page flip).
-    if (isNameSort(sort) && allNameSorted) return;
-    fetchItems();
-  }, [fetchItems, sort, entityType, allNameSorted]);
+  const loadNameSortCache = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Load all rows unfiltered; Record type is applied client-side in nameSortedRows.
+      const result = await recycleBinApi.listAllRecycleBin({});
+      setNameSortCache(result.data || []);
+    } catch (err) {
+      showToast(getApiError(err));
+      setNameSortCache([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
 
   useEffect(() => {
-    if (!isNameSort(sort) || !allNameSorted) return;
+    if (isNameSort(sort)) {
+      if (nameSortCache == null) loadNameSortCache();
+      return;
+    }
+    fetchServerPage();
+  }, [sort, nameSortCache, loadNameSortCache, fetchServerPage]);
+
+  useEffect(() => {
+    if (!isNameSort(sort) || nameSortedRows == null) return;
     const start = (page - 1) * LIMIT;
-    setItems(allNameSorted.slice(start, start + LIMIT));
-  }, [page, sort, allNameSorted]);
+    setTotal(nameSortedRows.length);
+    setItems(nameSortedRows.slice(start, start + LIMIT));
+  }, [page, sort, nameSortedRows]);
+
+  // Keep page in range when filter shrinks the name-sorted list.
+  useEffect(() => {
+    if (!isNameSort(sort) || nameSortedRows == null) return;
+    const totalPages = Math.max(1, Math.ceil(nameSortedRows.length / LIMIT) || 1);
+    if (page > totalPages) setPage(totalPages);
+  }, [sort, nameSortedRows, page]);
+
+  const refreshLists = useCallback(() => {
+    setNameSortCache(null);
+    if (!isNameSort(sort)) fetchServerPage();
+  }, [sort, fetchServerPage]);
 
   const handleRestore = async (item) => {
     setRestoringId(item.id);
@@ -104,8 +139,7 @@ export default function RecycleBinPage() {
       } else {
         showToast(result?.message || `${item.entity_name} restored`, 'success');
       }
-      setAllNameSorted(null);
-      fetchItems();
+      refreshLists();
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -120,8 +154,7 @@ export default function RecycleBinPage() {
       const result = await recycleBinApi.deleteRecycleItem(confirmDelete.id);
       showToast(result?.message || `${confirmDelete.entity_name} permanently deleted`, 'success');
       setConfirmDelete(null);
-      setAllNameSorted(null);
-      fetchItems();
+      refreshLists();
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -153,19 +186,23 @@ export default function RecycleBinPage() {
           total={total}
           totalLabel="deleted records"
           sort={sort}
-          onSortChange={(v) => { setSort(v); setPage(1); setAllNameSorted(null); }}
+          onSortChange={(v) => {
+            setSort(v);
+            setPage(1);
+            if (!isNameSort(v)) setNameSortCache(null);
+          }}
           filterTitle="Filter Recycle Bin by"
           filterFields={(
             <SelectFilter
               label="Record type"
               value={entityType}
-              onChange={(v) => { setEntityType(v); setPage(1); setAllNameSorted(null); }}
+              onChange={(v) => { setEntityType(v); setPage(1); }}
               options={RECYCLE_ENTITY_TYPES.filter((t) => t.value)}
               emptyLabel="All types"
             />
           )}
           hasActiveFilters={!!entityType}
-          onClearFilters={() => { setEntityType(''); setPage(1); setAllNameSorted(null); }}
+          onClearFilters={() => { setEntityType(''); setPage(1); }}
           table={(
             <div className="record-data-table-shell">
               <div className="record-data-table-scroll">

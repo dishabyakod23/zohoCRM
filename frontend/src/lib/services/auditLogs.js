@@ -2,11 +2,14 @@ import api, { API_BASE_URL } from '../api.js';
 import { formatEnumLabel, userBriefName } from '../activityHelpers.js';
 import { isGenericRoleName, personDisplayName } from '../recordHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { notesSupportedRelatedType } from '../noteHelpers.js';
 import {
   listCloudTalkCallsLastDays,
   listCloudTalkCallsInRange,
   scopeCloudTalkCalls,
 } from './cloudTalkCalls.js';
+import { listDocumentsForRecord } from './documents.js';
+import { listNotes } from './notes.js';
 import {
   enrichActivityLogsWithPhoneNames,
   getCrmPhoneLookup,
@@ -147,6 +150,79 @@ export function mergeActivityLogs(auditLogs = [], cloudTalkCalls = []) {
   return merged;
 }
 
+function previewText(text, max = 120) {
+  const body = String(text || '').trim();
+  if (!body) return '';
+  return body.length > max ? `${body.slice(0, max - 1)}…` : body;
+}
+
+function auditCoversRelatedId(auditEntries, relatedId) {
+  const id = String(relatedId || '');
+  if (!id) return false;
+  return (auditEntries || []).some((entry) => {
+    const candidates = [entry.entity_id, entry.related_id, entry.record_id, entry.target_id];
+    return candidates.some((value) => String(value || '') === id);
+  });
+}
+
+/** Build a History-tab entry from a record note (API does not attach notes to /history/{entity}/{id}). */
+export function noteToHistoryEntry(note) {
+  if (!note?.id) return null;
+  const createdMs = note.created_at ? new Date(note.created_at).getTime() : 0;
+  const updatedMs = note.updated_at ? new Date(note.updated_at).getTime() : 0;
+  const wasUpdated = updatedMs > createdMs + 2000;
+  const body = String(note.body || '').trim();
+  const preview = previewText(body);
+  return normalizeAuditLog({
+    id: `related-note-${note.id}`,
+    action: wasUpdated ? 'update' : 'create',
+    action_label: wasUpdated ? 'Note updated' : 'Note',
+    entity_type: 'note',
+    entity_id: note.id,
+    summary: wasUpdated
+      ? (preview ? `Updated note — ${preview}` : 'Updated note')
+      : (preview ? `Added note — ${preview}` : 'Added note'),
+    change_lines: body && body !== preview ? [body] : undefined,
+    user_name: note.owner_name || note.created_by_name || '',
+    created_at: wasUpdated ? note.updated_at : (note.created_at || note.updated_at),
+  });
+}
+
+/** Build a History-tab entry from an attached document. */
+export function documentToHistoryEntry(doc) {
+  if (!doc?.id) return null;
+  const name = doc.name || doc.document_name || 'file';
+  return normalizeAuditLog({
+    id: `related-document-${doc.id}`,
+    action: 'create',
+    action_label: 'File',
+    entity_type: 'document',
+    entity_id: doc.id,
+    summary: `Uploaded file — ${name}`,
+    user_name: doc.owner_name || '',
+    created_at: doc.created_at || doc.uploaded_at,
+  });
+}
+
+/**
+ * Merge audit history with notes + files for the same record.
+ * Backend /history/{type}/{id} only returns the record's own audit rows.
+ */
+export function mergeEntityHistoryWithRelated(auditEntries = [], { notes = [], documents = [] } = {}) {
+  const related = [];
+  for (const note of notes || []) {
+    if (auditCoversRelatedId(auditEntries, note.id)) continue;
+    const entry = noteToHistoryEntry(note);
+    if (entry) related.push(entry);
+  }
+  for (const doc of documents || []) {
+    if (auditCoversRelatedId(auditEntries, doc.id)) continue;
+    const entry = documentToHistoryEntry(doc);
+    if (entry) related.push(entry);
+  }
+  return mergeActivityLogs(auditEntries, related);
+}
+
 /** Audit logs plus CloudTalk call history for a date window (full window). */
 export async function listActivityLogsLastDays(
   days = 30,
@@ -245,7 +321,18 @@ export async function getEntityTimeline(entityType, entityId, params = {}) {
 
 export async function getEntityHistory(entityType, entityId) {
   const res = await api.get(`${HISTORY_BASE}/${entityType}/${entityId}`);
-  return filterVisibleAuditLogs((res.data.data || []).map(normalizeAuditLog));
+  const auditEntries = filterVisibleAuditLogs((res.data.data || []).map(normalizeAuditLog));
+
+  const [notes, documents] = await Promise.all([
+    notesSupportedRelatedType(entityType)
+      ? listNotes(entityType, entityId).catch(() => [])
+      : Promise.resolve([]),
+    entityType && entityType !== 'document'
+      ? listDocumentsForRecord(entityType, entityId).catch(() => [])
+      : Promise.resolve([]),
+  ]);
+
+  return mergeEntityHistoryWithRelated(auditEntries, { notes, documents });
 }
 
 export async function listHistory(params = {}) {

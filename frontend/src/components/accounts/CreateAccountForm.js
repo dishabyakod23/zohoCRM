@@ -19,7 +19,7 @@ import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
-import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
+import { tryAttachCampaignAfterCreate } from '../../lib/campaignRecordHelpers.js';
 import { makeFieldSetter } from '../../lib/formInput.js';
 
 const OWNERSHIP_OPTIONS = ['Public', 'Private', 'Subsidiary', 'Other'];
@@ -189,12 +189,20 @@ export default function CreateAccountForm() {
     setSaving(true);
     try {
       const created = await accountsApi.createAccountWithRelations(form);
-      const campaignId = await resolveOrCreateCampaignId({
+      const campaignErr = await tryAttachCampaignAfterCreate({
         campaign_id: form.campaign_id,
         campaign_name: form.campaign_name,
+        memberType: 'account',
+        recordId: created?.id,
       });
-      await afterRecordSave({ campaignId, memberType: 'account', recordId: created?.id });
-      showToast('Account saved', 'success');
+      if (campaignErr) {
+        showToast(
+          `Account saved, but campaign could not be linked: ${getApiError(campaignErr)}`,
+          'error',
+        );
+      } else {
+        showToast('Account saved', 'success');
+      }
       navigateToRecord(created?.id ? `/accounts/${created.id}` : '/accounts');
     } catch (err) {
       showToast(getApiError(err));

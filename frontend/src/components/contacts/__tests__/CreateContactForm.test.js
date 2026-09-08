@@ -56,6 +56,7 @@ jest.mock('../../../lib/campaignRecordHelpers.js', () => ({
   fetchCampaignLookups: jest.fn(),
   afterRecordSave: jest.fn(),
   resolveOrCreateCampaignId: jest.fn(),
+  tryAttachCampaignAfterCreate: jest.fn(),
 }));
 
 jest.mock('../../../lib/recordNavigation.js', () => ({
@@ -97,6 +98,7 @@ beforeEach(() => {
   campaignRecordHelpers.fetchCampaignLookups.mockResolvedValue([]);
   campaignRecordHelpers.afterRecordSave.mockResolvedValue();
   campaignRecordHelpers.resolveOrCreateCampaignId.mockResolvedValue(null);
+  campaignRecordHelpers.tryAttachCampaignAfterCreate.mockResolvedValue(null);
   resolveContactAccount.resolveContactCompanyFields.mockResolvedValue({
     company_id: 'company-1',
     company_name: 'Acme Inc',
@@ -152,7 +154,7 @@ describe('CreateContactForm — double-submission guard (BUG-001 regression)', (
 });
 
 describe('CreateContactForm — Save button consistency (BUG-002 regression)', () => {
-  it('disables both the header and footer Save buttons together while a duplicate email error is present', async () => {
+  it('disables the Save Contact button while a duplicate email error is present', async () => {
     emailHelpers.validateEmailUnique.mockResolvedValue('A contact with this email already exists.');
 
     render(<CreateContactForm />);
@@ -160,8 +162,8 @@ describe('CreateContactForm — Save button consistency (BUG-002 regression)', (
 
     await waitFor(() => {
       const buttons = screen.getAllByRole('button', { name: /save contact/i });
-      expect(buttons).toHaveLength(2);
-      buttons.forEach((btn) => expect(btn).toBeDisabled());
+      expect(buttons).toHaveLength(1);
+      expect(buttons[0]).toBeDisabled();
     }, { timeout: 2000 });
   });
 });

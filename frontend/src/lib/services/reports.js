@@ -139,10 +139,11 @@ export function isUserIncludedInReports(user, settings) {
 
 export function isWeeklySubjectSelected(user, settings) {
   if (!user?.is_active) return false;
-  if (Array.isArray(settings?.subject_user_ids)) {
-    return (settings.subject_user_ids || []).map(String).includes(String(user.id));
+  const ids = settings?.subject_user_ids;
+  // Empty subject_user_ids falls back to all active BDE/BDM (minus exclusions on the server).
+  if (Array.isArray(ids) && ids.length > 0) {
+    return ids.map(String).includes(String(user.id));
   }
-  // Legacy: subjects default to active BDE/BDM users.
   const role = normalizeRole(user.role);
   return role === 'sales_rep' || role === 'sales_manager';
 }

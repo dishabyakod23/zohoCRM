@@ -1,5 +1,6 @@
 import api from '../api.js';
 import { cachedRequest, invalidateCachedRequest } from '../requestCache.js';
+import { invalidateLookup } from '../lookupCache.js';
 import {
   LEAD_STATUS_CATEGORY,
   LEAD_STATUS_CATEGORY_CANDIDATES,
@@ -124,16 +125,19 @@ export async function createAdminLeadStatus({ label, value, sort_order, is_activ
   const category = await resolveLeadStatusCategory();
   const payload = buildLookupOptionPayload({ label, value, sort_order, is_active });
   const created = await createLookupOption(category, payload);
+  invalidateLookup('lead-statuses');
   return normalizeLookupOption(created);
 }
 
 export async function deleteAdminLeadStatus(optionId) {
   const category = await resolveLeadStatusCategory();
   await deleteLookupOption(category, optionId);
+  invalidateLookup('lead-statuses');
 }
 
 export async function updateAdminLeadStatus(optionId, payload) {
   const category = await resolveLeadStatusCategory();
   const updated = await updateLookupOption(category, optionId, payload);
+  invalidateLookup('lead-statuses');
   return normalizeLookupOption(updated);
 }

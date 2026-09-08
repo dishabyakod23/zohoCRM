@@ -15,7 +15,7 @@ import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { LIST_VIEWS, DEFAULT_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../../lib/constants.js';
 import * as contactDirectoryApi from '../../lib/services/contactDirectory.js';
 import { fetchPeopleStatusOptions } from '../../lib/services/people.js';
-import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
+import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchPipelineConvertTargets } from '../../lib/services/lookups.js';
 import { normalizeContact } from '../../lib/contactHelpers.js';
 import { fetchCompanyLookups, accountMapFromLookups, fetchUsers } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
@@ -135,6 +135,13 @@ export default function ContactsPage() {
       return rows;
     }
   }, [loadActivityCalls]);
+
+  const loadMassUpdateFields = useCallback(async () => ([
+    { value: 'lead_status', label: 'Lead Status' },
+    { value: 'convert', label: 'Convert', type: 'convert' },
+    { value: 'campaign', label: 'Campaign' },
+    { value: 'linkedin_request_sent', label: 'LinkedIn Connection Sent' },
+  ]), []);
 
   const fetchContacts = useCallback(async () => {
     if (filters.campaign_id && !campaignMembersReady) return;
@@ -320,6 +327,8 @@ export default function ContactsPage() {
               sort={sort}
               onSortChange={(v) => { setSort(v); setPage(1); }}
               {...tableSelection}
+              massUpdateFieldsLoader={loadMassUpdateFields}
+              convertTargetsLoader={fetchPipelineConvertTargets}
               pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
             />
           )}

@@ -24,7 +24,7 @@ import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
-import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
+import { tryAttachCampaignAfterCreate } from '../../lib/campaignRecordHelpers.js';
 
 export function emptyPipelineLeadForm(ownerId = '', defaults = {}) {
   return {
@@ -179,12 +179,20 @@ export default function CreatePipelineLeadForm({
     try {
       if (!(await validate())) return;
       const created = await createFn(form, { currentUserId: user?.id });
-      const campaignId = await resolveOrCreateCampaignId({
+      const campaignErr = await tryAttachCampaignAfterCreate({
         campaign_id: form.campaign_id,
         campaign_name: form.campaign_name,
+        memberType: 'lead',
+        recordId: created?.id,
       });
-      await afterRecordSave({ campaignId, memberType: 'lead', recordId: created?.id });
-      showToast(successToast, 'success');
+      if (campaignErr) {
+        showToast(
+          `Record saved, but campaign could not be linked: ${getApiError(campaignErr)}`,
+          'error',
+        );
+      } else {
+        showToast(successToast, 'success');
+      }
       navigateToRecord(created?.id ? `${listPath}/${created.id}` : listPath);
     } catch (err) {
       showToast(getApiError(err));

@@ -60,15 +60,36 @@ export function slugifyStatusValue(label) {
     .replace(/^_+|_+$/g, '');
 }
 
-/** Admin lookup-options category for lead statuses (matches GET /lookups/lead-statuses) */
-export const LEAD_STATUS_CATEGORY = 'lead-statuses';
+/** Admin lookup-options category for lead statuses (matches GET /admin/lookup-options). */
+export const LEAD_STATUS_CATEGORY = 'lead_status';
 
 /** Fallback category slugs seen across API versions */
 export const LEAD_STATUS_CATEGORY_CANDIDATES = [
-  'lead-statuses',
   'lead_status',
+  'lead-statuses',
   'lead_statuses',
 ];
+
+/** Merge lead-status option lists by value (later lists fill gaps / refresh labels). */
+export function mergeLeadStatusOptions(...lists) {
+  const byValue = new Map();
+  for (const list of lists) {
+    for (const opt of list || []) {
+      const value = String(opt?.value ?? '').trim();
+      if (!value) continue;
+      const label = String(opt.label || opt.name || value).trim() || value;
+      const prev = byValue.get(value);
+      if (!prev) {
+        byValue.set(value, { value, label });
+        continue;
+      }
+      if (label && label !== value && (prev.label === prev.value || !prev.label)) {
+        byValue.set(value, { value, label });
+      }
+    }
+  }
+  return [...byValue.values()];
+}
 
 /** Hosted API LeadStatus enum — custom values must be accepted by the server */
 export const HOSTED_LEAD_STATUS_VALUES = [

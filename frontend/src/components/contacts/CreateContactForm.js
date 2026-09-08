@@ -28,7 +28,7 @@ import { isLostLeadStatus } from '../../lib/statusHelpers.js';
 import AccountNameCombobox from '../forms/AccountNameCombobox.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import { resolveContactCompanyFields } from '../../lib/resolveContactAccount.js';
-import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
+import { tryAttachCampaignAfterCreate } from '../../lib/campaignRecordHelpers.js';
 
 export function emptyContactForm() {
   return {
@@ -210,12 +210,20 @@ export default function CreateContactForm() {
         company_name,
         account_id,
       });
-      const campaignId = await resolveOrCreateCampaignId({
+      const campaignErr = await tryAttachCampaignAfterCreate({
         campaign_id: form.campaign_id,
         campaign_name: form.campaign_name,
+        memberType: 'contact',
+        recordId: created?.id,
       });
-      await afterRecordSave({ campaignId, memberType: 'contact', recordId: created?.id });
-      showToast('Contact saved', 'success');
+      if (campaignErr) {
+        showToast(
+          `Contact saved, but campaign could not be linked: ${getApiError(campaignErr)}`,
+          'error',
+        );
+      } else {
+        showToast('Contact saved', 'success');
+      }
       navigateToRecord(created?.id ? `/contacts/${created.id}` : '/contacts');
     } catch (err) {
       showToast(getApiError(err) || err.message);
