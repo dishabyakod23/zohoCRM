@@ -108,6 +108,13 @@ export function toContactPayload(form, { partial = false } = {}) {
     if (formHas(form, 'secondary_email')) payload.secondary_email = form.secondary_email || null;
     if (formHas(form, 'skype_id')) payload.skype_id = form.skype_id || null;
     if (formHas(form, 'twitter')) payload.twitter = form.twitter || null;
+    // Directory "LinkedIn Request" column reads these from the API.
+    if (formHas(form, 'linkedin_request_sent_at')) {
+      payload.linkedin_request_sent_at = form.linkedin_request_sent_at || null;
+    }
+    if (formHas(form, 'linkedin_request_sent_by')) {
+      payload.linkedin_request_sent_by = form.linkedin_request_sent_by || null;
+    }
     if (formHas(form, 'email_opt_out')) payload.email_opt_out = !!form.email_opt_out;
     if (formHas(form, 'title')) payload.title = form.title || null;
     if (formHas(form, 'department')) payload.department = form.department || null;

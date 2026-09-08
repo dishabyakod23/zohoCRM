@@ -39,7 +39,14 @@ export function personEntityType(person) {
 }
 
 export function personRecordId(person) {
-  return person?.record_id || person?.entity_id || person?.id || null;
+  if (person?.record_id) return person.record_id;
+  if (person?.entity_id) return person.entity_id;
+  const id = person?.id;
+  if (!id) return null;
+  // Prefer bare UUID when list rows encode entity type as "contact:uuid".
+  const parsed = parsePersonRowId(id);
+  if (String(id).includes(':') && parsed.recordId) return parsed.recordId;
+  return id;
 }
 
 /** Stable list-row id that encodes entity type for bulk actions (delete, campaign). */

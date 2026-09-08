@@ -1,10 +1,23 @@
 const STORAGE_KEY = 'crm_outreach_activity';
 
+function bareRecordId(contactId) {
+  const raw = String(contactId || '').trim();
+  if (!raw) return '';
+  // List rows may use "contact:uuid" / "lead:uuid"; always store/lookup by bare id.
+  const splitAt = raw.indexOf(':');
+  if (splitAt > 0) return raw.slice(splitAt + 1);
+  return raw;
+}
+
 function readStore() {
   if (typeof window === 'undefined') return { linkedin: {}, emails: {} };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : { linkedin: {}, emails: {} };
+    const parsed = raw ? JSON.parse(raw) : {};
+    return {
+      linkedin: parsed.linkedin && typeof parsed.linkedin === 'object' ? parsed.linkedin : {},
+      emails: parsed.emails && typeof parsed.emails === 'object' ? parsed.emails : {},
+    };
   } catch {
     return { linkedin: {}, emails: {} };
   }
@@ -12,13 +25,20 @@ function readStore() {
 
 function writeStore(store) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    linkedin: store.linkedin || {},
+    emails: store.emails || {},
+  }));
 }
 
 export function getLinkedInRequestSent(contactId) {
   if (!contactId) return null;
   const store = readStore();
-  return store.linkedin?.[String(contactId)] || null;
+  const key = String(contactId);
+  if (store.linkedin[key]) return store.linkedin[key];
+  const bare = bareRecordId(contactId);
+  if (bare && store.linkedin[bare]) return store.linkedin[bare];
+  return null;
 }
 
 export function isLinkedInRequestSent(contactId) {
@@ -28,13 +48,17 @@ export function isLinkedInRequestSent(contactId) {
 export function setLinkedInRequestSent(contactId, { sent, user } = {}) {
   if (!contactId) return null;
   const store = readStore();
-  const key = String(contactId);
+  const key = bareRecordId(contactId) || String(contactId);
+  const composite = String(contactId);
 
   if (!sent) {
     delete store.linkedin[key];
+    if (composite !== key) delete store.linkedin[composite];
     writeStore(store);
     return null;
   }
+
+  if (composite !== key) delete store.linkedin[composite];
 
   const entry = {
     sent_at: new Date().toISOString(),

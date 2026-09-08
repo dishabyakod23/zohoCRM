@@ -36,7 +36,7 @@ import {
   enrichContactDirectoryRows,
   filterRowsByActivityDate,
 } from '../../lib/contactActivityEnrichment.js';
-import { buildOutreachActivityIndex, formatLinkedInRequestLabel } from '../../lib/outreachActivity.js';
+import { buildOutreachActivityIndex, formatLinkedInRequestLabel, getLinkedInRequestSent } from '../../lib/outreachActivity.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
@@ -195,7 +195,13 @@ export default function ContactsPage() {
         setTotal(filteredRows.length);
         setContacts(filteredRows.slice(start, start + LIMIT));
       } else {
-        setContacts(rows);
+        // Apply LinkedIn/local outreach sync so the column updates without waiting on CloudTalk.
+        const syncEnriched = enrichContactDirectoryRows(rows, {
+          calls: activityCallsRef.current || [],
+          outreachIndex: buildOutreachActivityIndex(),
+          statusOptions: leadStatusOptionsRef.current,
+        });
+        setContacts(syncEnriched);
         setTotal(result.total);
         enrichRowsWithActivity(rows).then((enriched) => {
           setContacts((current) => {
@@ -277,9 +283,15 @@ export default function ContactsPage() {
     { id: 'last_call', header: 'Last Call', cell: (c) => (
       <span className="text-xs text-zoho-text whitespace-nowrap">{c.last_call_label || '—'}</span>
     ) },
-    { id: 'linkedin', header: 'LinkedIn Request', cell: (c) => (
-      <span className="text-xs">{formatLinkedInRequestLabel(c.linkedin_request_sent_at ? { sent_at: c.linkedin_request_sent_at } : null)}</span>
-    ) },
+    { id: 'linkedin', header: 'LinkedIn Request', cell: (c) => {
+      const recordId = c.record_id || String(c.id || '').split(':').pop();
+      const entry = (c.linkedin_request_sent_at
+        ? { sent_at: c.linkedin_request_sent_at }
+        : null) || getLinkedInRequestSent(recordId);
+      return (
+        <span className="text-xs">{formatLinkedInRequestLabel(entry)}</span>
+      );
+    } },
     { id: 'campaign', header: 'Campaign', cell: (c) => c.campaign_name || '—' },
     { id: 'owner', header: 'Owner', cell: (c) => c.owner_name || '—' },
     ...recordTimestampColumns(),
