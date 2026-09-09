@@ -379,6 +379,22 @@ export function emptySequenceForm(ownerId = '') {
   };
 }
 
+/** Case-insensitive sequence name key for uniqueness checks. */
+export function normalizeSequenceNameKey(name) {
+  return String(name || '').trim().toLowerCase();
+}
+
+/** True when another sequence already uses this name (case-insensitive). */
+export function isSequenceNameTaken(name, sequences = [], { excludeId } = {}) {
+  const key = normalizeSequenceNameKey(name);
+  if (!key) return false;
+  return sequences.some(
+    (row) =>
+      normalizeSequenceNameKey(row?.name) === key
+      && String(row?.id || '') !== String(excludeId || ''),
+  );
+}
+
 function defaultScheduledDate(order) {
   const d = new Date();
   d.setDate(d.getDate() + Math.max(0, (order - 1) * 2));

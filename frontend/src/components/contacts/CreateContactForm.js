@@ -308,15 +308,15 @@ export default function CreateContactForm() {
             </FormField>
 
             <FormField label="Phone" error={errors.phone} name="phone">
-              <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} maxLength={15} inputMode="numeric" />
+              <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} maxLength={32} inputMode="tel" />
             </FormField>
 
             <FormField label="Other Phone" error={errors.other_phone} name="other_phone">
-              <input className={inputClass(errors.other_phone)} value={form.other_phone} onChange={set('other_phone')} maxLength={15} inputMode="numeric" />
+              <input className={inputClass(errors.other_phone)} value={form.other_phone} onChange={set('other_phone')} maxLength={32} inputMode="tel" />
             </FormField>
 
             <FormField label="Mobile" error={errors.mobile} name="mobile">
-              <input className={inputClass(errors.mobile)} value={form.mobile} onChange={set('mobile')} maxLength={15} inputMode="numeric" />
+              <input className={inputClass(errors.mobile)} value={form.mobile} onChange={set('mobile')} maxLength={32} inputMode="tel" />
             </FormField>
 
             <FormField label="Assistant" name="assistant">
@@ -384,11 +384,11 @@ export default function CreateContactForm() {
             />
 
             <FormField label="Home Phone" error={errors.home_phone} name="home_phone">
-              <input className={inputClass(errors.home_phone)} value={form.home_phone} onChange={set('home_phone')} maxLength={15} inputMode="numeric" />
+              <input className={inputClass(errors.home_phone)} value={form.home_phone} onChange={set('home_phone')} maxLength={32} inputMode="tel" />
             </FormField>
 
             <FormField label="Fax" error={errors.fax} name="fax">
-              <input className={inputClass(errors.fax)} value={form.fax} onChange={set('fax')} maxLength={15} inputMode="numeric" />
+              <input className={inputClass(errors.fax)} value={form.fax} onChange={set('fax')} maxLength={32} inputMode="tel" />
             </FormField>
 
             <FormField label="Date of Birth" name="date_of_birth">
@@ -396,7 +396,7 @@ export default function CreateContactForm() {
             </FormField>
 
             <FormField label="Asst Phone" error={errors.asst_phone} name="asst_phone">
-              <input className={inputClass(errors.asst_phone)} value={form.asst_phone} onChange={set('asst_phone')} maxLength={15} inputMode="numeric" />
+              <input className={inputClass(errors.asst_phone)} value={form.asst_phone} onChange={set('asst_phone')} maxLength={32} inputMode="tel" />
             </FormField>
 
             <div className="flex items-center gap-2 pt-1">

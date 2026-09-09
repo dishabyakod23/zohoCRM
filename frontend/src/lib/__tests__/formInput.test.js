@@ -30,20 +30,21 @@ describe('formInput helpers', () => {
     expect(errors.first_name).toBeNull();
   });
 
-  it('sanitizePhoneDigits strips letters and special characters', () => {
+  it('sanitizePhoneDigits keeps + and separators, strips letters', () => {
     expect(sanitizePhoneDigits('uydfutdutdyutd')).toBe('');
-    expect(sanitizePhoneDigits('+91-98765 43210')).toBe('919876543210');
+    expect(sanitizePhoneDigits('+91-98765 43210')).toBe('+91-98765 43210');
     expect(sanitizePhoneDigits('123abc456')).toBe('123456');
+    expect(sanitizePhoneDigits('++91')).toBe('+91');
   });
 
-  it('makeFieldSetter keeps only digits for phone and mobile', () => {
+  it('makeFieldSetter allows + in phone fields and strips letters', () => {
     let form = { phone: '', mobile: '' };
     const setForm = (updater) => { form = updater(form); };
     const set = makeFieldSetter(setForm);
     set('phone')({ target: { value: 'uydfutdutdyutd' } });
-    set('mobile')({ target: { value: '98ab#76' } });
+    set('mobile')({ target: { value: '+91 98ab#76' } });
     expect(form.phone).toBe('');
-    expect(form.mobile).toBe('9876');
+    expect(form.mobile).toBe('+91 9876');
   });
 
   it('makeFieldSetter sets an inline phone error while typing short numbers', () => {
@@ -55,7 +56,7 @@ describe('formInput helpers', () => {
     set('phone')({ target: { value: '12345' } });
     expect(form.phone).toBe('12345');
     expect(errors.phone).toBe('Phone is invalid.');
-    set('phone')({ target: { value: '1234567890' } });
+    set('phone')({ target: { value: '+91 1234567890' } });
     expect(errors.phone).toBeNull();
   });
 });

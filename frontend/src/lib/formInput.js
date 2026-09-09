@@ -28,15 +28,29 @@ export function isPhoneDigitField(name) {
   return PHONE_DIGIT_FIELDS.has(name);
 }
 
-/** Keep digits only (no letters or special characters). Caps at E.164 length. */
+/** Keep digits plus common phone formatting (+, spaces, dashes, parentheses, dots). Caps digit count at E.164 max. */
 export function sanitizePhoneDigits(value, { maxDigits = 15 } = {}) {
   if (value == null) return value;
-  return String(value).replace(/\D/g, '').slice(0, maxDigits);
+  let raw = String(value).replace(/[^\d+\s()./-]/g, '');
+  const leadingPlus = raw.startsWith('+');
+  raw = (leadingPlus ? '+' : '') + raw.replace(/\+/g, '');
+
+  let digits = 0;
+  let out = '';
+  for (const ch of raw) {
+    if (/\d/.test(ch)) {
+      if (digits >= maxDigits) continue;
+      digits += 1;
+    }
+    out += ch;
+  }
+  return out;
 }
 
 /**
  * Standard create-form field setter: trims leading spaces as the user types.
- * Phone/mobile-like fields accept digits only and show inline errors immediately.
+ * Phone/mobile-like fields accept digits and common phone characters (+, spaces, dashes)
+ * and show inline errors immediately.
  * Checkbox values are left as booleans.
  * Usage: const set = makeFieldSetter(setForm, setErrors);
  */

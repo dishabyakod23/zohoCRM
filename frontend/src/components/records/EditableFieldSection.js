@@ -131,9 +131,9 @@ export default function EditableFieldSection({
                         <input
                           className={inputClass(fieldErrors[f.name])}
                           type={isPhoneDigitField(f.name) ? 'tel' : 'text'}
-                          inputMode={isPhoneDigitField(f.name) ? 'numeric' : undefined}
+                          inputMode={isPhoneDigitField(f.name) ? 'tel' : undefined}
                           autoComplete={isPhoneDigitField(f.name) ? 'tel' : undefined}
-                          maxLength={isPhoneDigitField(f.name) ? 15 : undefined}
+                          maxLength={isPhoneDigitField(f.name) ? 32 : undefined}
                           value={draft[f.name] ?? ''}
                           onChange={(e) => {
                             let value = trimStartValue(e.target.value);

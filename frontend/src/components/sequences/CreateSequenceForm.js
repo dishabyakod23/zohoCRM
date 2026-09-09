@@ -8,6 +8,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { validateRequired } from '../../lib/validators.js';
+import { makeFieldSetter } from '../../lib/formInput.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
 import { emptySequenceForm, SEND_DAYS } from '../../lib/sequenceHelpers.js';
@@ -33,6 +34,7 @@ export default function CreateSequenceForm() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState([]);
+  const set = makeFieldSetter(setForm, setErrors);
 
   useEffect(() => {
     if (user?.id && !form.owner_id) setForm((f) => ({ ...f, owner_id: user.id }));
@@ -52,6 +54,10 @@ export default function CreateSequenceForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const nextErrors = validateRequired(REQUIRED, form);
+    if (!nextErrors.name) {
+      const uniqueErr = await sequencesApi.validateSequenceNameUnique(form.name);
+      if (uniqueErr) nextErrors.name = uniqueErr;
+    }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
 
@@ -78,22 +84,22 @@ export default function CreateSequenceForm() {
           <SectionTitle>Basic Info</SectionTitle>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Sequence Name" required error={errors.name}>
-              <input className={inputClass(errors.name)} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+              <input className={inputClass(errors.name)} value={form.name} onChange={set('name')} />
             </FormField>
             <FormField label="Owner">
-              <select className="input" value={form.owner_id} onChange={(e) => setForm((f) => ({ ...f, owner_id: e.target.value }))}>
+              <select className="input" value={form.owner_id} onChange={set('owner_id')}>
                 <option value="">Select owner</option>
                 {users.map((u) => <option key={u.id || u.value} value={u.id || u.value}>{u.name}</option>)}
               </select>
             </FormField>
             <FormField label="Sending Email" required error={errors.sending_email} colSpan>
-              <input className={inputClass(errors.sending_email)} type="email" value={form.sending_email} onChange={(e) => setForm((f) => ({ ...f, sending_email: e.target.value }))} placeholder="outreach@yourcompany.com" />
+              <input className={inputClass(errors.sending_email)} type="email" value={form.sending_email} onChange={set('sending_email')} placeholder="outreach@yourcompany.com" />
               <p className="text-xs text-zoho-muted mt-1.5">
                 Must use an address on a domain verified in Resend (SPF, DKIM, DMARC).
               </p>
             </FormField>
             <FormField label="Description" colSpan>
-              <textarea className="input min-h-[80px]" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+              <textarea className="input min-h-[80px]" value={form.description} onChange={set('description')} />
             </FormField>
           </div>
 

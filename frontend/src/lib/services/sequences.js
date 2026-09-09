@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { assigneeName, listResult, omitEmpty } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
-import { sequenceStatusLabel, normalizeStepFromApi, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText } from '../sequenceHelpers.js';
+import { sequenceStatusLabel, normalizeStepFromApi, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText, isSequenceNameTaken } from '../sequenceHelpers.js';
 
 
 export function normalizeSequence(row) {
@@ -100,6 +100,25 @@ export async function listSequences(params = {}) {
   });
   const result = listResult(res);
   return { ...result, data: (result.data || []).map(normalizeSequence) };
+}
+
+/** Returns an error message when the sequence name is already used, or null if available. */
+export async function validateSequenceNameUnique(name, { excludeId } = {}) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return null;
+  try {
+    const result = await listSequences({
+      search: trimmed,
+      page: 1,
+      page_size: Math.max(DEFAULT_PAGE_SIZE, 100),
+    });
+    if (isSequenceNameTaken(trimmed, result.data || [], { excludeId })) {
+      return 'A sequence with this name already exists.';
+    }
+  } catch {
+    // Don't block create/save if the uniqueness lookup fails — API may still reject duplicates.
+  }
+  return null;
 }
 
 export async function getSequence(id) {

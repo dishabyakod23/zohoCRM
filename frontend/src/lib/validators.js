@@ -46,10 +46,12 @@ export const PHONE_FIELD_LABELS = {
 export function validatePhone(phone, label = 'Phone') {
   if (!phone) return null;
   const value = String(phone).trim();
-  if (/\D/.test(value)) {
-    return `${label} is invalid. Only digits are allowed.`;
+  // Allow optional leading +, digits, and common separators; reject letters and other symbols.
+  if (!/^\+?[\d\s()./-]+$/.test(value)) {
+    return `${label} is invalid.`;
   }
-  if (value.length < 7 || value.length > 15) {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length < 7 || digits.length > 15) {
     return `${label} is invalid.`;
   }
   return null;

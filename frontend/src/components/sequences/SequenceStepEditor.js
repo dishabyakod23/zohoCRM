@@ -206,12 +206,6 @@ export default function SequenceStepEditor({
               onChange={(html_body) => update({ html_body })}
             />
           </FormField>
-          <FormField label="Plain text body (optional fallback)">
-            <textarea className="input min-h-[80px] font-mono text-xs" value={step.text_body || ''} disabled={readOnly} onChange={(e) => update({ text_body: e.target.value })} placeholder="Leave blank to auto-generate from the HTML body" />
-            <p className="text-[11px] text-zoho-muted mt-1">
-              Used only as the text/plain part for clients that cannot show HTML. The formatted HTML body is what Outlook and Gmail display.
-            </p>
-          </FormField>
         </>
       )}
 

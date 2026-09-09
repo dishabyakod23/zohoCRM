@@ -10,7 +10,7 @@ import SequenceBuilder from '../../../components/sequences/SequenceBuilder.js';
 import SequenceAnalyticsPanel from '../../../components/sequences/SequenceAnalyticsPanel.js';
 import EnrollMembersModal from '../../../components/sequences/EnrollMembersModal.js';
 import EnrollmentNextActionCell from '../../../components/sequences/EnrollmentNextActionCell.js';
-import FormField from '../../../components/forms/FormField.js';
+import FormField, { inputClass } from '../../../components/forms/FormField.js';
 import TimezoneSelect from '../../../components/forms/TimezoneSelect.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
@@ -35,6 +35,7 @@ export default function SequenceDetailPage() {
   const [saving, setSaving] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [settings, setSettings] = useState(null);
+  const [settingsErrors, setSettingsErrors] = useState({});
 
   const load = useCallback(async () => {
     if (!ready || !id) return;
@@ -87,6 +88,17 @@ export default function SequenceDetailPage() {
   };
 
   const saveSettings = async () => {
+    const name = String(settings?.name || '').trim();
+    if (!name) {
+      setSettingsErrors({ name: 'Sequence Name is required.' });
+      return;
+    }
+    const uniqueErr = await sequencesApi.validateSequenceNameUnique(name, { excludeId: id });
+    if (uniqueErr) {
+      setSettingsErrors({ name: uniqueErr });
+      return;
+    }
+    setSettingsErrors({});
     setSaving(true);
     try {
       const updated = await sequencesApi.updateSequence(id, settings);
@@ -227,8 +239,16 @@ export default function SequenceDetailPage() {
 
         {tab === 'Settings' && settings && (
           <div className="space-y-4 max-w-2xl">
-            <FormField label="Name">
-              <input className="input" value={settings.name} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, name: e.target.value }))} />
+            <FormField label="Name" error={settingsErrors.name}>
+              <input
+                className={inputClass(settingsErrors.name)}
+                value={settings.name}
+                disabled={!canEdit}
+                onChange={(e) => {
+                  setSettings((s) => ({ ...s, name: e.target.value }));
+                  setSettingsErrors((er) => (er.name ? { ...er, name: null } : er));
+                }}
+              />
             </FormField>
             <FormField label="Description">
               <textarea className="input min-h-[80px]" value={settings.description} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, description: e.target.value }))} />

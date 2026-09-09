@@ -59,10 +59,16 @@ describe('validatePhone', () => {
     expect(validatePhone('1234567')).toBeNull();
   });
 
-  it('rejects letters and special characters', () => {
+  it('accepts + and common separators when digit count is valid', () => {
+    expect(validatePhone('+911234567890')).toBeNull();
+    expect(validatePhone('+1 (234) 567-8900')).toBeNull();
+    expect(validatePhone('123-456-7890')).toBeNull();
+  });
+
+  it('rejects letters and unsupported special characters', () => {
     expect(validatePhone('uydfutdutdyutd')).toMatch(/invalid/i);
-    expect(validatePhone('123-456-7890')).toMatch(/invalid/i);
-    expect(validatePhone('+1 (234) 567-8900')).toMatch(/invalid/i);
+    expect(validatePhone('123*456*7890')).toMatch(/invalid/i);
+    expect(validatePhone('abc1234567')).toMatch(/invalid/i);
   });
 
   it('rejects numbers with fewer than 7 digits', () => {
