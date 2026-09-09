@@ -33,6 +33,7 @@ jest.mock('../../../lib/services/lookups.js', () => ({
   fetchLostReasons: jest.fn(),
   fetchCountries: jest.fn(),
   fetchStates: jest.fn(),
+  fetchIndustries: jest.fn(),
   FALLBACK_LEAD_STATUSES: [
     { value: 'not_contacted', label: 'Not Contacted' },
     { value: 'contacted', label: 'Contacted' },
@@ -95,6 +96,7 @@ beforeEach(() => {
   lookups.fetchLostReasons.mockResolvedValue([]);
   lookups.fetchCountries.mockResolvedValue([]);
   lookups.fetchStates.mockResolvedValue([]);
+  lookups.fetchIndustries.mockResolvedValue([]);
   campaignRecordHelpers.fetchCampaignLookups.mockResolvedValue([]);
   campaignRecordHelpers.afterRecordSave.mockResolvedValue();
   campaignRecordHelpers.resolveOrCreateCampaignId.mockResolvedValue(null);
