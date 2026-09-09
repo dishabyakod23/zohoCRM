@@ -15,6 +15,7 @@ import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from '../constants.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 import { advanceLeadStage, convertLead } from './leads.js';
 import * as accountsApi from './accounts.js';
+import { migrateRecordNotes } from './notes.js';
 import { CONFIRMED_ACCOUNT_TYPE } from '../companyHelpers.js';
 import {
   PIPELINE_RAW,
@@ -231,6 +232,10 @@ export function getContactConvertRedirect(result, target) {
 export async function convertContact(contactId, target = PIPELINE_RAW) {
   const converted = await convertToRawLead(contactId);
   const leadId = resolveLeadIdFromContactConvert(converted);
+  // Notes stay keyed to the contact after convert — copy them onto the new lead.
+  if (leadId) {
+    await migrateRecordNotes('contact', contactId, 'lead', leadId).catch(() => ({ migrated: 0 }));
+  }
   // Best-effort: mark the contact converted so it drops out of the Contacts directory.
   try {
     await updateContact(contactId, { is_converted: true });

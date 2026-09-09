@@ -24,6 +24,7 @@ import { sortRecords } from '../listSortHelpers.js';
 import { ensureCsvColumn } from '../csvHelpers.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 import { sumAmountsInInr } from '../fxRates.js';
+import { migrateRecordNotes } from './notes.js';
 
 const CONVERT_MASS_TARGETS = new Set(['account', 'deal']);
 const PIPELINE_CONVERT_MASS_FIELD = 'pipeline_convert_target';
@@ -356,13 +357,23 @@ export async function applyLeadMassUpdate(ids, field, value, extras = {}) {
 
 export async function convertLead(id, form) {
   const res = await api.post(`/leads/${id}/convert`, toConvertPayload(form));
-  return res.data.data;
+  const data = res.data.data;
+  const accountId = data?.account?.id || data?.account_id;
+  if (accountId) {
+    await migrateRecordNotes('lead', id, 'account', accountId).catch(() => ({ migrated: 0 }));
+  }
+  return data;
 }
 
 /** Move a cold lead back into the Contacts module (reverse of convert-to-raw-lead). */
 export async function convertLeadToContact(id) {
   const res = await api.post(`/leads/${id}/convert-to-contact`);
-  return res.data?.data || null;
+  const data = res.data?.data || null;
+  const contactId = data?.contact_id || data?.contact?.id || data?.id;
+  if (contactId) {
+    await migrateRecordNotes('lead', id, 'contact', contactId).catch(() => ({ migrated: 0 }));
+  }
+  return data;
 }
 
 async function convertLeadsToContact(ids = []) {
