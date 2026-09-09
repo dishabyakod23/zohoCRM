@@ -52,6 +52,7 @@ import { FALLBACK_DEAL_STAGES } from '../../../lib/dealHelpers.js';
 import { tableLinkClass } from '../../../lib/tableStyles.js';
 import { useAuth } from '../../../hooks/useAuth.js';
 import LinkedInFieldWithRequestToggle from '../../../components/contacts/LinkedInFieldWithRequestToggle.js';
+import { IndustrySelectControl } from '../../../components/forms/IndustryField.js';
 
 function toHref(raw, kind) {
   const value = String(raw || '').trim();
@@ -306,6 +307,12 @@ export default function ContactDetailPage() {
               ) },
               { name: 'title', label: 'Designation' },
               { name: 'department', label: 'Department' },
+              { name: 'industry', label: 'Industry', render: (d, set) => (
+                <IndustrySelectControl
+                  value={d.industry ?? ''}
+                  onChange={(industry) => set((p) => ({ ...p, industry }))}
+                />
+              ) },
               { name: 'lead_source', label: 'Lead Source', render: (d, set) => (
                 <select className="input" value={d.lead_source ?? ''} onChange={(e) => set((p) => ({ ...p, lead_source: e.target.value }))}>
                   <option value="">--None--</option>

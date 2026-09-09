@@ -94,6 +94,50 @@ export function isSessionExpiredError(err) {
   return /invalid or expired token|authentication required|not authenticated|unauthorized|session expired/i.test(String(message || ''));
 }
 
+/** Humanize API field keys for user-facing messages. */
+const API_FIELD_LABELS = {
+  phone: 'Phone',
+  mobile: 'Mobile',
+  other_phone: 'Other Phone',
+  home_phone: 'Home Phone',
+  asst_phone: 'Asst Phone',
+  fax: 'Fax',
+  email: 'Email',
+  secondary_email: 'Secondary Email',
+  first_name: 'First Name',
+  last_name: 'Last Name',
+  skype_id: 'LinkedIn',
+};
+
+export function formatApiFieldError(field, message) {
+  const label = API_FIELD_LABELS[field]
+    || String(field || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    || 'Field';
+  const msg = String(message || '').trim();
+  if (!msg || /invalid format/i.test(msg) || /^invalid$/i.test(msg)) {
+    return `${label} is invalid.`;
+  }
+  if (new RegExp(`^${label}\\b`, 'i').test(msg)) return msg;
+  return `${label}: ${msg}`;
+}
+
+/** Map backend VALIDATION_ERROR.errors[] onto { fieldName: message }. */
+export function getApiFieldErrors(err) {
+  const data = err?.response?.data;
+  const list = Array.isArray(data?.errors) ? data.errors : null;
+  if (!list?.length) return {};
+  const out = {};
+  for (const entry of list) {
+    const field = entry?.field
+      || (Array.isArray(entry?.loc)
+        ? entry.loc.filter((x) => typeof x === 'string' && x !== 'body').pop()
+        : null);
+    if (!field) continue;
+    out[field] = formatApiFieldError(field, entry.message || entry.msg);
+  }
+  return out;
+}
+
 /** Parse FastAPI validation errors */
 export function getApiError(err) {
   if (isSessionExpiredError(err)) {
@@ -119,17 +163,12 @@ export function getApiError(err) {
       : 'You do not have permission to perform this action.';
   }
 
-  const detail = data.detail;
-  if (Array.isArray(data.errors) && data.errors.length) {
-    const fieldMsgs = data.errors.map((e) => e.message || e.msg || String(e)).filter(Boolean);
-    if (fieldMsgs.length) {
-      // Prefer concrete field errors over a generic "required fields" detail.
-      if (typeof detail !== 'string' || /required fields before saving/i.test(detail)) {
-        return fieldMsgs.join('; ');
-      }
-    }
-  }
+  // Prefer concrete field messages over generic "Please correct the invalid fields."
+  const fieldErrors = getApiFieldErrors(err);
+  const fieldMsgs = Object.values(fieldErrors).filter(Boolean);
+  if (fieldMsgs.length) return fieldMsgs.join('; ');
 
+  const detail = data.detail;
   if (typeof detail === 'string') return detail;
 
   if (Array.isArray(detail)) {
@@ -137,12 +176,8 @@ export function getApiError(err) {
       const field = Array.isArray(d.loc)
         ? d.loc.filter((x) => typeof x === 'string').join('.')
         : '';
-      return field ? `${field}: ${d.msg}` : d.msg;
+      return field ? formatApiFieldError(field.split('.').pop(), d.msg) : d.msg;
     }).join('; ');
-  }
-
-  if (Array.isArray(data.errors) && data.errors.length) {
-    return data.errors.map((e) => e.message || e.msg || String(e)).join('; ');
   }
 
   if (data.data?.errors?.length) {

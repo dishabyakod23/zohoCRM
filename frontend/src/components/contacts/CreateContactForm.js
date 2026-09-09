@@ -5,11 +5,11 @@ import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../ui/Toast.js';
-import { getApiError } from '../../lib/api.js';
+import { getApiError, getApiFieldErrors } from '../../lib/api.js';
 import { SALUTATIONS } from '../../lib/constants.js';
 import { AddressCountryField, AddressStateField } from '../forms/AddressCountryStateFields.js';
 import { nextStateForCountry } from '../../lib/addressRegions.js';
-import { validateRequired, validateEmail, validatePhone, validationToastMessage } from '../../lib/validators.js';
+import { validateRequired, validateEmail, collectPhoneFieldErrors, validationToastMessage } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as contactsApi from '../../lib/services/contacts.js';
@@ -27,13 +27,14 @@ import { makeFieldSetter } from '../../lib/formInput.js';
 import { isLostLeadStatus } from '../../lib/statusHelpers.js';
 import AccountNameCombobox from '../forms/AccountNameCombobox.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
+import IndustryField from '../forms/IndustryField.js';
 import { resolveContactCompanyFields } from '../../lib/resolveContactAccount.js';
 import { tryAttachCampaignAfterCreate } from '../../lib/campaignRecordHelpers.js';
 
 export function emptyContactForm() {
   return {
     salutation: '', first_name: '', last_name: '', account_id: '', account_name: '',
-    title: '', department: '', lead_source: '', lead_status: '', lost_reason: '', owner_id: '', campaign_id: '', campaign_name: '',
+    title: '', department: '', industry: '', lead_source: '', lead_status: '', lost_reason: '', owner_id: '', campaign_id: '', campaign_name: '',
     assistant: '', asst_phone: '', date_of_birth: '',
     email_opt_out: false,
     email: '', secondary_email: '', phone: '', other_phone: '', mobile: '',
@@ -171,10 +172,7 @@ export default function CreateContactForm() {
       if (!accountOk) errs.account_id = 'Company name is required';
       const emailErr = validateEmail(form.email);
       if (emailErr) errs.email = emailErr;
-      if (form.phone) {
-        const phoneErr = validatePhone(form.phone);
-        if (phoneErr) errs.phone = phoneErr;
-      }
+      Object.assign(errs, collectPhoneFieldErrors(form));
       if (!errs.email && form.email) {
         const uniqueErr = emailError || await validateEmailUnique(form.email);
         if (uniqueErr) errs.email = uniqueErr;
@@ -226,6 +224,17 @@ export default function CreateContactForm() {
       }
       navigateToRecord(created?.id ? `/contacts/${created.id}` : '/contacts');
     } catch (err) {
+      const apiFieldErrs = getApiFieldErrors(err);
+      if (Object.keys(apiFieldErrs).length) {
+        setErrors((prev) => ({ ...prev, ...apiFieldErrs }));
+        const firstKey = Object.keys(apiFieldErrs)[0];
+        requestAnimationFrame(() => {
+          document.querySelector(`[data-field="${firstKey}"]`)?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        });
+      }
       showToast(getApiError(err) || err.message);
     } finally {
       savingRef.current = false;
@@ -299,15 +308,15 @@ export default function CreateContactForm() {
             </FormField>
 
             <FormField label="Phone" error={errors.phone} name="phone">
-              <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} maxLength={20} />
+              <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} maxLength={15} inputMode="numeric" />
             </FormField>
 
-            <FormField label="Other Phone" name="other_phone">
-              <input className="input" value={form.other_phone} onChange={set('other_phone')} maxLength={20} />
+            <FormField label="Other Phone" error={errors.other_phone} name="other_phone">
+              <input className={inputClass(errors.other_phone)} value={form.other_phone} onChange={set('other_phone')} maxLength={15} inputMode="numeric" />
             </FormField>
 
-            <FormField label="Mobile" name="mobile">
-              <input className="input" value={form.mobile} onChange={set('mobile')} maxLength={20} />
+            <FormField label="Mobile" error={errors.mobile} name="mobile">
+              <input className={inputClass(errors.mobile)} value={form.mobile} onChange={set('mobile')} maxLength={15} inputMode="numeric" />
             </FormField>
 
             <FormField label="Assistant" name="assistant">
@@ -369,20 +378,25 @@ export default function CreateContactForm() {
               <input className="input" value={form.department} onChange={set('department')} />
             </FormField>
 
-            <FormField label="Home Phone" name="home_phone">
-              <input className="input" value={form.home_phone} onChange={set('home_phone')} />
+            <IndustryField
+              value={form.industry}
+              onChange={(industry) => setForm((f) => ({ ...f, industry }))}
+            />
+
+            <FormField label="Home Phone" error={errors.home_phone} name="home_phone">
+              <input className={inputClass(errors.home_phone)} value={form.home_phone} onChange={set('home_phone')} maxLength={15} inputMode="numeric" />
             </FormField>
 
-            <FormField label="Fax" name="fax">
-              <input className="input" value={form.fax} onChange={set('fax')} />
+            <FormField label="Fax" error={errors.fax} name="fax">
+              <input className={inputClass(errors.fax)} value={form.fax} onChange={set('fax')} maxLength={15} inputMode="numeric" />
             </FormField>
 
             <FormField label="Date of Birth" name="date_of_birth">
               <input className="input" type="date" value={form.date_of_birth} onChange={set('date_of_birth')} />
             </FormField>
 
-            <FormField label="Asst Phone" name="asst_phone">
-              <input className="input" value={form.asst_phone} onChange={set('asst_phone')} />
+            <FormField label="Asst Phone" error={errors.asst_phone} name="asst_phone">
+              <input className={inputClass(errors.asst_phone)} value={form.asst_phone} onChange={set('asst_phone')} maxLength={15} inputMode="numeric" />
             </FormField>
 
             <div className="flex items-center gap-2 pt-1">

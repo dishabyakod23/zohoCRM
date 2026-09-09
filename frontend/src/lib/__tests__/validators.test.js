@@ -60,17 +60,21 @@ describe('validatePhone', () => {
   });
 
   it('rejects letters and special characters', () => {
-    expect(validatePhone('uydfutdutdyutd')).toMatch(/digits/i);
-    expect(validatePhone('123-456-7890')).toMatch(/digits/i);
-    expect(validatePhone('+1 (234) 567-8900')).toMatch(/digits/i);
+    expect(validatePhone('uydfutdutdyutd')).toMatch(/invalid/i);
+    expect(validatePhone('123-456-7890')).toMatch(/invalid/i);
+    expect(validatePhone('+1 (234) 567-8900')).toMatch(/invalid/i);
   });
 
   it('rejects numbers with fewer than 7 digits', () => {
-    expect(validatePhone('12345')).toMatch(/valid phone/i);
+    expect(validatePhone('12345')).toBe('Phone is invalid.');
   });
 
   it('rejects numbers with more than 15 digits (E.164 max)', () => {
-    expect(validatePhone('1234567890123456')).toMatch(/15 digits/i);
+    expect(validatePhone('1234567890123456')).toBe('Phone is invalid.');
+  });
+
+  it('uses the provided field label in the error', () => {
+    expect(validatePhone('123', 'Mobile')).toBe('Mobile is invalid.');
   });
 
   it('accepts numbers with exactly 15 digits', () => {

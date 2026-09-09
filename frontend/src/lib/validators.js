@@ -15,7 +15,17 @@ export function validationToastMessage(
   fallback = 'Please fill in all required fields before saving.',
 ) {
   if (!errs || typeof errs !== 'object') return fallback;
-  const preferredKeys = ['email', 'secondary_email', 'phone', 'mobile', 'lost_reason'];
+  const preferredKeys = [
+    'email',
+    'secondary_email',
+    'phone',
+    'mobile',
+    'other_phone',
+    'home_phone',
+    'asst_phone',
+    'fax',
+    'lost_reason',
+  ];
   for (const key of preferredKeys) {
     const msg = errs[key];
     if (msg && !/is required\.?$/i.test(String(msg))) return msg;
@@ -24,15 +34,38 @@ export function validationToastMessage(
   return first ? String(first) : fallback;
 }
 
-export function validatePhone(phone) {
+export const PHONE_FIELD_LABELS = {
+  phone: 'Phone',
+  mobile: 'Mobile',
+  other_phone: 'Other Phone',
+  home_phone: 'Home Phone',
+  asst_phone: 'Asst Phone',
+  fax: 'Fax',
+};
+
+export function validatePhone(phone, label = 'Phone') {
   if (!phone) return null;
   const value = String(phone).trim();
   if (/\D/.test(value)) {
-    return 'Phone/mobile can only contain digits.';
+    return `${label} is invalid. Only digits are allowed.`;
   }
-  if (value.length < 7) return 'Please enter a valid phone number.';
-  if (value.length > 15) return 'Phone number cannot exceed 15 digits.';
+  if (value.length < 7 || value.length > 15) {
+    return `${label} is invalid.`;
+  }
   return null;
+}
+
+/** Validate every phone-like field present on a form/draft object. */
+export function collectPhoneFieldErrors(values = {}, fieldNames = Object.keys(PHONE_FIELD_LABELS)) {
+  const errs = {};
+  for (const name of fieldNames) {
+    const raw = values?.[name];
+    if (raw == null || String(raw).trim() === '') continue;
+    const label = PHONE_FIELD_LABELS[name] || 'Phone';
+    const phoneErr = validatePhone(raw, label);
+    if (phoneErr) errs[name] = phoneErr;
+  }
+  return errs;
 }
 
 export function validateRequired(fields, values) {

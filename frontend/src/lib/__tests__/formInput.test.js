@@ -45,4 +45,17 @@ describe('formInput helpers', () => {
     expect(form.phone).toBe('');
     expect(form.mobile).toBe('9876');
   });
+
+  it('makeFieldSetter sets an inline phone error while typing short numbers', () => {
+    let form = { phone: '' };
+    let errors = {};
+    const setForm = (updater) => { form = updater(form); };
+    const setErrors = (updater) => { errors = updater(errors); };
+    const set = makeFieldSetter(setForm, setErrors);
+    set('phone')({ target: { value: '12345' } });
+    expect(form.phone).toBe('12345');
+    expect(errors.phone).toBe('Phone is invalid.');
+    set('phone')({ target: { value: '1234567890' } });
+    expect(errors.phone).toBeNull();
+  });
 });

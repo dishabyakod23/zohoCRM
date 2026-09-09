@@ -1,3 +1,5 @@
+import { validatePhone, PHONE_FIELD_LABELS } from './validators.js';
+
 /** Strip leading whitespace from typed form values. */
 export function trimStartValue(value) {
   return typeof value === 'string' ? value.trimStart() : value;
@@ -34,7 +36,7 @@ export function sanitizePhoneDigits(value, { maxDigits = 15 } = {}) {
 
 /**
  * Standard create-form field setter: trims leading spaces as the user types.
- * Phone/mobile-like fields accept digits only.
+ * Phone/mobile-like fields accept digits only and show inline errors immediately.
  * Checkbox values are left as booleans.
  * Usage: const set = makeFieldSetter(setForm, setErrors);
  */
@@ -51,7 +53,16 @@ export function makeFieldSetter(setForm, setErrors) {
     }
     setForm((f) => ({ ...f, [field]: value }));
     if (setErrors) {
-      setErrors((er) => (er?.[field] == null ? er : { ...er, [field]: null }));
+      setErrors((er) => {
+        const next = { ...(er || {}) };
+        if (typeof value === 'string' && isPhoneDigitField(field)) {
+          const label = PHONE_FIELD_LABELS[field] || 'Phone';
+          next[field] = validatePhone(value, label);
+        } else if (next[field] != null) {
+          next[field] = null;
+        }
+        return next;
+      });
     }
   };
 }

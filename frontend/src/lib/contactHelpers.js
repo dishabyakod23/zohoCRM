@@ -122,6 +122,7 @@ export function toContactPayload(form, { partial = false } = {}) {
     if (formHas(form, 'email_opt_out')) payload.email_opt_out = !!form.email_opt_out;
     if (formHas(form, 'title')) payload.title = form.title || null;
     if (formHas(form, 'department')) payload.department = form.department || null;
+    if (formHas(form, 'industry')) payload.industry = form.industry || null;
     if (formHas(form, 'lead_source') || formHas(form, 'source')) {
       payload.lead_source = form.lead_source || form.source || null;
     }
@@ -181,6 +182,7 @@ export function toContactPayload(form, { partial = false } = {}) {
     email_opt_out: !!form.email_opt_out,
     title: form.title || null,
     department: form.department || null,
+    industry: form.industry || null,
     lead_source: form.lead_source || form.source || null,
     lead_status: contactOutreachLeadStatus(form.lead_status),
     ...(isLostLeadStatus(form.lead_status)

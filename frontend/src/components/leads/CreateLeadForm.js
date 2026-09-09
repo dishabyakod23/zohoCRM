@@ -10,7 +10,7 @@ import IndustryField from '../forms/IndustryField.js';
 import { AddressCountryField, AddressStateField } from '../forms/AddressCountryStateFields.js';
 import { nextStateForCountry } from '../../lib/addressRegions.js';
 import { outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
-import { validateRequired, validateEmail, validatePhone, validationToastMessage } from '../../lib/validators.js';
+import { validateRequired, validateEmail, collectPhoneFieldErrors, validationToastMessage } from '../../lib/validators.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import * as leadsApi from '../../lib/services/leads.js';
@@ -78,10 +78,7 @@ export default function CreateLeadForm() {
     const errs = validateRequired(REQUIRED, form);
     const emailErr = validateEmail(form.email);
     if (emailErr) errs.email = emailErr;
-    if (form.phone) {
-      const phoneErr = validatePhone(form.phone);
-      if (phoneErr) errs.phone = phoneErr;
-    }
+    Object.assign(errs, collectPhoneFieldErrors(form));
     if (!errs.email && form.email) {
       const uniqueErr = emailError || await validateEmailUnique(form.email);
       if (uniqueErr) errs.email = uniqueErr;

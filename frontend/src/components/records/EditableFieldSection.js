@@ -1,7 +1,13 @@
 'use client';
 import { useRef, useState } from 'react';
 import FormField, { inputClass } from '../forms/FormField.js';
-import { validateRequired, validatePhone } from '../../lib/validators.js';
+import {
+  validateRequired,
+  validatePhone,
+  collectPhoneFieldErrors,
+  PHONE_FIELD_LABELS,
+} from '../../lib/validators.js';
+import { getApiFieldErrors } from '../../lib/api.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 import {
   trimStartValue,
@@ -59,19 +65,19 @@ export default function EditableFieldSection({
       if (f.readOnly || !isVisible(f, current)) return;
       if (isRequired(f, current)) requiredFields[f.name] = f.label;
     });
-    const errs = validateRequired(requiredFields, current);
-    fields.forEach((f) => {
-      if (f.readOnly || !isVisible(f, current) || !isPhoneDigitField(f.name)) return;
-      const phoneErr = validatePhone(current[f.name]);
-      if (phoneErr) errs[f.name] = phoneErr;
-    });
+    const errs = {
+      ...validateRequired(requiredFields, current),
+      ...collectPhoneFieldErrors(current),
+    };
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;
     try {
       await onSave(current);
       markRecordListStale();
       setEditing(false);
-    } catch {
+    } catch (err) {
+      const apiFieldErrs = getApiFieldErrors(err);
+      if (Object.keys(apiFieldErrs).length) setFieldErrors(apiFieldErrs);
       // Stay in edit mode when save fails; onSave shows the error toast.
     }
   };
@@ -115,7 +121,7 @@ export default function EditableFieldSection({
                     <p className="text-sm text-zoho-text">{display(f) ?? <span className="text-zoho-muted/50">—</span>}</p>
                   </>
                 ) : (
-                  <FormField label={f.label} required={isRequired(f, draft)} error={fieldErrors[f.name]}>
+                  <FormField label={f.label} required={isRequired(f, draft)} error={fieldErrors[f.name]} name={f.name}>
                     {f.render
                       ? f.render(draft, (updater) => {
                         applyDraft(updater);
@@ -133,7 +139,13 @@ export default function EditableFieldSection({
                             let value = trimStartValue(e.target.value);
                             if (isPhoneDigitField(f.name)) value = sanitizePhoneDigits(value);
                             applyDraft((d) => ({ ...d, [f.name]: value }));
-                            setFieldErrors((er) => ({ ...er, [f.name]: null }));
+                            setFieldErrors((er) => {
+                              if (!isPhoneDigitField(f.name)) {
+                                return { ...er, [f.name]: null };
+                              }
+                              const label = f.label || PHONE_FIELD_LABELS[f.name] || 'Phone';
+                              return { ...er, [f.name]: validatePhone(value, label) };
+                            });
                           }}
                         />
                       )}

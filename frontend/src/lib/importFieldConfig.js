@@ -36,6 +36,7 @@ export const CONTACT_IMPORT_FIELDS = [
   { key: 'campaign_name', label: 'Campaign', aliases: ['campaign', 'campaign_id', 'campaign name'] },
   { key: 'title', label: 'Designation', aliases: ['designation', 'jobtitle', 'job_title', 'role', 'position'] },
   { key: 'department', label: 'Department', aliases: ['dept'] },
+  { key: 'industry', label: 'Industry', aliases: ['industry_type', 'sector', 'vertical'] },
   { key: 'date_of_birth', label: 'Date of Birth', aliases: ['dob', 'birthday', 'birth_date', 'dateofbirth'] },
   { key: 'email_opt_out', label: 'Email Opt Out', aliases: ['opt_out', 'emailoptout', 'do_not_email'] },
   { key: 'skype_id', label: 'LinkedIn', aliases: ['linkedin', 'linkedin_url', 'linkedin_profile', 'linkedin url', 'li_url', 'profile_url', 'skype'] },
