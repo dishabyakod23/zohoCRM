@@ -5,6 +5,7 @@ import * as projectsApi from './projects.js';
 import {
   applyAccountRecordFilters,
   hasAccountClientFilters,
+  usesCampaignMembershipFilter,
 } from '../listRecordFilters.js';
 import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
 import { cachedRequest } from '../requestCache.js';
@@ -84,7 +85,8 @@ export async function listAccounts({
   if (search) params.search = search;
   const mergedOwnerId = filters.owner_id || owner_id;
   if (mergedOwnerId) params.owner_id = mergedOwnerId;
-  if (filters.campaign_id) params.campaign_id = filters.campaign_id;
+  const useMembership = usesCampaignMembershipFilter(filters, campaignMemberIds);
+  if (!useMembership && filters.campaign_id) params.campaign_id = filters.campaign_id;
   if (filters.industry) params.industry = filters.industry;
   if (filters.city) params.city = filters.city;
   if (sort_by) params.sort_by = sort_by;
@@ -96,11 +98,11 @@ export async function listAccounts({
     emailMap ? attachContactEmails(rows, emailMap) : (rows || []).map(normalizeAccount)
   );
 
-  if (hasAccountClientFilters(filters)) {
+  if (hasAccountClientFilters(filters) || useMembership) {
     const allAccounts = withEmails(await fetchAllAccountPages({
       search,
       owner_id: mergedOwnerId,
-      campaign_id: filters.campaign_id || undefined,
+      ...(useMembership ? {} : { campaign_id: filters.campaign_id || undefined }),
       sort_by,
       sort_order,
     }));

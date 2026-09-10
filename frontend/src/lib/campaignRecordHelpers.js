@@ -215,13 +215,25 @@ export async function tryAttachCampaignAfterCreate({
   }
 }
 
+/**
+ * Load member ids for a campaign.
+ * @param {string} campaignId
+ * @param {string|string[]|null} memberType single type, list of types, or null/undefined for all
+ */
 export async function loadCampaignMemberIdSet(campaignId, memberType) {
   if (!campaignId) return null;
-  return cachedLookup(`campaign-members:${campaignId}:${memberType || 'all'}`, async () => {
+  const typeKey = Array.isArray(memberType)
+    ? [...memberType].map(String).sort().join(',')
+    : (memberType || 'all');
+  const allowed = Array.isArray(memberType)
+    ? new Set(memberType.map(String))
+    : (memberType ? new Set([String(memberType)]) : null);
+
+  return cachedLookup(`campaign-members:${campaignId}:${typeKey}`, async () => {
     const { data: members } = await campaignsApi.listCampaignMembers(campaignId);
     const set = new Set();
-    for (const member of members) {
-      if (!memberType || member.member_type === memberType) {
+    for (const member of members || []) {
+      if (!allowed || allowed.has(String(member.member_type))) {
         set.add(String(member.member_id));
       }
     }

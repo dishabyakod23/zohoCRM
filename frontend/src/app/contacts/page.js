@@ -14,6 +14,7 @@ import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
 import { DEFAULT_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../../lib/constants.js';
 import * as contactDirectoryApi from '../../lib/services/contactDirectory.js';
+import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchPeopleStatusOptions } from '../../lib/services/people.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchPipelineConvertTargets } from '../../lib/services/lookups.js';
 import { normalizeContact } from '../../lib/contactHelpers.js';
@@ -62,7 +63,10 @@ export default function ContactsPage() {
   const [leadStatusOptions, setLeadStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const leadStatusOptionsRef = useRef(FALLBACK_LEAD_STATUSES);
   const { campaigns } = useCampaignLookups();
-  const { memberIds: campaignMemberIds, ready: campaignMembersReady } = useCampaignMemberFilter(filters.campaign_id, 'contact');
+  const { memberIds: campaignMemberIds, ready: campaignMembersReady } = useCampaignMemberFilter(
+    filters.campaign_id,
+    ['contact', 'lead'],
+  );
   const activityCallsRef = useRef([]);
   const activityCallsLoadedRef = useRef(false);
 
@@ -323,6 +327,10 @@ export default function ContactsPage() {
               {...tableSelection}
               massUpdateFieldsLoader={loadMassUpdateFields}
               convertTargetsLoader={fetchPipelineConvertTargets}
+              massUpdateHandler={(ids, field, value, extras) => contactsApi.applyContactDirectoryMassUpdate(ids, field, value, {
+                ...extras,
+                statusOptions: leadStatusOptionsRef.current,
+              })}
               pagination={{ page, totalPages, onPageChange: setPage, label: `Page ${page} of ${totalPages}` }}
             />
           )}
@@ -355,7 +363,15 @@ export default function ContactsPage() {
             filters={filters}
             onChange={(key, value) => { setFilters((f) => ({ ...f, [key]: value })); setPage(1); }}
           />
-          <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => { setFilters((f) => ({ ...f, campaign_id: v })); setPage(1); }} />
+          <CampaignFilter
+            campaigns={campaigns}
+            value={filters.campaign_id}
+            onChange={(v) => {
+              // Campaign membership is across owners — clear default "My records" owner scope.
+              setFilters((f) => ({ ...f, campaign_id: v, ...(v ? { owner_id: '' } : {}) }));
+              setPage(1);
+            }}
+          />
           <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => { setFilters((f) => ({ ...f, owner_id: v })); setPage(1); }} />
         </ListToolbar>
       </div>

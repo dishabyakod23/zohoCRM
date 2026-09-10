@@ -207,7 +207,14 @@ export default function LeadsPage() {
             options={statusOptions.filter((s) => !['raw_prospect', 'qualified_lead', 'deal_lost'].includes(s.value))}
             emptyLabel="Active leads"
           />
-          <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => { setFilters((f) => ({ ...f, campaign_id: v })); setPage(1); }} />
+          <CampaignFilter
+            campaigns={campaigns}
+            value={filters.campaign_id}
+            onChange={(v) => {
+              setFilters((f) => ({ ...f, campaign_id: v, ...(v ? { owner_id: '' } : {}) }));
+              setPage(1);
+            }}
+          />
           <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => { setFilters((f) => ({ ...f, owner_id: v })); setPage(1); }} />
           <CreatedUpdatedDateFilters
             filters={filters}

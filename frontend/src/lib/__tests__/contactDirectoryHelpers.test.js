@@ -97,6 +97,20 @@ describe('applyContactDirectoryFilters', () => {
     expect(filtered).toHaveLength(1);
     expect(filtered[0].email).toBe('ann@example.com');
   });
+
+  it('filters by campaign membership ids including encoded row ids', () => {
+    const rows = [
+      { id: 'contact:c1', record_id: 'c1', email: 'in@example.com' },
+      { id: 'contact:c2', record_id: 'c2', email: 'out@example.com' },
+    ];
+    const filtered = applyContactDirectoryFilters(
+      rows,
+      { campaign_id: 'camp-1' },
+      { campaignMemberIds: new Set(['c1']) },
+    );
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].email).toBe('in@example.com');
+  });
 });
 
 describe('dedupeDirectoryRows', () => {

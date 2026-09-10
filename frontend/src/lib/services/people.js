@@ -72,6 +72,43 @@ export function parsePersonRowId(rowId) {
   return { entityType: 'contact', recordId: raw };
 }
 
+/** Split mixed Contacts-directory selection ids into contact vs lead UUID lists. */
+export function splitDirectorySelectionIds(ids = [], records = []) {
+  const byRowId = new Map();
+  for (const record of records || []) {
+    const rowId = personRowId(record) || record?.id;
+    if (rowId) byRowId.set(String(rowId), record);
+    const bareId = personRecordId(record);
+    if (bareId && !byRowId.has(String(bareId))) byRowId.set(String(bareId), record);
+  }
+
+  const contactIds = [];
+  const leadIds = [];
+
+  for (const id of ids || []) {
+    const record = byRowId.get(String(id));
+    const parsed = parsePersonRowId(id);
+    const entity = String(
+      (record && personEntityType(record)) || parsed.entityType || 'contact',
+    ).toLowerCase();
+    const recordId = (record && personRecordId(record)) || parsed.recordId || null;
+    if (!recordId) continue;
+
+    const isLead = entity === 'lead'
+      || entity === 'raw_lead'
+      || entity === 'qualified_lead'
+      || entity === 'proposal'
+      || entity.includes('lead');
+    if (isLead) leadIds.push(recordId);
+    else if (entity === 'contact' || entity === '') contactIds.push(recordId);
+  }
+
+  return {
+    contactIds: [...new Set(contactIds)],
+    leadIds: [...new Set(leadIds)],
+  };
+}
+
 export async function deletePersonRecord(person) {
   const entityType = personEntityType(person);
   const recordId = personRecordId(person);

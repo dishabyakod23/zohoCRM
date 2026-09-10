@@ -595,6 +595,8 @@ export default function RecordDataTable({
       if (massUpdateHandler) {
         const result = await massUpdateHandler(selected, massField, massValue, {
           lost_reason: showLostReasonField ? massLostReason : undefined,
+          records: selectedRecords,
+          statusOptions,
         });
         const failed = result?.failed_count ?? 0;
         const count = result?.success_count ?? result?.updated ?? selected.length;

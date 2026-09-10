@@ -8,6 +8,7 @@ import {
 } from '../contactDirectoryHelpers.js';
 import { DEFAULT_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
+import { usesCampaignMembershipFilter } from '../listRecordFilters.js';
 
 function shouldFallbackFromDirectoryApi(error) {
   const status = error?.response?.status;
@@ -24,6 +25,7 @@ function buildSourceParams({
   sort_by,
   sort_order,
   filters = {},
+  stripCampaignId = false,
 } = {}) {
   const mergedOwnerId = filters.owner_id || owner_id;
   return {
@@ -33,7 +35,8 @@ function buildSourceParams({
     sort_order,
     filters: {
       owner_id: mergedOwnerId,
-      campaign_id: filters.campaign_id || '',
+      // Membership set is source of truth — do not trust denormalized campaign_id on records.
+      campaign_id: stripCampaignId ? '' : (filters.campaign_id || ''),
       company: filters.company || '',
       designation: filters.designation || '',
       current_status: filters.current_status || '',
@@ -54,16 +57,18 @@ async function listContactDirectoryClientSide({
   campaignMemberIds,
   statusOptions,
 } = {}, accountMap = {}) {
+  const useMembership = usesCampaignMembershipFilter(filters, campaignMemberIds);
   const sourceParams = buildSourceParams({
     search,
     owner_id,
     sort_by,
     sort_order,
     filters,
+    stripCampaignId: useMembership,
   });
 
   const [contactsRes, leadsRes, dealsRes] = await Promise.all([
-    contactsApi.listAllContacts(sourceParams, accountMap),
+    contactsApi.listAllContacts({ ...sourceParams, campaignMemberIds }, accountMap),
     leadsApi.listAllLeads({ ...sourceParams, campaignMemberIds }, statusOptions),
     dealsApi.listAllDeals(sourceParams, accountMap),
   ]);
@@ -75,7 +80,7 @@ async function listContactDirectoryClientSide({
     statusOptions,
   });
 
-  rows = applyContactDirectoryFilters(rows, filters);
+  rows = applyContactDirectoryFilters(rows, filters, { campaignMemberIds });
   rows = sortRecords(rows, sort_key || 'created_desc', 'contacts');
 
   const total = rows.length;
@@ -89,7 +94,8 @@ async function listContactDirectoryClientSide({
 
 /**
  * Unified CRM people pool — uses GET /contacts/directory (or /people).
- * Falls back to client merge only when the directory API is unavailable.
+ * Falls back to client merge when the directory API is unavailable, or when
+ * filtering by campaign membership (API campaign_id is denormalized and incomplete).
  */
 export async function listContactDirectory({
   page = 1,
@@ -103,6 +109,21 @@ export async function listContactDirectory({
   campaignMemberIds,
   statusOptions,
 } = {}, accountMap = {}) {
+  if (usesCampaignMembershipFilter(filters, campaignMemberIds)) {
+    return listContactDirectoryClientSide({
+      page,
+      page_size,
+      search,
+      owner_id,
+      sort_by,
+      sort_order,
+      sort_key,
+      filters,
+      campaignMemberIds,
+      statusOptions,
+    }, accountMap);
+  }
+
   try {
     return await peopleApi.listPeople({
       page,
@@ -132,6 +153,16 @@ export async function listContactDirectory({
 }
 
 export async function listAllMatchingContactDirectoryIds(params = {}, accountMap = {}, statusOptions = []) {
+  if (usesCampaignMembershipFilter(params.filters, params.campaignMemberIds)) {
+    const result = await listContactDirectoryClientSide({
+      ...params,
+      page: 1,
+      page_size: CLIENT_FILTER_MAX_RECORDS,
+      statusOptions,
+    }, accountMap);
+    return (result.data || []).map((row) => row.id).filter(Boolean);
+  }
+
   try {
     return await peopleApi.listAllMatchingPeopleIds(params);
   } catch (err) {

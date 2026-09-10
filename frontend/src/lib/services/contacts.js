@@ -4,6 +4,7 @@ import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPOR
 import {
   applyContactRecordFilters,
   hasContactClientFilters,
+  usesCampaignMembershipFilter,
 } from '../listRecordFilters.js';
 import {
   fetchCampaignLookups,
@@ -13,7 +14,7 @@ import {
 import { CONTACT_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from '../constants.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
-import { advanceLeadStage, convertLead } from './leads.js';
+import { advanceLeadStage, convertLead, massUpdateLeads, applyLeadMassUpdate } from './leads.js';
 import * as accountsApi from './accounts.js';
 import { migrateRecordNotes } from './notes.js';
 import { CONFIRMED_ACCOUNT_TYPE } from '../companyHelpers.js';
@@ -23,6 +24,9 @@ import {
   PIPELINE_PROPOSAL,
   getConvertRedirectPath,
 } from '../pipelineHelpers.js';
+import { resolveLeadStatusForApi } from '../leadHelpers.js';
+import { isConvertMassUpdateField } from './lookups.js';
+import { splitDirectorySelectionIds } from './people.js';
 
 async function fetchAllContactPages(params, accountMap) {
   const pageSize = BULK_FETCH_PAGE_SIZE;
@@ -50,7 +54,34 @@ export async function listAllMatchingContactIds(params = {}, accountMap = {}) {
 }
 
 export async function listAllContacts(params = {}, accountMap = {}) {
-  const data = await fetchAllContactPages(params, accountMap);
+  const {
+    filters = {},
+    campaignMemberIds,
+    search,
+    owner_id,
+    sort_by,
+    sort_order,
+    account_id,
+    company_id,
+  } = params;
+  const mergedOwnerId = filters.owner_id || owner_id;
+  const useMembership = usesCampaignMembershipFilter(filters, campaignMemberIds);
+  const apiParams = {
+    search,
+    owner_id: mergedOwnerId,
+    sort_by,
+    sort_order,
+    account_id,
+    company_id,
+  };
+  if (!useMembership && filters.campaign_id) {
+    apiParams.campaign_id = filters.campaign_id;
+  }
+
+  let data = await fetchAllContactPages(apiParams, accountMap);
+  if (useMembership || hasContactClientFilters(filters)) {
+    data = applyContactRecordFilters(data, filters, { campaignMemberIds });
+  }
   return { data, total: data.length };
 }
 
@@ -72,18 +103,22 @@ export async function listContacts({
   if (company_id) params.company_id = company_id;
   const mergedOwnerId = filters.owner_id || owner_id;
   if (mergedOwnerId) params.owner_id = mergedOwnerId;
-  if (filters.campaign_id) params.campaign_id = filters.campaign_id;
   if (sort_by) params.sort_by = sort_by;
   if (sort_order) params.sort_order = sort_order;
 
-  if (hasContactClientFilters(filters)) {
+  const useMembership = usesCampaignMembershipFilter(filters, campaignMemberIds);
+  if (!useMembership && filters.campaign_id) params.campaign_id = filters.campaign_id;
+
+  if (hasContactClientFilters(filters) || useMembership) {
     const allContacts = await fetchAllContactPages(
       {
         search,
         owner_id: mergedOwnerId,
-        campaign_id: filters.campaign_id || undefined,
         sort_by,
         sort_order,
+        account_id,
+        company_id,
+        ...(useMembership ? {} : { campaign_id: filters.campaign_id || undefined }),
       },
       accountMap,
     );
@@ -121,6 +156,104 @@ export async function updateContact(id, form) {
 
 export async function deleteContact(id) {
   await api.delete(`/contacts/${id}`);
+}
+
+export async function massUpdateContacts(ids, field, value) {
+  if (!ids?.length) return { success_count: 0, failed_count: 0, errors: [] };
+  const res = await api.post('/contacts/mass-update', { ids, field, value });
+  return res.data?.data ?? res.data;
+}
+
+function mergeMassUpdateResults(results = []) {
+  return {
+    success_count: results.reduce(
+      (n, r) => n + (Number(r?.success_count) || Number(r?.updated) || 0),
+      0,
+    ),
+    failed_count: results.reduce((n, r) => n + (Number(r?.failed_count) || 0), 0),
+    errors: results.flatMap((r) => r?.errors || []),
+  };
+}
+
+/**
+ * Contacts directory mass-update: Lead Status splits mixed selection into
+ * POST /contacts/mass-update + POST /leads/mass-update (1–2 requests).
+ */
+export async function applyContactDirectoryMassUpdate(ids, field, value, extras = {}) {
+  const fieldKey = String(field || '').toLowerCase();
+  const { contactIds, leadIds } = splitDirectorySelectionIds(ids, extras.records);
+
+  if (fieldKey === 'status' || fieldKey === 'lead_status') {
+    const apiValue = resolveLeadStatusForApi(value, extras.statusOptions || []);
+    const apiField = 'lead_status';
+    const tasks = [];
+    if (contactIds.length) tasks.push(massUpdateContacts(contactIds, apiField, apiValue));
+    if (leadIds.length) {
+      tasks.push(massUpdateLeads(leadIds, apiField, apiValue, {
+        lost_reason: extras.lost_reason,
+      }));
+    }
+    if (!tasks.length) {
+      return {
+        success_count: 0,
+        failed_count: (ids || []).length || 0,
+        errors: ['No valid contact or lead ids selected'],
+      };
+    }
+    const results = await Promise.all(tasks);
+    const merged = mergeMassUpdateResults(results);
+    if (merged.failed_count > 0) {
+      const err = new Error((merged.errors || []).join('; ') || 'Mass update failed');
+      err.massUpdateResult = merged;
+      throw err;
+    }
+    return merged;
+  }
+
+  if (isConvertMassUpdateField({
+    value: field,
+    type: fieldKey === 'convert' ? 'convert' : undefined,
+  })) {
+    let success = 0;
+    const errors = [];
+
+    const contactResults = await Promise.allSettled(
+      contactIds.map((id) => convertContact(id, value)),
+    );
+    for (let i = 0; i < contactResults.length; i += 1) {
+      const result = contactResults[i];
+      if (result.status === 'fulfilled') success += 1;
+      else {
+        const err = result.reason;
+        errors.push(`${contactIds[i]}: ${err?.response?.data?.message || err?.message || 'Convert failed'}`);
+      }
+    }
+
+    if (leadIds.length) {
+      try {
+        const leadResult = await applyLeadMassUpdate(leadIds, field, value, extras);
+        success += leadResult?.success_count ?? leadResult?.updated ?? leadIds.length;
+      } catch (err) {
+        const partial = err?.massUpdateResult;
+        if (partial) {
+          success += partial.success_count || 0;
+          errors.push(...(partial.errors || []));
+        } else {
+          errors.push(err?.message || 'Lead convert failed');
+        }
+      }
+    }
+
+    const merged = { success_count: success, failed_count: errors.length, errors };
+    if (errors.length) {
+      const err = new Error(errors.join('; ') || 'Mass update failed');
+      err.massUpdateResult = merged;
+      throw err;
+    }
+    return merged;
+  }
+
+  throw new Error(`Unsupported contacts mass-update field: ${field}`);
 }
 
 export async function downloadContactImportTemplate() {

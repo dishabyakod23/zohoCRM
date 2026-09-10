@@ -85,6 +85,16 @@ export function matchLeadStatus(record, status) {
   return false;
 }
 
+/** Match a list/directory row against campaign membership ids (bare uuid or encoded id). */
+export function matchesCampaignMembership(record, campaignMemberIds) {
+  if (!campaignMemberIds) return true;
+  const rawId = String(record?.record_id || record?.id || '');
+  if (!rawId) return false;
+  if (campaignMemberIds.has(rawId)) return true;
+  const bare = rawId.includes(':') ? rawId.slice(rawId.lastIndexOf(':') + 1) : rawId;
+  return campaignMemberIds.has(bare);
+}
+
 export function applyLeadRecordFilters(leads, filters = {}, { campaignMemberIds } = {}) {
   if (!filters || !Object.values(filters).some(Boolean)) return leads || [];
 
@@ -93,7 +103,7 @@ export function applyLeadRecordFilters(leads, filters = {}, { campaignMemberIds 
     if (!matchSource(lead, filters.source)) return false;
     if (!matchLeadStatus(lead, filters.status)) return false;
     if (!matchesOwner(lead, filters.owner_id)) return false;
-    if (filters.campaign_id && campaignMemberIds && !campaignMemberIds.has(String(lead.id))) return false;
+    if (filters.campaign_id && campaignMemberIds && !matchesCampaignMembership(lead, campaignMemberIds)) return false;
     if (filters.deal_status && lead.deal_status !== filters.deal_status) return false;
     if (!matchesDateRange(lead.proposal_date, filters.proposal_date_from, filters.proposal_date_to)) return false;
     if (!matchesDateRange(lead.closure_date, filters.closure_date_from, filters.closure_date_to)) return false;
@@ -116,7 +126,7 @@ export function applyContactRecordFilters(contacts, filters = {}, { campaignMemb
   return (contacts || []).filter((contact) => {
     if (!includesText(contact.account_name, filters.company)) return false;
     if (!matchesOwner(contact, filters.owner_id)) return false;
-    if (filters.campaign_id && campaignMemberIds && !campaignMemberIds.has(String(contact.id))) return false;
+    if (filters.campaign_id && campaignMemberIds && !matchesCampaignMembership(contact, campaignMemberIds)) return false;
     if (filters.notes_q) {
       const blob = [contact.description, contact.notes, contact.follow_up_notes, contact.followup_notes]
         .filter(Boolean)
@@ -138,7 +148,7 @@ export function applyAccountRecordFilters(accounts, filters = {}, { campaignMemb
     if (!includesText(account.city, filters.city)) return false;
     if (filters.status && String(account.account_type || '').toLowerCase() !== String(filters.status).toLowerCase()) return false;
     if (!matchesOwner(account, filters.owner_id)) return false;
-    if (filters.campaign_id && campaignMemberIds && !campaignMemberIds.has(String(account.id))) return false;
+    if (filters.campaign_id && campaignMemberIds && !matchesCampaignMembership(account, campaignMemberIds)) return false;
     if (!matchesRecordTimestampFilters(account, filters)) return false;
     return true;
   });
@@ -153,6 +163,11 @@ export function hasLeadClientFilters(filters = {}) {
     || (filters.deal_size_max !== '' && filters.deal_size_max != null)
     || hasTimestampFilters(filters),
   );
+}
+
+/** True when list filtering should use campaign membership ids (not denormalized campaign_id). */
+export function usesCampaignMembershipFilter(filters = {}, campaignMemberIds) {
+  return Boolean(filters?.campaign_id && campaignMemberIds);
 }
 
 export function hasContactClientFilters(filters = {}) {

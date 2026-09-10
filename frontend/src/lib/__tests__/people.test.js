@@ -5,6 +5,7 @@ import {
   parsePersonRowId,
   deletePersonRecord,
   campaignMembersFromSelection,
+  splitDirectorySelectionIds,
 } from '../services/people.js';
 import * as leadsApi from '../services/leads.js';
 import * as contactsApi from '../services/contacts.js';
@@ -136,5 +137,18 @@ describe('campaignMembersFromSelection', () => {
     expect(members).toEqual([
       { member_type: 'lead', member_id: 'l9', previous_campaign_id: '' },
     ]);
+  });
+});
+
+describe('splitDirectorySelectionIds', () => {
+  it('splits mixed contact/lead selection into separate id lists', () => {
+    const result = splitDirectorySelectionIds(
+      ['contact:c1', 'lead:l1', 'c2'],
+      [
+        { id: 'c2', entity_type: 'contact', record_id: 'c2' },
+      ],
+    );
+    expect(result.contactIds.sort()).toEqual(['c1', 'c2']);
+    expect(result.leadIds).toEqual(['l1']);
   });
 });

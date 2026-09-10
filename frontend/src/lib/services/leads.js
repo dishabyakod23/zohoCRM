@@ -11,6 +11,7 @@ import {
 import {
   applyLeadRecordFilters,
   hasLeadClientFilters,
+  usesCampaignMembershipFilter,
 } from '../listRecordFilters.js';
 import {
   fetchCampaignLookups,
@@ -146,12 +147,14 @@ function refineLeadPageByPipelineStage(data, pipeline_stage) {
 
 export async function listAllLeads(params = {}, statusOptions) {
   const { pipeline_stage, filters, campaignMemberIds, ...rest } = params;
-  const apiParams = buildLeadListApiParams({ pipeline_stage, filters, ...rest });
+  const useMembership = usesCampaignMembershipFilter(filters, campaignMemberIds);
+  const apiFilters = useMembership ? { ...filters, campaign_id: '' } : filters;
+  const apiParams = buildLeadListApiParams({ pipeline_stage, filters: apiFilters, ...rest });
   let data = await fetchAllLeadPages(apiParams, statusOptions);
   if (pipeline_stage) {
     data = refineLeadPageByPipelineStage(data, pipeline_stage);
   }
-  if (filters && hasLeadClientFilters(filters)) {
+  if (useMembership || (filters && hasLeadClientFilters(filters))) {
     data = applyLeadRecordFilters(data, filters, { campaignMemberIds });
   }
   return { data, total: data.length };
@@ -194,10 +197,22 @@ export async function listLeads({
     sort_order,
   });
 
-  const needsClientFilter = hasLeadClientFilters(filters);
+  const needsClientFilter = hasLeadClientFilters(filters)
+    || usesCampaignMembershipFilter(filters, campaignMemberIds);
 
   if (needsClientFilter) {
-    const allLeads = await fetchAllLeadPages(params, statusOptions);
+    const apiParams = usesCampaignMembershipFilter(filters, campaignMemberIds)
+      ? buildLeadListApiParams({
+        pipeline_stage,
+        filters: { ...filters, campaign_id: '' },
+        search,
+        owner_id,
+        lead_status,
+        sort_by,
+        sort_order,
+      })
+      : params;
+    const allLeads = await fetchAllLeadPages(apiParams, statusOptions);
     let filtered = refineLeadPageByPipelineStage(allLeads, pipeline_stage);
     filtered = applyLeadRecordFilters(filtered, filters, { campaignMemberIds });
     const start = (page - 1) * page_size;
@@ -243,10 +258,15 @@ export async function listWorkItems({
   });
   params.is_converted = false;
 
-  const needsClientFilter = hasLeadClientFilters(filters);
+  const needsClientFilter = hasLeadClientFilters(filters)
+    || usesCampaignMembershipFilter(filters, campaignMemberIds);
 
   if (needsClientFilter) {
-    const allLeads = await fetchAllLeadPages(params, statusOptions);
+    const fetchParams = { ...params };
+    if (usesCampaignMembershipFilter(filters, campaignMemberIds)) {
+      delete fetchParams.campaign_id;
+    }
+    const allLeads = await fetchAllLeadPages(fetchParams, statusOptions);
     let items = refineLeadPageByPipelineStage(allLeads, pipeline_stage);
     items = applyLeadRecordFilters(items, filters, { campaignMemberIds });
     items = sortRecords(items, sort_key || 'created_desc', 'leads');
