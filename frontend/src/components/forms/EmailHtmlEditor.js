@@ -66,11 +66,13 @@ export default function EmailHtmlEditor({
 
   useEffect(() => {
     const el = editorRef.current;
-    if (!el || disabled) return;
+    if (!el) return;
     const next = value || '';
-    if (next === lastValueRef.current) return;
+    // Always sync HTML into the DOM — including when disabled/read-only —
+    // otherwise the box looks empty while Email Preview still shows content.
+    if (next === lastValueRef.current && el.innerHTML === next) return;
     if (el.innerHTML !== next) {
-      el.innerHTML = next || '';
+      el.innerHTML = next;
     }
     lastValueRef.current = next;
   }, [value, disabled]);

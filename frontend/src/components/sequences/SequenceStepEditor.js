@@ -224,7 +224,7 @@ export default function SequenceStepEditor({
           </FormField>
           <FormField label="HTML body (what recipients see)">
             <EmailHtmlEditor
-              value={step.html_body || ''}
+              value={step.html_body || (step.text_body ? ensureEmailHtmlBody(step.text_body) : '')}
               disabled={readOnly}
               minHeight={140}
               onChange={(html_body) => update({ html_body })}
