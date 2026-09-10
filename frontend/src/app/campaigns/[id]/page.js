@@ -21,6 +21,8 @@ import {
   formatCampaignMemberIdentity,
 } from '../../../lib/campaignRecordHelpers.js';
 import { getLeadDetailPath } from '../../../lib/pipelineHelpers.js';
+import { validatePastDate } from '../../../lib/validators.js';
+import { todayKey } from '../../../lib/calendarHelpers.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function CampaignDetailPage() {
@@ -43,10 +45,14 @@ export default function CampaignDetailPage() {
 
   const load = useCallback(() => {
     if (!ready) return;
-    campaignsApi.getCampaign(id)
-      .then(async (data) => {
+    Promise.all([
+      campaignsApi.getCampaign(id),
+      campaignsApi.listCampaignMembers(id).catch(() => ({ data: [] })),
+    ])
+      .then(async ([data, listed]) => {
         setCampaign(data);
-        const enriched = await enrichCampaignMembers(data.members || []);
+        const memberRows = (listed?.data?.length ? listed.data : data.members) || [];
+        const enriched = await enrichCampaignMembers(memberRows);
         setMembers(enriched);
       })
       .catch(() => { showToast('Campaign not found'); navigateToRecord('/campaigns'); });
@@ -55,6 +61,22 @@ export default function CampaignDetailPage() {
   useEffect(() => { if (ready) load(); }, [ready, load]);
 
   const saveSection = async (payload) => {
+    const start = (payload.start_date ?? '').slice(0, 10);
+    const end = (payload.end_date ?? '').slice(0, 10);
+    const startErr = start && start !== (campaign.start_date ?? '').slice(0, 10)
+      ? validatePastDate(start, 'Start Date')
+      : null;
+    const endErr = end && end !== (campaign.end_date ?? '').slice(0, 10)
+      ? validatePastDate(end, 'End Date')
+      : null;
+    if (startErr || endErr) {
+      showToast(startErr || endErr);
+      throw new Error(startErr || endErr);
+    }
+    if (start && end && end < start) {
+      showToast('End Date cannot be before Start Date.');
+      throw new Error('End Date cannot be before Start Date.');
+    }
     setSaving(true);
     try {
       await campaignsApi.updateCampaign(id, { ...payload, name: payload.name ?? payload.campaign_name, type: payload.type ?? payload.campaign_type });
@@ -88,11 +110,28 @@ export default function CampaignDetailPage() {
               </select>
             ) },
             { name: 'start_date', label: 'Start Date', render: (d, set) => (
-              <input className="input" type="date" value={(d.start_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, start_date: e.target.value }))} />
+              <input
+                className="input"
+                type="date"
+                min={todayKey()}
+                value={(d.start_date ?? '').slice(0, 10)}
+                onChange={(e) => set((p) => ({ ...p, start_date: e.target.value }))}
+              />
             ) },
-            { name: 'end_date', label: 'End Date', render: (d, set) => (
-              <input className="input" type="date" value={(d.end_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, end_date: e.target.value }))} />
-            ) },
+            { name: 'end_date', label: 'End Date', render: (d, set) => {
+              const today = todayKey();
+              const start = (d.start_date ?? '').slice(0, 10);
+              const min = start && start > today ? start : today;
+              return (
+                <input
+                  className="input"
+                  type="date"
+                  min={min}
+                  value={(d.end_date ?? '').slice(0, 10)}
+                  onChange={(e) => set((p) => ({ ...p, end_date: e.target.value }))}
+                />
+              );
+            } },
             { name: 'expected_revenue', label: 'Expected Revenue' },
             { name: 'budgeted_cost', label: 'Budgeted Cost' },
             { name: 'actual_cost', label: 'Actual Cost' },
@@ -104,7 +143,11 @@ export default function CampaignDetailPage() {
                 {users.map((u) => <option key={u.id || u.value} value={u.id || u.value}>{u.name}</option>)}
               </select>
             ) },
-            { name: 'member_count', label: 'Members', readOnly: true, format: () => String(campaign.member_count || members.length || (campaign.members || []).length || 0) },
+            { name: 'member_count', label: 'Members', readOnly: true, format: () => String(Math.max(
+              Number(campaign.member_count) || 0,
+              members.length,
+              (campaign.members || []).length,
+            )) },
             { name: 'description', label: 'Description', colSpan: true, render: (d, set) => (
               <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: e.target.value }))} />
             ) },

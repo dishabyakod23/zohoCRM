@@ -12,7 +12,7 @@ import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
-import { LIST_VIEWS, DEFAULT_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../../lib/constants.js';
+import { DEFAULT_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../../lib/constants.js';
 import * as contactDirectoryApi from '../../lib/services/contactDirectory.js';
 import { fetchPeopleStatusOptions } from '../../lib/services/people.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchPipelineConvertTargets } from '../../lib/services/lookups.js';
@@ -55,7 +55,6 @@ export default function ContactsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
-  const [activeView, setActiveView] = useState('All Contacts');
   const { filters, setFilters, clearFilters } = useDefaultOwnerFilters(EMPTY_CONTACT_FILTERS);
   const [users, setUsers] = useState([]);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
@@ -148,9 +147,7 @@ export default function ContactsPage() {
 
     setLoading(true);
     try {
-      const directoryFilters = activeView === 'My Contacts' && user?.id
-        ? { ...filters, owner_id: user.id }
-        : filters;
+      const directoryFilters = filters;
 
       const result = await contactDirectoryApi.listContactDirectory({
         page: needsClientPagination ? 1 : page,
@@ -223,8 +220,6 @@ export default function ContactsPage() {
     page,
     debouncedSearch,
     showToast,
-    activeView,
-    user?.id,
     filters,
     sort,
     campaignMemberIds,
@@ -240,19 +235,13 @@ export default function ContactsPage() {
   const initials = (c) => `${c.first_name?.[0] || ''}${c.last_name?.[0] || ''}`.toUpperCase();
   const totalPages = Math.ceil(total / LIMIT) || 1;
 
-  const contactListParams = useMemo(() => {
-    const params = {
-      search: debouncedSearch || undefined,
-      sort_by: getSortApiParams(sort, 'contacts').sort_by,
-      sort_order: getSortApiParams(sort, 'contacts').sort_order,
-      filters: activeView === 'My Contacts' && user?.id
-        ? { ...filters, owner_id: user.id }
-        : filters,
-      campaignMemberIds,
-    };
-    if (activeView === 'My Contacts' && user?.id) params.owner_id = user.id;
-    return params;
-  }, [debouncedSearch, sort, activeView, user?.id, filters, campaignMemberIds]);
+  const contactListParams = useMemo(() => ({
+    search: debouncedSearch || undefined,
+    sort_by: getSortApiParams(sort, 'contacts').sort_by,
+    sort_order: getSortApiParams(sort, 'contacts').sort_order,
+    filters,
+    campaignMemberIds,
+  }), [debouncedSearch, sort, filters, campaignMemberIds]);
 
   const fetchAllMatchingContactIds = useCallback(
     () => contactDirectoryApi.listAllMatchingContactDirectoryIds(contactListParams, accountMapRef.current),
@@ -261,7 +250,7 @@ export default function ContactsPage() {
 
   const tableSelection = useTableSelection({
     total,
-    resetDeps: [activeView, debouncedSearch, filters, sort, campaignMemberIds],
+    resetDeps: [debouncedSearch, filters, sort, campaignMemberIds],
     fetchAllIds: fetchAllMatchingContactIds,
   });
 
@@ -313,13 +302,6 @@ export default function ContactsPage() {
         <ListToolbar
           moduleName="Contacts"
           total={total}
-          views={LIST_VIEWS.contacts}
-          activeView={activeView}
-          onViewChange={(v) => {
-            setActiveView(v);
-            setPage(1);
-            if (v === 'Recently Created') setSort('created_desc');
-          }}
           searchValue={search}
           onSearch={(v) => { setSearch(v); setPage(1); }}
           filterListSearch

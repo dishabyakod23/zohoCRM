@@ -12,12 +12,8 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
-import { WORK_ITEM_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import {
-  PIPELINE_RAW,
-  PIPELINE_LEAD,
-  PIPELINE_QUALIFIED,
-  PIPELINE_PROPOSAL,
   getLeadDetailPath,
 } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
@@ -31,14 +27,6 @@ import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
 
-const STAGE_BY_VIEW = {
-  'All Work Items': null,
-  'Cold Leads': PIPELINE_RAW,
-  'Warm Leads': PIPELINE_LEAD,
-  'Qualified Leads': PIPELINE_QUALIFIED,
-  Proposals: PIPELINE_PROPOSAL,
-};
-
 export default function WorkItemsPage() {
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -51,7 +39,6 @@ export default function WorkItemsPage() {
   const [filters, setFilters] = useState(EMPTY_LEAD_FILTERS);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
-  const [activeView, setActiveView] = useState('All Work Items');
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const statusOptionsRef = useRef(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
@@ -80,7 +67,6 @@ export default function WorkItemsPage() {
         page,
         page_size: limit,
         search: debouncedSearch || undefined,
-        pipeline_stage: STAGE_BY_VIEW[activeView] || undefined,
         filters,
         statusOptions: statusOptionsRef.current,
         campaignMemberIds,
@@ -98,7 +84,7 @@ export default function WorkItemsPage() {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [user?.id, page, limit, debouncedSearch, filters, activeView, showToast, sort, campaignMemberIds]);
+  }, [user?.id, page, limit, debouncedSearch, filters, showToast, sort, campaignMemberIds]);
 
   useEffect(() => { fetchWorkItems(); }, [fetchWorkItems]);
 
@@ -107,11 +93,10 @@ export default function WorkItemsPage() {
   const workItemListParams = useMemo(() => ({
     userId: user?.id,
     search: debouncedSearch || undefined,
-    pipeline_stage: STAGE_BY_VIEW[activeView] || undefined,
     filters,
     campaignMemberIds,
     ...getSortApiParams(sort, 'leads'),
-  }), [user?.id, debouncedSearch, activeView, filters, sort, campaignMemberIds]);
+  }), [user?.id, debouncedSearch, filters, sort, campaignMemberIds]);
 
   const fetchAllMatchingWorkItemIds = useCallback(
     () => (user?.id ? leadsApi.listAllMatchingWorkItemIds(workItemListParams, statusOptions) : Promise.resolve([])),
@@ -120,7 +105,7 @@ export default function WorkItemsPage() {
 
   const tableSelection = useTableSelection({
     total,
-    resetDeps: [activeView, debouncedSearch, filters, sort, campaignMemberIds],
+    resetDeps: [debouncedSearch, filters, sort, campaignMemberIds],
     fetchAllIds: fetchAllMatchingWorkItemIds,
   });
 
@@ -164,9 +149,6 @@ export default function WorkItemsPage() {
         <ListToolbar
           moduleName="work items"
           total={total}
-          views={WORK_ITEM_VIEWS}
-          activeView={activeView}
-          onViewChange={(v) => { setActiveView(v); setPage(1); }}
           searchValue={search}
           onSearch={(v) => { setSearch(v); setPage(1); }}
           sort={sort}

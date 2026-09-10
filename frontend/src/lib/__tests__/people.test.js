@@ -4,6 +4,7 @@ import {
   personRowId,
   parsePersonRowId,
   deletePersonRecord,
+  campaignMembersFromSelection,
 } from '../services/people.js';
 import * as leadsApi from '../services/leads.js';
 import * as contactsApi from '../services/contacts.js';
@@ -111,5 +112,29 @@ describe('deletePersonRecord', () => {
   it('deletes leads via leads API', async () => {
     await deletePersonRecord({ entity_type: 'lead', record_id: 'l1' });
     expect(leadsApi.deleteLead).toHaveBeenCalledWith('l1');
+  });
+});
+
+describe('campaignMembersFromSelection', () => {
+  it('includes selected ids that are not on the current page', () => {
+    const members = campaignMembersFromSelection(
+      ['c1', 'c2', 'c3'],
+      {
+        records: [{ id: 'c1', campaign_id: 'old' }],
+        getRowId: (r) => r.id,
+      },
+    );
+    expect(members).toEqual([
+      { member_type: 'contact', member_id: 'c1', previous_campaign_id: 'old' },
+      { member_type: 'contact', member_id: 'c2', previous_campaign_id: '' },
+      { member_type: 'contact', member_id: 'c3', previous_campaign_id: '' },
+    ]);
+  });
+
+  it('reads entity type from encoded row ids', () => {
+    const members = campaignMembersFromSelection(['lead:l9'], { records: [] });
+    expect(members).toEqual([
+      { member_type: 'lead', member_id: 'l9', previous_campaign_id: '' },
+    ]);
   });
 });

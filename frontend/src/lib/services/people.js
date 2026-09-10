@@ -133,6 +133,28 @@ export function personCampaignMemberType(person) {
   return 'contact';
 }
 
+/** Build campaign membership refs from list selection ids (works across pages). */
+export function campaignMembersFromSelection(selectedIds = [], {
+  records = [],
+  getRowId = (r) => r.id,
+  defaultMemberType = 'contact',
+} = {}) {
+  const byRowId = new Map((records || []).map((record) => [String(getRowId(record)), record]));
+  return (selectedIds || []).map((rowId) => {
+    const record = byRowId.get(String(rowId));
+    const parsed = parsePersonRowId(rowId);
+    const member_type = record
+      ? personCampaignMemberType(record)
+      : personCampaignMemberType({ entity_type: parsed.entityType || defaultMemberType });
+    const member_id = (record && personRecordId(record)) || parsed.recordId || null;
+    return {
+      member_type,
+      member_id,
+      previous_campaign_id: record?.campaign_id || '',
+    };
+  }).filter((member) => member.member_type && member.member_id);
+}
+
 export function personDetailHref(person) {
   if (!person) return '/contacts';
 

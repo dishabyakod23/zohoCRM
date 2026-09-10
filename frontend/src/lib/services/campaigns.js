@@ -78,9 +78,12 @@ export async function deleteCampaign(id) {
 }
 
 export async function listCampaignMembers(campaignId) {
-  const campaign = await getCampaign(campaignId);
-  const members = campaign.members || [];
-  return { data: members, total: members.length };
+  const res = await api.get(`/campaigns/${campaignId}/members`);
+  const data = res.data?.data || [];
+  return {
+    data,
+    total: res.data?.meta?.total ?? data.length,
+  };
 }
 
 export async function addCampaignMember(campaignId, payload) {

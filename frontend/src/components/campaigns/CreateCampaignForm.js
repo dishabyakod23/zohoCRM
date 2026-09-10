@@ -5,8 +5,9 @@ import CRMLayout from '../layout/CRMLayout.js';
 import FormField, { inputClass } from '../forms/FormField.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../ui/Toast.js';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../lib/api.js';
-import { validateRequired } from '../../lib/validators.js';
+import { validateRequired, validatePastDate, validationToastMessage } from '../../lib/validators.js';
 import * as campaignsApi from '../../lib/services/campaigns.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
@@ -18,6 +19,7 @@ import { defaultOwnerFilterId } from '../../lib/listRecordFilters.js';
 import { canAssignRecords } from '../../lib/roles.js';
 import { OwnerFilter } from '../layout/ListFilterFields.js';
 import { makeFieldSetter } from '../../lib/formInput.js';
+import { todayKey } from '../../lib/calendarHelpers.js';
 
 const RECIPIENT_MODULES = [
   { key: 'contacts', label: 'Contacts' },
@@ -35,23 +37,61 @@ const LEAD_STAGE_BY_MODULE = {
   proposals: PIPELINE_PROPOSAL,
 };
 
-/** Fetch selectable {key, member_type, member_id, name, email, module} recipients for the chosen modules. */
-async function fetchRecipientPool(modules, { ownerId } = {}) {
-  const tasks = [];
+/** Per-module page size — avoid loading thousands of recipients up front. */
+const RECIPIENT_PAGE_SIZE = 25;
+
+function mapContactRecipient(c) {
+  return {
+    key: `contact:${c.id}`,
+    member_type: 'contact',
+    member_id: c.id,
+    name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email,
+    email: c.email,
+    company: c.account_name || c.company || '',
+    module: 'Contacts',
+  };
+}
+
+function mapLeadRecipient(l, moduleLabel) {
+  return {
+    key: `lead:${l.id}`,
+    member_type: 'lead',
+    member_id: l.id,
+    name: `${l.first_name || ''} ${l.last_name || ''}`.trim() || l.company || l.email,
+    email: l.email,
+    company: l.company || '',
+    module: moduleLabel,
+  };
+}
+
+function mapAccountRecipient(a) {
+  return {
+    key: `account:${a.id}`,
+    member_type: 'account',
+    member_id: a.id,
+    name: a.name || a.account_name || a.email,
+    email: a.email,
+    company: a.name || a.account_name || '',
+    module: 'Accounts',
+  };
+}
+
+/**
+ * Paginated recipient fetch for campaign create.
+ * Returns { data, total, hasMore } — never walks every CRM page.
+ */
+async function fetchRecipientPage(modules, { ownerId, search, page = 1 } = {}) {
   const ownerParams = ownerId ? { owner_id: ownerId } : {};
+  const searchParams = search ? { search } : {};
+  const listParams = { page, page_size: RECIPIENT_PAGE_SIZE, ...ownerParams, ...searchParams };
+  const tasks = [];
 
   if (modules.includes('contacts')) {
     tasks.push(
-      contactsApi.listAllContacts(ownerParams).then(({ data }) =>
-        (data || []).filter((c) => c.email).map((c) => ({
-          key: `contact:${c.id}`,
-          member_type: 'contact',
-          member_id: c.id,
-          name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email,
-          email: c.email,
-          module: 'Contacts',
-        }))
-      )
+      contactsApi.listContacts(listParams).then((res) => ({
+        rows: (res.data || []).filter((c) => c.email).map(mapContactRecipient),
+        total: res.total ?? 0,
+      })),
     );
   }
 
@@ -59,39 +99,32 @@ async function fetchRecipientPool(modules, { ownerId } = {}) {
     if (!modules.includes(key)) continue;
     const label = RECIPIENT_MODULES.find((m) => m.key === key)?.label || key;
     tasks.push(
-      leadsApi.listAllLeads({ pipeline_stage: stage, ...ownerParams }).then(({ data }) =>
-        (data || []).filter((l) => l.email).map((l) => ({
-          key: `lead:${l.id}`,
-          member_type: 'lead',
-          member_id: l.id,
-          name: `${l.first_name || ''} ${l.last_name || ''}`.trim() || l.company || l.email,
-          email: l.email,
-          module: label,
-        }))
-      )
+      leadsApi.listLeads({ ...listParams, pipeline_stage: stage }).then((res) => ({
+        rows: (res.data || []).filter((l) => l.email).map((l) => mapLeadRecipient(l, label)),
+        total: res.total ?? 0,
+      })),
     );
   }
 
   if (modules.includes('accounts')) {
     tasks.push(
-      accountsApi.listAllAccounts(ownerParams).then(({ data }) =>
-        (data || []).filter((a) => a.email).map((a) => ({
-          key: `account:${a.id}`,
-          member_type: 'account',
-          member_id: a.id,
-          name: a.name || a.account_name || a.email,
-          email: a.email,
-          module: 'Accounts',
-        }))
-      )
+      accountsApi.listAccounts(listParams).then((res) => ({
+        rows: (res.data || []).filter((a) => a.email).map(mapAccountRecipient),
+        total: res.total ?? 0,
+      })),
     );
   }
 
   const results = await Promise.all(tasks);
-  const pool = results.flat();
   const dedup = new Map();
-  for (const r of pool) dedup.set(r.key, r);
-  return Array.from(dedup.values());
+  let total = 0;
+  let hasMore = false;
+  for (const result of results) {
+    total += Number(result.total) || 0;
+    if (page * RECIPIENT_PAGE_SIZE < (Number(result.total) || 0)) hasMore = true;
+    for (const row of result.rows || []) dedup.set(row.key, row);
+  }
+  return { data: Array.from(dedup.values()), total, hasMore };
 }
 
 export function emptyCampaignForm() {
@@ -147,12 +180,17 @@ export default function CreateCampaignForm() {
   const [statusOptions, setStatusOptions] = useState([]);
   const [recipientModules, setRecipientModules] = useState([]);
   const [recipientPool, setRecipientPool] = useState([]);
+  const [recipientTotal, setRecipientTotal] = useState(0);
+  const [recipientPage, setRecipientPage] = useState(1);
+  const [recipientHasMore, setRecipientHasMore] = useState(false);
   const [recipientsLoading, setRecipientsLoading] = useState(false);
-  const [selectedRecipients, setSelectedRecipients] = useState(() => new Set());
+  const [recipientsLoadingMore, setRecipientsLoadingMore] = useState(false);
+  const [selectedByKey, setSelectedByKey] = useState(() => new Map());
   const [manualRecipients, setManualRecipients] = useState([]);
   const [manualFormOpen, setManualFormOpen] = useState(false);
   const [manualForm, setManualForm] = useState({ email: '', name: '', company: '' });
   const [recipientSearch, setRecipientSearch] = useState('');
+  const debouncedRecipientSearch = useDebouncedValue(recipientSearch, 300);
   const [recipientOwnerId, setRecipientOwnerId] = useState(() => defaultOwnerFilterId(user) || user?.id || '');
   const canPickAnyOwner = canAssignRecords(user?.role);
 
@@ -171,22 +209,60 @@ export default function CreateCampaignForm() {
   useEffect(() => {
     if (!recipientModules.length) {
       setRecipientPool([]);
-      setSelectedRecipients((prev) => new Set([...prev].filter((k) => k.startsWith('manual:'))));
+      setRecipientTotal(0);
+      setRecipientHasMore(false);
+      setRecipientPage(1);
+      setSelectedByKey((prev) => new Map([...prev].filter(([k]) => k.startsWith('manual:'))));
       return;
     }
     let cancelled = false;
     setRecipientsLoading(true);
-    fetchRecipientPool(recipientModules, { ownerId: recipientOwnerId || undefined })
-      .then((pool) => {
+    setRecipientPage(1);
+    fetchRecipientPage(recipientModules, {
+      ownerId: recipientOwnerId || undefined,
+      search: debouncedRecipientSearch.trim() || undefined,
+      page: 1,
+    })
+      .then(({ data, total, hasMore }) => {
         if (cancelled) return;
-        setRecipientPool(pool);
-        const poolKeys = new Set(pool.map((r) => r.key));
-        setSelectedRecipients((prev) => new Set([...prev].filter((k) => poolKeys.has(k) || k.startsWith('manual:'))));
+        setRecipientPool(data);
+        setRecipientTotal(total);
+        setRecipientHasMore(hasMore);
       })
-      .catch(() => { if (!cancelled) setRecipientPool([]); })
+      .catch(() => {
+        if (cancelled) return;
+        setRecipientPool([]);
+        setRecipientTotal(0);
+        setRecipientHasMore(false);
+      })
       .finally(() => { if (!cancelled) setRecipientsLoading(false); });
     return () => { cancelled = true; };
-  }, [recipientModules, recipientOwnerId]);
+  }, [recipientModules, recipientOwnerId, debouncedRecipientSearch]);
+
+  const loadMoreRecipients = async () => {
+    if (!recipientModules.length || !recipientHasMore || recipientsLoadingMore) return;
+    const nextPage = recipientPage + 1;
+    setRecipientsLoadingMore(true);
+    try {
+      const { data, total, hasMore } = await fetchRecipientPage(recipientModules, {
+        ownerId: recipientOwnerId || undefined,
+        search: debouncedRecipientSearch.trim() || undefined,
+        page: nextPage,
+      });
+      setRecipientPool((prev) => {
+        const dedup = new Map(prev.map((r) => [r.key, r]));
+        for (const row of data) dedup.set(row.key, row);
+        return Array.from(dedup.values());
+      });
+      setRecipientTotal(total);
+      setRecipientHasMore(hasMore);
+      setRecipientPage(nextPage);
+    } catch {
+      showToast('Could not load more recipients');
+    } finally {
+      setRecipientsLoadingMore(false);
+    }
+  };
 
   const allModuleKeys = RECIPIENT_MODULES.map((m) => m.key);
   const allModulesSelected = allModuleKeys.every((k) => recipientModules.includes(k));
@@ -199,40 +275,37 @@ export default function CreateCampaignForm() {
     setRecipientModules((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
   };
 
-  const toggleRecipient = (key) => {
-    setSelectedRecipients((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+  const toggleRecipient = (recipient) => {
+    setSelectedByKey((prev) => {
+      const next = new Map(prev);
+      if (next.has(recipient.key)) next.delete(recipient.key);
+      else next.set(recipient.key, recipient);
       return next;
     });
   };
 
   const combinedRecipientPool = [...manualRecipients, ...recipientPool];
-  const recipientSearchTerm = recipientSearch.trim().toLowerCase();
-  const filteredRecipientPool = recipientSearchTerm
-    ? combinedRecipientPool.filter((r) => (
-        r.name.toLowerCase().includes(recipientSearchTerm)
-        || r.email.toLowerCase().includes(recipientSearchTerm)
-        || (r.company || '').toLowerCase().includes(recipientSearchTerm)
-        || r.module.toLowerCase().includes(recipientSearchTerm)
-      ))
-    : combinedRecipientPool;
+  // Prefer unique keys (manual may also appear after load).
+  const visibleRecipients = (() => {
+    const dedup = new Map();
+    for (const r of combinedRecipientPool) dedup.set(r.key, r);
+    return Array.from(dedup.values());
+  })();
 
-  const allRecipientsSelected = filteredRecipientPool.length > 0
-    && filteredRecipientPool.every((r) => selectedRecipients.has(r.key));
+  const allRecipientsSelected = visibleRecipients.length > 0
+    && visibleRecipients.every((r) => selectedByKey.has(r.key));
 
   const toggleSelectAllRecipients = () => {
-    setSelectedRecipients((prev) => {
-      const next = new Set(prev);
+    setSelectedByKey((prev) => {
+      const next = new Map(prev);
       if (allRecipientsSelected) {
-        filteredRecipientPool.forEach((r) => next.delete(r.key));
+        visibleRecipients.forEach((r) => next.delete(r.key));
       } else {
-        filteredRecipientPool.forEach((r) => next.add(r.key));
+        visibleRecipients.forEach((r) => next.set(r.key, r));
       }
       return next;
     });
   };
-
   const addManualRecipient = () => {
     const email = manualForm.email.trim();
     const name = manualForm.name.trim();
@@ -258,7 +331,21 @@ export default function CreateCampaignForm() {
         module: 'Manually Added',
       }]
     ));
-    setSelectedRecipients((prev) => new Set(prev).add(key));
+    setSelectedByKey((prev) => {
+      const next = new Map(prev);
+      next.set(key, {
+        key,
+        member_type: 'lead',
+        member_id: null,
+        first_name: firstName,
+        last_name: lastName,
+        name,
+        email,
+        company,
+        module: 'Manually Added',
+      });
+      return next;
+    });
     setManualForm({ email: '', name: '', company: '' });
     setManualFormOpen(false);
   };
@@ -275,6 +362,9 @@ export default function CreateCampaignForm() {
 
   const set = makeFieldSetter(setForm, setErrors);
 
+  const today = todayKey();
+  const endDateMin = form.start_date && form.start_date > today ? form.start_date.slice(0, 10) : today;
+
   const handleSave = async () => {
     const errs = validateRequired(
       {
@@ -284,15 +374,26 @@ export default function CreateCampaignForm() {
       },
       form,
     );
+    const startErr = validatePastDate(form.start_date?.slice(0, 10), 'Start Date');
+    if (startErr) errs.start_date = startErr;
+    const endErr = validatePastDate(form.end_date?.slice(0, 10), 'End Date');
+    if (endErr) errs.end_date = endErr;
+    if (
+      form.start_date
+      && form.end_date
+      && form.end_date.slice(0, 10) < form.start_date.slice(0, 10)
+    ) {
+      errs.end_date = 'End Date cannot be before Start Date.';
+    }
     setErrors(errs);
     if (Object.keys(errs).length) {
-      showToast('Please fill in all required fields before saving.');
+      showToast(validationToastMessage(errs));
       return;
     }
     setSaving(true);
     try {
       const created = await campaignsApi.createCampaign(form);
-      const recipients = combinedRecipientPool.filter((r) => selectedRecipients.has(r.key));
+      const recipients = Array.from(selectedByKey.values());
       if (recipients.length && created?.id) {
         try {
           const resolved = [];
@@ -411,6 +512,7 @@ export default function CreateCampaignForm() {
                 className={inputClass(errors.start_date)}
                 type="date"
                 title="DD/MM/YYYY"
+                min={today}
                 value={form.start_date?.slice(0, 10) || ''}
                 onChange={set('start_date')}
               />
@@ -421,6 +523,7 @@ export default function CreateCampaignForm() {
                 className={inputClass(errors.end_date)}
                 type="date"
                 title="DD/MM/YYYY"
+                min={endDateMin}
                 value={form.end_date?.slice(0, 10) || ''}
                 onChange={set('end_date')}
               />
@@ -449,7 +552,7 @@ export default function CreateCampaignForm() {
 
           <SectionTitle>Campaign Recipients</SectionTitle>
           <p className="text-xs text-zoho-muted -mt-2 mb-3">
-            By default only your own Cold Leads / contacts load (faster, safer). Managers/admins can switch owner to see others.
+            Recipients load in pages (not all at once). Search to find people quickly. Prefer your own owner filter when possible.
           </p>
           <div className="mb-4 max-w-xs">
             {canPickAnyOwner ? (
@@ -538,9 +641,11 @@ export default function CreateCampaignForm() {
               />
               {recipientsLoading ? (
                 <p className="text-sm text-zoho-muted py-4">Loading recipients…</p>
-              ) : filteredRecipientPool.length === 0 ? (
+              ) : visibleRecipients.length === 0 ? (
                 <p className="text-sm text-zoho-muted py-4">
-                  {recipientSearchTerm ? 'No recipients match your search.' : 'No emails found for the selected module(s).'}
+                  {debouncedRecipientSearch.trim()
+                    ? 'No recipients match your search.'
+                    : 'No emails found for the selected module(s).'}
                 </p>
               ) : (
                 <div className="border border-zoho-border rounded-lg overflow-hidden">
@@ -552,17 +657,21 @@ export default function CreateCampaignForm() {
                       onChange={toggleSelectAllRecipients}
                     />
                     <span className="text-sm font-medium text-zoho-text">
-                      All recipients ({selectedRecipients.size}/{combinedRecipientPool.length} selected)
+                      Loaded recipients ({selectedByKey.size} selected
+                      {recipientTotal > visibleRecipients.length
+                        ? ` · showing ${visibleRecipients.length} of ~${recipientTotal}`
+                        : ` · ${visibleRecipients.length} shown`}
+                      )
                     </span>
                   </label>
                   <div className="max-h-64 overflow-y-auto divide-y divide-zoho-border">
-                    {filteredRecipientPool.map((r) => (
+                    {visibleRecipients.map((r) => (
                       <label key={r.key} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
                         <input
                           type="checkbox"
                           className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                          checked={selectedRecipients.has(r.key)}
-                          onChange={() => toggleRecipient(r.key)}
+                          checked={selectedByKey.has(r.key)}
+                          onChange={() => toggleRecipient(r)}
                         />
                         <span className="text-sm text-zoho-text">{r.name}</span>
                         <span className="text-xs text-zoho-muted ml-auto shrink-0">{r.email}</span>
@@ -570,6 +679,18 @@ export default function CreateCampaignForm() {
                       </label>
                     ))}
                   </div>
+                  {recipientHasMore && (
+                    <div className="px-3 py-2 border-t border-zoho-border bg-gray-50">
+                      <button
+                        type="button"
+                        className="btn-secondary text-xs w-full"
+                        onClick={loadMoreRecipients}
+                        disabled={recipientsLoadingMore}
+                      >
+                        {recipientsLoadingMore ? 'Loading…' : 'Load more recipients'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </>

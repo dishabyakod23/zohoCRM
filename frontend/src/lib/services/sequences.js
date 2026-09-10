@@ -10,9 +10,10 @@ export function normalizeSequence(row) {
     ...row,
     name: row.name,
     status_label: sequenceStatusLabel(row.status),
-    owner_name: assigneeName(row) || row.owner_name,
+    owner_name: row.owner_name || assigneeName(row) || '—',
     enrollment_count: row.enrollment_count ?? row.enrolled_count ?? 0,
     active_enrollment_count: row.active_enrollment_count ?? row.active_count ?? 0,
+    completed_count: row.completed_count ?? row.completed ?? 0,
   };
 }
 
@@ -31,6 +32,7 @@ function toSequencePayload(form, { partial = false } = {}) {
   const payload = {
     name: form.name,
     description: form.description || null,
+    status: form.status || undefined,
     sending_email: form.sending_email,
     timezone: form.timezone || 'UTC',
     send_window_start: form.send_window_start || null,
@@ -149,6 +151,14 @@ export async function activateSequence(id) {
 export async function pauseSequence(id) {
   const res = await api.post(`/sequences/${id}/pause`);
   return normalizeSequence(res.data.data ?? res.data);
+}
+
+/** Mass-update helper — ACTIVE/PAUSED use dedicated endpoints when available. */
+export async function updateSequenceStatus(id, status) {
+  const next = String(status || '').toUpperCase();
+  if (next === 'ACTIVE') return activateSequence(id);
+  if (next === 'PAUSED') return pauseSequence(id);
+  return updateSequence(id, { status: next });
 }
 
 export async function listSequenceSteps(sequenceId) {

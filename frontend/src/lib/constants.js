@@ -57,14 +57,6 @@ export const QUICK_CREATE = [
   { label: 'Sequence', href: '/sequences/create', group: 'Marketing', permissionKey: 'sequences' },
 ];
 
-export const WORK_ITEM_VIEWS = ['All Work Items', 'Cold Leads', 'Warm Leads', 'Qualified Leads', 'Proposals'];
-
-export const LIST_VIEWS = {
-  leads: ['All Warm Leads', 'My Warm Leads', 'Recently Created', 'Recently Modified'],
-  contacts: ['All Contacts', 'My Contacts', 'Recently Created'],
-  accounts: ['All Accounts', 'My Accounts', 'Recently Created'],
-};
-
 import { getRolePermissions } from './roles.js';
 
 export function canDownload(role) {

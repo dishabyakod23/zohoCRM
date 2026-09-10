@@ -182,7 +182,11 @@ export const BULK_MODULE_CONFIG = {
     label: 'Records',
     statusField: 'status',
     massUpdateFields: ['status'],
-    update: (id, payload) => sequencesApi.updateSequence(id, payload),
+    update: (id, payload) => (
+      payload?.status
+        ? sequencesApi.updateSequenceStatus(id, payload.status)
+        : sequencesApi.updateSequence(id, payload)
+    ),
     deleteOne: (id) => sequencesApi.deleteSequence(id),
     exportRow: (r) => ({ name: r.name, status: r.status, enrolled: r.enrollment_count }),
     mailingLabel: (r) => r.name || '',

@@ -1,14 +1,18 @@
 import { ownerName, personDisplayName } from './recordHelpers.js';
 
 export function userBriefName(user) {
-  if (!user) return '—';
+  if (!user) return null;
   const name = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-  return personDisplayName({ name, email: user.email }) || '—';
+  return personDisplayName({ name, email: user.email }) || null;
 }
 
 export function assigneeName(record) {
-  return userBriefName(record?.assigned_to) || userBriefName(record?.owner) || ownerName(record)
-    || record?.assigned_name || record?.owner_name || '—';
+  return userBriefName(record?.assigned_to)
+    || userBriefName(record?.owner)
+    || ownerName(record)
+    || record?.assigned_name
+    || record?.owner_name
+    || '—';
 }
 
 export function formatEnumLabel(value) {

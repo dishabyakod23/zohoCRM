@@ -12,7 +12,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
-import { LIST_VIEWS, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { PIPELINE_LEAD } from '../../lib/pipelineHelpers.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { normalizeLead, hasOutreachStatusLabel } from '../../lib/leadHelpers.js';
@@ -42,7 +42,6 @@ export default function LeadsPage() {
   const { filters, setFilters, clearFilters } = useDefaultOwnerFilters(EMPTY_LEAD_FILTERS);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
-  const [activeView, setActiveView] = useState('All Warm Leads');
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const statusOptionsRef = useRef(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
@@ -80,12 +79,8 @@ export default function LeadsPage() {
         pipeline_stage: PIPELINE_LEAD,
         lead_status: filters.status || undefined,
         filters,
+        ...getSortApiParams(sort, 'leads'),
       };
-      if (activeView === 'My Warm Leads' && user?.id) params.owner_id = user.id;
-      const sortParams = activeView === 'Recently Modified'
-        ? { sort_by: 'updated_at', sort_order: 'desc' }
-        : getSortApiParams(sort, 'leads');
-      Object.assign(params, sortParams);
       const result = await leadsApi.listLeads({
         ...params,
         statusOptions: statusOptionsRef.current,
@@ -102,27 +97,21 @@ export default function LeadsPage() {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, filters, activeView, user?.id, showToast, sort, campaignMemberIds]);
+  }, [page, limit, debouncedSearch, filters, showToast, sort, campaignMemberIds]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
   useListRefresh(fetchLeads);
 
   const totalPages = Math.ceil(total / limit) || 1;
 
-  const leadListParams = useMemo(() => {
-    const params = {
-      search: debouncedSearch || undefined,
-      pipeline_stage: PIPELINE_LEAD,
-      lead_status: filters.status || undefined,
-      filters,
-      campaignMemberIds,
-      ...(activeView === 'Recently Modified'
-        ? { sort_by: 'updated_at', sort_order: 'desc' }
-        : getSortApiParams(sort, 'leads')),
-    };
-    if (activeView === 'My Warm Leads' && user?.id) params.owner_id = user.id;
-    return params;
-  }, [debouncedSearch, filters, activeView, user?.id, sort, campaignMemberIds]);
+  const leadListParams = useMemo(() => ({
+    search: debouncedSearch || undefined,
+    pipeline_stage: PIPELINE_LEAD,
+    lead_status: filters.status || undefined,
+    filters,
+    campaignMemberIds,
+    ...getSortApiParams(sort, 'leads'),
+  }), [debouncedSearch, filters, sort, campaignMemberIds]);
 
   const fetchAllMatchingLeadIds = useCallback(
     () => leadsApi.listAllMatchingLeadIds(leadListParams, statusOptionsRef.current),
@@ -131,7 +120,7 @@ export default function LeadsPage() {
 
   const tableSelection = useTableSelection({
     total,
-    resetDeps: [activeView, debouncedSearch, filters, sort, campaignMemberIds],
+    resetDeps: [debouncedSearch, filters, sort, campaignMemberIds],
     fetchAllIds: fetchAllMatchingLeadIds,
   });
 
@@ -168,13 +157,6 @@ export default function LeadsPage() {
         <ListToolbar
           moduleName="Warm Leads"
           total={total}
-          views={LIST_VIEWS.leads}
-          activeView={activeView}
-          onViewChange={(v) => {
-            setActiveView(v);
-            setPage(1);
-            if (v === 'Recently Created') setSort('created_desc');
-          }}
           searchValue={search}
           onSearch={(v) => { setSearch(v); setPage(1); }}
           sort={sort}

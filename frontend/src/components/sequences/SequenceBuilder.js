@@ -16,6 +16,7 @@ export default function SequenceBuilder({
   const { showToast } = useToast();
   const [steps, setSteps] = useState(initialSteps);
   const [savingId, setSavingId] = useState(null);
+  const [savingAll, setSavingAll] = useState(false);
 
   useEffect(() => {
     setSteps(initialSteps);
@@ -34,12 +35,31 @@ export default function SequenceBuilder({
     syncSteps(steps.map((s, i) => (i === index ? step : s)));
   };
 
-  const moveStep = (index, direction) => {
+  const persistStepOrders = async (ordered) => {
+    const withIds = ordered.filter((s) => s.id);
+    if (!sequenceId || withIds.length < 2) return;
+    await Promise.allSettled(
+      withIds.map((step, index) => sequencesApi.updateSequenceStep(
+        sequenceId,
+        step.id,
+        { step_order: index + 1 },
+        { sequenceTimezone },
+      )),
+    );
+  };
+
+  const moveStep = async (index, direction) => {
     const target = index + direction;
     if (target < 0 || target >= steps.length) return;
     const next = [...steps];
     [next[index], next[target]] = [next[target], next[index]];
-    syncSteps(next.map((s, i) => ({ ...s, step_order: i + 1 })));
+    const ordered = next.map((s, i) => ({ ...s, step_order: i + 1 }));
+    syncSteps(ordered);
+    try {
+      await persistStepOrders(ordered);
+    } catch (err) {
+      showToast(getApiError(err));
+    }
   };
 
   const duplicateStep = (index) => {
@@ -57,19 +77,25 @@ export default function SequenceBuilder({
         return;
       }
     }
-    syncSteps(steps.filter((_, i) => i !== index).map((s, i) => ({ ...s, step_order: i + 1 })));
+    const ordered = steps.filter((_, i) => i !== index).map((s, i) => ({ ...s, step_order: i + 1 }));
+    syncSteps(ordered);
+    try {
+      await persistStepOrders(ordered);
+    } catch {
+      // best-effort order sync
+    }
   };
 
-  const saveStep = async (index) => {
-    if (!sequenceId) return;
+  const saveStep = async (index, { quiet = false } = {}) => {
+    if (!sequenceId) return null;
     const step = {
       ...steps[index],
       step_order: index + 1,
       timezone: steps[index].timezone || sequenceTimezone,
     };
     if (!step.scheduled_date || !step.scheduled_time) {
-      showToast('Each step needs a scheduled date and time');
-      return;
+      if (!quiet) showToast('Each step needs a scheduled date and time');
+      throw new Error('Missing schedule');
     }
     setSavingId(step.id || `new-${index}`);
     try {
@@ -77,15 +103,43 @@ export default function SequenceBuilder({
       const saved = step.id
         ? await sequencesApi.updateSequenceStep(sequenceId, step.id, step, saveOptions)
         : await sequencesApi.createSequenceStep(sequenceId, step, saveOptions);
-      const next = steps.map((s, i) => (i === index ? { ...step, ...saved } : s));
-      syncSteps(next);
-      showToast('Step saved', 'success');
-    } catch (err) {
-      showToast(getApiError(err));
+      return { ...step, ...saved };
     } finally {
       setSavingId(null);
     }
   };
+
+  const handleSaveStep = async (index) => {
+    try {
+      const saved = await saveStep(index);
+      if (!saved) return;
+      const next = steps.map((s, i) => (i === index ? saved : s));
+      syncSteps(next);
+      showToast('Step saved', 'success');
+    } catch (err) {
+      if (err?.message !== 'Missing schedule') showToast(getApiError(err));
+    }
+  };
+
+  const saveAllSteps = async () => {
+    if (!sequenceId || !steps.length) return;
+    setSavingAll(true);
+    try {
+      let next = [...steps];
+      for (let i = 0; i < next.length; i += 1) {
+        const saved = await saveStep(i, { quiet: false });
+        next = next.map((s, idx) => (idx === i ? saved : s));
+        syncSteps(next);
+      }
+      showToast(`Saved ${next.length} step(s)`, 'success');
+    } catch (err) {
+      if (err?.message !== 'Missing schedule') showToast(getApiError(err));
+    } finally {
+      setSavingAll(false);
+    }
+  };
+
+  const unsavedCount = steps.filter((s) => !s.id).length;
 
   return (
     <div className="space-y-6">
@@ -93,6 +147,24 @@ export default function SequenceBuilder({
         <p className="text-sm text-zoho-muted py-8 text-center border border-dashed border-zoho-border rounded-xl">
           No steps yet. Add your first touchpoint with an exact date and time.
         </p>
+      )}
+
+      {!readOnly && sequenceId && steps.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zoho-border bg-gray-50 px-3 py-2">
+          <p className="text-xs text-zoho-muted">
+            {unsavedCount
+              ? `${unsavedCount} unsaved step(s) will not run until saved.`
+              : 'All steps are saved. Reorder is synced to the server.'}
+          </p>
+          <button
+            type="button"
+            onClick={saveAllSteps}
+            disabled={savingAll || !!savingId}
+            className="btn-primary-sm"
+          >
+            {savingAll ? 'Saving…' : 'Save all steps'}
+          </button>
+        </div>
       )}
 
       {steps.map((step, index) => (
@@ -111,8 +183,8 @@ export default function SequenceBuilder({
           />
           {!readOnly && sequenceId && (
             <div className="flex justify-end">
-              <button type="button" onClick={() => saveStep(index)} disabled={savingId === (step.id || `new-${index}`)} className="btn-secondary-sm">
-                {savingId === (step.id || `new-${index}`) ? 'Saving…' : 'Save Step'}
+              <button type="button" onClick={() => handleSaveStep(index)} disabled={savingId === (step.id || `new-${index}`) || savingAll} className="btn-secondary-sm">
+                {savingId === (step.id || `new-${index}`) ? 'Saving…' : (step.id ? 'Save Step' : 'Save Step (required)')}
               </button>
             </div>
           )}

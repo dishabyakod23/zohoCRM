@@ -4,14 +4,11 @@ import ListViewLayout from './ListViewLayout.js';
 import ListSortSelect from './ListSortSelect.js';
 
 /**
- * List toolbar — views, filter sidebar, search, and integrated table.
+ * List toolbar — filter sidebar, search, sort, and integrated table.
  */
 export default function ListToolbar({
   moduleName,
   total,
-  views = ['All Records'],
-  activeView,
-  onViewChange,
   onSearch,
   searchValue,
   children,
@@ -56,9 +53,6 @@ export default function ListToolbar({
     <ListViewLayout
       toolbarLeft={toolbarLeft}
       toolbarRight={toolbarRight}
-      views={views}
-      activeView={activeView}
-      onViewChange={onViewChange}
       showFilters={showFilters}
       onToggleFilters={() => setShowFilters((v) => !v)}
       hasFilters={hasFilters}

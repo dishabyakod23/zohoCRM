@@ -18,8 +18,8 @@ import * as campaignsApi from '../../lib/services/campaigns.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchUsers, fetchMassUpdateFieldOptions, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
-import { fetchCampaignLookups, assignRecordsToCampaign, resolveOrCreateCampaignId, reassignRecordsToCampaign } from '../../lib/campaignRecordHelpers.js';
-import { personRecordId, personCampaignMemberType, parsePersonRowId } from '../../lib/services/people.js';
+import { fetchCampaignLookups, resolveOrCreateCampaignId, reassignRecordsToCampaign } from '../../lib/campaignRecordHelpers.js';
+import { personRecordId, parsePersonRowId, campaignMembersFromSelection } from '../../lib/services/people.js';
 import EnrollMembersModal, { SEQUENCE_MEMBER_TYPES } from '../sequences/EnrollMembersModal.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
 import { logEmailSent, bulkSetLinkedInRequestSent } from '../../lib/outreachActivity.js';
@@ -133,11 +133,11 @@ function MassUpdatePanel({
   }
 
   return (
-    <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4">
+    <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[450] w-full max-w-xl px-4">
       <div className="bg-white border border-zoho-border rounded-xl shadow-card-hover p-5 animate-scaleIn">
         <h3 className="text-sm font-semibold text-zoho-text mb-4">Mass Update</h3>
-        <div className="flex flex-wrap gap-2 items-center">
-          <select className="input w-52" value={field} onChange={(e) => onFieldChange(e.target.value)} disabled={loadingFields}>
+        <div className={`flex gap-2 items-stretch ${isCampaignField ? 'flex-col' : 'flex-wrap items-center'}`}>
+          <select className={`input ${isCampaignField ? 'w-full' : 'w-52'}`} value={field} onChange={(e) => onFieldChange(e.target.value)} disabled={loadingFields}>
             <option value="">{loadingFields ? 'Loading fields…' : 'Select a field'}</option>
             {isDynamic
               ? dynamicFields.map(f => <option key={f.value} value={f.value}>{f.label}</option>)
@@ -555,40 +555,39 @@ export default function RecordDataTable({
           || massValueOptions.find((o) => String(o.value) === String(campaignId))?.label
           || '';
 
-        if (moduleKey === 'contacts') {
-          const members = selectedRecords.map((record) => ({
-            member_type: personCampaignMemberType(record),
-            member_id: personRecordId(record) || parsePersonRowId(getRowId(record)).recordId,
-            previous_campaign_id: record.campaign_id || '',
-          })).filter((member) => member.member_id);
-          if (!members.length) {
-            showToast('No valid records selected');
-            return;
-          }
-          await reassignRecordsToCampaign({
-            campaignId,
-            campaignName: campaignLabel,
-            members,
-          });
-        } else {
-          const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
-          if (!memberType) {
-            showToast('Campaign assignment is not supported for this module');
-            return;
-          }
-          const members = selectedRecords.map((record) => ({
-            member_type: memberType,
-            member_id: getRowId(record),
-            previous_campaign_id: record.campaign_id || '',
-          })).filter((member) => member.member_id);
-          await reassignRecordsToCampaign({
-            campaignId,
-            campaignName: campaignLabel,
-            members,
-          });
+        const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
+        if (!memberType) {
+          showToast('Campaign assignment is not supported for this module');
+          return;
         }
+
+        // Use all selected ids — selectedRecords is only the current page.
+        const members = moduleKey === 'contacts'
+          ? campaignMembersFromSelection(selected, {
+            records: selectedRecords,
+            getRowId,
+            defaultMemberType: 'contact',
+          })
+          : selected.map((id) => {
+            const record = selectedRecords.find((r) => getRowId(r) === id);
+            return {
+              member_type: memberType,
+              member_id: id,
+              previous_campaign_id: record?.campaign_id || '',
+            };
+          }).filter((member) => member.member_id);
+
+        if (!members.length) {
+          showToast('No valid records selected');
+          return;
+        }
+        await reassignRecordsToCampaign({
+          campaignId,
+          campaignName: campaignLabel,
+          members,
+        });
         markRecordListStale();
-        showToast(`Updated campaign for ${selected.length} record(s)`, 'success');
+        showToast(`Updated campaign for ${members.length} record(s)`, 'success');
         finishMassUpdate();
         return;
       }
@@ -610,39 +609,37 @@ export default function RecordDataTable({
         }
         showToast(`Updated ${count} record(s)`, 'success');
       } else {
-        let success = 0;
-        let failed = 0;
         const isStatusField = massField === 'status' || massField === 'lead_status';
-        for (const recordId of selected) {
-          try {
-            const record = selectedRecords.find((r) => getRowId(r) === recordId);
-            const parsed = parsePersonRowId(recordId);
-            const entity = (record?.entity_type || record?._entityType || parsed.entityType || '').toLowerCase();
-            const targetId = moduleKey === 'contacts'
-              ? (parsed.recordId || recordId)
-              : recordId;
+        const results = await Promise.allSettled(selected.map(async (recordId) => {
+          const record = selectedRecords.find((r) => getRowId(r) === recordId);
+          const parsed = parsePersonRowId(recordId);
+          const entity = (record?.entity_type || record?._entityType || parsed.entityType || '').toLowerCase();
+          const targetId = moduleKey === 'contacts'
+            ? (parsed.recordId || recordId)
+            : recordId;
 
-            if (isStatusField && config.statusField && config.update) {
-              if (moduleKey === 'contacts') {
-                const isLeadRow = ['lead', 'raw_lead', 'qualified_lead', 'proposal'].includes(entity)
-                  || entity.includes('lead');
-                if (isLeadRow) {
-                  await leadsApi.updateLead(targetId, { [config.statusField]: massValue });
-                } else {
-                  await contactsApi.updateContact(targetId, { [config.statusField]: massValue });
-                }
+          if (isStatusField && config.statusField && config.update) {
+            if (moduleKey === 'contacts') {
+              const isLeadRow = ['lead', 'raw_lead', 'qualified_lead', 'proposal'].includes(entity)
+                || entity.includes('lead');
+              if (isLeadRow) {
+                await leadsApi.updateLead(targetId, { [config.statusField]: massValue });
               } else {
-                await config.update(targetId, { [config.statusField]: massValue });
+                await contactsApi.updateContact(targetId, { [config.statusField]: massValue });
               }
-              success += 1;
-            } else if (massField === 'convert' && config.convert) {
-              await config.convert(targetId, massValue);
-              success += 1;
+            } else {
+              await config.update(targetId, { [config.statusField]: massValue });
             }
-          } catch {
-            failed += 1;
+            return true;
           }
-        }
+          if (massField === 'convert' && config.convert) {
+            await config.convert(targetId, massValue);
+            return true;
+          }
+          throw new Error('Unsupported mass update');
+        }));
+        const success = results.filter((r) => r.status === 'fulfilled').length;
+        const failed = results.length - success;
         if (!success) {
           showToast(failed > 1 ? `${failed} record(s) failed to update` : 'Update failed');
           return;
@@ -739,10 +736,11 @@ export default function RecordDataTable({
     const memberType = SEQUENCE_MEMBER_TYPES[moduleKey];
     if (!memberType) return [];
     if (moduleKey === 'contacts') {
-      return selectedRecords.map((record) => ({
-        member_type: personCampaignMemberType(record),
-        member_id: personRecordId(record) || parsePersonRowId(getRowId(record)).recordId,
-      }));
+      return campaignMembersFromSelection(selected, {
+        records: selectedRecords,
+        getRowId,
+        defaultMemberType: 'contact',
+      }).map(({ member_type, member_id }) => ({ member_type, member_id }));
     }
     return selected.map((memberId) => ({ member_type: memberType, member_id: memberId }));
   }, [moduleKey, selected, selectedRecords, getRowId]);
@@ -761,24 +759,31 @@ export default function RecordDataTable({
         return;
       }
 
-      if (moduleKey === 'contacts') {
-        await Promise.all(selectedRecords.map((record) => campaignsApi.addCampaignMember(campaignId, {
-          member_type: personCampaignMemberType(record),
-          member_id: personRecordId(record) || parsePersonRowId(getRowId(record)).recordId,
-        })));
-      } else {
-        const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
-        if (!memberType) {
-          showToast('Add to Campaign is only supported for Leads and Contacts lists');
-          return;
-        }
-        await Promise.all(selected.map((id) => campaignsApi.addCampaignMember(campaignId, {
-          member_type: memberType,
-          member_id: id,
-        })));
+      const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
+      if (!memberType) {
+        showToast('Add to Campaign is only supported for Leads and Contacts lists');
+        return;
       }
 
-      showToast(`Added ${selected.length} record(s) to campaign`, 'success');
+      const members = moduleKey === 'contacts'
+        ? campaignMembersFromSelection(selected, {
+          records: selectedRecords,
+          getRowId,
+          defaultMemberType: 'contact',
+        })
+        : selected.map((id) => ({ member_type: memberType, member_id: id }));
+
+      if (!members.length) {
+        showToast('No valid records selected');
+        return;
+      }
+
+      await campaignsApi.addCampaignMembers(
+        campaignId,
+        members.map(({ member_type, member_id }) => ({ member_type, member_id })),
+      );
+
+      showToast(`Added ${members.length} record(s) to campaign`, 'success');
       setCampaignModal(false);
       setSelectedCampaign({ campaign_id: '', campaign_name: '' });
       clearSelection();

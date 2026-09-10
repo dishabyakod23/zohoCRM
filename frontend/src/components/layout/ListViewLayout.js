@@ -3,14 +3,11 @@
 import ListFilterSidebar from './ListFilterSidebar.js';
 
 /**
- * Zoho-style list shell: toolbar on top, optional view tabs, separate filter + table cards.
+ * List shell: toolbar on top, optional filter + table cards.
  */
 export default function ListViewLayout({
   toolbarLeft,
   toolbarRight,
-  views = [],
-  activeView,
-  onViewChange,
   showFilters = false,
   onToggleFilters,
   hasFilters = false,
@@ -27,7 +24,7 @@ export default function ListViewLayout({
 
   return (
     <div className="list-view-shell">
-      <div className={`list-view-toolbar-card ${views.length > 1 ? 'list-view-toolbar-card-tabs' : ''}`}>
+      <div className="list-view-toolbar-card">
         <div className="zoho-toolbar list-view-toolbar">
           <div className="zoho-toolbar-left">
             {toolbarLeft}
@@ -49,21 +46,6 @@ export default function ListViewLayout({
           </div>
           {toolbarRight}
         </div>
-
-        {views.length > 1 && (
-          <div className="flex px-4 border-t border-zoho-border list-view-tabs">
-            {views.map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => onViewChange?.(v)}
-                className={`zoho-view-tab ${activeView === v ? 'zoho-view-tab-active' : 'zoho-view-tab-inactive'}`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {hasBody && (

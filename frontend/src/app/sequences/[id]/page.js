@@ -17,6 +17,7 @@ import { usePermissions } from '../../../hooks/usePermissions.js';
 import { getApiError } from '../../../lib/api.js';
 import * as sequencesApi from '../../../lib/services/sequences.js';
 import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel } from '../../../lib/sequenceHelpers.js';
+import { fetchUsers } from '../../../lib/services/lookups.js';
 
 const TABS = ['Steps', 'Enrollments', 'Analytics', 'Settings'];
 
@@ -36,6 +37,7 @@ export default function SequenceDetailPage() {
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [settings, setSettings] = useState(null);
   const [settingsErrors, setSettingsErrors] = useState({});
+  const [users, setUsers] = useState([]);
 
   const load = useCallback(async () => {
     if (!ready || !id) return;
@@ -62,6 +64,7 @@ export default function SequenceDetailPage() {
         use_contact_timezone: seq.use_contact_timezone ?? false,
         stop_on_reply: seq.stop_on_reply !== false,
         stop_on_click: seq.stop_on_click ?? false,
+        owner_id: seq.owner_id || '',
       });
     } catch (err) {
       showToast(getApiError(err));
@@ -71,6 +74,10 @@ export default function SequenceDetailPage() {
   }, [id, ready, showToast]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    fetchUsers().then(setUsers).catch(() => setUsers([]));
+  }, []);
 
   const setStatus = async (action) => {
     setSaving(true);
@@ -133,6 +140,9 @@ export default function SequenceDetailPage() {
             </div>
             <p className="text-sm text-zoho-muted mt-1">
               {sequence.sending_email} · {formatSendDays(sequence.send_days)}
+              {(sequence.owner_name && sequence.owner_name !== '—') && (
+                <span> · Owner: {sequence.owner_name}</span>
+              )}
               {sequence.email_provider === 'resend' && (
                 <span className="ml-2 text-xs text-brand-600">· Resend</span>
               )}
@@ -191,11 +201,12 @@ export default function SequenceDetailPage() {
                   <th className="table-th text-left">Current Step</th>
                   <th className="table-th text-left">Next Action</th>
                   <th className="table-th text-left">Last Activity</th>
+                  <th className="table-th text-left">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {enrollments.length === 0 ? (
-                  <tr><td colSpan={6} className="table-td text-center text-zoho-muted py-8">No enrollments yet</td></tr>
+                  <tr><td colSpan={7} className="table-td text-center text-zoho-muted py-8">No enrollments yet</td></tr>
                 ) : enrollments.map((e) => (
                   <tr key={e.id} className="border-b border-zoho-border last:border-0">
                     <td className="table-td">{e.member_name}</td>
@@ -222,6 +233,27 @@ export default function SequenceDetailPage() {
                       />
                     </td>
                     <td className="table-td text-xs">{e.last_action_at ? formatDateTimeInTimezone(e.last_action_at, sequence.timezone) : '—'}</td>
+                    <td className="table-td">
+                      {canEdit && String(e.status || '').toUpperCase() === 'ACTIVE' && (
+                        <button
+                          type="button"
+                          className="text-xs text-brand-600 hover:underline"
+                          onClick={async () => {
+                            try {
+                              const updated = await sequencesApi.updateEnrollment(e.id, { mark_replied: true });
+                              setEnrollments((rows) => rows.map((row) => (
+                                row.id === e.id ? { ...row, ...updated, id: row.id } : row
+                              )));
+                              showToast('Marked as replied', 'success');
+                            } catch (err) {
+                              showToast(getApiError(err));
+                            }
+                          }}
+                        >
+                          Mark replied
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -234,6 +266,7 @@ export default function SequenceDetailPage() {
             sequenceId={id}
             steps={steps}
             sequenceTimezone={sequence.timezone || 'UTC'}
+            sendingEmail={sequence.sending_email || settings?.sending_email || ''}
           />
         )}
 
@@ -255,6 +288,21 @@ export default function SequenceDetailPage() {
             </FormField>
             <FormField label="Sending email">
               <input className="input" type="email" value={settings.sending_email} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, sending_email: e.target.value }))} />
+            </FormField>
+            <FormField label="Owner">
+              <select
+                className="input"
+                value={settings.owner_id || ''}
+                disabled={!canEdit}
+                onChange={(e) => setSettings((s) => ({ ...s, owner_id: e.target.value }))}
+              >
+                <option value="">Select owner</option>
+                {users.map((u) => (
+                  <option key={u.id || u.value} value={u.id || u.value}>
+                    {u.name || u.label || u.email}
+                  </option>
+                ))}
+              </select>
             </FormField>
             <FormField label="Campaign timezone">
               <TimezoneSelect

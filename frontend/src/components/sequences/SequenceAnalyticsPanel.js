@@ -99,6 +99,7 @@ function EmailActivityList({
   sequenceId,
   eventType,
   sequenceTimezone = 'UTC',
+  sendingEmail = '',
 }) {
   const { showToast } = useToast();
   const [rows, setRows] = useState([]);
@@ -106,6 +107,7 @@ function EmailActivityList({
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const pageSize = 25;
+  const senderNorm = String(sendingEmail || '').trim().toLowerCase();
 
   const load = useCallback(async () => {
     if (!sequenceId || !eventType) return;
@@ -116,8 +118,16 @@ function EmailActivityList({
         page,
         page_size: pageSize,
       });
-      setRows(result.data || []);
-      setTotal(result.total ?? 0);
+      let data = result.data || [];
+      // Hide obvious self-opens (sender opened their own mail) in the detail list.
+      if (eventType === 'OPENED' && senderNorm) {
+        data = data.filter((row) => {
+          const email = String(row.member_email || row.email || row.to_email || '').trim().toLowerCase();
+          return email && email !== senderNorm;
+        });
+      }
+      setRows(data);
+      setTotal(result.total ?? data.length);
     } catch (err) {
       setRows([]);
       setTotal(0);
@@ -125,7 +135,7 @@ function EmailActivityList({
     } finally {
       setLoading(false);
     }
-  }, [sequenceId, eventType, page, showToast]);
+  }, [sequenceId, eventType, page, showToast, senderNorm]);
 
   useEffect(() => {
     setPage(1);
@@ -249,6 +259,7 @@ export default function SequenceAnalyticsPanel({
   sequenceId,
   steps = [],
   sequenceTimezone = 'UTC',
+  sendingEmail = '',
 }) {
   const { showToast } = useToast();
   const [stats, setStats] = useState(null);
@@ -299,6 +310,10 @@ export default function SequenceAnalyticsPanel({
       <p className="text-xs text-zoho-muted">
         Tracking funnel: Sent → Delivered → Opened → Clicked → Replied / Bounced. Click a card to list matching emails.
         Sequence mail is sent via Resend and will not appear in Outlook Sent Items — use this panel for send history.
+        {sendingEmail ? (
+          <> Opens from the sending address ({sendingEmail}) are hidden in the event list when detectable; totals still come from the API until self-opens are excluded server-side.</>
+        ) : null}
+        {' '}Replies are not reported by Resend webhooks — use “Mark replied” on enrollments when needed.
       </p>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Total Enrolled" value={stats.enrolled ?? stats.enrollment_count ?? stats.total} />
@@ -322,6 +337,7 @@ export default function SequenceAnalyticsPanel({
           sequenceId={sequenceId}
           eventType={selectedEvent}
           sequenceTimezone={sequenceTimezone}
+          sendingEmail={sendingEmail}
         />
       )}
 
