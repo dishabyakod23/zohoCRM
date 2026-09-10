@@ -74,6 +74,15 @@ describe('bulk import chunking', () => {
     expect(result.imported).toBe(50);
   });
 
+  it('counts created rows even when a chunk omits imported', () => {
+    const merged = mergeBulkImportResults([
+      { imported: 50, records: Array.from({ length: 50 }, (_, i) => ({ id: `a${i}` })) },
+      { records: Array.from({ length: 27 }, (_, i) => ({ id: `b${i}` })) },
+    ]);
+    expect(merged.imported).toBe(77);
+    expect(merged.records).toHaveLength(77);
+  });
+
   it('isolates a single bad row and continues importing remaining chunks', async () => {
     const apiClient = {
       post: jest.fn(async (_url, body) => {

@@ -214,24 +214,28 @@ export function mergeBulkImportResults(results = []) {
 
   for (const result of results) {
     const row = result || {};
-    imported += Number(row.imported ?? row.imported_count ?? 0) || 0;
+    const explicitImported = Number(row.imported ?? row.imported_count ?? 0) || 0;
+    const rowRecords = Array.isArray(row.records) ? row.records : [];
+    const rowIds = Array.isArray(row.created_ids)
+      ? row.created_ids
+      : rowRecords.map((r) => r?.id).filter(Boolean);
+
+    // Some responses omit `imported` but still return created rows — count those too.
+    imported += explicitImported || rowRecords.length || rowIds.length || 0;
     skipped += Number(row.skipped ?? row.skipped_count ?? 0) || 0;
     errors += Number(row.errors ?? row.error_count ?? 0) || 0;
 
-    if (Array.isArray(row.records)) records.push(...row.records);
+    if (rowRecords.length) records.push(...rowRecords);
     if (Array.isArray(row.skip_messages)) skip_messages.push(...row.skip_messages);
     if (Array.isArray(row.errorRecords)) errorRecords.push(...row.errorRecords);
     else if (Array.isArray(row.errors) && row.errors.length && typeof row.errors[0] === 'object') {
       errorRecords.push(...row.errors);
     }
 
-    const ids = Array.isArray(row.created_ids)
-      ? row.created_ids
-      : (row.records || []).map((r) => r?.id).filter(Boolean);
-    created_ids.push(...ids);
+    created_ids.push(...rowIds);
   }
 
-  if (!imported && records.length) imported = records.length;
+  imported = Math.max(imported, records.length, created_ids.length);
 
   return {
     imported,
@@ -244,7 +248,7 @@ export function mergeBulkImportResults(results = []) {
     skip_messages,
     errorRecords,
     created_ids,
-    partial: (errors || errorRecords.length) > 0 && imported > 0,
+    partial: (errors || errorRecords.length || skipped) > 0 && imported > 0,
   };
 }
 
@@ -291,20 +295,42 @@ export async function postBulkImportInChunks(
   return mergeBulkImportResults(results);
 }
 
+/** Prefer readyRecords length when the API count disagrees. */
+export function resolveReadyCount(payload = {}) {
+  const records = Array.isArray(payload.readyRecords) ? payload.readyRecords : null;
+  if (records) return records.length;
+  return Number(payload.ready ?? payload.ready_count ?? 0) || 0;
+}
+
+/** Map bulk-upload error rows into toast/modal friendly skip notices. */
+export function formatBulkUploadSkipMessages(errorRecords = []) {
+  return (errorRecords || [])
+    .map((entry) => {
+      if (!entry) return null;
+      if (typeof entry === 'string') return formatImportNotice(entry);
+      const row = entry.row ?? entry.row_number ?? entry.line;
+      const message = formatImportNotice(entry.message ?? entry.error ?? String(entry));
+      if (!message) return null;
+      return row != null ? `Row ${row}: ${message}` : message;
+    })
+    .filter(Boolean);
+}
+
 /** Guard: API ready count vs readyRecords length (truncated payloads cause short imports). */
 export function assertReadyRecordsComplete(payload = {}) {
-  const readyCount = Number(payload.ready ?? payload.ready_count ?? 0) || 0;
   const readyRecords = Array.isArray(payload.readyRecords) ? payload.readyRecords : [];
-  if (readyCount > 0 && readyRecords.length === 0) {
+  const readyCount = resolveReadyCount(payload);
+  const reportedReady = Number(payload.ready ?? payload.ready_count ?? readyCount) || 0;
+  if (reportedReady > 0 && readyRecords.length === 0) {
     const err = new Error(
-      `Validation found ${readyCount} ready row(s), but the server returned none to import. Try a smaller file or contact support.`,
+      `Validation found ${reportedReady} ready row(s), but the server returned none to import. Try a smaller file or contact support.`,
     );
     err.code = 'READY_RECORDS_EMPTY';
     throw err;
   }
-  if (readyCount > 0 && readyRecords.length < readyCount) {
+  if (reportedReady > 0 && readyRecords.length < reportedReady) {
     const err = new Error(
-      `Validation found ${readyCount} ready row(s), but only ${readyRecords.length} were returned for import. Try splitting the CSV into smaller files.`,
+      `Validation found ${reportedReady} ready row(s), but only ${readyRecords.length} were returned for import. Try splitting the CSV into smaller files.`,
     );
     err.code = 'READY_RECORDS_TRUNCATED';
     throw err;

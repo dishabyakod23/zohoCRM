@@ -1,6 +1,6 @@
 import api from '../api.js';
 import { normalizeContact, toContactPayload, normalizeBulkUploadContactRecords, enrichContactReadyRecordsFromCsv, resolveContactLinkedInUrl } from '../contactHelpers.js';
-import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS, assertReadyRecordsComplete } from '../importHelpers.js';
+import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS, assertReadyRecordsComplete, resolveReadyCount, formatBulkUploadSkipMessages } from '../importHelpers.js';
 import {
   applyContactRecordFilters,
   hasContactClientFilters,
@@ -134,12 +134,32 @@ export async function importContactsFile(file, { dry_run = true, campaignId, onP
   const upload = await api.post('/contacts/bulk-upload', { csv }, { timeout: BULK_IMPORT_TIMEOUT_MS });
   const payload = upload.data.data || {};
   const readyRecords = payload.readyRecords || [];
+  const readyCount = resolveReadyCount(payload);
+  const uploadErrors = (payload.errorRecords || []).map((e) => ({
+    row: e.row,
+    message: e.error || e.message,
+    code: e.code,
+    field: e.field,
+  }));
+
   if (dry_run) {
     return normalizeImportResult({
-      ready_count: payload.ready,
-      error_count: payload.errors,
-      errorRecords: (payload.errorRecords || []).map((e) => ({ row: e.row, message: e.error })),
+      ready_count: readyCount,
+      error_count: payload.errors ?? uploadErrors.length,
+      errorRecords: uploadErrors,
+      skip_messages: formatBulkUploadSkipMessages(payload.errorRecords),
       readyRecords,
+    });
+  }
+
+  if (!readyRecords.length) {
+    return normalizeImportResult({
+      imported_count: 0,
+      skipped_count: uploadErrors.length || Number(payload.errors || 0) || 0,
+      error_count: uploadErrors.length || Number(payload.errors || 0) || 0,
+      errorRecords: uploadErrors,
+      skip_messages: formatBulkUploadSkipMessages(payload.errorRecords),
+      readyRecords: [],
     });
   }
 
@@ -172,7 +192,7 @@ export async function importContactsFile(file, { dry_run = true, campaignId, onP
   await persistImportedContactLinkedInUrls(result, processedRecords);
 
   return normalizeImportResult({
-    imported_count: result.imported ?? result.imported_count ?? records.length,
+    imported_count: result.imported ?? result.imported_count ?? 0,
     skipped_count: result.skipped ?? result.skipped_count,
     error_count: result.errors ?? result.error_count,
     errorRecords: result.errorRecords,

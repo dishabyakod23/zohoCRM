@@ -132,35 +132,56 @@ export default function CsvImportModal({
       return;
     }
     setImporting(true);
-    setImportProgress('Preparing import…');
+    setImportProgress('Re-validating file…');
     try {
       const mappedFile = buildMappedFile();
-      let readyCount = preview?.ready_count;
+      // Always re-validate right before import so duplicate/ready counts are fresh.
+      const dryResult = await importFn(mappedFile, { dry_run: true });
+      setPreview(dryResult);
+      const readyCount = dryResult.ready_count || 0;
       if (!readyCount) {
-        const dryResult = await importFn(mappedFile, { dry_run: true });
-        setPreview(dryResult);
-        readyCount = dryResult.ready_count;
-        if (!readyCount) {
-          setValidationMessage(importValidationNotice(dryResult) || 'No valid rows found after mapping');
-          return;
-        }
+        const notice = importValidationNotice(dryResult)
+          || (dryResult.skip_messages?.length
+            ? dryResult.skip_messages.slice(0, 3).join(' · ')
+            : 'No new rows to import (they may already exist).');
+        setValidationMessage(notice);
+        return;
       }
+
       const campaignId = await resolveOrCreateCampaignId(defaultCampaign);
+      setImportProgress(`Importing ${readyCount} row(s)…`);
       const result = await importFn(mappedFile, {
         dry_run: false,
         campaignId: campaignId || undefined,
         onProgress: (info) => setImportProgress(info?.message || ''),
       });
-      const imported = result.imported_count ?? result.ready_count ?? readyCount ?? 0;
-      const skipped = result.skipped_count || 0;
-      const failed = result.error_count || 0;
-      if (failed > 0 || result.partial) {
+      const imported = Number(result.imported_count || 0);
+      const skipped = Number(result.skipped_count || 0);
+      const failed = Number(result.error_count || 0);
+      const skipHints = (result.skip_messages || []).slice(0, 5);
+
+      if (imported === 0 && (skipped > 0 || failed > 0 || skipHints.length)) {
+        const detail = skipHints.length
+          ? skipHints.join(' · ')
+          : 'Rows were skipped because they already exist or failed server checks.';
+        setValidationMessage(`Imported 0 of ${readyCount}. Skipped ${skipped || failed}. ${detail}`);
+        setPreview({
+          ...dryResult,
+          ready_count: 0,
+          skipped_count: skipped,
+          error_count: failed || skipped,
+          errorRecords: result.errorRecords?.length ? result.errorRecords : dryResult.errorRecords,
+          skip_messages: result.skip_messages || dryResult.skip_messages,
+        });
+        showToast(`No new records imported (${skipped || failed} skipped)`, 'warning');
+        return;
+      }
+
+      if (failed > 0 || result.partial || skipped > 0) {
         showToast(
-          `Imported ${imported} record(s)${skipped ? `, skipped ${skipped}` : ''}, ${failed} failed. Check invalid rows and re-import the rest.`,
-          'warning',
+          `Imported ${imported} record(s)${skipped ? `, skipped ${skipped}` : ''}${failed ? `, ${failed} failed` : ''}.`,
+          failed || result.partial ? 'warning' : 'success',
         );
-      } else if (skipped > 0) {
-        showToast(`Imported ${imported} record(s), skipped ${skipped}`, 'success');
       } else {
         showToast(`Imported ${imported} record(s)`, 'success');
       }
@@ -299,6 +320,14 @@ export default function CsvImportModal({
             <div className="text-xs space-y-2 border-t border-zoho-border pt-3 mt-1">
               {preview?.ready_count > 0 && (
                 <p className="text-green-700 font-medium">{preview.ready_count} row(s) ready to import</p>
+              )}
+
+              {preview?.skip_messages?.length > 0 && (
+                <div className="max-h-40 overflow-y-auto rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 space-y-1">
+                  {preview.skip_messages.slice(0, 20).map((msg, i) => (
+                    <p key={`s-${i}`} className="text-amber-800">{msg}</p>
+                  ))}
+                </div>
               )}
 
               {validationMessage && (

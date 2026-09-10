@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { normalizeLead, toLeadPayload, resolveLeadOwnerId, resolveLeadStatusForApi, withClientSalutation, wasLeadSalutationDropped } from '../leadHelpers.js';
 import { toConvertPayload } from '../dealHelpers.js';
-import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS, assertReadyRecordsComplete } from '../importHelpers.js';
+import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS, assertReadyRecordsComplete, resolveReadyCount, formatBulkUploadSkipMessages } from '../importHelpers.js';
 import {
   PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PIPELINE_LEAD,
   PROPOSAL_DEFAULT_LEAD_STATUS, PIPELINE_MODULE_PERMISSION,
@@ -420,20 +420,39 @@ export async function downloadLeadImportTemplate() {
 export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus = PIPELINE_RAW, campaignId, onProgress } = {}) {
   const rawCsv = await file.text();
   const csv = ensureCsvColumn(rawCsv, 'lead_status', defaultLeadStatus);
-  if (dry_run) {
-    const res = await api.post('/leads/bulk-upload', { csv }, { timeout: BULK_IMPORT_TIMEOUT_MS });
-    const payload = res.data.data || {};
-    return normalizeImportResult({
-      ready_count: payload.ready,
-      error_count: payload.errors,
-      errorRecords: (payload.errorRecords || []).map((e) => ({ row: e.row, message: e.error })),
-      readyRecords: payload.readyRecords,
-    });
-  }
   const upload = await api.post('/leads/bulk-upload', { csv }, { timeout: BULK_IMPORT_TIMEOUT_MS });
   const payload = upload.data.data || {};
-  assertReadyRecordsComplete(payload);
   const readyRecords = payload.readyRecords || [];
+  const readyCount = resolveReadyCount(payload);
+  const uploadErrors = (payload.errorRecords || []).map((e) => ({
+    row: e.row,
+    message: e.error || e.message,
+    code: e.code,
+    field: e.field,
+  }));
+
+  if (dry_run) {
+    return normalizeImportResult({
+      ready_count: readyCount,
+      error_count: payload.errors ?? uploadErrors.length,
+      errorRecords: uploadErrors,
+      skip_messages: formatBulkUploadSkipMessages(payload.errorRecords),
+      readyRecords,
+    });
+  }
+
+  if (!readyRecords.length) {
+    return normalizeImportResult({
+      imported_count: 0,
+      skipped_count: uploadErrors.length || Number(payload.errors || 0) || 0,
+      error_count: uploadErrors.length || Number(payload.errors || 0) || 0,
+      errorRecords: uploadErrors,
+      skip_messages: formatBulkUploadSkipMessages(payload.errorRecords),
+      readyRecords: [],
+    });
+  }
+
+  assertReadyRecordsComplete(payload);
 
   let campaignLookups = [];
   try {
@@ -462,7 +481,7 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
   });
 
   return normalizeImportResult({
-    imported_count: result.imported ?? result.imported_count ?? records.length,
+    imported_count: result.imported ?? result.imported_count ?? 0,
     skipped_count: result.skipped ?? result.skipped_count,
     error_count: result.errors ?? result.error_count,
     errorRecords: result.errorRecords,
