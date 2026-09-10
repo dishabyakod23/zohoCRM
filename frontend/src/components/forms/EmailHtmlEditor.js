@@ -1,5 +1,7 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Modal from '../ui/Modal.js';
+import FormField, { inputClass } from './FormField.js';
 
 const FONT_FACES = [
   { value: 'Calibri, Candara, Segoe, Segoe UI, Optima, Arial, sans-serif', label: 'Calibri' },
@@ -14,6 +16,21 @@ const FONT_SIZES = [
   { value: '4', label: 'Large' },
   { value: '5', label: 'X-Large' },
 ];
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function normalizeHref(url) {
+  const trimmed = String(url || '').trim();
+  if (!trimmed) return '';
+  if (/^(https?:|mailto:|tel:)/i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
 
 function ToolbarButton({ label, onMouseDown, active = false, title }) {
   return (
@@ -41,6 +58,11 @@ export default function EmailHtmlEditor({
 }) {
   const editorRef = useRef(null);
   const lastValueRef = useRef(null);
+  const savedRangeRef = useRef(null);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('https://');
+  const [linkText, setLinkText] = useState('');
+  const [linkError, setLinkError] = useState('');
 
   useEffect(() => {
     const el = editorRef.current;
@@ -66,11 +88,51 @@ export default function EmailHtmlEditor({
     emit();
   };
 
-  const insertLink = () => {
+  const openLinkDialog = () => {
     if (disabled) return;
-    const url = window.prompt('Link URL', 'https://');
-    if (!url) return;
-    run('createLink', url);
+    const sel = window.getSelection();
+    let selectedText = '';
+    if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode)) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+      selectedText = sel.toString();
+    } else {
+      savedRangeRef.current = null;
+    }
+    setLinkUrl('https://');
+    setLinkText(selectedText || '');
+    setLinkError('');
+    setLinkOpen(true);
+  };
+
+  const closeLinkDialog = () => {
+    setLinkOpen(false);
+    setLinkError('');
+    savedRangeRef.current = null;
+  };
+
+  const applyLink = () => {
+    const href = normalizeHref(linkUrl);
+    if (!href || href === 'https://') {
+      setLinkError('Enter a link URL.');
+      return;
+    }
+    const display = String(linkText || '').trim() || href;
+    editorRef.current?.focus();
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      if (savedRangeRef.current) {
+        try {
+          sel.addRange(savedRangeRef.current);
+        } catch {
+          // Selection may be stale after modal focus; insert at end of editor.
+        }
+      }
+    }
+    const html = `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a>`;
+    document.execCommand('insertHTML', false, html);
+    emit();
+    closeLinkDialog();
   };
 
   return (
@@ -113,12 +175,12 @@ export default function EmailHtmlEditor({
           <ToolbarButton label="Center" title="Align center" onMouseDown={(e) => { e.preventDefault(); run('justifyCenter'); }} />
           <ToolbarButton label="Right" title="Align right" onMouseDown={(e) => { e.preventDefault(); run('justifyRight'); }} />
           <ToolbarButton label="• List" title="Bullet list" onMouseDown={(e) => { e.preventDefault(); run('insertUnorderedList'); }} />
-          <ToolbarButton label="Link" title="Insert hyperlink" onMouseDown={(e) => { e.preventDefault(); insertLink(); }} />
+          <ToolbarButton label="Link" title="Insert hyperlink" onMouseDown={(e) => { e.preventDefault(); openLinkDialog(); }} />
         </div>
       )}
       <div
         ref={editorRef}
-        className="input !rounded-none !border-0 min-h-[120px] text-sm leading-relaxed focus:!ring-0"
+        className="input !rounded-none !border-0 min-h-[120px] text-sm leading-relaxed focus:!ring-0 [&_a]:text-brand-600 [&_a]:underline"
         style={{ minHeight }}
         contentEditable={!disabled}
         suppressContentEditableWarning
@@ -129,6 +191,42 @@ export default function EmailHtmlEditor({
       <p className="text-[11px] text-zoho-muted px-3 py-1.5 border-t border-zoho-border bg-white">
         Formatting is sent as HTML (Outlook/Gmail). Use blank lines for spacing. Preview below should match the sent email.
       </p>
+
+      {linkOpen && (
+        <Modal title="Insert hyperlink" onClose={closeLinkDialog}>
+          <div className="space-y-4">
+            <FormField label="Link text (name)" required error={linkError && !linkText.trim() && !linkUrl.trim() ? linkError : null}>
+              <input
+                className={inputClass()}
+                value={linkText}
+                placeholder="e.g. Book a demo"
+                autoFocus
+                onChange={(e) => setLinkText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyLink(); } }}
+              />
+            </FormField>
+            <FormField label="Link URL" required error={linkError}>
+              <input
+                className={inputClass(linkError)}
+                value={linkUrl}
+                placeholder="https://example.com"
+                onChange={(e) => {
+                  setLinkUrl(e.target.value);
+                  if (linkError) setLinkError('');
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyLink(); } }}
+              />
+            </FormField>
+            <p className="text-xs text-zoho-muted">
+              Recipients will see the link text as a clickable hyperlink that opens the URL.
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" className="btn-secondary" onClick={closeLinkDialog}>Cancel</button>
+              <button type="button" className="btn-primary" onClick={applyLink}>Insert link</button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

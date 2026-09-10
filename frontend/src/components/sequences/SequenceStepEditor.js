@@ -245,7 +245,7 @@ export default function SequenceStepEditor({
           <p className="text-sm font-medium">{previewSubject || '—'}</p>
           {previewBodyHtml ? (
             <div
-              className="text-sm mt-3 text-zoho-text leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0"
+              className="text-sm mt-3 text-zoho-text leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0 [&_a]:text-brand-600 [&_a]:underline"
               dangerouslySetInnerHTML={{ __html: previewBodyHtml }}
             />
           ) : (
