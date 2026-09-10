@@ -32,7 +32,7 @@ function resolveAuditLogUserName(log) {
       email: log.user.email,
     })
     : null;
-  return nested || flatName || userBriefName(log.user);
+  return nested || flatName || userBriefName(log.user) || '—';
 }
 
 export function normalizeAuditLog(log) {
