@@ -39,11 +39,20 @@ These bugs keep shipping because the UI **looks** updated while related data is 
 - CSV parse must keep newlines **inside quotes** (RFC4180).
 - If API `ready` ≠ `readyRecords.length`, fail loudly — do not import a truncated list silently.
 
-## 6. Before shipping CRM FE
+## 6. Sequences — never corrupt live sends
+
+- **Do not PATCH/POST step content on ACTIVE sequences** during debugging, scripts, or probes. Pause first (or use a dedicated DRAFT test sequence with no real enrollments).
+- UI must lock step editing while status is `ACTIVE`; require Pause → edit → Activate.
+- Never write probe subjects/bodies (`patch probe`, repeated `xxxxx`, etc.) into real sequence steps.
+- Before activate: confirm enrollments; block obvious garbage/probe email content.
+- Mirror sequence safety fixes in **both** frontends.
+
+## 7. Before shipping CRM FE
 
 - [ ] Convert / mass-update: related data + list columns still correct?
 - [ ] Form: required errors clear on input?
 - [ ] Sanitizers: allowed characters still typeable?
 - [ ] Import: one bad row cannot drop the rest of the batch?
+- [ ] Sequences: ACTIVE steps locked; no probe content on live sequences?
 - [ ] Tests added for the regression class above when touching those paths?
 - [ ] Mirror the same fix in **both** `zoho-crm/frontend` and `sale-crm` when both repos are in play.

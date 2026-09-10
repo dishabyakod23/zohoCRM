@@ -16,7 +16,7 @@ import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { getApiError } from '../../../lib/api.js';
 import * as sequencesApi from '../../../lib/services/sequences.js';
-import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel } from '../../../lib/sequenceHelpers.js';
+import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel, canEditSequenceSteps, getUnsafeSequenceEmailReason, isEmailStep } from '../../../lib/sequenceHelpers.js';
 import { fetchUsers } from '../../../lib/services/lookups.js';
 
 const TABS = ['Steps', 'Enrollments', 'Analytics', 'Settings'];
@@ -80,6 +80,26 @@ export default function SequenceDetailPage() {
   }, []);
 
   const setStatus = async (action) => {
+    if (action === 'activate') {
+      const emailSteps = (steps || []).filter((s) => isEmailStep(s.type));
+      for (const step of emailSteps) {
+        const unsafe = getUnsafeSequenceEmailReason(step);
+        if (unsafe) {
+          showToast(unsafe);
+          return;
+        }
+      }
+      const enrolled = (enrollments || []).filter(
+        (e) => String(e.status || '').toUpperCase() === 'ACTIVE',
+      ).length;
+      const ok = window.confirm(
+        enrolled > 0
+          ? `Activate this sequence? It will start sending to ${enrolled} active enrollment${enrolled === 1 ? '' : 's'}. Pause first if you still need to edit email content.`
+          : 'Activate this sequence? Enrolled members will start receiving emails on the step schedule.',
+      );
+      if (!ok) return;
+    }
+
     setSaving(true);
     try {
       const updated = action === 'activate'
@@ -122,8 +142,8 @@ export default function SequenceDetailPage() {
     return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
   }
 
-  // Allow adding/editing steps while active or paused (not draft-only).
-  const stepsEditable = canEdit && ['DRAFT', 'ACTIVE', 'PAUSED'].includes(sequence.status);
+  // ACTIVE sequences are send-live — lock step edits so content changes cannot fire mid-flight.
+  const stepsEditable = canEdit && canEditSequenceSteps(sequence.status);
   const canActivate = canEdit && (sequence.status === 'DRAFT' || sequence.status === 'PAUSED');
   const canPause = canEdit && sequence.status === 'ACTIVE';
 
@@ -166,6 +186,12 @@ export default function SequenceDetailPage() {
             )}
           </div>
         </div>
+
+        {sequence.status === 'ACTIVE' && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            This sequence is live. Pause it before editing steps so probe or draft content cannot go out to enrollments.
+          </div>
+        )}
 
         <div className="flex gap-2 border-b border-zoho-border">
           {TABS.map((t) => (

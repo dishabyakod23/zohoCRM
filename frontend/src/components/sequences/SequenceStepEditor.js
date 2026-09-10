@@ -14,6 +14,8 @@ import {
   isManualTaskStep,
   formatStepSchedule,
   normalizeSequenceTimezone,
+  emptyStepVariant,
+  getUnsafeSequenceEmailReason,
 } from '../../lib/sequenceHelpers.js';
 import { listEmailTemplates, templateLabel } from '../../lib/services/emailTemplates.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
@@ -117,6 +119,11 @@ export default function SequenceStepEditor({
       showToast('Save the step before sending a test');
       return;
     }
+    const unsafe = getUnsafeSequenceEmailReason(step);
+    if (unsafe) {
+      showToast(unsafe);
+      return;
+    }
     setSendingTest(true);
     try {
       await sequencesApi.sendSequenceTest(sequenceId, { step_id: step.id, to_email: testEmail || undefined });
@@ -155,7 +162,24 @@ export default function SequenceStepEditor({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField label="Action Type">
-          <select className="input" value={step.type} disabled={readOnly} onChange={(e) => update({ type: e.target.value })}>
+          <select
+            className="input"
+            value={step.type}
+            disabled={readOnly}
+            onChange={(e) => {
+              const type = e.target.value;
+              if (type === 'AB_EMAIL') {
+                update({
+                  type,
+                  variants: step.variants?.length >= 2
+                    ? step.variants
+                    : [emptyStepVariant('A'), emptyStepVariant('B')],
+                });
+                return;
+              }
+              update({ type, variants: [] });
+            }}
+          >
             {STEP_TYPES.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}

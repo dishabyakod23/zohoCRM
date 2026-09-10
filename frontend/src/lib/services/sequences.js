@@ -51,12 +51,13 @@ function toSequencePayload(form, { partial = false } = {}) {
   return partial ? omitEmpty(payload) : payload;
 }
 
-function toStepPayload(form, { partial = false, sequenceTimezone } = {}) {
+export function toStepPayload(form, { partial = false, sequenceTimezone } = {}) {
   const timezone = normalizeSequenceTimezone(
     form.timezone || sequenceTimezone || 'UTC',
   );
   const scheduled_time = normalizeScheduledTime(form.scheduled_time);
   const scheduled_at = buildScheduledAtIso(form.scheduled_date, scheduled_time, timezone);
+  const stepType = form.type;
 
   const htmlBody = form.html_body != null && form.html_body !== ''
     ? ensureEmailHtmlBody(form.html_body)
@@ -65,9 +66,26 @@ function toStepPayload(form, { partial = false, sequenceTimezone } = {}) {
     ? form.text_body
     : (form.html_body ? htmlToPlainText(form.html_body) : (partial ? undefined : null));
 
+  // Backend 500s (often without CORS → browser "Network Error") if variants are
+  // sent on non–A/B steps. Only include variants for AB_EMAIL.
+  const variants = stepType === 'AB_EMAIL' && form.variants?.length
+    ? form.variants.map((v) => {
+      const variantHtml = v.html_body != null && v.html_body !== ''
+        ? ensureEmailHtmlBody(v.html_body)
+        : null;
+      return {
+        variant_key: v.variant_key,
+        template_id: v.template_id || null,
+        subject: v.subject || null,
+        html_body: variantHtml,
+        text_body: v.text_body || (v.html_body ? htmlToPlainText(v.html_body) : null),
+      };
+    })
+    : undefined;
+
   const payload = {
     step_order: form.step_order != null ? Number(form.step_order) : undefined,
-    type: form.type,
+    type: stepType,
     scheduled_date: form.scheduled_date || null,
     scheduled_time,
     timezone,
@@ -79,18 +97,7 @@ function toStepPayload(form, { partial = false, sequenceTimezone } = {}) {
     task_title: form.task_title || null,
     task_description: form.task_description || null,
     active: form.active,
-    variants: form.variants?.length ? form.variants.map((v) => {
-      const variantHtml = v.html_body != null && v.html_body !== ''
-        ? ensureEmailHtmlBody(v.html_body)
-        : null;
-      return {
-        variant_key: v.variant_key,
-        template_id: v.template_id || null,
-        subject: v.subject || null,
-        html_body: variantHtml,
-        text_body: v.text_body || (v.html_body ? htmlToPlainText(v.html_body) : null),
-      };
-    }) : undefined,
+    variants,
   };
   return partial ? omitEmpty(payload) : payload;
 }

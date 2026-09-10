@@ -147,8 +147,12 @@ export function getApiError(err) {
     return 'The server is taking too long to respond. Wait a moment and try again — this can happen when the API wakes from idle.';
   }
   const data = err.response?.data;
-  if (!data) return err.message || 'Request failed';
-
+  if (!data) {
+    if (err.message === 'Network Error' || err.code === 'ERR_NETWORK') {
+      return 'Could not complete the request. Please try again — if it keeps failing, the server may have rejected the save.';
+    }
+    return err.message || 'Request failed';
+  }
   if (typeof data === 'string') {
     const text = data.trim();
     if (err.response?.status >= 500) {

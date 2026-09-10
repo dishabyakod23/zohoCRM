@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import SequenceStepEditor from './SequenceStepEditor.js';
-import { emptyStepForm } from '../../lib/sequenceHelpers.js';
+import { emptyStepForm, getUnsafeSequenceEmailReason } from '../../lib/sequenceHelpers.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
@@ -97,6 +97,11 @@ export default function SequenceBuilder({
       if (!quiet) showToast('Each step needs a scheduled date and time');
       throw new Error('Missing schedule');
     }
+    const unsafe = getUnsafeSequenceEmailReason(step);
+    if (unsafe) {
+      if (!quiet) showToast(unsafe);
+      throw new Error('Unsafe email content');
+    }
     setSavingId(step.id || `new-${index}`);
     try {
       const saveOptions = { sequenceTimezone };
@@ -117,7 +122,9 @@ export default function SequenceBuilder({
       syncSteps(next);
       showToast('Step saved', 'success');
     } catch (err) {
-      if (err?.message !== 'Missing schedule') showToast(getApiError(err));
+      if (err?.message !== 'Missing schedule' && err?.message !== 'Unsafe email content') {
+        showToast(getApiError(err));
+      }
     }
   };
 
@@ -133,7 +140,9 @@ export default function SequenceBuilder({
       }
       showToast(`Saved ${next.length} step(s)`, 'success');
     } catch (err) {
-      if (err?.message !== 'Missing schedule') showToast(getApiError(err));
+      if (err?.message !== 'Missing schedule' && err?.message !== 'Unsafe email content') {
+        showToast(getApiError(err));
+      }
     } finally {
       setSavingAll(false);
     }

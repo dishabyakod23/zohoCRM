@@ -424,7 +424,7 @@ export function emptyStepForm(order = 1, sequenceTimezone = 'UTC') {
     text_body: '',
     task_title: '',
     task_description: '',
-    variants: [emptyStepVariant('A'), emptyStepVariant('B')],
+    variants: [],
     active: true,
   };
 }
@@ -510,6 +510,41 @@ export function htmlToPlainText(value) {
     .trim();
 }
 
+/**
+ * Detect probe/garbage email content that must never go to live enrollments
+ * (e.g. repeated single-character bodies, "patch probe" subjects).
+ * Returns a user-facing reason string, or null when content looks fine.
+ */
+export function getUnsafeSequenceEmailReason({ subject, html_body, text_body } = {}) {
+  const subjectText = String(subject || '').trim();
+  if (/patch\s*probe|restored after probe|\[please re-edit\]/i.test(subjectText)) {
+    return 'This subject looks like diagnostic/probe text. Rewrite it before saving or activating.';
+  }
+
+  const plain = htmlToPlainText(html_body || text_body || '').replace(/\s+/g, '');
+  if (plain.length >= 80) {
+    const counts = new Map();
+    for (const ch of plain) counts.set(ch, (counts.get(ch) || 0) + 1);
+    let max = 0;
+    for (const n of counts.values()) if (n > max) max = n;
+    if (max / plain.length >= 0.85) {
+      return 'Email body looks like filler/probe content (mostly the same character). Rewrite it before saving or activating.';
+    }
+  }
+
+  if (/x{40,}/i.test(plain) || /restored after probe/i.test(plain)) {
+    return 'Email body still contains diagnostic/probe content. Rewrite it before saving or activating.';
+  }
+
+  return null;
+}
+
+/** True when sequence steps may be created/edited in the UI. ACTIVE is locked. */
+export function canEditSequenceSteps(status) {
+  const s = String(status || '').toUpperCase();
+  return s === 'DRAFT' || s === 'PAUSED';
+}
+
 export function memberRefFromRecord(record, memberType) {
   return { member_type: memberType, member_id: record.id };
 }
@@ -523,8 +558,8 @@ export function replyRatePercent(stats) {
 
 export function normalizeStepFromApi(step) {
   if (!step) return step;
-  const variants = step.variants?.length
-    ? step.variants
-    : (step.type === 'AB_EMAIL' ? [emptyStepVariant('A'), emptyStepVariant('B')] : []);
+  const variants = step.type === 'AB_EMAIL'
+    ? (step.variants?.length ? step.variants : [emptyStepVariant('A'), emptyStepVariant('B')])
+    : [];
   return { ...step, variants };
 }
