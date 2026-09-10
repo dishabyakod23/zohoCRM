@@ -92,6 +92,7 @@ export function normalizeImportResult(data = {}) {
     records: Array.isArray(data.records) ? data.records : [],
     skip_messages: data.skip_messages || [],
     readyRecords: data.readyRecords,
+    partial: Boolean(data.partial),
   };
 }
 
@@ -104,8 +105,8 @@ export const BULK_IMPORT_TIMEOUT_MS = 180000;
  */
 export const BULK_IMPORT_CHUNK_SIZE = 50;
 
-/** Smallest chunk size when auto-splitting after a server error. */
-export const BULK_IMPORT_MIN_CHUNK_SIZE = 10;
+/** Smallest chunk size when auto-splitting after a server error (1 = isolate bad rows). */
+export const BULK_IMPORT_MIN_CHUNK_SIZE = 1;
 
 export function chunkArray(items = [], size = BULK_IMPORT_CHUNK_SIZE) {
   const list = Array.isArray(items) ? items : [];
@@ -118,13 +119,35 @@ export function chunkArray(items = [], size = BULK_IMPORT_CHUNK_SIZE) {
   return chunks;
 }
 
-function isRetryableBulkImportError(err) {
-  const status = err?.response?.status;
-  if (status === 413 || status === 408 || status === 429) return true;
-  if (status >= 500 && status < 600) return true;
-  if (err?.code === 'ECONNABORTED') return true;
-  if (err?.message === 'Network Error') return true;
-  return false;
+function bulkImportErrorMessage(err) {
+  const data = err?.response?.data;
+  if (typeof data === 'string' && data.trim()) return formatImportNotice(data);
+  if (data?.message) return formatImportNotice(data.message);
+  if (data?.error) return formatImportNotice(data.error);
+  if (data?.detail) return formatImportNotice(data.detail);
+  return formatImportNotice(err?.message || 'Import batch failed');
+}
+
+function failedChunkResult(chunk, err) {
+  const message = bulkImportErrorMessage(err);
+  const rows = Array.isArray(chunk) ? chunk : [];
+  return {
+    imported: 0,
+    imported_count: 0,
+    skipped: 0,
+    skipped_count: 0,
+    errors: Math.max(1, rows.length),
+    error_count: Math.max(1, rows.length),
+    records: [],
+    skip_messages: [],
+    errorRecords: rows.length
+      ? rows.map((row, index) => ({
+          row: row?._row ?? row?.row ?? null,
+          message: rows.length === 1 ? message : `${message} (batch row ${index + 1})`,
+        }))
+      : [{ row: null, message }],
+    created_ids: [],
+  };
 }
 
 async function postBulkImportChunk(apiClient, url, chunk, campaign_id, timeout) {
@@ -135,7 +158,8 @@ async function postBulkImportChunk(apiClient, url, chunk, campaign_id, timeout) 
 }
 
 /**
- * Post one chunk; on server overload/timeout, split and retry until min size.
+ * Post one chunk; on failure, split to isolate bad rows down to minChunkSize.
+ * Single-row failures are recorded and skipped so the rest of the import can continue.
  */
 async function postBulkImportChunkWithSplit(
   apiClient,
@@ -146,29 +170,35 @@ async function postBulkImportChunkWithSplit(
   try {
     return [await postBulkImportChunk(apiClient, url, chunk, campaign_id, timeout)];
   } catch (err) {
-    if (!isRetryableBulkImportError(err) || chunk.length <= minChunkSize) {
-      throw err;
+    if (chunk.length > Math.max(1, minChunkSize)) {
+      const mid = Math.ceil(chunk.length / 2);
+      const left = chunk.slice(0, mid);
+      const right = chunk.slice(mid);
+      onProgress?.({
+        phase: 'split',
+        message: `Server rejected a batch of ${chunk.length}; retrying as ${left.length} + ${right.length}…`,
+      });
+      const leftResults = await postBulkImportChunkWithSplit(apiClient, url, left, {
+        campaign_id,
+        timeout,
+        minChunkSize,
+        onProgress,
+      });
+      const rightResults = await postBulkImportChunkWithSplit(apiClient, url, right, {
+        campaign_id,
+        timeout,
+        minChunkSize,
+        onProgress,
+      });
+      return [...leftResults, ...rightResults];
     }
-    const mid = Math.ceil(chunk.length / 2);
-    const left = chunk.slice(0, mid);
-    const right = chunk.slice(mid);
+
+    // Last-resort single (or min-size) batch failed — skip it, keep importing the rest.
     onProgress?.({
-      phase: 'split',
-      message: `Server rejected a batch of ${chunk.length}; retrying as ${left.length} + ${right.length}…`,
+      phase: 'row_error',
+      message: `Skipped ${chunk.length} row(s): ${bulkImportErrorMessage(err)}`,
     });
-    const leftResults = await postBulkImportChunkWithSplit(apiClient, url, left, {
-      campaign_id,
-      timeout,
-      minChunkSize,
-      onProgress,
-    });
-    const rightResults = await postBulkImportChunkWithSplit(apiClient, url, right, {
-      campaign_id,
-      timeout,
-      minChunkSize,
-      onProgress,
-    });
-    return [...leftResults, ...rightResults];
+    return [failedChunkResult(chunk, err)];
   }
 }
 
@@ -214,13 +244,14 @@ export function mergeBulkImportResults(results = []) {
     skip_messages,
     errorRecords,
     created_ids,
+    partial: (errors || errorRecords.length) > 0 && imported > 0,
   };
 }
 
 /**
  * POST records to a bulk-import endpoint in chunks with an extended timeout.
  * Keeps campaign_id on every chunk when provided.
- * On 5xx/413/timeout, automatically splits the failing batch and retries.
+ * On failure, automatically splits the failing batch and continues remaining chunks.
  */
 export async function postBulkImportInChunks(
   apiClient,
@@ -258,4 +289,25 @@ export async function postBulkImportInChunks(
     results.push(...chunkResults);
   }
   return mergeBulkImportResults(results);
+}
+
+/** Guard: API ready count vs readyRecords length (truncated payloads cause short imports). */
+export function assertReadyRecordsComplete(payload = {}) {
+  const readyCount = Number(payload.ready ?? payload.ready_count ?? 0) || 0;
+  const readyRecords = Array.isArray(payload.readyRecords) ? payload.readyRecords : [];
+  if (readyCount > 0 && readyRecords.length === 0) {
+    const err = new Error(
+      `Validation found ${readyCount} ready row(s), but the server returned none to import. Try a smaller file or contact support.`,
+    );
+    err.code = 'READY_RECORDS_EMPTY';
+    throw err;
+  }
+  if (readyCount > 0 && readyRecords.length < readyCount) {
+    const err = new Error(
+      `Validation found ${readyCount} ready row(s), but only ${readyRecords.length} were returned for import. Try splitting the CSV into smaller files.`,
+    );
+    err.code = 'READY_RECORDS_TRUNCATED';
+    throw err;
+  }
+  return readyRecords;
 }

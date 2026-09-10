@@ -1,6 +1,6 @@
 import api from '../api.js';
 import { normalizeContact, toContactPayload, normalizeBulkUploadContactRecords, enrichContactReadyRecordsFromCsv, resolveContactLinkedInUrl } from '../contactHelpers.js';
-import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS } from '../importHelpers.js';
+import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS, assertReadyRecordsComplete } from '../importHelpers.js';
 import {
   applyContactRecordFilters,
   hasContactClientFilters,
@@ -143,6 +143,8 @@ export async function importContactsFile(file, { dry_run = true, campaignId, onP
     });
   }
 
+  assertReadyRecordsComplete(payload);
+
   let campaignLookups = [];
   try {
     campaignLookups = await fetchCampaignLookups();
@@ -177,6 +179,7 @@ export async function importContactsFile(file, { dry_run = true, campaignId, onP
     created_ids: result.created_ids,
     records: result.records,
     skip_messages: result.skip_messages,
+    partial: result.partial,
   });
 }
 

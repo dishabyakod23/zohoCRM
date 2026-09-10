@@ -75,6 +75,102 @@ export async function assignRecordsToCampaign(campaignId, memberType, memberIds)
   await campaignsApi.addCampaignMembers(campaignId, members);
 }
 
+/** Remove a contact/lead/account from a campaign membership list (best-effort). */
+export async function removeRecordFromCampaign(campaignId, memberType, memberId) {
+  if (!campaignId || !memberId) return false;
+  try {
+    const { data: members } = await campaignsApi.listCampaignMembers(campaignId);
+    const match = (members || []).find(
+      (row) => String(row.member_id) === String(memberId)
+        && (!memberType || row.member_type === memberType),
+    );
+    if (!match) return false;
+    const deleteId = match.id || match.member_id;
+    await campaignsApi.deleteCampaignMember(campaignId, deleteId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Move records to a campaign: drop prior membership(s), add to the new campaign,
+ * and best-effort PATCH denormalized campaign_id/campaign_name so list columns update.
+ */
+export async function reassignRecordsToCampaign({
+  campaignId,
+  campaignName = '',
+  members = [],
+} = {}) {
+  if (!campaignId || !members?.length) return { moved: 0 };
+
+  const normalized = members
+    .map((m) => ({
+      member_type: m.member_type,
+      member_id: m.member_id,
+      previous_campaign_id: String(m.previous_campaign_id || '').trim(),
+    }))
+    .filter((m) => m.member_type && m.member_id);
+
+  if (!normalized.length) return { moved: 0 };
+
+  // Resolve prior campaign when the list row did not include campaign_id.
+  await Promise.all(normalized.map(async (member) => {
+    if (member.previous_campaign_id) return;
+    try {
+      const found = await findRecordCampaign(member.member_type, member.member_id);
+      member.previous_campaign_id = found.campaign_id || '';
+    } catch {
+      member.previous_campaign_id = '';
+    }
+  }));
+
+  const byPrev = new Map();
+  for (const member of normalized) {
+    const prev = member.previous_campaign_id;
+    if (!prev || prev === String(campaignId)) continue;
+    if (!byPrev.has(prev)) byPrev.set(prev, []);
+    byPrev.get(prev).push(member);
+  }
+
+  for (const [prevId, group] of byPrev.entries()) {
+    try {
+      const { data: existing } = await campaignsApi.listCampaignMembers(prevId);
+      const want = new Set(group.map((g) => `${g.member_type}:${g.member_id}`));
+      await Promise.allSettled((existing || []).map(async (row) => {
+        const key = `${row.member_type}:${row.member_id}`;
+        if (!want.has(key)) return;
+        const deleteId = row.id || row.member_id;
+        await campaignsApi.deleteCampaignMember(prevId, deleteId);
+      }));
+    } catch {
+      // Continue — still try to attach to the new campaign.
+    }
+  }
+
+  await campaignsApi.addCampaignMembers(
+    campaignId,
+    normalized.map(({ member_type, member_id }) => ({ member_type, member_id })),
+  );
+
+  const label = String(campaignName || '').trim() || null;
+  await Promise.allSettled(normalized.map(async (member) => {
+    const payload = { campaign_id: campaignId, campaign_name: label };
+    try {
+      if (member.member_type === 'contact') {
+        await contactsApi.updateContact(member.member_id, payload);
+      } else if (member.member_type === 'lead') {
+        await leadsApi.updateLead(member.member_id, payload);
+      }
+    } catch {
+      // Membership is source of truth when denormalized fields are rejected.
+    }
+  }));
+
+  invalidateCampaignCaches();
+  return { moved: normalized.length };
+}
+
 export async function resolveImportCampaignId(campaignId) {
   if (!campaignId) return '';
   const lookups = await fetchCampaignLookups().catch(() => []);
@@ -150,9 +246,23 @@ export async function saveRecordCampaignChange({
   previousCampaignId,
   memberType,
   recordId,
+  campaignName = '',
 }) {
   if (!recordId || campaignId === previousCampaignId) return;
-  if (campaignId) await assignRecordToCampaign(campaignId, memberType, recordId);
+  if (previousCampaignId && previousCampaignId !== campaignId) {
+    await removeRecordFromCampaign(previousCampaignId, memberType, recordId);
+  }
+  if (campaignId) {
+    await assignRecordToCampaign(campaignId, memberType, recordId);
+    try {
+      const payload = { campaign_id: campaignId, campaign_name: campaignName || null };
+      if (memberType === 'contact') await contactsApi.updateContact(recordId, payload);
+      else if (memberType === 'lead') await leadsApi.updateLead(recordId, payload);
+    } catch {
+      // Membership already updated.
+    }
+  }
+  invalidateCampaignCaches();
 }
 
 export function invalidateCampaignCaches() {

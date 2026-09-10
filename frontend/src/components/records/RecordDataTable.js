@@ -18,7 +18,7 @@ import * as campaignsApi from '../../lib/services/campaigns.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchUsers, fetchMassUpdateFieldOptions, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
-import { fetchCampaignLookups, assignRecordsToCampaign, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
+import { fetchCampaignLookups, assignRecordsToCampaign, resolveOrCreateCampaignId, reassignRecordsToCampaign } from '../../lib/campaignRecordHelpers.js';
 import { personRecordId, personCampaignMemberType, parsePersonRowId } from '../../lib/services/people.js';
 import EnrollMembersModal, { SEQUENCE_MEMBER_TYPES } from '../sequences/EnrollMembersModal.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
@@ -551,25 +551,44 @@ export default function RecordDataTable({
           showToast('Select or enter a campaign name');
           return;
         }
+        const campaignLabel = String(massCampaignName || '').trim()
+          || massValueOptions.find((o) => String(o.value) === String(campaignId))?.label
+          || '';
+
         if (moduleKey === 'contacts') {
           const members = selectedRecords.map((record) => ({
             member_type: personCampaignMemberType(record),
             member_id: personRecordId(record) || parsePersonRowId(getRowId(record)).recordId,
+            previous_campaign_id: record.campaign_id || '',
           })).filter((member) => member.member_id);
           if (!members.length) {
             showToast('No valid records selected');
             return;
           }
-          await campaignsApi.addCampaignMembers(campaignId, members);
+          await reassignRecordsToCampaign({
+            campaignId,
+            campaignName: campaignLabel,
+            members,
+          });
         } else {
           const memberType = CAMPAIGN_MEMBER_TYPES[moduleKey];
           if (!memberType) {
             showToast('Campaign assignment is not supported for this module');
             return;
           }
-          await assignRecordsToCampaign(campaignId, memberType, selected);
+          const members = selectedRecords.map((record) => ({
+            member_type: memberType,
+            member_id: getRowId(record),
+            previous_campaign_id: record.campaign_id || '',
+          })).filter((member) => member.member_id);
+          await reassignRecordsToCampaign({
+            campaignId,
+            campaignName: campaignLabel,
+            members,
+          });
         }
-        showToast(`Added ${selected.length} record(s) to campaign`, 'success');
+        markRecordListStale();
+        showToast(`Updated campaign for ${selected.length} record(s)`, 'success');
         finishMassUpdate();
         return;
       }

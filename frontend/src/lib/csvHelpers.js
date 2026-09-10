@@ -23,6 +23,40 @@ function parseCsvLine(line) {
   return values;
 }
 
+/**
+ * Split CSV text into logical records (RFC4180): newlines inside quotes stay in the field.
+ * Blank lines outside quotes are skipped.
+ */
+export function splitCsvRecords(csvText) {
+  const text = String(csvText || '').replace(/^\uFEFF/, '');
+  const records = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === '"') {
+      current += ch;
+      if (inQuotes && text[i + 1] === '"') {
+        current += text[i + 1];
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      if (ch === '\r' && text[i + 1] === '\n') i += 1;
+      if (current.trim()) records.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  if (current.trim()) records.push(current);
+  return records;
+}
+
 function escapeCsvCell(value) {
   const str = String(value ?? '');
   if (/[",\n\r]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
@@ -39,7 +73,7 @@ export function normalizeHeaderKey(header) {
 
 /** Parse CSV text into { headers, rows } where rows use original header keys */
 export function parseCsvText(csvText) {
-  const lines = csvText.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.trim());
+  const lines = splitCsvRecords(csvText);
   if (lines.length < 1) return { headers: [], rows: [] };
 
   const headers = parseCsvLine(lines[0]).map((h) => h.trim()).filter(Boolean);

@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { normalizeLead, toLeadPayload, resolveLeadOwnerId, resolveLeadStatusForApi, withClientSalutation, wasLeadSalutationDropped } from '../leadHelpers.js';
 import { toConvertPayload } from '../dealHelpers.js';
-import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS } from '../importHelpers.js';
+import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS, assertReadyRecordsComplete } from '../importHelpers.js';
 import {
   PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PIPELINE_LEAD,
   PROPOSAL_DEFAULT_LEAD_STATUS, PIPELINE_MODULE_PERMISSION,
@@ -432,6 +432,7 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
   }
   const upload = await api.post('/leads/bulk-upload', { csv }, { timeout: BULK_IMPORT_TIMEOUT_MS });
   const payload = upload.data.data || {};
+  assertReadyRecordsComplete(payload);
   const readyRecords = payload.readyRecords || [];
 
   let campaignLookups = [];
@@ -470,6 +471,7 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
       : (result.records || []).map((row) => row?.id).filter(Boolean),
     records: result.records,
     skip_messages: result.skip_messages,
+    partial: result.partial,
   });
 }
 

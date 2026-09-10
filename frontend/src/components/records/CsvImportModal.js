@@ -151,7 +151,19 @@ export default function CsvImportModal({
         campaignId: campaignId || undefined,
         onProgress: (info) => setImportProgress(info?.message || ''),
       });
-      showToast(`Imported ${result.imported_count ?? result.ready_count ?? readyCount} record(s)`, 'success');
+      const imported = result.imported_count ?? result.ready_count ?? readyCount ?? 0;
+      const skipped = result.skipped_count || 0;
+      const failed = result.error_count || 0;
+      if (failed > 0 || result.partial) {
+        showToast(
+          `Imported ${imported} record(s)${skipped ? `, skipped ${skipped}` : ''}, ${failed} failed. Check invalid rows and re-import the rest.`,
+          'warning',
+        );
+      } else if (skipped > 0) {
+        showToast(`Imported ${imported} record(s), skipped ${skipped}`, 'success');
+      } else {
+        showToast(`Imported ${imported} record(s)`, 'success');
+      }
       onDone?.();
       onClose();
     } catch (err) {

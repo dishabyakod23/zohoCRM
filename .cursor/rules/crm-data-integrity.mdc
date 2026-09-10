@@ -1,0 +1,49 @@
+---
+description: Prevent recurring CRM FE data-integrity and form UX bugs (convert, mass update, import, validation)
+alwaysApply: true
+---
+
+# CRM FE — stop recurring integrity bugs
+
+These bugs keep shipping because the UI **looks** updated while related data is only partially written, or validation/input layers silently fight the user. Follow this checklist on every CRM change.
+
+## 1. Entity moves / converts (contact ↔ lead ↔ account)
+
+- Notes, files, campaign membership, and denormalized fields (`campaign_id` / `campaign_name`) are keyed by `(entity_type, entity_id)`.
+- On convert or “move”, **re-home or copy** related data onto the new record. Do not assume the API reparents.
+- Prefer a shared helper (e.g. `migrateRecordNotes`) called from **every** convert path (single + mass).
+- If FE can only work around: leave a short comment + note that backend reparent is still required.
+
+## 2. Mass update / “change X” must **replace**, not only add
+
+- Campaign (and similar links): remove prior membership, then add the new one; patch denormalized fields; invalidate caches; refresh list.
+- Toast copy must match behavior (`Updated…`, not `Added…` if the user expected a change).
+- After success, list columns the user stares at (`campaign_name`, status, etc.) must reflect the new value.
+
+## 3. Forms — errors clear as the user fixes fields
+
+- Use `makeFieldSetter(setForm, setErrors)` (or clear that field’s error in `onChange`).
+- Never leave “X is required” after the field has a value.
+- Inline validation must match what Save accepts (same helpers).
+
+## 4. Input sanitization — don’t over-strip
+
+- Phone: allow `+`, spaces, `()-./`; validate by **digit count**, not “digits only”.
+- Never silently delete characters the product expects (country codes, separators).
+- Pair sanitizer changes with unit tests.
+
+## 5. Bulk import — don’t abort the rest of the file
+
+- Process in chunks; on failure **isolate bad rows** and continue remaining chunks.
+- Never treat partial success as a clean all-success toast; report imported / skipped / failed.
+- CSV parse must keep newlines **inside quotes** (RFC4180).
+- If API `ready` ≠ `readyRecords.length`, fail loudly — do not import a truncated list silently.
+
+## 6. Before shipping CRM FE
+
+- [ ] Convert / mass-update: related data + list columns still correct?
+- [ ] Form: required errors clear on input?
+- [ ] Sanitizers: allowed characters still typeable?
+- [ ] Import: one bad row cannot drop the rest of the batch?
+- [ ] Tests added for the regression class above when touching those paths?
+- [ ] Mirror the same fix in **both** `zoho-crm/frontend` and `sale-crm` when both repos are in play.

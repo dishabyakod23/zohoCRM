@@ -123,6 +123,8 @@ export function toContactPayload(form, { partial = false } = {}) {
     if (formHas(form, 'title')) payload.title = form.title || null;
     if (formHas(form, 'department')) payload.department = form.department || null;
     if (formHas(form, 'industry')) payload.industry = form.industry || null;
+    if (formHas(form, 'campaign_id')) payload.campaign_id = form.campaign_id || null;
+    if (formHas(form, 'campaign_name')) payload.campaign_name = form.campaign_name || null;
     if (formHas(form, 'lead_source') || formHas(form, 'source')) {
       payload.lead_source = form.lead_source || form.source || null;
     }

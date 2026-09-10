@@ -224,6 +224,8 @@ export function toLeadPayload(form, { partial = false } = {}) {
       payload.lead_source = form.source || form.lead_source || null;
     }
     if (formHas(form, 'industry')) payload.industry = form.industry || null;
+    if (formHas(form, 'campaign_id')) payload.campaign_id = form.campaign_id || null;
+    if (formHas(form, 'campaign_name')) payload.campaign_name = form.campaign_name || null;
     if (formHas(form, 'lead_status') || formHas(form, 'status')) {
       const rawStatus = form.lead_status || form.status;
       payload.lead_status = rawStatus ? resolveLeadStatusForApi(rawStatus) : null;

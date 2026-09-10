@@ -66,11 +66,39 @@ describe('bulk import chunking', () => {
     const result = await postBulkImportInChunks(apiClient, '/contacts/bulk-import', {
       records,
       chunkSize: 50,
-      minChunkSize: 10,
+      minChunkSize: 1,
     });
 
     expect(posts[0]).toBe(50);
     expect(posts.slice(1).every((n) => n <= 25)).toBe(true);
     expect(result.imported).toBe(50);
+  });
+
+  it('isolates a single bad row and continues importing remaining chunks', async () => {
+    const apiClient = {
+      post: jest.fn(async (_url, body) => {
+        if (body.records.some((r) => r.email === 'bad@ex.com')) {
+          const err = new Error('Request failed with status code 400');
+          err.response = { status: 400, data: { message: 'Invalid email' } };
+          throw err;
+        }
+        return { data: { data: { imported: body.records.length, records: body.records } } };
+      }),
+    };
+
+    const records = [
+      ...Array.from({ length: 49 }, (_, i) => ({ email: `u${i}@ex.com` })),
+      { email: 'bad@ex.com' },
+      ...Array.from({ length: 20 }, (_, i) => ({ email: `v${i}@ex.com` })),
+    ];
+    const result = await postBulkImportInChunks(apiClient, '/contacts/bulk-import', {
+      records,
+      chunkSize: 50,
+      minChunkSize: 1,
+    });
+
+    expect(result.imported).toBe(69);
+    expect(result.error_count).toBeGreaterThanOrEqual(1);
+    expect(result.partial).toBe(true);
   });
 });

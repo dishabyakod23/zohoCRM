@@ -74,6 +74,7 @@ export function useRecordCampaign(memberType, recordId, recordCampaign = null) {
       previousCampaignId: previousCampaignIdRef.current,
       memberType,
       recordId,
+      campaignName: draft.campaign_name || campaigns.find((c) => c.value === resolvedId)?.label || '',
     });
     previousCampaignIdRef.current = resolvedId || '';
     const match = campaigns.find((c) => c.value === resolvedId);
