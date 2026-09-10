@@ -184,7 +184,7 @@ export default function SequenceBuilder({
           {!readOnly && sequenceId && (
             <div className="flex justify-end">
               <button type="button" onClick={() => handleSaveStep(index)} disabled={savingId === (step.id || `new-${index}`) || savingAll} className="btn-secondary-sm">
-                {savingId === (step.id || `new-${index}`) ? 'Saving…' : (step.id ? 'Save Step' : 'Save Step (required)')}
+                {savingId === (step.id || `new-${index}`) ? 'Saving…' : 'Save Step'}
               </button>
             </div>
           )}
