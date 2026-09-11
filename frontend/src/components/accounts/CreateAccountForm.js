@@ -183,7 +183,7 @@ export default function CreateAccountForm() {
     const errs = validateRequired({ account_name: 'Account Name' }, form);
     setErrors(errs);
     if (Object.keys(errs).length) {
-      showToast('Please fill in all required fields before saving.');
+      showToast('Fill all the required fields.');
       return;
     }
     setSaving(true);

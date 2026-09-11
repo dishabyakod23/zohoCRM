@@ -10,6 +10,7 @@ import RecordDetailLayout, { InfoRow } from '../../../components/records/RecordD
 import RecordDetailSkeleton from '../../../components/records/RecordDetailSkeleton.js';
 import EditableFieldSection from '../../../components/records/EditableFieldSection.js';
 import EditableEmailField from '../../../components/forms/EditableEmailField.js';
+import AccountNameCombobox from '../../../components/forms/AccountNameCombobox.js';
 import LeadConvertMenu from '../../../components/leads/LeadConvertMenu.js';
 import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
 import CallRecordButton from '../../../components/cloudtalk/CallRecordButton.js';
@@ -17,6 +18,7 @@ import { formatPhoneForDisplay } from '../../../lib/cloudTalkHelpers.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { useMarkRecordViewed } from '../../../hooks/useMarkRecordViewed.js';
+import { useCompanyLookups } from '../../../hooks/useCompanyLookups.js';
 import { getApiError } from '../../../lib/api.js';
 import { validateEmailUnique } from '../../../lib/emailHelpers.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
@@ -36,6 +38,8 @@ import {
 import { nextStateForCountry } from '../../../lib/addressRegions.js';
 import { PIPELINE_LEAD, outreachLeadStatusOptions } from '../../../lib/pipelineHelpers.js';
 import { isLostLeadStatus, lostReasonLabel } from '../../../lib/statusHelpers.js';
+import MemberSequencesPanel from '../../../components/sequences/MemberSequencesPanel.js';
+import ProspectOutreachTimeline from '../../../components/sequences/ProspectOutreachTimeline.js';
 import {
   EnvelopeIcon, PhoneIcon, DevicePhoneMobileIcon, BuildingOffice2Icon, TagIcon, TrashIcon,
 } from '@heroicons/react/24/outline';
@@ -53,6 +57,7 @@ export default function LeadDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const { companies } = useCompanyLookups();
 
   useMarkRecordViewed('lead', id);
 
@@ -196,7 +201,17 @@ export default function LeadDetailPage() {
                   { name: 'salutation', label: 'Salutation', render: (d, set) => select(SALUTATIONS, null, null)(d, set, 'salutation') },
                   { name: 'first_name', label: 'First Name', required: true },
                   { name: 'last_name', label: 'Last Name', required: true },
-                  { name: 'company', label: 'Company', required: true },
+                  { name: 'company', label: 'Company', required: true, render: (d, set) => (
+                    <AccountNameCombobox
+                      options={companies}
+                      valueId=""
+                      valueLabel={d.company || ''}
+                      placeholder="Search or type company name"
+                      onChange={({ account_name }) => {
+                        set((p) => ({ ...p, company: account_name || '' }));
+                      }}
+                    />
+                  ) },
                   { name: 'title', label: 'Job Title' },
                   { name: 'lead_status', label: 'Lead Status', format: () => lead.status, render: (d, set) => (
                     <select
@@ -308,6 +323,17 @@ export default function LeadDetailPage() {
                     <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: e.target.value }))} />
                   ) },
                 ]}
+              />
+              <MemberSequencesPanel
+                memberType="lead"
+                memberId={id}
+                memberName={`${lead.first_name || ''} ${lead.last_name || ''}`.trim()}
+              />
+              <ProspectOutreachTimeline
+                memberType="lead"
+                memberId={id}
+                memberName={`${lead.first_name || ''} ${lead.last_name || ''}`.trim()}
+                phones={[lead.phone, lead.mobile]}
               />
               {lead.is_converted && (
                 <div className="card p-4 bg-green-50 border border-green-200 text-sm text-green-800">

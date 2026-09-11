@@ -71,7 +71,7 @@ export default function CallsPage() {
   const save = async () => {
     const errs = validateRequired({ subject: 'Call Subject', call_type: 'Call Type', start_time: 'Call Date & Time', assigned_to: 'Assigned To' }, form);
     setErrors(errs);
-    if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
+    if (Object.keys(errs).length) { showToast('Fill all the required fields.'); return; }
     setSaving(true);
     try {
       await callsApi.createCall(form);

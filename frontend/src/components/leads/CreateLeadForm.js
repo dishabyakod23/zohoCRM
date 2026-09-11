@@ -18,6 +18,7 @@ import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
+import CompanySelect from '../forms/CompanySelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { tryAttachCampaignAfterCreate } from '../../lib/campaignRecordHelpers.js';
 import { isLostLeadStatus } from '../../lib/statusHelpers.js';
@@ -154,9 +155,15 @@ export default function CreateLeadForm() {
                 <input className={inputClass(errors.last_name)} value={form.last_name} onChange={set('last_name')} />
               </FormField>
             </div>
-            <FormField label="Company" required error={errors.company} name="company">
-              <input className={inputClass(errors.company)} value={form.company} onChange={set('company')} />
-            </FormField>
+            <CompanySelect
+              value={form.company}
+              required
+              error={errors.company}
+              onChange={(company) => {
+                setForm((f) => ({ ...f, company }));
+                setErrors((er) => ({ ...er, company: null }));
+              }}
+            />
             <FormField label="Job Title" name="title">
               <input className="input" value={form.title} onChange={set('title')} />
             </FormField>

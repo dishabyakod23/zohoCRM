@@ -88,7 +88,7 @@ export default function AnnouncementsPanel() {
     if (!form.body?.trim()) errs.body = 'Body is required';
     setErrors(errs);
     if (Object.keys(errs).length) {
-      showToast('Please fill in all required fields.');
+      showToast('Fill all the required fields.');
       return;
     }
     setSaving(true);

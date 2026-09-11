@@ -12,7 +12,7 @@ export function validateEmail(email) {
 /** Prefer specific field errors (format, uniqueness) over a generic required-fields toast. */
 export function validationToastMessage(
   errs,
-  fallback = 'Please fill in all required fields before saving.',
+  fallback = 'Fill all the required fields.',
 ) {
   if (!errs || typeof errs !== 'object') return fallback;
   const preferredKeys = [
@@ -30,8 +30,12 @@ export function validationToastMessage(
     const msg = errs[key];
     if (msg && !/is required\.?$/i.test(String(msg))) return msg;
   }
-  const first = Object.values(errs).find(Boolean);
-  return first ? String(first) : fallback;
+  const messages = Object.values(errs).filter(Boolean).map(String);
+  if (!messages.length) return fallback;
+  const onlyRequired = messages.every((msg) => /is required\.?$/i.test(msg));
+  if (onlyRequired) return fallback;
+  if (messages.length > 1) return fallback;
+  return messages[0];
 }
 
 export const PHONE_FIELD_LABELS = {

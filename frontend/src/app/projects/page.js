@@ -79,7 +79,7 @@ export default function ProjectsPage() {
   const save = async () => {
     const errs = validateRequired({ name: 'Project Name', account_id: 'Account', start_date: 'Start Date' }, form);
     setErrors(errs);
-    if (Object.keys(errs).length) { showToast('Please fill in all required fields.'); return; }
+    if (Object.keys(errs).length) { showToast('Fill all the required fields.'); return; }
     setSaving(true);
     try {
       await projectsApi.createProject(form);

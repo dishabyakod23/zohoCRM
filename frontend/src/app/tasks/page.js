@@ -78,7 +78,7 @@ export default function TasksPage() {
     const dateErr = validatePastDate(form.due_date?.split('T')[0], 'Due Date');
     if (dateErr) errs.due_date = dateErr;
     setErrors(errs);
-    if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
+    if (Object.keys(errs).length) { showToast('Fill all the required fields.'); return; }
     setSaving(true);
     try {
       await tasksApi.createTask(form);

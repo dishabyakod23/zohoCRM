@@ -37,6 +37,8 @@ import {
 import { nextStateForCountry } from '../../lib/addressRegions.js';
 import { formatMoney, CURRENCIES, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
+import AccountNameCombobox from '../forms/AccountNameCombobox.js';
+import { useCompanyLookups } from '../../hooks/useCompanyLookups.js';
 import { SALUTATIONS } from '../../lib/constants.js';
 import {
   normalizeSalutation,
@@ -62,6 +64,7 @@ export default function PipelineLeadDetail({ stage }) {
   const [statusOptions, setStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
   const [sourceOptions, setSourceOptions] = useState([]);
   const [lostReasonOptions, setLostReasonOptions] = useState([]);
+  const { companies } = useCompanyLookups();
   const { campaignField, saveCampaignFromDraft, campaignValues } = useRecordCampaign(
     'lead',
     id,
@@ -282,7 +285,17 @@ export default function PipelineLeadDetail({ stage }) {
               { name: 'salutation', label: 'Salutation', render: (d, set) => select(SALUTATIONS, null, null)(d, set, 'salutation') },
               { name: 'first_name', label: 'First Name', required: true },
               { name: 'last_name', label: 'Last Name', required: true },
-              { name: 'company', label: 'Company', required: true },
+              { name: 'company', label: 'Company', required: true, render: (d, set) => (
+                <AccountNameCombobox
+                  options={companies}
+                  valueId=""
+                  valueLabel={d.company || ''}
+                  placeholder="Search or type company name"
+                  onChange={({ account_name }) => {
+                    set((p) => ({ ...p, company: account_name || '' }));
+                  }}
+                />
+              ) },
               { name: 'title', label: 'Job Title' },
               { name: 'lead_status', label: statusFieldLabel, format: () => lead.status, render: (d, set) => (
                 <select

@@ -7,7 +7,7 @@ import TimezoneSelect from '../forms/TimezoneSelect.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
-import { validateRequired } from '../../lib/validators.js';
+import { validateRequired, validationToastMessage } from '../../lib/validators.js';
 import { makeFieldSetter } from '../../lib/formInput.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
@@ -59,7 +59,10 @@ export default function CreateSequenceForm() {
       if (uniqueErr) nextErrors.name = uniqueErr;
     }
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) return;
+    if (Object.keys(nextErrors).length) {
+      showToast(validationToastMessage(nextErrors));
+      return;
+    }
 
     setSaving(true);
     try {

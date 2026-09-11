@@ -115,7 +115,7 @@ export default function DealsPage() {
   const handleSave = async () => {
     const errs = validateRequired({ deal_name: 'Deal Name', account_id: 'Account Name', closing_date: 'Closing Date', stage_value: 'Stage', amount: 'Amount' }, form);
     setErrors(errs);
-    if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
+    if (Object.keys(errs).length) { showToast('Fill all the required fields.'); return; }
     setSaving(true);
     try {
       await dealsApi.createDeal(form);

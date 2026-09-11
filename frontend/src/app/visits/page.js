@@ -78,7 +78,7 @@ export default function VisitsPage() {
   const save = async () => {
     const errs = validateRequired({ title: 'Visit Name', visit_date: 'Visit Date' }, form);
     setErrors(errs);
-    if (Object.keys(errs).length) { showToast('Please fill in all required fields.'); return; }
+    if (Object.keys(errs).length) { showToast('Fill all the required fields.'); return; }
     setSaving(true);
     try {
       await visitsApi.createVisit(form);

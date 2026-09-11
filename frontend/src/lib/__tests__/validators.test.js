@@ -40,11 +40,17 @@ describe('validationToastMessage', () => {
     })).toBe('A lead with this email already exists.');
   });
 
-  it('surfaces the first required-field error so users see which field is missing', () => {
+  it('uses a generic toast when multiple required fields are missing', () => {
     expect(validationToastMessage({
       first_name: 'First Name is required.',
       email: 'Email is required.',
-    })).toBe('First Name is required.');
+    })).toBe('Fill all the required fields.');
+  });
+
+  it('uses a generic toast for a single required-field error', () => {
+    expect(validationToastMessage({
+      first_name: 'First Name is required.',
+    })).toBe('Fill all the required fields.');
   });
 });
 

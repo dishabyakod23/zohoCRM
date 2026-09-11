@@ -24,6 +24,7 @@ import { AddressCountryField, AddressStateField } from '../forms/AddressCountryS
 import { nextStateForCountry } from '../../lib/addressRegions.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
+import CompanySelect from '../forms/CompanySelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { afterRecordSave, resolveOrCreateCampaignId } from '../../lib/campaignRecordHelpers.js';
 import { syncSingleLeadAsContact } from '../../lib/importSyncHelpers.js';
@@ -158,7 +159,7 @@ export default function CreateRawLeadForm() {
     }
     setErrors(errs);
     if (Object.keys(errs).length) {
-      showToast(validationToastMessage(errs, 'Please fill in required fields.'));
+      showToast(validationToastMessage(errs));
       return false;
     }
     return true;
@@ -278,9 +279,15 @@ export default function CreateRawLeadForm() {
                 Opt out of emails
               </label>
             </FormField>
-            <FormField label="Company" required error={errors.company} name="company">
-              <input className={inputClass(errors.company)} value={form.company} onChange={set('company')} />
-            </FormField>
+            <CompanySelect
+              value={form.company}
+              required
+              error={errors.company}
+              onChange={(company) => {
+                setForm((f) => ({ ...f, company }));
+                setErrors((er) => ({ ...er, company: null }));
+              }}
+            />
             <FormField label="Fax" name="fax">
               <input className="input" value={form.fax} onChange={set('fax')} />
             </FormField>

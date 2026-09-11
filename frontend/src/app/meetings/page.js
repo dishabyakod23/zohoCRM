@@ -77,7 +77,7 @@ export default function MeetingsPage() {
   const save = async () => {
     const errs = validateRequired(REQUIRED, form);
     setErrors(errs);
-    if (Object.keys(errs).length) { showToast('Please fill in all required fields before saving.'); return; }
+    if (Object.keys(errs).length) { showToast('Fill all the required fields.'); return; }
     setSaving(true);
     try {
       await meetingsApi.createMeeting(form);

@@ -6,6 +6,7 @@ import {
   validatePhone,
   collectPhoneFieldErrors,
   PHONE_FIELD_LABELS,
+  validationToastMessage,
 } from '../../lib/validators.js';
 import { getApiFieldErrors } from '../../lib/api.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
@@ -15,6 +16,7 @@ import {
   sanitizePhoneDigits,
   isPhoneDigitField,
 } from '../../lib/formInput.js';
+import { useToast } from '../ui/Toast.js';
 
 /**
  * Section card that displays fields read-only with per-section Edit → Save/Cancel.
@@ -28,6 +30,7 @@ export default function EditableFieldSection({
   onSave,
   saving = false,
 }) {
+  const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
