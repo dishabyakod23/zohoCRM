@@ -29,22 +29,27 @@ import {
 } from '../../../components/forms/AddressCountryStateFields.js';
 import { nextStateForCountry } from '../../../lib/addressRegions.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
-import { TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, TrashIcon } from '@heroicons/react/24/outline';
 import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
 import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
+import AccountNameCombobox from '../../../components/forms/AccountNameCombobox.js';
+import { useAccountLookups } from '../../../hooks/useAccountLookups.js';
 
 export default function AccountDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/accounts', message: 'Account not found' });
   const { showToast } = useToast();
-  const { canEditRecord, canDeleteRecord, canAssignLeads } = usePermissions();
+  const { canEditRecord, canDeleteRecord, canAssignLeads, can } = usePermissions();
   const [account, setAccount] = useState(null);
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [projects, setProjects] = useState([]);
   const [deals, setDeals] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [convertConfirm, setConvertConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const { accounts: accountOptions } = useAccountLookups();
 
   const loadAccount = useCallback(async () => {
     if (!ready) return;
@@ -92,6 +97,7 @@ export default function AccountDetailPage() {
 
   const editable = canEditRecord(account);
   const deletable = canDeleteRecord(account);
+  const canConvert = editable && can('companies', 'create');
 
   return (
     <CRMLayout>
@@ -104,11 +110,31 @@ export default function AccountDetailPage() {
         badges={account.account_type ? <Badge label={account.account_type} /> : null}
         lastUpdated={account.updated_at ? new Date(account.updated_at).toLocaleString() : undefined}
         recordNotes={{ relatedType: 'account', recordId: id, canEdit: editable }}
-        recordHistory={{ entityType: 'account', recordId: id }}
-        actions={deletable && (
-          <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
-            <TrashIcon className="w-4 h-4" /> Delete
-          </button>
+        recordHistory={{
+          entityType: 'account',
+          recordId: id,
+          createdAt: account.created_at,
+          userName: account.owner_name || account.created_by_name,
+          recordName: account.name || account.account_name,
+        }}
+        actions={(
+          <div className="flex items-center gap-2">
+            {canConvert && (
+              <button
+                type="button"
+                onClick={() => setConvertConfirm(true)}
+                disabled={converting}
+                className="btn-secondary text-xs flex items-center gap-1.5"
+              >
+                <ArrowPathIcon className="w-4 h-4" /> Convert to Company
+              </button>
+            )}
+            {deletable && (
+              <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
+                <TrashIcon className="w-4 h-4" /> Delete
+              </button>
+            )}
+          </div>
         )}
       >
         <div className="space-y-4">
@@ -119,7 +145,17 @@ export default function AccountDetailPage() {
             values={account}
             onSave={saveSection}
             fields={[
-              { name: 'account_name', label: 'Account Name', required: true },
+              { name: 'account_name', label: 'Account Name', required: true, render: (d, set) => (
+                <AccountNameCombobox
+                  options={accountOptions}
+                  valueId=""
+                  valueLabel={d.account_name || d.name || ''}
+                  placeholder="Search or type account name"
+                  onChange={({ account_name }) => {
+                    set((p) => ({ ...p, account_name: account_name || '', name: account_name || '' }));
+                  }}
+                />
+              ) },
               { name: 'deal_size', label: 'Deal Size', format: (v) => formatMoney(v ?? account.deal_size, account.currency) },
               { name: 'phone', label: 'Phone' },
               { name: 'website', label: 'Website' },
@@ -290,6 +326,26 @@ export default function AccountDetailPage() {
           />
         </div>
       </RecordDetailLayout>
+
+      <ConfirmDialog
+        open={convertConfirm}
+        message={`Convert ${account.name} to a Company? It will leave Accounts and appear under Companies. Status/type changes alone do not move modules.`}
+        confirmLabel="Convert to Company"
+        onConfirm={async () => {
+          setConverting(true);
+          try {
+            await accountsApi.convertAccountToCompany(id);
+            showToast('Converted to Company', 'success');
+            navigateToRecord(`/companies/${id}`);
+          } catch (err) {
+            showToast(getApiError(err));
+          } finally {
+            setConverting(false);
+            setConvertConfirm(false);
+          }
+        }}
+        onCancel={() => setConvertConfirm(false)}
+      />
 
       <ConfirmDialog open={deleteConfirm} message={`Delete ${account.name}?`} confirmLabel="Confirm Delete" danger
         onConfirm={async () => {

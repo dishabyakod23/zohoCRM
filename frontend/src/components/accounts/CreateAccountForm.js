@@ -18,6 +18,8 @@ import { fetchAccountLookups, fetchContactLookups, fetchUsers } from '../../lib/
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
+import AccountNameSelect from '../forms/AccountNameSelect.js';
+import AccountNameCombobox from '../forms/AccountNameCombobox.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { tryAttachCampaignAfterCreate } from '../../lib/campaignRecordHelpers.js';
 import { makeFieldSetter } from '../../lib/formInput.js';
@@ -219,15 +221,7 @@ export default function CreateAccountForm() {
           Accounts
         </AppLink>
 
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-lg font-semibold text-zoho-text">Create Account</h1>
-          <div className="flex gap-2">
-            <AppLink href="/accounts" className="btn-secondary">Cancel</AppLink>
-            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
-              {saving ? 'Saving…' : 'Save Account'}
-            </button>
-          </div>
-        </div>
+        <h1 className="text-lg font-semibold text-zoho-text mb-6">Create Account</h1>
 
         <div className="card p-6 space-y-0">
 
@@ -244,15 +238,29 @@ export default function CreateAccountForm() {
 
             <div /> {/* spacer */}
 
-            <FormField label="Account Name" required error={errors.account_name} name="account_name">
-              <input className={inputClass(errors.account_name)} value={form.account_name} onChange={set('account_name')} />
-            </FormField>
+            <AccountNameSelect
+              value={form.account_name}
+              required
+              error={errors.account_name}
+              onChange={(account_name) => {
+                setForm((f) => ({ ...f, account_name }));
+                setErrors((er) => ({ ...er, account_name: null }));
+              }}
+            />
 
             <FormField label="Parent Account" name="parent_account_id">
-              <select className="input" value={form.parent_account_id} onChange={set('parent_account_id')}>
-                <option value="">—None—</option>
-                {parentAccounts.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-              </select>
+              <AccountNameCombobox
+                options={parentAccounts}
+                valueId={form.parent_account_id}
+                valueLabel={
+                  parentAccounts.find((a) => String(a.value) === String(form.parent_account_id))?.label
+                  || ''
+                }
+                placeholder="Search parent account"
+                onChange={({ account_id }) => {
+                  setForm((f) => ({ ...f, parent_account_id: account_id || '' }));
+                }}
+              />
             </FormField>
 
             <FormField label="Account Number" name="account_number">
@@ -376,7 +384,7 @@ export default function CreateAccountForm() {
             </div>
             <div className="space-y-3">
               {form.projects.map((project, index) => (
-                <div key={index} className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-3 items-end">
+                <div key={index} className={`grid grid-cols-1 gap-3 items-end ${form.projects.length > 1 ? 'sm:grid-cols-[1fr_180px_auto]' : 'sm:grid-cols-[1fr_180px]'}`}>
                   <FormField label={index === 0 ? 'Project Name' : undefined} name={`project_name_${index}`}>
                     <input className="input" placeholder="Project name"
                       value={project.name} onChange={(e) => updateProject(index, 'name', e.target.value)} />
@@ -389,10 +397,12 @@ export default function CreateAccountForm() {
                       allowCurrencyChange={false}
                     />
                   </FormField>
-                  <button type="button" onClick={() => removeProjectRow(index)}
-                    className="btn-secondary px-2.5 py-2 mb-0.5" title="Remove project">
-                    <TrashIcon className="w-4 h-4 text-gray-500" />
-                  </button>
+                  {form.projects.length > 1 && (
+                    <button type="button" onClick={() => removeProjectRow(index)}
+                      className="btn-secondary px-2.5 py-2 mb-0.5" title="Remove project">
+                      <TrashIcon className="w-4 h-4 text-gray-500" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

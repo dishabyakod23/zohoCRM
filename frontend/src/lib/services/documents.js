@@ -262,12 +262,35 @@ export async function getDocument(id) {
   throw new Error('Document not found');
 }
 
-export async function uploadDocument({ file, document_name, name, related_entity_type, related_entity_id, related_type, related_id, description, folder, owner_id }) {
+export async function uploadDocument({
+  file,
+  document_name,
+  name,
+  related_entity_type,
+  related_entity_id,
+  related_type,
+  related_id,
+  description,
+  folder,
+  owner_id,
+}) {
   const formData = new FormData();
+  const docName = name ?? document_name ?? file?.name ?? 'file';
+  const entityType = related_entity_type ?? related_type ?? '';
+  const entityId = related_entity_id ?? related_id ?? '';
+
   formData.append('file', file);
-  formData.append('name', name ?? document_name ?? file.name);
-  formData.append('related_type', related_type ?? related_entity_type ?? '');
-  formData.append('related_id', related_id ?? related_entity_id ?? '');
+  // Send primary OpenAPI fields and aliases for backend compatibility.
+  formData.append('document_name', docName);
+  formData.append('name', docName);
+  if (entityType) {
+    formData.append('related_entity_type', entityType);
+    formData.append('related_type', entityType);
+  }
+  if (entityId) {
+    formData.append('related_entity_id', entityId);
+    formData.append('related_id', entityId);
+  }
   if (description) formData.append('description', description);
   if (folder) formData.append('folder', folder);
   if (owner_id) formData.append('owner_id', owner_id);

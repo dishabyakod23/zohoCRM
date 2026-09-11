@@ -222,19 +222,12 @@ export default function SalesTargetEditor({ targetId = null }) {
   return (
     <CRMLayout>
       <div className="max-w-6xl mx-auto w-full p-4 md:p-6 space-y-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <AppLink href="/settings?sales_targets=1" className="text-xs text-brand-600 hover:underline">← Back to Pipeline &amp; Revenue Targets</AppLink>
-            <h1 className="text-lg font-semibold text-zoho-text mt-2">
-              {targetId ? 'Edit Target' : 'Add Target'}
-            </h1>
-            <p className="text-sm text-zoho-muted">Configure metrics and preview the weekly KPI report below</p>
-          </div>
-          {canSave && (
-            <button type="button" onClick={saveTarget} disabled={saving} className="btn-primary text-sm">
-              {saving ? 'Saving…' : 'Save Target'}
-            </button>
-          )}
+        <div>
+          <AppLink href="/settings?sales_targets=1" className="text-xs text-brand-600 hover:underline">← Back to Pipeline &amp; Revenue Targets</AppLink>
+          <h1 className="text-lg font-semibold text-zoho-text mt-2">
+            {targetId ? 'Edit Target' : 'Add Target'}
+          </h1>
+          <p className="text-sm text-zoho-muted">Configure metrics and preview the weekly KPI report below</p>
         </div>
 
         <div className="card p-5 space-y-4">

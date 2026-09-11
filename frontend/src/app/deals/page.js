@@ -23,11 +23,26 @@ import * as contactsApi from '../../lib/services/contacts.js';
 import { LEAD_SOURCES, DEAL_TYPES, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 import CurrencyAmountInput from '../../components/forms/CurrencyAmountInput.js';
+import AccountNameCombobox from '../../components/forms/AccountNameCombobox.js';
 import { formatMoney, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
 
-const EMPTY = { deal_name: '', amount: '', currency: DEFAULT_CURRENCY, stage_value: 'qualification', closing_date: '', probability: 10, account_id: '', contact_id: '', deal_type: '', lead_source: '', description: '', proposal_amount: '' };
+const EMPTY = {
+  deal_name: '',
+  amount: '',
+  currency: DEFAULT_CURRENCY,
+  stage_value: 'qualification',
+  closing_date: '',
+  probability: 10,
+  account_id: '',
+  account_name: '',
+  contact_id: '',
+  deal_type: '',
+  lead_source: '',
+  description: '',
+  proposal_amount: '',
+};
 
 export default function DealsPage() {
   const { showToast } = useToast();
@@ -248,10 +263,21 @@ export default function DealsPage() {
           <div className="grid grid-cols-2 gap-3 mb-5">
             <div className="col-span-2"><FormField label="Deal Name" required error={errors.deal_name} name="deal_name"><input className={inputClass(errors.deal_name)} value={form.deal_name} onChange={e => { setForm(p => ({ ...p, deal_name: e.target.value })); setErrors(er => ({ ...er, deal_name: null })); }} /></FormField></div>
             <FormField label="Account Name" required error={errors.account_id} name="account_id">
-              <select className={inputClass(errors.account_id)} value={form.account_id} onChange={e => { setForm(p => ({ ...p, account_id: e.target.value })); setErrors(er => ({ ...er, account_id: null })); }}>
-                <option value="">--None--</option>
-                {accounts.map(a => <option key={a.value} value={a.value}>{a.label || a.name}</option>)}
-              </select>
+              <AccountNameCombobox
+                options={accounts}
+                valueId={form.account_id}
+                valueLabel={
+                  form.account_name
+                  || accounts.find((a) => String(a.value) === String(form.account_id))?.label
+                  || ''
+                }
+                placeholder="Search or type account name"
+                error={errors.account_id}
+                onChange={({ account_id, account_name }) => {
+                  setForm((p) => ({ ...p, account_id, account_name }));
+                  setErrors((er) => ({ ...er, account_id: null }));
+                }}
+              />
             </FormField>
             <FormField label="Contact Name">
               <select className="input" value={form.contact_id} onChange={e => setForm(p => ({ ...p, contact_id: e.target.value }))}>

@@ -1,18 +1,18 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useToast } from '../ui/Toast.js';
-import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as documentsApi from '../../lib/services/documents.js';
 import { PaperClipIcon } from '@heroicons/react/24/outline';
 import DocumentFileActions, { DocumentFileNameButton } from '../documents/DocumentFileActions.js';
 
-export default function RecordDocumentsTab({ relatedType, recordId, canEdit = false }) {
+export default function RecordDocumentsTab({ relatedType, recordId, canEdit: _canEdit = false }) {
   const { showToast } = useToast();
-  const { user } = useAuth();
   const { can } = usePermissions();
-  const canUpload = can('documents', 'upload') || canEdit;
+  // POST /documents requires documents.upload — do not gate on record edit alone
+  // (that showed Upload then returned 403).
+  const canUpload = can('documents', 'upload');
   const canDownload = can('documents', 'download') || can('documents', 'view');
   const canDelete = can('documents', 'delete');
   const [docs, setDocs] = useState([]);
@@ -48,7 +48,6 @@ export default function RecordDocumentsTab({ relatedType, recordId, canEdit = fa
           name: file.name,
           related_type: relatedType,
           related_id: recordId,
-          owner_id: user?.id,
         });
         uploaded += 1;
       }
@@ -79,6 +78,11 @@ export default function RecordDocumentsTab({ relatedType, recordId, canEdit = fa
       <div className="flex items-center justify-between gap-3 mb-4">
         <p className="text-sm text-zoho-muted">
           Attach PDF, CSV, PPT, Word, images, and other files to this record.
+          {!canUpload && (
+            <span className="block mt-1 text-xs">
+              You need Documents upload permission to attach files. Ask an admin to enable it for your role.
+            </span>
+          )}
         </p>
         {canUpload && (
           <>

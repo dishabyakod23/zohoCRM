@@ -58,7 +58,15 @@ export default function RecordDetailLayout({
       );
     }
     if (tab === 'History' && showHistory) {
-      return <RecordHistoryTab entityType={recordHistory.entityType} recordId={recordHistory.recordId} />;
+      return (
+        <RecordHistoryTab
+          entityType={recordHistory.entityType}
+          recordId={recordHistory.recordId}
+          createdAt={recordHistory.createdAt}
+          userName={recordHistory.userName}
+          recordName={recordHistory.recordName}
+        />
+      );
     }
     if (tab === defaultTab || tab === resolvedTabs[0]) return children;
     return null;

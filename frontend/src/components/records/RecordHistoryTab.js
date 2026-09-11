@@ -13,7 +13,13 @@ const ACTION_COLORS = {
   convert: 'bg-purple-100 text-purple-700',
 };
 
-export default function RecordHistoryTab({ entityType, recordId }) {
+export default function RecordHistoryTab({
+  entityType,
+  recordId,
+  createdAt,
+  userName,
+  recordName,
+}) {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState([]);
@@ -21,11 +27,11 @@ export default function RecordHistoryTab({ entityType, recordId }) {
   useEffect(() => {
     if (!entityType || !recordId) return;
     setLoading(true);
-    getEntityHistory(entityType, recordId)
+    getEntityHistory(entityType, recordId, { createdAt, userName, recordName })
       .then(setEntries)
       .catch((err) => showToast(getApiError(err)))
       .finally(() => setLoading(false));
-  }, [entityType, recordId, showToast]);
+  }, [entityType, recordId, createdAt, userName, recordName, showToast]);
 
   if (loading) return <TabPanelSkeleton rows={3} />;
 

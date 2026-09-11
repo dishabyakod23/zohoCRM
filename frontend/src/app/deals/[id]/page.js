@@ -22,6 +22,7 @@ import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js'
 import { TrashIcon } from '@heroicons/react/24/outline';
 import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
 import { formatMoney, CURRENCIES } from '../../../lib/currencies.js';
+import AccountNameCombobox from '../../../components/forms/AccountNameCombobox.js';
 
 export default function DealDetailPage() {
   const id = useRecordId();
@@ -133,10 +134,20 @@ export default function DealDetailPage() {
             fields={[
               { name: 'deal_name', label: 'Deal Name', required: true, colSpan: true },
               { name: 'account_id', label: 'Account', format: () => deal.account_name, render: (d, set) => (
-                <select className="input" value={d.account_id ?? ''} onChange={(e) => set((p) => ({ ...p, account_id: e.target.value }))}>
-                  <option value="">--None--</option>
-                  {accounts.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-                </select>
+                <AccountNameCombobox
+                  options={accounts}
+                  valueId={d.account_id ?? ''}
+                  valueLabel={
+                    d.account_name
+                    || accounts.find((a) => String(a.value) === String(d.account_id))?.label
+                    || deal.account_name
+                    || ''
+                  }
+                  placeholder="Search or type account name"
+                  onChange={({ account_id, account_name }) => {
+                    set((p) => ({ ...p, account_id, account_name }));
+                  }}
+                />
               ) },
               { name: 'contact_id', label: 'Contact', format: () => deal.contact_name, render: (d, set) => (
                 <select className="input" value={d.contact_id ?? ''} onChange={(e) => set((p) => ({ ...p, contact_id: e.target.value }))}>

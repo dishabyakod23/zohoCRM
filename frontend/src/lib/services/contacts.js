@@ -17,7 +17,6 @@ import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 import { advanceLeadStage, convertLead, massUpdateLeads, applyLeadMassUpdate } from './leads.js';
 import * as accountsApi from './accounts.js';
 import { migrateRecordNotes } from './notes.js';
-import { CONFIRMED_ACCOUNT_TYPE } from '../companyHelpers.js';
 import {
   PIPELINE_RAW,
   PIPELINE_LEAD,
@@ -404,7 +403,7 @@ export async function convertContact(contactId, target = PIPELINE_RAW) {
   if (target === 'account') {
     const accountResult = await convertLead(leadId, { create_deal: false });
     if (accountResult.account?.id) {
-      await accountsApi.updateAccount(accountResult.account.id, { account_type: CONFIRMED_ACCOUNT_TYPE });
+      await accountsApi.convertCompanyToAccount(accountResult.account.id);
     }
     return { ...converted, ...accountResult, lead_id: leadId };
   }

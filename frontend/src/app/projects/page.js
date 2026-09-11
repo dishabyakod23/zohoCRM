@@ -19,8 +19,9 @@ import { tableLinkClass } from '../../lib/tableStyles.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, sortRecords } from '../../lib/listSortHelpers.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
+import AccountNameCombobox from '../../components/forms/AccountNameCombobox.js';
 
-const EMPTY = { name: '', account_id: '', status: 'planning', start_date: '', end_date: '', description: '' };
+const EMPTY = { name: '', account_id: '', account_name: '', status: 'planning', start_date: '', end_date: '', description: '' };
 
 export default function ProjectsPage() {
   const { showToast } = useToast();
@@ -147,9 +148,21 @@ export default function ProjectsPage() {
         <div className="space-y-3">
           <FormField label="Project Name" required error={errors.name}><input className={inputClass(errors.name)} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></FormField>
           <FormField label="Account" required error={errors.account_id}>
-            <select className={inputClass(errors.account_id)} value={form.account_id} onChange={e => setForm(p => ({ ...p, account_id: e.target.value }))}>
-              <option value="">Select</option>{accounts.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-            </select>
+            <AccountNameCombobox
+              options={accounts}
+              valueId={form.account_id}
+              valueLabel={
+                form.account_name
+                || accounts.find((a) => String(a.value) === String(form.account_id))?.label
+                || ''
+              }
+              placeholder="Search or type account name"
+              error={errors.account_id}
+              onChange={({ account_id, account_name }) => {
+                setForm((p) => ({ ...p, account_id, account_name }));
+                setErrors((er) => ({ ...er, account_id: null }));
+              }}
+            />
           </FormField>
           <FormField label="Status"><select className="input" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>{statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select></FormField>
           <FormField label="Start Date" required error={errors.start_date}><input className={inputClass(errors.start_date)} type="date" value={form.start_date?.slice(0, 10)} onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} /></FormField>

@@ -13,6 +13,7 @@ import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { getApiError } from '../../../lib/api.js';
 import * as companiesApi from '../../../lib/services/companies.js';
+import * as accountsApi from '../../../lib/services/accounts.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import { fetchUsers } from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
@@ -23,19 +24,21 @@ import {
 } from '../../../components/forms/AddressCountryStateFields.js';
 import { nextStateForCountry } from '../../../lib/addressRegions.js';
 import { trackRecentItem } from '../../../components/layout/BottomUtilityBar.js';
-import { TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, TrashIcon } from '@heroicons/react/24/outline';
 import ReadOnlyRecordBanner from '../../../components/records/ReadOnlyRecordBanner.js';
 
 export default function CompanyDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/companies', message: 'Company not found' });
   const { showToast } = useToast();
-  const { canEditRecord, canDeleteRecord, canAssignLeads } = usePermissions();
+  const { canEditRecord, canDeleteRecord, canAssignLeads, can } = usePermissions();
   const [company, setCompany] = useState(null);
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [convertConfirm, setConvertConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [converting, setConverting] = useState(false);
 
   const loadCompany = useCallback(async () => {
     if (!ready) return;
@@ -78,6 +81,7 @@ export default function CompanyDetailPage() {
 
   const editable = canEditRecord(company);
   const deletable = canDeleteRecord(company);
+  const canConvert = editable && can('accounts', 'create');
 
   return (
     <CRMLayout>
@@ -91,10 +95,24 @@ export default function CompanyDetailPage() {
         lastUpdated={company.updated_at ? new Date(company.updated_at).toLocaleString() : undefined}
         recordNotes={{ relatedType: 'company', recordId: id, canEdit: editable }}
         recordHistory={{ entityType: 'company', recordId: id }}
-        actions={deletable && (
-          <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
-            <TrashIcon className="w-4 h-4" /> Delete
-          </button>
+        actions={(
+          <div className="flex items-center gap-2">
+            {canConvert && (
+              <button
+                type="button"
+                onClick={() => setConvertConfirm(true)}
+                disabled={converting}
+                className="btn-primary text-xs flex items-center gap-1.5"
+              >
+                <ArrowPathIcon className="w-4 h-4" /> Convert to Account
+              </button>
+            )}
+            {deletable && (
+              <button onClick={() => setDeleteConfirm(true)} className="btn-danger text-xs flex items-center gap-1.5">
+                <TrashIcon className="w-4 h-4" /> Delete
+              </button>
+            )}
+          </div>
         )}
       >
         <div className="space-y-4">
@@ -169,10 +187,30 @@ export default function CompanyDetailPage() {
           </div>
 
           <div className="rounded-xl border border-brand-100 bg-brand-50/50 px-4 py-3 text-sm text-zoho-muted">
-            When a proposal is confirmed, convert it to an Account to move the customer into the Accounts module.
+            Changing Status/type does not move this record. Use <span className="font-medium text-zoho-text">Convert to Account</span> when a proposal is confirmed.
           </div>
         </div>
       </RecordDetailLayout>
+
+      <ConfirmDialog
+        open={convertConfirm}
+        message={`Convert ${company.name} to an Account? It will leave Companies and appear under Accounts.`}
+        confirmLabel="Convert to Account"
+        onConfirm={async () => {
+          setConverting(true);
+          try {
+            await accountsApi.convertCompanyToAccount(id);
+            showToast('Converted to Account', 'success');
+            navigateToRecord(`/accounts/${id}`);
+          } catch (err) {
+            showToast(getApiError(err));
+          } finally {
+            setConverting(false);
+            setConvertConfirm(false);
+          }
+        }}
+        onCancel={() => setConvertConfirm(false)}
+      />
 
       <ConfirmDialog
         open={deleteConfirm}

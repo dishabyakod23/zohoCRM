@@ -463,15 +463,7 @@ export default function CreateCampaignForm() {
           Campaigns
         </AppLink>
 
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-lg font-semibold text-zoho-text">Create Campaign</h1>
-          <div className="flex gap-2">
-            <AppLink href="/campaigns" className="btn-secondary">Cancel</AppLink>
-            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
-              {saving ? 'Saving…' : 'Save Campaign'}
-            </button>
-          </div>
-        </div>
+        <h1 className="text-lg font-semibold text-zoho-text mb-6">Create Campaign</h1>
 
         <div className="card p-6">
           <SectionTitle>Campaign Information</SectionTitle>
@@ -699,6 +691,13 @@ export default function CreateCampaignForm() {
           <FormField label="Description" name="description">
             <textarea className="input min-h-[120px] w-full" value={form.description} onChange={set('description')} />
           </FormField>
+        </div>
+
+        <div className="flex gap-2 justify-end pt-4">
+          <AppLink href="/campaigns" className="btn-secondary">Cancel</AppLink>
+          <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
+            {saving ? 'Saving…' : 'Save Campaign'}
+          </button>
         </div>
       </div>
     </CRMLayout>

@@ -150,10 +150,17 @@ export function mergeActivityLogs(auditLogs = [], cloudTalkCalls = []) {
   return merged;
 }
 
-function previewText(text, max = 120) {
-  const body = String(text || '').trim();
-  if (!body) return '';
-  return body.length > max ? `${body.slice(0, max - 1)}…` : body;
+/** True when an audit/history row is about a note (not the parent record itself). */
+export function isNoteAuditLog(log) {
+  const action = String(log?.action || '').toLowerCase();
+  const entityType = String(log?.entity_type || log?.record_type || '').toLowerCase();
+  const label = String(log?.action_label || '').toLowerCase();
+  const summary = String(log?.summary || '').toLowerCase();
+  if (entityType === 'note' || entityType.includes('note')) return true;
+  if (action.includes('note')) return true;
+  if (label.includes('note')) return true;
+  if (/\badded\s+note\b|\bnotes?\s+added\b|\bupdated\s+note\b|\bnote\s+updated\b/.test(summary)) return true;
+  return false;
 }
 
 function auditCoversRelatedId(auditEntries, relatedId) {
@@ -165,27 +172,79 @@ function auditCoversRelatedId(auditEntries, relatedId) {
   });
 }
 
-/** Build a History-tab entry from a record note (API does not attach notes to /history/{entity}/{id}). */
+/**
+ * Build a History-tab entry from a record note.
+ * Keep it short — full note text lives on the Notes tab.
+ */
 export function noteToHistoryEntry(note) {
   if (!note?.id) return null;
   const createdMs = note.created_at ? new Date(note.created_at).getTime() : 0;
   const updatedMs = note.updated_at ? new Date(note.updated_at).getTime() : 0;
   const wasUpdated = updatedMs > createdMs + 2000;
-  const body = String(note.body || '').trim();
-  const preview = previewText(body);
   return normalizeAuditLog({
     id: `related-note-${note.id}`,
     action: wasUpdated ? 'update' : 'create',
-    action_label: wasUpdated ? 'Note updated' : 'Note',
+    action_label: 'Note',
     entity_type: 'note',
     entity_id: note.id,
-    summary: wasUpdated
-      ? (preview ? `Updated note — ${preview}` : 'Updated note')
-      : (preview ? `Added note — ${preview}` : 'Added note'),
-    change_lines: body && body !== preview ? [body] : undefined,
+    summary: wasUpdated ? 'Note updated' : 'Notes added',
     user_name: note.owner_name || note.created_by_name || '',
     created_at: wasUpdated ? note.updated_at : (note.created_at || note.updated_at),
   });
+}
+
+/** Synthetic "Created …" row when the backend history/audit APIs return nothing. */
+export function recordCreatedHistoryEntry(entityType, entityId, {
+  createdAt,
+  userName,
+  recordName,
+} = {}) {
+  if (!entityType || !entityId || !createdAt) return null;
+  const typeLabel = formatEnumLabel(entityType);
+  const name = String(recordName || '').trim();
+  return normalizeAuditLog({
+    id: `record-created-${entityType}-${entityId}`,
+    action: 'create',
+    action_label: 'Created',
+    entity_type: entityType,
+    entity_id: entityId,
+    summary: name ? `Created ${typeLabel} — ${name}` : `Created ${typeLabel}`,
+    user_name: userName || '—',
+    created_at: createdAt,
+  });
+}
+
+function hasCreateHistoryEntry(entries = []) {
+  return (entries || []).some((entry) => {
+    const action = String(entry.action || '').toLowerCase();
+    const label = String(entry.action_label || '').toLowerCase();
+    const summary = String(entry.summary || '').toLowerCase();
+    return action === 'create' || label === 'created' || /^created\b/.test(summary);
+  });
+}
+
+async function fetchEntityAuditEntries(entityType, entityId) {
+  const fromHistory = await api.get(`${HISTORY_BASE}/${entityType}/${entityId}`)
+    .then((res) => filterVisibleAuditLogs((res.data.data || []).map(normalizeAuditLog)))
+    .catch(() => []);
+  if (fromHistory.length) return fromHistory;
+
+  const fromTimeline = await api.get(`${AUDIT_LOGS_BASE}/timeline/${entityType}/${entityId}`)
+    .then((res) => filterVisibleAuditLogs((res.data.data || []).map(normalizeAuditLog)))
+    .catch(() => []);
+  if (fromTimeline.length) return fromTimeline;
+
+  const fromLogs = await api.get(AUDIT_LOGS_BASE, {
+    params: {
+      entity_type: entityType,
+      entity_id: entityId,
+      page: 1,
+      page_size: 100,
+    },
+  })
+    .then((res) => filterVisibleAuditLogs((res.data.data || []).map(normalizeAuditLog)))
+    .catch(() => []);
+  return fromLogs;
 }
 
 /** Build a History-tab entry from an attached document. */
@@ -207,20 +266,23 @@ export function documentToHistoryEntry(doc) {
 /**
  * Merge audit history with notes + files for the same record.
  * Backend /history/{type}/{id} only returns the record's own audit rows.
+ * Note audit rows are dropped (they duplicate related notes and include body text);
+ * related notes render as a short "Notes added" line — details stay on the Notes tab.
  */
 export function mergeEntityHistoryWithRelated(auditEntries = [], { notes = [], documents = [] } = {}) {
+  const auditWithoutNotes = (auditEntries || []).filter((entry) => !isNoteAuditLog(entry));
   const related = [];
   for (const note of notes || []) {
-    if (auditCoversRelatedId(auditEntries, note.id)) continue;
+    if (auditCoversRelatedId(auditWithoutNotes, note.id)) continue;
     const entry = noteToHistoryEntry(note);
     if (entry) related.push(entry);
   }
   for (const doc of documents || []) {
-    if (auditCoversRelatedId(auditEntries, doc.id)) continue;
+    if (auditCoversRelatedId(auditWithoutNotes, doc.id)) continue;
     const entry = documentToHistoryEntry(doc);
     if (entry) related.push(entry);
   }
-  return mergeActivityLogs(auditEntries, related);
+  return mergeActivityLogs(auditWithoutNotes, related);
 }
 
 /** Audit logs plus CloudTalk call history for a date window (full window). */
@@ -319,9 +381,8 @@ export async function getEntityTimeline(entityType, entityId, params = {}) {
   return filterVisibleAuditLogs((res.data.data || []).map(normalizeAuditLog));
 }
 
-export async function getEntityHistory(entityType, entityId) {
-  const res = await api.get(`${HISTORY_BASE}/${entityType}/${entityId}`);
-  const auditEntries = filterVisibleAuditLogs((res.data.data || []).map(normalizeAuditLog));
+export async function getEntityHistory(entityType, entityId, seed = {}) {
+  const auditEntries = await fetchEntityAuditEntries(entityType, entityId);
 
   const [notes, documents] = await Promise.all([
     notesSupportedRelatedType(entityType)
@@ -332,7 +393,16 @@ export async function getEntityHistory(entityType, entityId) {
       : Promise.resolve([]),
   ]);
 
-  return mergeEntityHistoryWithRelated(auditEntries, { notes, documents });
+  let merged = mergeEntityHistoryWithRelated(auditEntries, { notes, documents });
+
+  // Backend often omits account (and some other) create rows from /history.
+  // Fall back to a synthetic Created entry from the record itself.
+  if (!hasCreateHistoryEntry(merged)) {
+    const created = recordCreatedHistoryEntry(entityType, entityId, seed);
+    if (created) merged = mergeActivityLogs(merged, [created]);
+  }
+
+  return merged;
 }
 
 export async function listHistory(params = {}) {

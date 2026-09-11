@@ -7,7 +7,7 @@ import TimezoneSelect from '../forms/TimezoneSelect.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
-import { validateRequired, validationToastMessage } from '../../lib/validators.js';
+import { validateRequired, validateEmail, validationToastMessage } from '../../lib/validators.js';
 import { makeFieldSetter } from '../../lib/formInput.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
@@ -51,9 +51,12 @@ export default function CreateSequenceForm() {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSave = async () => {
     const nextErrors = validateRequired(REQUIRED, form);
+    if (!nextErrors.sending_email) {
+      const emailErr = validateEmail(form.sending_email);
+      if (emailErr) nextErrors.sending_email = emailErr;
+    }
     if (!nextErrors.name) {
       const uniqueErr = await sequencesApi.validateSequenceNameUnique(form.name);
       if (uniqueErr) nextErrors.name = uniqueErr;
@@ -61,6 +64,13 @@ export default function CreateSequenceForm() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
       showToast(validationToastMessage(nextErrors));
+      requestAnimationFrame(() => {
+        const firstKey = Object.keys(nextErrors)[0];
+        document.querySelector(`[data-field="${firstKey}"]`)?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      });
       return;
     }
 
@@ -83,25 +93,31 @@ export default function CreateSequenceForm() {
         <h1 className="text-xl font-semibold text-zoho-text mt-2">Create Sequence</h1>
         <p className="text-sm text-zoho-muted mt-1">Configure sending rules, then add steps on the next screen.</p>
 
-        <form onSubmit={handleSubmit} className="mt-6">
+        <div className="mt-6">
           <SectionTitle>Basic Info</SectionTitle>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Sequence Name" required error={errors.name}>
+            <FormField label="Sequence Name" required error={errors.name} name="name">
               <input className={inputClass(errors.name)} value={form.name} onChange={set('name')} />
             </FormField>
-            <FormField label="Owner">
+            <FormField label="Owner" name="owner_id">
               <select className="input" value={form.owner_id} onChange={set('owner_id')}>
                 <option value="">Select owner</option>
                 {users.map((u) => <option key={u.id || u.value} value={u.id || u.value}>{u.name}</option>)}
               </select>
             </FormField>
-            <FormField label="Sending Email" required error={errors.sending_email} colSpan>
-              <input className={inputClass(errors.sending_email)} type="email" value={form.sending_email} onChange={set('sending_email')} placeholder="outreach@yourcompany.com" />
+            <FormField label="Sending Email" required error={errors.sending_email} name="sending_email">
+              <input
+                className={inputClass(errors.sending_email)}
+                type="email"
+                value={form.sending_email}
+                onChange={set('sending_email')}
+                placeholder="outreach@yourcompany.com"
+              />
               <p className="text-xs text-zoho-muted mt-1.5">
                 Must use an address on a domain verified in Resend (SPF, DKIM, DMARC).
               </p>
             </FormField>
-            <FormField label="Description" colSpan>
+            <FormField label="Description" name="description">
               <textarea className="input min-h-[80px]" value={form.description} onChange={set('description')} />
             </FormField>
           </div>
@@ -124,7 +140,7 @@ export default function CreateSequenceForm() {
             <FormField label="Send window end">
               <input className="input" type="time" value={form.send_window_end} onChange={(e) => setForm((f) => ({ ...f, send_window_end: e.target.value }))} />
             </FormField>
-            <FormField label="Send days" colSpan>
+            <FormField label="Send days">
               <div className="flex flex-wrap gap-2">
                 {SEND_DAYS.map((d) => (
                   <label key={d.bit} className="inline-flex items-center gap-1 text-xs border border-zoho-border rounded-lg px-2 py-1">
@@ -176,9 +192,11 @@ export default function CreateSequenceForm() {
 
           <div className="flex gap-2 justify-end pt-8">
             <AppLink href="/sequences" className="btn-secondary">Cancel</AppLink>
-            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Creating…' : 'Create & Add Steps'}</button>
+            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
+              {saving ? 'Creating…' : 'Create & Add Steps'}
+            </button>
           </div>
-        </form>
+        </div>
       </div>
     </CRMLayout>
   );

@@ -9,7 +9,6 @@ import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import * as accountsApi from '../../lib/services/accounts.js';
-import { CONFIRMED_ACCOUNT_TYPE } from '../../lib/companyHelpers.js';
 import { fetchDealStages } from '../../lib/services/lookups.js';
 import { FALLBACK_DEAL_STAGES } from '../../lib/dealHelpers.js';
 import {
@@ -105,7 +104,7 @@ export default function LeadConvertMenu({
     try {
       const result = await leadsApi.convertLead(leadId, convertForm);
       if (result.account?.id) {
-        await accountsApi.updateAccount(result.account.id, { account_type: CONFIRMED_ACCOUNT_TYPE });
+        await accountsApi.convertCompanyToAccount(result.account.id);
       }
       showToast('Converted to Account', 'success');
       setAccountModalOpen(false);

@@ -3,6 +3,7 @@ import {
   mergeEntityHistoryWithRelated,
   normalizeAuditLog,
   noteToHistoryEntry,
+  recordCreatedHistoryEntry,
 } from '../auditLogs.js';
 
 describe('normalizeAuditLog — actor name resolution ("Super Admin" regression)', () => {
@@ -79,18 +80,19 @@ describe('mergeEntityHistoryWithRelated — notes and files on History tab', () 
       'related-document-d1',
       'a1',
     ]);
-    expect(merged[0].summary).toContain('Added note');
+    expect(merged[0].summary).toBe('Notes added');
     expect(merged[1].summary).toContain('Uploaded file — quote.pdf');
   });
 
-  it('skips related rows already present in audit history', () => {
+  it('drops note audit rows and shows a single Notes added entry from related notes', () => {
     const audit = [
       normalizeAuditLog({
         id: 'a-note',
         action: 'create',
+        action_label: 'Added Note',
         entity_type: 'note',
         entity_id: 'n1',
-        summary: 'Created Note',
+        summary: 'Added Note Lead — wl creation check',
         created_at: '2026-09-08T12:00:00.000Z',
       }),
     ];
@@ -98,7 +100,8 @@ describe('mergeEntityHistoryWithRelated — notes and files on History tab', () 
       notes: [{ id: 'n1', body: 'dup', created_at: '2026-09-08T12:00:00.000Z' }],
     });
     expect(merged).toHaveLength(1);
-    expect(merged[0].id).toBe('a-note');
+    expect(merged[0].id).toBe('related-note-n1');
+    expect(merged[0].summary).toBe('Notes added');
   });
 
   it('marks edited notes as updates', () => {
@@ -110,7 +113,7 @@ describe('mergeEntityHistoryWithRelated — notes and files on History tab', () 
       owner_name: 'Alex',
     });
     expect(entry.action).toBe('update');
-    expect(entry.summary).toContain('Updated note');
+    expect(entry.summary).toBe('Note updated');
   });
 
   it('builds a file history entry from a document', () => {
@@ -121,5 +124,18 @@ describe('mergeEntityHistoryWithRelated — notes and files on History tab', () 
     });
     expect(entry.action_label).toBe('File');
     expect(entry.summary).toBe('Uploaded file — deck.pptx');
+  });
+
+  it('builds a synthetic Created entry for accounts with no backend history', () => {
+    const entry = recordCreatedHistoryEntry('account', 'acc-1', {
+      createdAt: '2026-09-11T12:00:00.000Z',
+      userName: 'Sudeep G N',
+      recordName: 'Paxton retails',
+    });
+    expect(entry.action).toBe('create');
+    expect(entry.action_label).toBe('Created');
+    expect(entry.summary).toBe('Created Account — Paxton retails');
+    expect(entry.user_name).toBe('Sudeep G N');
+    expect(entry.created_at).toBe('2026-09-11T12:00:00.000Z');
   });
 });

@@ -1,10 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import SequenceStepEditor from './SequenceStepEditor.js';
-import { emptyStepForm, getUnsafeSequenceEmailReason } from '../../lib/sequenceHelpers.js';
+import { emptyStepForm, getUnsafeSequenceEmailReason, isEmailStep, isAbEmailStep, htmlToPlainText } from '../../lib/sequenceHelpers.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
+import { validationToastMessage } from '../../lib/validators.js';
 
 export default function SequenceBuilder({
   sequenceId,
@@ -93,9 +94,17 @@ export default function SequenceBuilder({
       step_order: index + 1,
       timezone: steps[index].timezone || sequenceTimezone,
     };
-    if (!step.scheduled_date || !step.scheduled_time) {
-      if (!quiet) showToast('Each step needs a scheduled date and time');
-      throw new Error('Missing schedule');
+    const requiredErrs = {};
+    if (!step.scheduled_date) requiredErrs.scheduled_date = 'Scheduled Date is required.';
+    if (!step.scheduled_time) requiredErrs.scheduled_time = 'Scheduled Time is required.';
+    if (isEmailStep(step.type) && !isAbEmailStep(step)) {
+      if (!String(step.subject || '').trim()) requiredErrs.subject = 'Subject is required.';
+      const bodyText = htmlToPlainText(step.html_body || step.text_body || '').trim();
+      if (!bodyText) requiredErrs.html_body = 'Email body is required.';
+    }
+    if (Object.keys(requiredErrs).length) {
+      if (!quiet) showToast(validationToastMessage(requiredErrs));
+      throw new Error('Missing required fields');
     }
     const unsafe = getUnsafeSequenceEmailReason(step);
     if (unsafe) {
@@ -122,7 +131,7 @@ export default function SequenceBuilder({
       syncSteps(next);
       showToast('Step saved', 'success');
     } catch (err) {
-      if (err?.message !== 'Missing schedule' && err?.message !== 'Unsafe email content') {
+      if (err?.message !== 'Missing required fields' && err?.message !== 'Unsafe email content') {
         showToast(getApiError(err));
       }
     }
@@ -140,7 +149,7 @@ export default function SequenceBuilder({
       }
       showToast(`Saved ${next.length} step(s)`, 'success');
     } catch (err) {
-      if (err?.message !== 'Missing schedule' && err?.message !== 'Unsafe email content') {
+      if (err?.message !== 'Missing required fields' && err?.message !== 'Unsafe email content') {
         showToast(getApiError(err));
       }
     } finally {

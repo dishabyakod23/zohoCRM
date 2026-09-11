@@ -21,17 +21,63 @@ export function normalizePermissionsMatrix(raw) {
 
 /**
  * Resolve the effective permission matrix for a user.
- * Prefers `user.permissions` from GET /auth/me; falls back to built-in role defaults.
+ * Prefers explicit flags from GET /auth/me, but fills omitted modules/actions
+ * from the built-in role defaults so system roles don't lose documents.upload
+ * (and similar) when the API matrix is partial.
  */
 export function resolveUserPermissions(user) {
-  const fromApi = normalizePermissionsMatrix(user?.permissions);
-  if (fromApi) return fromApi;
-
   const role = normalizeRole(user?.role);
-  if (role && DEFAULT_ROLE_MODULE_PERMISSIONS[role]) {
-    return DEFAULT_ROLE_MODULE_PERMISSIONS[role];
+  const defaults = (role && DEFAULT_ROLE_MODULE_PERMISSIONS[role])
+    || emptyModulePermissions();
+  const raw = user?.permissions;
+  if (!raw || typeof raw !== 'object') return defaults;
+
+  const merged = {};
+  for (const mod of PERMISSION_MODULES) {
+    const key = mod.key;
+    const defRow = defaults[key] || emptyModulePermissions()[key];
+    const apiRow = raw[key];
+    if (!apiRow || typeof apiRow !== 'object') {
+      merged[key] = { ...defRow };
+      continue;
+    }
+    const row = { ...defRow };
+    for (const action of ALL_MODULE_ACTIONS) {
+      if (Object.prototype.hasOwnProperty.call(apiRow, action)) {
+        row[action] = Boolean(apiRow[action]);
+      }
+    }
+    // Legacy documents keys from older role matrices.
+    if (key === 'documents') {
+      if (Object.prototype.hasOwnProperty.call(apiRow, 'create')
+        && !Object.prototype.hasOwnProperty.call(apiRow, 'upload')) {
+        row.upload = Boolean(apiRow.create);
+      }
+      if (Object.prototype.hasOwnProperty.call(apiRow, 'export')
+        && !Object.prototype.hasOwnProperty.call(apiRow, 'download')) {
+        row.download = Boolean(apiRow.export);
+      }
+    }
+    if (key === 'recycle_bin') {
+      if (Object.prototype.hasOwnProperty.call(apiRow, 'edit')
+        && !Object.prototype.hasOwnProperty.call(apiRow, 'restore')) {
+        row.restore = Boolean(apiRow.edit);
+      }
+      if (Object.prototype.hasOwnProperty.call(apiRow, 'delete')
+        && !Object.prototype.hasOwnProperty.call(apiRow, 'permanent_delete')) {
+        row.permanent_delete = Boolean(apiRow.delete);
+      }
+    }
+    merged[key] = row;
   }
-  return emptyModulePermissions();
+
+  // Keep any unknown modules from the API payload.
+  for (const [key, apiRow] of Object.entries(raw)) {
+    if (merged[key] || !apiRow || typeof apiRow !== 'object') continue;
+    merged[key] = { ...apiRow };
+  }
+
+  return applyPermissionDependencies(merged);
 }
 
 export function hasAnyModuleAction(matrix, actions) {

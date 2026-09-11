@@ -15,6 +15,7 @@ import { getApiError } from '../../../lib/api.js';
 import * as projectsApi from '../../../lib/services/projects.js';
 import { fetchAccountLookups, accountMapFromLookups, fetchProjectStatuses } from '../../../lib/services/lookups.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
+import AccountNameCombobox from '../../../components/forms/AccountNameCombobox.js';
 
 export default function ProjectDetailPage() {
   const id = useRecordId();
@@ -63,9 +64,20 @@ export default function ProjectDetailPage() {
           fields={[
             { name: 'name', label: 'Project Name', required: true },
             { name: 'account_id', label: 'Account', format: () => project.account_name, render: (d, set) => (
-              <select className="input" value={d.account_id ?? ''} onChange={(e) => set((p) => ({ ...p, account_id: e.target.value }))}>
-                <option value="">Select</option>{accounts.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-              </select>
+              <AccountNameCombobox
+                options={accounts}
+                valueId={d.account_id ?? ''}
+                valueLabel={
+                  d.account_name
+                  || accounts.find((a) => String(a.value) === String(d.account_id))?.label
+                  || project.account_name
+                  || ''
+                }
+                placeholder="Search or type account name"
+                onChange={({ account_id, account_name }) => {
+                  set((p) => ({ ...p, account_id, account_name }));
+                }}
+              />
             ) },
             { name: 'status', label: 'Status', format: () => project.status_label, render: (d, set) => (
               <select className="input" value={d.status ?? ''} onChange={(e) => set((p) => ({ ...p, status: e.target.value }))}>
