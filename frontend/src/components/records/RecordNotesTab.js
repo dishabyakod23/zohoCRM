@@ -8,6 +8,8 @@ import UserAvatarById from '../users/UserAvatarById.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { canManageNote } from '../../lib/noteHelpers.js';
+import { isNoteBodyEmpty, noteBodyToHtml } from '../../lib/noteRichText.js';
+import NoteRichTextEditor, { NoteBody } from './NoteRichTextEditor.js';
 
 export default function RecordNotesTab({ relatedType, recordId, canEdit = false }) {
   const { showToast } = useToast();
@@ -37,10 +39,10 @@ export default function RecordNotesTab({ relatedType, recordId, canEdit = false 
   useEffect(() => { loadNotes(); }, [loadNotes]);
 
   const addNote = async () => {
-    if (!noteText.trim()) return;
+    if (isNoteBodyEmpty(noteText)) return;
     setSaving(true);
     try {
-      const note = await notesApi.createNote(relatedType, recordId, noteText.trim());
+      const note = await notesApi.createNote(relatedType, recordId, noteBodyToHtml(noteText));
       setNotes((prev) => [note, ...prev]);
       setNoteText('');
       showToast('Note added', 'success');
@@ -53,7 +55,7 @@ export default function RecordNotesTab({ relatedType, recordId, canEdit = false 
 
   const startEdit = (note) => {
     setEditingId(note.id);
-    setEditText(note.body);
+    setEditText(noteBodyToHtml(note.body));
   };
 
   const cancelEdit = () => {
@@ -62,13 +64,13 @@ export default function RecordNotesTab({ relatedType, recordId, canEdit = false 
   };
 
   const saveEdit = async (noteId) => {
-    if (!editText.trim()) {
+    if (isNoteBodyEmpty(editText)) {
       showToast('Note cannot be empty');
       return;
     }
     setUpdatingId(noteId);
     try {
-      const updated = await notesApi.updateNote(relatedType, recordId, noteId, editText.trim());
+      const updated = await notesApi.updateNote(relatedType, recordId, noteId, noteBodyToHtml(editText));
       setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, ...updated, body: updated.body } : n)));
       cancelEdit();
       showToast('Note updated', 'success');
@@ -96,14 +98,16 @@ export default function RecordNotesTab({ relatedType, recordId, canEdit = false 
   return (
     <div className="card p-5">
       {canEdit && (
-        <div className="flex gap-2 mb-4">
-          <textarea
-            className="input flex-1 min-h-[72px] resize-y"
-            placeholder="Add a note..."
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-          />
-          <button type="button" onClick={addNote} disabled={saving || !noteText.trim()} className="btn-primary text-xs self-end">
+        <div className="flex flex-col sm:flex-row gap-2 mb-4">
+          <div className="flex-1 min-w-0">
+            <NoteRichTextEditor
+              value={noteText}
+              onChange={setNoteText}
+              placeholder="Add a note…"
+              minHeight={100}
+            />
+          </div>
+          <button type="button" onClick={addNote} disabled={saving || isNoteBodyEmpty(noteText)} className="btn-primary text-xs self-end">
             {saving ? 'Adding...' : 'Add Note'}
           </button>
         </div>
@@ -121,14 +125,15 @@ export default function RecordNotesTab({ relatedType, recordId, canEdit = false 
               <div key={n.id} className="text-sm bg-brand-50/60 border border-zoho-border/60 p-3 rounded-xl">
                 {isEditing ? (
                   <div className="space-y-2">
-                    <textarea
-                      className="input min-h-[72px] resize-y w-full"
+                    <NoteRichTextEditor
                       value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
+                      onChange={setEditText}
+                      minHeight={100}
+                      placeholder="Edit note…"
                     />
                     <div className="flex gap-2 justify-end">
                       <button type="button" onClick={cancelEdit} className="btn-secondary text-xs">Cancel</button>
-                      <button type="button" onClick={() => saveEdit(n.id)} disabled={updatingId === n.id || !editText.trim()} className="btn-primary text-xs">
+                      <button type="button" onClick={() => saveEdit(n.id)} disabled={updatingId === n.id || isNoteBodyEmpty(editText)} className="btn-primary text-xs">
                         {updatingId === n.id ? 'Saving...' : 'Save'}
                       </button>
                     </div>
@@ -136,7 +141,7 @@ export default function RecordNotesTab({ relatedType, recordId, canEdit = false 
                 ) : (
                   <>
                     <div className="flex items-start justify-between gap-3">
-                      <p className="text-zoho-text whitespace-pre-wrap flex-1">{n.body}</p>
+                      <NoteBody body={n.body} className="flex-1 min-w-0" />
                       {canManage && (
                         <div className="flex items-center gap-1 shrink-0">
                           <button type="button" onClick={() => startEdit(n)} className="p-1 text-zoho-muted hover:text-brand-600 rounded" aria-label="Edit note" title="Edit">

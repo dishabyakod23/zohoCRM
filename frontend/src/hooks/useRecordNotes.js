@@ -4,6 +4,7 @@ import { useToast } from '../components/ui/Toast.js';
 import { getApiError } from '../lib/api.js';
 import * as notesApi from '../lib/services/notes.js';
 import { notifyRecordNotesChanged } from '../lib/recordUpdateEvents.js';
+import { isNoteBodyEmpty, noteBodyToHtml } from '../lib/noteRichText.js';
 
 export function useRecordNotes(relatedType, recordId) {
   const { showToast } = useToast();
@@ -39,10 +40,10 @@ export function useRecordNotes(relatedType, recordId) {
   });
 
   const addNote = async () => {
-    if (!noteText.trim()) return;
+    if (isNoteBodyEmpty(noteText)) return;
     setSaving(true);
     try {
-      const note = await notesApi.createNote(relatedType, recordId, noteText.trim());
+      const note = await notesApi.createNote(relatedType, recordId, noteBodyToHtml(noteText));
       setNotes((prev) => [note, ...prev]);
       setNoteText('');
       notifyRecordNotesChanged({ relatedType, recordId });
@@ -58,7 +59,7 @@ export function useRecordNotes(relatedType, recordId) {
 
   const startEdit = (note) => {
     setEditingId(note.id);
-    setEditText(note.body);
+    setEditText(noteBodyToHtml(note.body));
   };
 
   const cancelEdit = () => {
@@ -67,13 +68,13 @@ export function useRecordNotes(relatedType, recordId) {
   };
 
   const saveEdit = async (noteId) => {
-    if (!editText.trim()) {
+    if (isNoteBodyEmpty(editText)) {
       showToast('Note cannot be empty');
       return;
     }
     setUpdatingId(noteId);
     try {
-      const updated = await notesApi.updateNote(relatedType, recordId, noteId, editText.trim());
+      const updated = await notesApi.updateNote(relatedType, recordId, noteId, noteBodyToHtml(editText));
       setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, ...updated, body: updated.body } : n)));
       cancelEdit();
       notifyRecordNotesChanged({ relatedType, recordId });

@@ -1,5 +1,6 @@
 'use client';
 import { formatNoteTime } from '../../lib/noteHelpers.js';
+import { NoteBody } from './NoteRichTextEditor.js';
 
 function NotesBadge() {
   return (
@@ -35,7 +36,9 @@ export default function RecordNoteHoverPreview({ note, moduleLabel, recordLabel,
       </div>
       <div className="px-4 pt-1 pb-3">
         <p className="text-xs font-semibold text-zoho-text mb-2">Last Added Note</p>
-        <p className="text-zoho-text leading-relaxed mb-3 line-clamp-4">{note.body}</p>
+        <div className="mb-3 line-clamp-4 overflow-hidden">
+          <NoteBody body={note.body} />
+        </div>
         <div className="flex items-center gap-2 pt-2 border-t border-zoho-border/60">
           <div className="w-7 h-7 rounded-full bg-gray-200 shrink-0" />
           <div className="min-w-0 text-[11px] text-zoho-muted">
