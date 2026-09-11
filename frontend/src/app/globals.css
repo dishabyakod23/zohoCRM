@@ -156,5 +156,26 @@ html.crm-dark .record-data-table .table-td a { @apply text-neutral-100 hover:tex
 .sticky-note-editor ol { list-style-type: decimal; }
 .sticky-note-editor:focus { outline: none; }
 
+/* Record notes rich text */
+.note-rich-body h1 { @apply text-base font-bold text-zoho-text mt-2 mb-1; }
+.note-rich-body h2 { @apply text-sm font-bold text-zoho-text mt-2 mb-1; }
+.note-rich-body h3,
+.note-rich-body h4 { @apply text-sm font-semibold text-zoho-text mt-1.5 mb-1; }
+.note-rich-body p { @apply mb-1.5; }
+.note-rich-body p:last-child { @apply mb-0; }
+.note-rich-body ul { list-style-type: disc; padding-left: 1.25rem; margin: 0.35rem 0; }
+.note-rich-body ol { list-style-type: decimal; padding-left: 1.25rem; margin: 0.35rem 0; }
+.note-rich-body li { @apply mb-0.5; }
+.note-rich-body strong,
+.note-rich-body b { @apply font-semibold; }
+.note-rich-body em,
+.note-rich-body i { @apply italic; }
+.note-rich-body table { @apply w-full text-xs border-collapse my-2; }
+.note-rich-body th,
+.note-rich-body td { @apply border border-zoho-border px-2 py-1 text-left align-top whitespace-normal; }
+.note-rich-body th { @apply bg-neutral-50 font-semibold; }
+.note-rich-body a { @apply text-brand-600 underline; }
+.note-rich-body:empty:before { content: attr(data-placeholder); @apply text-zoho-muted; }
+
 main > div { animation: fadeIn 0.3s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }

@@ -3,9 +3,11 @@ import { useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useRecordNotes } from '../../hooks/useRecordNotes.js';
 import { formatNoteTime, canManageNote } from '../../lib/noteHelpers.js';
+import { isNoteBodyEmpty } from '../../lib/noteRichText.js';
 import UserAvatarById from '../users/UserAvatarById.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import NoteRichTextEditor, { NoteBody } from './NoteRichTextEditor.js';
 
 export default function RecordNotesSidePanel({
   open,
@@ -77,21 +79,22 @@ export default function RecordNotesSidePanel({
                   <div className="flex-1 min-w-0">
                     {isEditing ? (
                       <div className="space-y-2">
-                        <textarea
-                          className="input min-h-[72px] resize-y w-full text-sm"
+                        <NoteRichTextEditor
                           value={notes.editText}
-                          onChange={(e) => notes.setEditText(e.target.value)}
+                          onChange={notes.setEditText}
+                          minHeight={90}
+                          placeholder="Edit note…"
                         />
                         <div className="flex gap-2">
                           <button type="button" onClick={notes.cancelEdit} className="btn-secondary text-xs">Cancel</button>
-                          <button type="button" onClick={() => notes.saveEdit(n.id)} disabled={notes.updatingId === n.id} className="btn-primary text-xs">
+                          <button type="button" onClick={() => notes.saveEdit(n.id)} disabled={notes.updatingId === n.id || isNoteBodyEmpty(notes.editText)} className="btn-primary text-xs">
                             {notes.updatingId === n.id ? 'Saving...' : 'Save'}
                           </button>
                         </div>
                       </div>
                     ) : (
                       <>
-                        <p className="text-sm text-zoho-text whitespace-pre-wrap">{n.body}</p>
+                        <NoteBody body={n.body} />
                         <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1.5 text-[11px] text-zoho-muted">
                           <span className="text-brand-600">{moduleLabel} - {recordLabel}</span>
                           {canManage && (
@@ -113,17 +116,14 @@ export default function RecordNotesSidePanel({
 
         {canEdit && (
           <div className="px-5 py-4 border-t border-zoho-border bg-gray-50/80">
-            <textarea
-              className="input w-full min-h-[80px] resize-y text-sm"
-              placeholder="Add a note"
+            <NoteRichTextEditor
               value={notes.noteText}
-              onChange={(e) => notes.setNoteText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAdd();
-              }}
+              onChange={notes.setNoteText}
+              minHeight={90}
+              placeholder="Add a note"
             />
             <div className="flex justify-end mt-2">
-              <button type="button" onClick={handleAdd} disabled={notes.saving || !notes.noteText.trim()} className="btn-primary text-xs">
+              <button type="button" onClick={handleAdd} disabled={notes.saving || isNoteBodyEmpty(notes.noteText)} className="btn-primary text-xs">
                 {notes.saving ? 'Adding...' : 'Add Note'}
               </button>
             </div>
