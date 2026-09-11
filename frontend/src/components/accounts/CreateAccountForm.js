@@ -14,12 +14,13 @@ import { CONFIRMED_ACCOUNT_TYPE } from '../../lib/companyHelpers.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
-import { fetchAccountLookups, fetchContactLookups, fetchUsers } from '../../lib/services/lookups.js';
+import { fetchContactLookups, fetchUsers } from '../../lib/services/lookups.js';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import CampaignSelect from '../forms/CampaignSelect.js';
 import AccountNameSelect from '../forms/AccountNameSelect.js';
 import AccountNameCombobox from '../forms/AccountNameCombobox.js';
+import { useAccountLookups } from '../../hooks/useAccountLookups.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { tryAttachCampaignAfterCreate } from '../../lib/campaignRecordHelpers.js';
 import { makeFieldSetter } from '../../lib/formInput.js';
@@ -128,12 +129,11 @@ export default function CreateAccountForm() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState([]);
-  const [parentAccounts, setParentAccounts] = useState([]);
   const [contactOptions, setContactOptions] = useState([]);
+  const { accounts: parentAccounts } = useAccountLookups({ includeCompanies: true });
 
   useEffect(() => {
     fetchUsers().then(setUsers).catch(() => setUsers([]));
-    fetchAccountLookups().then(setParentAccounts).catch(() => setParentAccounts([]));
     fetchContactLookups().then(setContactOptions).catch(() => setContactOptions([]));
   }, []);
 
@@ -257,6 +257,7 @@ export default function CreateAccountForm() {
                   || ''
                 }
                 placeholder="Search parent account"
+                entityLabel="account"
                 onChange={({ account_id }) => {
                   setForm((f) => ({ ...f, parent_account_id: account_id || '' }));
                 }}

@@ -300,6 +300,7 @@ export default function CreateContactForm() {
                 valueLabel={form.account_name}
                 placeholder="Search or type company name"
                 error={errors.account_id}
+                entityLabel="company"
                 onChange={({ account_id, account_name }) => {
                   setForm((f) => ({ ...f, account_id, account_name }));
                   setErrors((er) => ({ ...er, account_id: null }));

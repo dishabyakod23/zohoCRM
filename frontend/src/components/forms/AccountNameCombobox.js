@@ -24,7 +24,11 @@ export default function AccountNameCombobox({
   placeholder = 'Search or type account name',
   disabled = false,
   id,
+  /** Shown in empty/footer/create copy — 'account' or 'company'. */
+  entityLabel = 'account',
 }) {
+  const entitySingular = entityLabel === 'company' ? 'company' : 'account';
+  const entityPlural = entitySingular === 'company' ? 'companies' : 'accounts';
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(valueLabel || '');
   const [userTyped, setUserTyped] = useState(false);
@@ -151,7 +155,7 @@ export default function AccountNameCombobox({
           type="button"
           tabIndex={-1}
           disabled={disabled}
-          aria-label="Show accounts"
+          aria-label={`Show ${entityPlural}`}
           onClick={() => {
             if (open) {
               setOpen(false);
@@ -173,7 +177,7 @@ export default function AccountNameCombobox({
           className="absolute z-40 left-0 right-0 mt-1 max-h-72 overflow-y-auto bg-white border border-zoho-border rounded-xl shadow-card-hover py-1"
         >
           {filtered.length === 0 && !showCreateOption && (
-            <p className="px-3 py-2 text-xs text-zoho-muted">No companies found</p>
+            <p className="px-3 py-2 text-xs text-zoho-muted">No {entityPlural} found</p>
           )}
           {filtered.map((a) => (
             <button
@@ -201,12 +205,12 @@ export default function AccountNameCombobox({
                 setOpen(false);
               }}
             >
-              Use “{query.trim()}” as new company
+              Use “{query.trim()}” as new {entitySingular}
             </button>
           )}
           {!userTyped && sortedOptions.length > 0 && (
             <p className="px-3 py-1.5 text-[11px] text-zoho-muted border-t border-zoho-border">
-              {sortedOptions.length} compan{sortedOptions.length === 1 ? 'y' : 'ies'} — type to search
+              {sortedOptions.length} {sortedOptions.length === 1 ? entitySingular : entityPlural} — type to search
             </p>
           )}
         </div>

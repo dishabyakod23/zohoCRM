@@ -19,7 +19,7 @@ export default function AccountNameSelect({
   error,
   linkMode = false,
 }) {
-  const { accounts, loading } = useAccountLookups();
+  const { accounts, loading } = useAccountLookups({ includeCompanies: true });
 
   return (
     <FormField label={label} name={name} required={required} error={error}>
@@ -31,6 +31,7 @@ export default function AccountNameSelect({
         placeholder={loading && !accounts.length ? 'Loading accounts…' : placeholder}
         error={error}
         disabled={loading && !accounts.length}
+        entityLabel="account"
         onChange={({ account_id, account_name }) => {
           if (linkMode) onChange?.({ account_id: account_id || '', account_name: account_name || '' });
           else onChange?.(account_name || '');

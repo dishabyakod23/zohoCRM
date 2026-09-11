@@ -28,6 +28,7 @@ export default function CompanySelect({
         placeholder={loading && !companies.length ? 'Loading companies…' : placeholder}
         error={error}
         disabled={loading && !companies.length}
+        entityLabel="company"
         onChange={({ account_name }) => onChange?.(account_name || '')}
       />
     </FormField>
