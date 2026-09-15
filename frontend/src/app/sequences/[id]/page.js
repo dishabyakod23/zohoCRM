@@ -110,9 +110,29 @@ export default function SequenceDetailPage() {
     setSettingsErrors({});
     setSaving(true);
     try {
+      const previous = sequence;
       const updated = await sequencesApi.updateSequence(id, settings);
       setSequence(updated);
       showToast('Settings saved', 'success');
+      const scheduleSettingsChanged = (previous?.send_window_start || '').slice(0, 5) !== String(settings.send_window_start || '').slice(0, 5)
+        || (previous?.send_window_end || '').slice(0, 5) !== String(settings.send_window_end || '').slice(0, 5)
+        || previous?.timezone !== settings.timezone
+        || Number(previous?.send_days) !== Number(settings.send_days);
+      if (scheduleSettingsChanged && steps.length) {
+        const result = await sequencesApi.syncEnrollmentSchedulesFromSteps({
+          sequenceId: id,
+          steps,
+          sequence: updated,
+        });
+        if (result.updated > 0) {
+          showToast(
+            `Updated Next Action for ${result.updated} enrollment${result.updated === 1 ? '' : 's'}`,
+            'success',
+          );
+        }
+        const enrollRows = await sequencesApi.listEnrollments(id, { page_size: 50 });
+        setEnrollments(enrollRows.data || []);
+      }
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -187,8 +207,17 @@ export default function SequenceDetailPage() {
             sequenceId={id}
             steps={steps}
             sequenceTimezone={sequence.timezone || 'UTC'}
+            sequence={sequence}
             readOnly={!stepsEditable}
             onStepsChange={setSteps}
+            onScheduleSynced={async () => {
+              try {
+                const enrollRows = await sequencesApi.listEnrollments(id, { page_size: 50 });
+                setEnrollments(enrollRows.data || []);
+              } catch {
+                // ignore refresh errors
+              }
+            }}
           />
         )}
 

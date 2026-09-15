@@ -11,8 +11,10 @@ export default function SequenceBuilder({
   sequenceId,
   steps: initialSteps = [],
   sequenceTimezone = 'UTC',
+  sequence = null,
   readOnly = false,
   onStepsChange,
+  onScheduleSynced,
 }) {
   const { showToast } = useToast();
   const [steps, setSteps] = useState(initialSteps);
@@ -123,13 +125,41 @@ export default function SequenceBuilder({
     }
   };
 
+  const syncEnrollmentSchedules = async (savedSteps, { stepOrders } = {}) => {
+    if (!sequenceId || !savedSteps?.length) return;
+    try {
+      const result = await sequencesApi.syncEnrollmentSchedulesFromSteps({
+        sequenceId,
+        steps: savedSteps,
+        sequence: sequence || { timezone: sequenceTimezone },
+        stepOrders,
+      });
+      if (result.updated > 0) {
+        showToast(
+          `Updated Next Action for ${result.updated} enrollment${result.updated === 1 ? '' : 's'}`,
+          'success',
+        );
+      }
+      onScheduleSynced?.(result);
+    } catch {
+      // best-effort
+    }
+  };
+
   const handleSaveStep = async (index) => {
     try {
+      const previous = steps[index];
       const saved = await saveStep(index);
       if (!saved) return;
       const next = steps.map((s, i) => (i === index ? saved : s));
       syncSteps(next);
       showToast('Step saved', 'success');
+      const scheduleChanged = previous?.scheduled_date !== saved.scheduled_date
+        || previous?.scheduled_time !== saved.scheduled_time
+        || previous?.timezone !== saved.timezone;
+      if (scheduleChanged) {
+        await syncEnrollmentSchedules(next, { stepOrders: [saved.step_order || index + 1] });
+      }
     } catch (err) {
       if (err?.message !== 'Missing required fields' && err?.message !== 'Unsafe email content') {
         showToast(getApiError(err));
@@ -141,13 +171,29 @@ export default function SequenceBuilder({
     if (!sequenceId || !steps.length) return;
     setSavingAll(true);
     try {
+      const previousByOrder = new Map(
+        steps.map((s, i) => [Number(s.step_order || i + 1), s]),
+      );
       let next = [...steps];
+      const changedOrders = [];
       for (let i = 0; i < next.length; i += 1) {
         const saved = await saveStep(i, { quiet: false });
         next = next.map((s, idx) => (idx === i ? saved : s));
         syncSteps(next);
+        const order = Number(saved.step_order || i + 1);
+        const previous = previousByOrder.get(order);
+        if (
+          previous?.scheduled_date !== saved.scheduled_date
+          || previous?.scheduled_time !== saved.scheduled_time
+          || previous?.timezone !== saved.timezone
+        ) {
+          changedOrders.push(order);
+        }
       }
       showToast(`Saved ${next.length} step(s)`, 'success');
+      if (changedOrders.length) {
+        await syncEnrollmentSchedules(next, { stepOrders: changedOrders });
+      }
     } catch (err) {
       if (err?.message !== 'Missing required fields' && err?.message !== 'Unsafe email content') {
         showToast(getApiError(err));

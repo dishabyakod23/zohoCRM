@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { assigneeName, listResult, omitEmpty } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
-import { sequenceStatusLabel, normalizeStepFromApi, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText, isSequenceNameTaken } from '../sequenceHelpers.js';
+import { sequenceStatusLabel, normalizeStepFromApi, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText, isSequenceNameTaken, enrollmentNextActionFromStep, sameScheduleInstant } from '../sequenceHelpers.js';
 
 
 export function normalizeSequence(row) {
@@ -222,6 +222,57 @@ export async function updateEnrollment(enrollmentId, payload) {
       serverAt,
     },
   };
+}
+
+/**
+ * After step schedule / send-window changes, push matching next_action_at onto
+ * active/paused enrollments (backend does not auto-reschedule).
+ */
+export async function syncEnrollmentSchedulesFromSteps({
+  sequenceId,
+  steps = [],
+  sequence = {},
+  enrollments,
+  stepOrders = null,
+} = {}) {
+  if (!sequenceId || !steps?.length) return { updated: 0, checked: 0 };
+
+  const list = enrollments
+    || (await listEnrollments(sequenceId, { page_size: 500 })).data
+    || [];
+  const stepByOrder = new Map(
+    steps
+      .filter((s) => s?.step_order != null)
+      .map((s) => [Number(s.step_order), s]),
+  );
+  const allowedOrders = stepOrders?.length
+    ? new Set(stepOrders.map(Number))
+    : null;
+
+  const targets = list.filter((row) => {
+    const status = String(row.status || '').toUpperCase();
+    if (status !== 'ACTIVE' && status !== 'PAUSED') return false;
+    const order = Number(row.current_step_order);
+    if (!Number.isFinite(order) || !stepByOrder.has(order)) return false;
+    if (allowedOrders && !allowedOrders.has(order)) return false;
+    return true;
+  });
+
+  let updated = 0;
+  await Promise.all(targets.map(async (row) => {
+    const step = stepByOrder.get(Number(row.current_step_order));
+    const nextAt = enrollmentNextActionFromStep(step, sequence);
+    if (!nextAt) return;
+    if (sameScheduleInstant(row.next_action_at, nextAt)) return;
+    try {
+      await updateEnrollment(row.id, { next_action_at: nextAt });
+      updated += 1;
+    } catch {
+      // best-effort; UI can still refresh and show server values
+    }
+  }));
+
+  return { updated, checked: targets.length };
 }
 
 export async function listMemberEnrollments({ member_type, member_id }) {

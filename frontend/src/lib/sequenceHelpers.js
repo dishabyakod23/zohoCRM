@@ -340,6 +340,119 @@ export function sameScheduleInstant(a, b) {
   return Math.abs(aMs - bMs) < 60_000;
 }
 
+/** JS Date.getUTCDay()-style: 0=Sun … 6=Sat → SEND_DAYS bit. */
+export function weekdayBitFromJsDay(jsDay) {
+  const day = Number(jsDay);
+  if (day === 0) return 64;
+  if (day >= 1 && day <= 6) return 1 << (day - 1);
+  return 0;
+}
+
+function wallClockPartsInTimezone(isoOrDate, timezone) {
+  const date = isoOrDate instanceof Date ? isoOrDate : new Date(isoOrDate);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: normalizeSequenceTimezone(timezone),
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      weekday: 'short',
+    }).formatToParts(date).map((p) => [p.type, p.value]),
+  );
+  const hour = parts.hour === '24' ? '00' : parts.hour;
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    time: `${hour}:${parts.minute}:${parts.second || '00'}`,
+    jsDay: weekdayMap[parts.weekday] ?? null,
+  };
+}
+
+function minutesFromTime(time) {
+  const normalized = normalizeScheduledTime(time);
+  if (!normalized) return null;
+  const [hh, mm] = normalized.split(':').map(Number);
+  return (hh * 60) + mm;
+}
+
+function addDaysToDateString(dateStr, days) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d + days));
+  return utc.toISOString().slice(0, 10);
+}
+
+/**
+ * Clamp a candidate send instant into the sequence send window / send days.
+ * Returns a UTC ISO string, or the original candidate when window data is missing.
+ */
+export function clampScheduledAtToSendWindow(iso, {
+  timezone = 'UTC',
+  send_window_start,
+  send_window_end,
+  send_days = DEFAULT_SEND_DAYS,
+} = {}) {
+  if (!iso) return null;
+  const tz = normalizeSequenceTimezone(timezone);
+  const startMin = minutesFromTime(send_window_start);
+  const endMin = minutesFromTime(send_window_end);
+  const wall = wallClockPartsInTimezone(iso, tz);
+  if (!wall) return iso;
+
+  let date = wall.date;
+  let minutes = minutesFromTime(wall.time) ?? 0;
+  const daysMask = Number(send_days) || DEFAULT_SEND_DAYS;
+
+  for (let i = 0; i < 14; i += 1) {
+    const probeIso = buildScheduledAtIso(date, '12:00:00', tz);
+    const probe = wallClockPartsInTimezone(probeIso, tz);
+    const bit = weekdayBitFromJsDay(probe?.jsDay);
+    const dayAllowed = !daysMask || (bit & daysMask);
+
+    if (!dayAllowed) {
+      date = addDaysToDateString(date, 1);
+      if (startMin != null) minutes = startMin;
+      continue;
+    }
+
+    if (startMin != null && minutes < startMin) minutes = startMin;
+    if (endMin != null && minutes > endMin) {
+      date = addDaysToDateString(date, 1);
+      minutes = startMin != null ? startMin : 0;
+      continue;
+    }
+
+    const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
+    const mm = String(minutes % 60).padStart(2, '0');
+    return buildScheduledAtIso(date, `${hh}:${mm}:00`, tz);
+  }
+
+  return iso;
+}
+
+/**
+ * Compute the enrollment next_action_at that should follow a step schedule
+ * (and optional send window).
+ */
+export function enrollmentNextActionFromStep(step, sequence = {}) {
+  if (!step?.scheduled_date || !step?.scheduled_time) return null;
+  const timezone = normalizeSequenceTimezone(
+    step.timezone || sequence.timezone || 'UTC',
+  );
+  const base = buildScheduledAtIso(step.scheduled_date, step.scheduled_time, timezone);
+  if (!base) return null;
+  return clampScheduledAtToSendWindow(base, {
+    timezone,
+    send_window_start: sequence.send_window_start,
+    send_window_end: sequence.send_window_end,
+    send_days: sequence.send_days,
+  });
+}
+
 /** Primary schedule label — exact date/time per corrected plan. */
 export function formatStepSchedule(step, fallbackTimezone = 'UTC') {
   if (!step) return '—';
