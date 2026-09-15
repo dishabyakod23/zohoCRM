@@ -20,6 +20,8 @@ import DailySalesActivityPanel from '../../components/reports/DailySalesActivity
 import WeeklyTeamPerformancePreview from '../../components/reports/WeeklyTeamPerformancePreview.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import NightingaleRoseChart from '../../components/reports/NightingaleRoseChart.js';
+import MixedBarLineChart from '../../components/reports/MixedBarLineChart.js';
 
 const COLORS = ['#378ADD', '#639922', '#EF9F27', '#D85A30', '#1D9E75', '#E24B4A', '#7F77DD', '#888'];
 
@@ -317,10 +319,26 @@ export default function ReportsPage() {
         {!loading && tab === 'leads' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card p-5"><h3 className="font-semibold mb-4">Leads by Source</h3>
-              <ResponsiveContainer width="100%" height={220}><BarChart data={data.source || []}><XAxis dataKey="label" tick={{ fontSize: 10 }} /><YAxis /><Tooltip /><Bar dataKey="count" fill="#378ADD" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
+              <MixedBarLineChart
+                data={data.source || []}
+                dataKey="count"
+                nameKey="label"
+                barName="Leads"
+                lineName="Share %"
+                barColor="#378ADD"
+                lineColor="#EF9F27"
+                height={280}
+              />
             </div>
             <div className="card p-5"><h3 className="font-semibold mb-4">Leads by Status</h3>
-              <ResponsiveContainer width="100%" height={220}><PieChart><Pie data={data.status || []} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={80} label={false} labelLine={false}>{(data.status || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip /><Legend formatter={(value) => leadStatusLabel(value)} /></PieChart></ResponsiveContainer>
+              <NightingaleRoseChart
+                data={data.status || []}
+                dataKey="count"
+                nameKey="label"
+                colors={COLORS}
+                height={280}
+                nameFormatter={(value) => leadStatusLabel(value)}
+              />
             </div>
             <div className="card p-5 col-span-full"><h3 className="font-semibold mb-2">Lead Conversion Rate</h3>
               <p className="text-3xl font-bold text-brand-600">{data.conversion?.rate ?? 0}%</p>
