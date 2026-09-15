@@ -51,7 +51,7 @@ function VariantEditor({ variant, onChange, templates, readOnly }) {
           ))}
         </select>
       </FormField>
-      <FormField label="Subject">
+      <FormField label="Subject" required name="subject">
         <input className="input" value={variant.subject || ''} disabled={readOnly} onChange={(e) => onChange({ ...variant, subject: e.target.value })} />
       </FormField>
       <FormField label="HTML body (what recipients see)">
@@ -219,7 +219,7 @@ export default function SequenceStepEditor({
               ))}
             </select>
           </FormField>
-          <FormField label="Subject">
+          <FormField label="Subject" required name="subject">
             <input className="input" value={step.subject || ''} disabled={readOnly} onChange={(e) => update({ subject: e.target.value })} />
           </FormField>
           <FormField label="HTML body (what recipients see)">
