@@ -330,13 +330,13 @@ export default function ReportsPage() {
                 height={280}
               />
             </div>
-            <div className="card p-5"><h3 className="font-semibold mb-4">Leads by Status</h3>
+            <div className="card p-5 lg:col-span-2"><h3 className="font-semibold mb-4">Leads by Status</h3>
               <NightingaleRoseChart
                 data={data.status || []}
                 dataKey="count"
                 nameKey="label"
                 colors={COLORS}
-                height={280}
+                height={360}
                 nameFormatter={(value) => leadStatusLabel(value)}
               />
             </div>

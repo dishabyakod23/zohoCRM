@@ -1,14 +1,25 @@
 'use client';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import * as echarts from 'echarts/core';
+import { PieChart } from 'echarts/charts';
 import {
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  ToolboxComponent,
+} from 'echarts/components';
+import { LabelLayout } from 'echarts/features';
+import { CanvasRenderer } from 'echarts/renderers';
+
+echarts.use([
   PieChart,
-  Pie,
-  Cell,
-  Sector,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  ToolboxComponent,
+  LabelLayout,
+  CanvasRenderer,
+]);
 
 const DEFAULT_COLORS = [
   '#378ADD',
@@ -22,67 +33,122 @@ const DEFAULT_COLORS = [
 ];
 
 /**
- * Nightingale (rose) pie: equal slice angles, petal length encodes value.
- * Matches the ECharts roseType: 'radius' look without adding echarts.
+ * Nightingale rose chart via Apache ECharts (roseType radius + area),
+ * matching https://echarts.apache.org/examples/en/editor.html?c=pie-roseType
  */
-function RoseSector(props) {
-  const {
-    cx,
-    cy,
-    innerRadius,
-    outerRadius,
-    startAngle,
-    endAngle,
-    fill,
-    payload,
-    maxValue,
-  } = props;
-  const value = Number(payload?.value ?? payload?.count ?? 0);
-  const max = Math.max(Number(maxValue) || 1, 1);
-  const span = Math.max(Number(outerRadius) - Number(innerRadius), 8);
-  const roseOuter = Number(innerRadius) + Math.max(10, (span * value) / max);
-
-  return (
-    <Sector
-      cx={cx}
-      cy={cy}
-      innerRadius={innerRadius}
-      outerRadius={roseOuter}
-      startAngle={startAngle}
-      endAngle={endAngle}
-      fill={fill}
-      cornerRadius={5}
-      stroke="#fff"
-      strokeWidth={1}
-    />
-  );
-}
-
 export default function NightingaleRoseChart({
   data = [],
   dataKey = 'count',
   nameKey = 'label',
   colors = DEFAULT_COLORS,
-  height = 280,
+  height = 360,
   nameFormatter,
-  tooltipFormatter,
 }) {
+  const hostRef = useRef(null);
+  const chartRef = useRef(null);
+
   const rows = useMemo(() => (
     (data || [])
-      .map((row) => ({
-        ...row,
-        name: row[nameKey] ?? row.name ?? row.label ?? '—',
-        value: Number(row[dataKey] ?? row.value ?? 0) || 0,
-        // Equal angles for nightingale radius mode (value drives petal length only).
-        slice: 1,
-      }))
+      .map((row) => {
+        const rawName = row[nameKey] ?? row.name ?? row.label ?? '—';
+        const name = typeof nameFormatter === 'function'
+          ? nameFormatter(rawName)
+          : rawName;
+        return {
+          name: String(name || '—'),
+          value: Number(row[dataKey] ?? row.value ?? 0) || 0,
+        };
+      })
       .filter((row) => row.value > 0)
-  ), [data, dataKey, nameKey]);
+  ), [data, dataKey, nameKey, nameFormatter]);
 
-  const maxValue = useMemo(
-    () => rows.reduce((max, row) => Math.max(max, row.value), 0),
-    [rows],
-  );
+  const legendNames = useMemo(() => rows.map((row) => row.name), [rows]);
+
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return undefined;
+
+    if (!chartRef.current) {
+      chartRef.current = echarts.init(el, undefined, { renderer: 'canvas' });
+    }
+    const chart = chartRef.current;
+
+    if (!rows.length) {
+      chart.clear();
+      return undefined;
+    }
+
+    chart.setOption({
+      color: colors,
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a}<br/>{b} : {c} ({d}%)',
+      },
+      legend: {
+        left: 'center',
+        top: 'bottom',
+        data: legendNames,
+        type: legendNames.length > 8 ? 'scroll' : 'plain',
+      },
+      toolbox: {
+        show: true,
+        feature: {
+          dataView: { show: true, readOnly: true },
+          restore: { show: true },
+          saveAsImage: { show: true },
+        },
+      },
+      series: [
+        {
+          name: 'Radius Mode',
+          type: 'pie',
+          radius: [20, 110],
+          center: ['25%', '48%'],
+          roseType: 'radius',
+          itemStyle: {
+            borderRadius: 5,
+          },
+          label: {
+            show: false,
+          },
+          emphasis: {
+            label: {
+              show: true,
+            },
+          },
+          data: rows,
+        },
+        {
+          name: 'Area Mode',
+          type: 'pie',
+          radius: [20, 110],
+          center: ['75%', '48%'],
+          roseType: 'area',
+          itemStyle: {
+            borderRadius: 5,
+          },
+          data: rows,
+        },
+      ],
+    }, true);
+
+    const onResize = () => chart.resize();
+    window.addEventListener('resize', onResize);
+    const ro = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(onResize)
+      : null;
+    ro?.observe(el);
+
+    return () => {
+      window.removeEventListener('resize', onResize);
+      ro?.disconnect();
+    };
+  }, [rows, legendNames, colors]);
+
+  useEffect(() => () => {
+    chartRef.current?.dispose();
+    chartRef.current = null;
+  }, []);
 
   if (!rows.length) {
     return (
@@ -91,45 +157,10 @@ export default function NightingaleRoseChart({
   }
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <PieChart>
-        <Pie
-          data={rows}
-          dataKey="slice"
-          nameKey="name"
-          cx="50%"
-          cy="46%"
-          innerRadius={20}
-          outerRadius={120}
-          paddingAngle={2}
-          label={false}
-          labelLine={false}
-          shape={(props) => <RoseSector {...props} maxValue={maxValue} />}
-        >
-          {rows.map((row, i) => (
-            <Cell key={`${row.name}-${i}`} fill={colors[i % colors.length]} />
-          ))}
-        </Pie>
-        <Tooltip
-          formatter={(value, _name, item) => {
-            const count = item?.payload?.value ?? value;
-            if (typeof tooltipFormatter === 'function') {
-              return tooltipFormatter(count, item?.payload);
-            }
-            return [count, 'Count'];
-          }}
-          labelFormatter={(label) => (
-            typeof nameFormatter === 'function' ? nameFormatter(label) : label
-          )}
-        />
-        <Legend
-          verticalAlign="bottom"
-          align="center"
-          formatter={(value) => (
-            typeof nameFormatter === 'function' ? nameFormatter(value) : value
-          )}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+    <div
+      ref={hostRef}
+      className="w-full"
+      style={{ height, minHeight: height }}
+    />
   );
 }
