@@ -318,7 +318,7 @@ export default function ReportsPage() {
 
         {!loading && tab === 'leads' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="card p-5"><h3 className="font-semibold mb-4">Leads by Source</h3>
+            <div className="card p-5 lg:col-span-2"><h3 className="font-semibold mb-4">Leads by Source</h3>
               <MixedBarLineChart
                 data={data.source || []}
                 dataKey="count"
@@ -327,7 +327,7 @@ export default function ReportsPage() {
                 lineName="Share %"
                 barColor="#378ADD"
                 lineColor="#EF9F27"
-                height={280}
+                height={360}
               />
             </div>
             <div className="card p-5 lg:col-span-2"><h3 className="font-semibold mb-4">Leads by Status</h3>
