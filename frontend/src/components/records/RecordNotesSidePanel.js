@@ -38,7 +38,7 @@ export default function RecordNotesSidePanel({
   return (
     <>
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} aria-hidden="true" />
-      <aside className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 flex flex-col animate-slideInRight">
+      <aside className="fixed top-0 right-0 h-full max-h-[100dvh] w-full max-w-md bg-white shadow-2xl z-50 flex flex-col overflow-hidden animate-slideInRight">
         <button
           type="button"
           onClick={onClose}
@@ -48,7 +48,7 @@ export default function RecordNotesSidePanel({
           <XMarkIcon className="w-4 h-4" />
         </button>
 
-        <div className="px-5 py-4 border-b border-zoho-border flex items-center justify-between gap-3">
+        <div className="px-5 py-4 border-b border-zoho-border flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <h2 className="text-base font-semibold text-zoho-text">Notes</h2>
             <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">{notes.notes.length}</span>
@@ -64,7 +64,7 @@ export default function RecordNotesSidePanel({
           </select>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 space-y-5">
           {notes.loading ? (
             <p className="text-sm text-zoho-muted">Loading notes…</p>
           ) : notes.notes.length === 0 ? (
@@ -83,6 +83,7 @@ export default function RecordNotesSidePanel({
                           value={notes.editText}
                           onChange={notes.setEditText}
                           minHeight={90}
+                          maxHeight={240}
                           placeholder="Edit note…"
                         />
                         <div className="flex gap-2">
@@ -115,11 +116,12 @@ export default function RecordNotesSidePanel({
         </div>
 
         {canEdit && (
-          <div className="px-5 py-4 border-t border-zoho-border bg-gray-50/80">
+          <div className="px-5 py-4 border-t border-zoho-border bg-gray-50/80 shrink-0 max-h-[45vh] overflow-y-auto overscroll-contain">
             <NoteRichTextEditor
               value={notes.noteText}
               onChange={notes.setNoteText}
               minHeight={90}
+              maxHeight={220}
               placeholder="Add a note"
             />
             <div className="flex justify-end mt-2">

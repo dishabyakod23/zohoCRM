@@ -29,6 +29,7 @@ export default function NoteRichTextEditor({
   onChange,
   disabled = false,
   minHeight = 120,
+  maxHeight,
   placeholder = 'Add a note…',
   className = '',
 }) {
@@ -90,7 +91,10 @@ export default function NoteRichTextEditor({
       <div
         ref={editorRef}
         className="px-3 py-2 text-sm text-zoho-text leading-relaxed outline-none focus:ring-0 note-rich-body empty:before:content-[attr(data-placeholder)] empty:before:text-zoho-muted empty:before:pointer-events-none"
-        style={{ minHeight }}
+        style={{
+          minHeight,
+          ...(maxHeight ? { maxHeight, overflowY: 'auto' } : {}),
+        }}
         contentEditable={!disabled}
         suppressContentEditableWarning
         data-placeholder={placeholder}
