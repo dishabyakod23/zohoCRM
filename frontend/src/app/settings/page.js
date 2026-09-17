@@ -50,7 +50,7 @@ function SettingsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, logout } = useAuth();
-  const { canManageUsers, canManageSettings, canManageRoles, roleAccess, roleLabel: myRoleLabel, can } = usePermissions();
+  const { canManageUsers, canManageSettings, canManageRoles, roleAccess, roleLabel: myRoleLabel, can, modulePermissions } = usePermissions();
   const { showToast } = useToast();
 
   const [tab, setTab] = useState('profile');
@@ -84,24 +84,33 @@ function SettingsPageContent() {
   const [sendingCode, setSendingCode] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
 
+  const canViewLeadStatuses = Boolean(modulePermissions?.settings_lead_statuses?.view);
+  const canViewSalesTargets = Boolean(modulePermissions?.settings_sales_targets?.view);
+
+  // Depend on the matrix object (stable from usePermissions), not the `can` function identity.
   const visibleTabs = useMemo(
-    () => getVisibleSettingsTabs(can, { canManageRoles }),
-    [can, canManageRoles],
+    () => getVisibleSettingsTabs(modulePermissions, { canManageRoles }),
+    [modulePermissions, canManageRoles],
+  );
+  const visibleTabIdsKey = useMemo(
+    () => visibleTabs.map((t) => t.id).join(','),
+    [visibleTabs],
   );
 
   useEffect(() => {
-    if (!visibleTabs.length) return;
-    if (!visibleTabs.some((t) => t.id === tab)) {
-      setTab(visibleTabs[0].id);
+    if (!visibleTabIdsKey) return;
+    const ids = visibleTabIdsKey.split(',');
+    if (!ids.includes(tab)) {
+      setTab(ids[0]);
     }
-  }, [tab, visibleTabs]);
+  }, [tab, visibleTabIdsKey]);
 
   useEffect(() => {
     if (!searchParams.get('sales_targets')) return;
-    if (can('settings_sales_targets', 'view')) {
+    if (canViewSalesTargets) {
       setTab('sales_targets');
     }
-  }, [searchParams]);
+  }, [searchParams, canViewSalesTargets]);
 
   useEffect(() => {
     const microsoft = searchParams.get('microsoft');
@@ -154,7 +163,7 @@ function SettingsPageContent() {
   }, [canManageSettings, showToast]);
 
   const loadLeadStatuses = useCallback(async () => {
-    if (!can('settings_lead_statuses', 'view')) return;
+    if (!canViewLeadStatuses) return;
     setStatusesLoading(true);
     try {
       setLeadStatuses(await adminApi.listAdminLeadStatuses());
@@ -163,13 +172,20 @@ function SettingsPageContent() {
     } finally {
       setStatusesLoading(false);
     }
-  }, [can, showToast]);
+  }, [canViewLeadStatuses, showToast]);
 
+  // Separate effects so one loader's identity cannot re-trigger the others.
   useEffect(() => {
     if (tab === 'users') loadUsers();
+  }, [tab, loadUsers]);
+
+  useEffect(() => {
     if (tab === 'company') loadSettings();
+  }, [tab, loadSettings]);
+
+  useEffect(() => {
     if (tab === 'statuses') loadLeadStatuses();
-  }, [tab, loadUsers, loadSettings, loadLeadStatuses]);
+  }, [tab, loadLeadStatuses]);
 
   const openCreateUser = () => {
     setEditingUser(null);

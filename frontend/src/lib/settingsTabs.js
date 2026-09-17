@@ -13,11 +13,18 @@ export const SETTINGS_TABS = [
 /**
  * Build the settings tab list for the current user.
  * Tabs the user cannot view are omitted entirely (label is not rendered).
+ *
+ * `can` may be a function `(module, action) => boolean`, or a permission
+ * matrix object checked via canPermission semantics (matrix[module].view).
  */
 export function getVisibleSettingsTabs(can, { canManageRoles = false } = {}) {
+  const canView = typeof can === 'function'
+    ? (module) => Boolean(can(module, 'view'))
+    : (module) => Boolean(can?.[module]?.view);
+
   return SETTINGS_TABS.filter((tab) => {
     if (tab.superAdminOnly) return Boolean(canManageRoles);
-    if (!tab.module || typeof can !== 'function') return false;
-    return Boolean(can(tab.module, 'view'));
+    if (!tab.module) return false;
+    return canView(tab.module);
   });
 }

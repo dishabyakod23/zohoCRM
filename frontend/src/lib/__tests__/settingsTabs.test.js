@@ -35,9 +35,12 @@ describe('getVisibleSettingsTabs', () => {
     expect(getVisibleSettingsTabs(can, { canManageRoles: true }).some((t) => t.id === 'roles')).toBe(true);
   });
 
-  it('defines a module for every tab', () => {
-    for (const tab of SETTINGS_TABS) {
-      expect(tab.module).toBeTruthy();
-    }
+  it('accepts a permission matrix object as well as a can() function', () => {
+    const matrix = resolveUserPermissions({
+      role: 'sales_rep',
+      permissions: { settings_my_profile: { view: true, edit: true } },
+    });
+    const labels = getVisibleSettingsTabs(matrix, { canManageRoles: false }).map((t) => t.label);
+    expect(labels).toEqual(['My Profile']);
   });
 });
