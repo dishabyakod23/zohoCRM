@@ -120,13 +120,36 @@ function EmailActivityList({
       const q = debouncedSearch.trim();
       const tokens = tokenizeSearchQuery(q);
       const fetchingAllForSearch = tokens.length > 0;
-      const result = await sequencesApi.listSequenceEmailEvents(sequenceId, {
-        event_type: eventType,
-        page: fetchingAllForSearch ? 1 : page,
-        page_size: fetchingAllForSearch ? 500 : pageSize,
-        ...(q ? { search: q } : {}),
-      });
-      let data = result.data || [];
+      const apiPageSize = fetchingAllForSearch ? 100 : pageSize;
+      let data = [];
+      let serverTotal = 0;
+
+      if (fetchingAllForSearch) {
+        // API caps page_size at 100 — page through results for client-side name/email filter.
+        let pageNum = 1;
+        while (pageNum <= 20) {
+          const result = await sequencesApi.listSequenceEmailEvents(sequenceId, {
+            event_type: eventType,
+            page: pageNum,
+            page_size: apiPageSize,
+            ...(q ? { search: q } : {}),
+          });
+          const batch = result.data || [];
+          serverTotal = result.total ?? serverTotal;
+          data.push(...batch);
+          if (!batch.length || data.length >= serverTotal) break;
+          pageNum += 1;
+        }
+      } else {
+        const result = await sequencesApi.listSequenceEmailEvents(sequenceId, {
+          event_type: eventType,
+          page,
+          page_size: pageSize,
+        });
+        data = result.data || [];
+        serverTotal = result.total ?? data.length;
+      }
+
       // Hide obvious self-opens (sender opened their own mail) in the detail list.
       if (eventType === 'OPENED' && senderNorm) {
         data = data.filter((row) => {
@@ -155,7 +178,7 @@ function EmailActivityList({
         setRows(data.slice(start, start + pageSize));
       } else {
         setRows(data);
-        setTotal(result.total ?? data.length);
+        setTotal(serverTotal);
       }
     } catch (err) {
       setRows([]);
