@@ -311,44 +311,92 @@ function EmailActivityList({
 
 export default function SequenceAnalyticsPanel({
   sequenceId,
+  sequence = null,
   sequenceTimezone = 'UTC',
   sendingEmail = '',
 }) {
   const { showToast } = useToast();
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const cached = typeof window !== 'undefined'
+    ? sequencesApi.readCachedSequenceStats(sequenceId)
+    : null;
+  const provisional = sequencesApi.provisionalStatsFromSequence(sequence);
+  const [stats, setStats] = useState(() => cached || provisional || null);
+  const [statsFresh, setStatsFresh] = useState(() => Boolean(cached && !cached._provisional));
+  const [refreshing, setRefreshing] = useState(!cached);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    sequencesApi.getSequenceStats(sequenceId)
-      .then((data) => { if (!cancelled) setStats(data); })
-      .catch((err) => { if (!cancelled) showToast(getApiError(err)); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+    const cachedNow = sequencesApi.readCachedSequenceStats(sequenceId);
+    const provisionalNow = sequencesApi.provisionalStatsFromSequence(sequence);
+    if (cachedNow) {
+      setStats(cachedNow);
+      setStatsFresh(true);
+    } else if (provisionalNow) {
+      setStats((prev) => prev || provisionalNow);
+      setStatsFresh(false);
+    }
+    setRefreshing(true);
+
+    // 1) Fast email-event totals (usually seconds, not ~40s like /stats).
+    sequencesApi.getEmailEventCountMap(sequenceId)
+      .then((counts) => {
+        if (cancelled) return;
+        setStats((prev) => ({
+          ...(prev || provisionalNow || {}),
+          ...counts,
+          _provisional: prev?._provisional && !sequencesApi.readCachedSequenceStats(sequenceId),
+        }));
+      })
+      .catch(() => {});
+
+    // 2) Full /stats (slow on large sequences) — upgrade when ready; shared with prefetch.
+    sequencesApi.prefetchSequenceStats(sequenceId)
+      .then((data) => {
+        if (cancelled || !data) return;
+        setStats(data);
+        setStatsFresh(true);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        // Keep provisional / cached UI; only toast if we have nothing useful.
+        if (!cachedNow && !provisionalNow) showToast(getApiError(err));
+      })
+      .finally(() => {
+        if (!cancelled) setRefreshing(false);
+      });
+
     return () => { cancelled = true; };
-  }, [sequenceId, showToast]);
+  }, [sequenceId, sequence, showToast]);
 
   const toggleEvent = (eventType) => {
     setSelectedEvent((prev) => (prev === eventType ? null : eventType));
   };
 
-  if (loading) return <p className="text-sm text-zoho-muted py-8 text-center">Loading analytics…</p>;
-  if (!stats) return <p className="text-sm text-zoho-muted py-8 text-center">No analytics available yet.</p>;
+  if (!stats) {
+    return <p className="text-sm text-zoho-muted py-8 text-center">Loading analytics…</p>;
+  }
 
-  // Prefer funnel from the main stats payload — avoids N+1 getStepStats calls.
   const funnel = stats.step_funnel || stats.steps || [];
+  const showStaleHint = refreshing || stats._provisional || !statsFresh;
 
   return (
     <div className="space-y-6">
-      <p className="text-xs text-zoho-muted">
-        Tracking funnel: Sent → Delivered → Opened → Clicked → Replied / Bounced. Click a card to list matching emails.
-        Sequence mail is sent via Resend and will not appear in Outlook Sent Items — use this panel for send history.
-        {sendingEmail ? (
-          <> Opens from the sending address ({sendingEmail}) are hidden in the event list when detectable; totals still come from the API until self-opens are excluded server-side.</>
-        ) : null}
-        {' '}Replies are not reported by Resend webhooks — use “Mark replied” on enrollments when needed.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="text-xs text-zoho-muted max-w-3xl">
+          Tracking funnel: Sent → Delivered → Opened → Clicked → Replied / Bounced. Click a card to list matching emails.
+          Sequence mail is sent via Resend and will not appear in Outlook Sent Items — use this panel for send history.
+          {sendingEmail ? (
+            <> Opens from the sending address ({sendingEmail}) are hidden in the event list when detectable; totals still come from the API until self-opens are excluded server-side.</>
+          ) : null}
+          {' '}Replies are not reported by Resend webhooks — use “Mark replied” on enrollments when needed.
+        </p>
+        {showStaleHint && (
+          <span className="text-[11px] text-brand-600 bg-brand-50 border border-brand-100 rounded-full px-2.5 py-1 shrink-0">
+            {refreshing ? 'Updating live stats…' : 'Showing available counts'}
+          </span>
+        )}
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Total Enrolled" value={stats.enrolled ?? stats.enrollment_count ?? stats.total} />
         <StatCard label="Eligible" value={stats.eligible ?? stats.active ?? stats.active_enrollment_count} />
@@ -415,6 +463,9 @@ export default function SequenceAnalyticsPanel({
             </tbody>
           </table>
         </div>
+      )}
+      {!funnel.length && refreshing && (
+        <p className="text-xs text-zoho-muted">Step performance loads with live stats…</p>
       )}
     </div>
   );

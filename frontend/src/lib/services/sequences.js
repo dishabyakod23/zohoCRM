@@ -293,9 +293,117 @@ export async function sendSequenceTest(sequenceId, payload) {
   return res.data.data ?? res.data;
 }
 
+const STATS_CACHE_PREFIX = 'crm_seq_stats:';
+const statsInflight = new Map();
+
+function statsCacheKey(sequenceId) {
+  return `${STATS_CACHE_PREFIX}${sequenceId}`;
+}
+
+export function readCachedSequenceStats(sequenceId) {
+  if (typeof window === 'undefined' || !sequenceId) return null;
+  try {
+    const raw = sessionStorage.getItem(statsCacheKey(sequenceId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.data || !parsed?.cached_at) return null;
+    // Keep for 30 minutes — better to show slightly stale than wait 40s.
+    if (Date.now() - parsed.cached_at > 30 * 60 * 1000) return null;
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
+export function writeCachedSequenceStats(sequenceId, data) {
+  if (typeof window === 'undefined' || !sequenceId || !data) return;
+  try {
+    sessionStorage.setItem(statsCacheKey(sequenceId), JSON.stringify({
+      cached_at: Date.now(),
+      data,
+    }));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+/** Build provisional stats from the sequence list/detail payload (instant). */
+export function provisionalStatsFromSequence(sequence) {
+  if (!sequence) return null;
+  return {
+    enrolled: sequence.enrollment_count ?? 0,
+    enrollment_count: sequence.enrollment_count ?? 0,
+    eligible: sequence.active_enrollment_count ?? 0,
+    active: sequence.active_enrollment_count ?? 0,
+    active_enrollment_count: sequence.active_enrollment_count ?? 0,
+    pending: sequence.active_enrollment_count ?? 0,
+    pending_count: sequence.active_enrollment_count ?? 0,
+    completed: sequence.completed_count ?? 0,
+    completed_count: sequence.completed_count ?? 0,
+    _provisional: true,
+  };
+}
+
 export async function getSequenceStats(sequenceId) {
   const res = await api.get(`/sequences/${sequenceId}/stats`);
-  return res.data.data ?? res.data;
+  const data = res.data.data ?? res.data;
+  writeCachedSequenceStats(sequenceId, data);
+  return data;
+}
+
+/**
+ * Deduped stats fetch. Concurrent callers share one in-flight request.
+ * Prefetch from the sequence page so Analytics often opens with data ready.
+ */
+export function prefetchSequenceStats(sequenceId) {
+  if (!sequenceId) return Promise.resolve(null);
+  if (statsInflight.has(sequenceId)) return statsInflight.get(sequenceId);
+  const promise = getSequenceStats(sequenceId)
+    .catch((err) => {
+      throw err;
+    })
+    .finally(() => {
+      statsInflight.delete(sequenceId);
+    });
+  statsInflight.set(sequenceId, promise);
+  return promise;
+}
+
+/**
+ * Fast path for email funnel card counts via email-events totals
+ * (usually much faster than /stats on large sequences).
+ */
+export async function getEmailEventCountMap(sequenceId) {
+  const keys = ['SENT', 'DELIVERED', 'OPENED', 'CLICKED', 'REPLIED', 'BOUNCED', 'UNSUBSCRIBED'];
+  const pairs = await Promise.all(keys.map(async (event_type) => {
+    try {
+      const result = await listSequenceEmailEvents(sequenceId, {
+        event_type,
+        page: 1,
+        page_size: 1,
+      });
+      return [event_type, result.total ?? 0];
+    } catch {
+      return [event_type, null];
+    }
+  }));
+  const counts = Object.fromEntries(pairs);
+  return {
+    sent: counts.SENT,
+    emails_sent: counts.SENT,
+    delivered: counts.DELIVERED,
+    delivered_count: counts.DELIVERED,
+    opened: counts.OPENED,
+    open_count: counts.OPENED,
+    clicked: counts.CLICKED,
+    click_count: counts.CLICKED,
+    replied: counts.REPLIED,
+    reply_count: counts.REPLIED,
+    bounced: counts.BOUNCED,
+    bounce_count: counts.BOUNCED,
+    unsubscribed: counts.UNSUBSCRIBED,
+    unsubscribe_count: counts.UNSUBSCRIBED,
+  };
 }
 
 export async function getStepStats(sequenceId, stepId) {
