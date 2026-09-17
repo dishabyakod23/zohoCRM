@@ -29,6 +29,22 @@ describe('permissionHelpers', () => {
     expect(resolved.documents.view).toBe(true);
   });
 
+  it('resolveUserPermissions treats omitted settings modules as deny when API matrix exists', () => {
+    const user = {
+      role: 'sales_manager',
+      permissions: {
+        contacts: { view: true, create: true, edit: true },
+        settings_my_profile: { view: true, edit: true },
+        // settings_users_roles / announcements omitted → deny (not role defaults)
+      },
+    };
+    const resolved = resolveUserPermissions(user);
+    expect(resolved.settings_my_profile.view).toBe(true);
+    expect(resolved.settings_users_roles.view).toBe(false);
+    expect(resolved.settings_announcements.view).toBe(false);
+    expect(resolved.settings_company_settings.view).toBe(false);
+  });
+
   it('resolveUserPermissions maps legacy documents.create to upload when upload is omitted', () => {
     const user = {
       role: 'viewer',

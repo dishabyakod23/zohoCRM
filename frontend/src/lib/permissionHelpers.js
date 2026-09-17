@@ -21,27 +21,31 @@ export function normalizePermissionsMatrix(raw) {
 
 /**
  * Resolve the effective permission matrix for a user.
- * Prefers explicit flags from GET /auth/me, but fills omitted modules/actions
- * from the built-in role defaults so system roles don't lose documents.upload
- * (and similar) when the API matrix is partial.
+ * Prefers explicit flags from GET /auth/me.
+ * CRM modules omitted from a partial API matrix still fill from role defaults
+ * (e.g. documents.upload). Settings modules treat omit as deny so tabs only
+ * appear when the API grants them.
  */
 export function resolveUserPermissions(user) {
   const role = normalizeRole(user?.role);
+  const empty = emptyModulePermissions();
   const defaults = (role && DEFAULT_ROLE_MODULE_PERMISSIONS[role])
-    || emptyModulePermissions();
+    || empty;
   const raw = user?.permissions;
   if (!raw || typeof raw !== 'object') return defaults;
 
   const merged = {};
   for (const mod of PERMISSION_MODULES) {
     const key = mod.key;
-    const defRow = defaults[key] || emptyModulePermissions()[key];
+    const defRow = defaults[key] || empty[key];
     const apiRow = raw[key];
+    const isSettingsModule = key.startsWith('settings_');
     if (!apiRow || typeof apiRow !== 'object') {
-      merged[key] = { ...defRow };
+      // Settings: omit = deny. Other modules: keep role defaults for partial matrices.
+      merged[key] = { ...(isSettingsModule ? empty[key] : defRow) };
       continue;
     }
-    const row = { ...defRow };
+    const row = { ...(isSettingsModule ? empty[key] : defRow) };
     for (const action of ALL_MODULE_ACTIONS) {
       if (Object.prototype.hasOwnProperty.call(apiRow, action)) {
         row[action] = Boolean(apiRow[action]);

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useState, useCallback, useMemo, Suspense } from 'react';
 import AppLink from '../../components/ui/AppLink.js';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CRMLayout from '../../components/layout/CRMLayout.js';
@@ -25,6 +25,7 @@ import SalesTargetsPanel from '../../components/settings/SalesTargetsPanel.js';
 import MicrosoftIntegrationCard from '../../components/settings/MicrosoftIntegrationCard.js';
 import { slugifyStatusValue } from '../../lib/statusHelpers.js';
 import { normalizeLoginEmail } from '../../lib/authHelpers.js';
+import { getVisibleSettingsTabs } from '../../lib/settingsTabs.js';
 const EMPTY_USER = {
   email: '',
   password: '',
@@ -32,16 +33,6 @@ const EMPTY_USER = {
   last_name: '',
   role: 'sales_rep',
 };
-
-const TABS = [
-  { id: 'profile', label: 'My Profile', permission: ['settings_my_profile', 'view'] },
-  { id: 'users', label: 'Users & Roles', permission: ['settings_users_roles', 'view'] },
-  { id: 'roles', label: 'Manage Roles', superAdminOnly: true },
-  { id: 'statuses', label: 'Lead Statuses', permission: ['settings_lead_statuses', 'view'] },
-  { id: 'company', label: 'Company Settings', permission: ['settings_company_settings', 'view'] },
-  { id: 'sales_targets', label: 'Pipeline & Revenue Targets', permission: ['settings_sales_targets', 'view'] },
-  { id: 'announcements', label: 'Announcements', permission: ['settings_announcements', 'view'] },
-];
 
 export default function SettingsPage() {
   return (
@@ -93,11 +84,17 @@ function SettingsPageContent() {
   const [sendingCode, setSendingCode] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
 
-  const visibleTabs = TABS.filter((t) => {
-    if (t.superAdminOnly) return canManageRoles;
-    if (t.permission) return can(t.permission[0], t.permission[1]);
-    return true;
-  });
+  const visibleTabs = useMemo(
+    () => getVisibleSettingsTabs(can, { canManageRoles }),
+    [can, canManageRoles],
+  );
+
+  useEffect(() => {
+    if (!visibleTabs.length) return;
+    if (!visibleTabs.some((t) => t.id === tab)) {
+      setTab(visibleTabs[0].id);
+    }
+  }, [tab, visibleTabs]);
 
   useEffect(() => {
     if (!searchParams.get('sales_targets')) return;
@@ -157,7 +154,7 @@ function SettingsPageContent() {
   }, [canManageSettings, showToast]);
 
   const loadLeadStatuses = useCallback(async () => {
-    if (!canManageSettings) return;
+    if (!can('settings_lead_statuses', 'view')) return;
     setStatusesLoading(true);
     try {
       setLeadStatuses(await adminApi.listAdminLeadStatuses());
@@ -166,7 +163,7 @@ function SettingsPageContent() {
     } finally {
       setStatusesLoading(false);
     }
-  }, [canManageSettings, showToast]);
+  }, [can, showToast]);
 
   useEffect(() => {
     if (tab === 'users') loadUsers();
@@ -396,15 +393,19 @@ function SettingsPageContent() {
         <h1 className="text-lg font-semibold text-zoho-text mb-6">Settings</h1>
 
         <div className="flex gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
-          {visibleTabs.map(t => (
-            <button key={t.id} onClick={() => handleTabChange(t.id)}
-              className={`px-4 py-2 text-sm border-b-2 -mb-px whitespace-nowrap ${tab === t.id ? 'border-brand-500 text-brand-600 font-medium' : 'border-transparent text-gray-500'}`}>
+          {visibleTabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => handleTabChange(t.id)}
+              className={`px-4 py-2 text-sm border-b-2 -mb-px whitespace-nowrap ${tab === t.id ? 'border-brand-500 text-brand-600 font-medium' : 'border-transparent text-gray-500'}`}
+            >
               {t.label}
             </button>
           ))}
         </div>
 
-        {tab === 'profile' && (
+        {tab === 'profile' && can('settings_my_profile', 'view') && (
           <div className="space-y-6">
             <ProfileImageManager roleLabel={myRoleLabel} />
             <div className="card p-5">
@@ -561,7 +562,7 @@ function SettingsPageContent() {
           <ManageRolesPanel />
         )}
 
-        {tab === 'statuses' && canManageSettings && (
+        {tab === 'statuses' && can('settings_lead_statuses', 'view') && (
           <div className="space-y-4">
             <div className="card p-5">
               <h2 className="text-sm font-semibold mb-1">Add Custom Lead Status</h2>
@@ -657,7 +658,7 @@ function SettingsPageContent() {
           </div>
         )}
 
-        {tab === 'company' && canManageSettings && (
+        {tab === 'company' && can('settings_company_settings', 'view') && (
           <div className="card p-5 max-w-lg">
             <h2 className="text-sm font-semibold mb-4">Company Settings</h2>
             {settingsLoading ? (
@@ -685,7 +686,7 @@ function SettingsPageContent() {
           <SalesTargetsPanel />
         )}
 
-        {tab === 'announcements' && canManageSettings && (
+        {tab === 'announcements' && can('settings_announcements', 'view') && (
           <AnnouncementsPanel />
         )}
       </div>

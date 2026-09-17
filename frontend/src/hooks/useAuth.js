@@ -179,18 +179,19 @@ export function AuthProvider({ children }) {
     if (!auth?.access_token || !auth?.user) {
       throw new Error('Login failed. Please try again.');
     }
+    const me = parseAuthUserResponse(auth.user) || auth.user;
     persistAuthSession({
       access_token: auth.access_token,
       refresh_token: auth.refresh_token,
-      user: auth.user,
+      user: me,
       expires_in: auth.expires_in,
     });
-    if (isInactiveUser(auth.user)) {
+    if (isInactiveUser(me)) {
       clearAuthSession();
       setUser(null);
       throw new Error(INACTIVE_ACCOUNT_MESSAGE);
     }
-    setUser(auth.user);
+    setUser(me);
     const skipNext = consumeSkipLoginNext();
     const next = skipNext || typeof window === 'undefined'
       ? null
