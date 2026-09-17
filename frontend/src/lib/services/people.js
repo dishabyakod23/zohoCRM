@@ -3,6 +3,7 @@ import { ownerName } from '../recordHelpers.js';
 import { getLeadDetailPath } from '../pipelineHelpers.js';
 import { DIRECTORY_STATUS_OPTIONS, resolveDirectoryCurrentStatus, directoryLeadStatusValue, isConvertedToAccount } from '../contactDirectoryHelpers.js';
 import { leadStatusLabel } from '../leadHelpers.js';
+import { resolveContactLinkedInUrl } from '../contactHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { cachedLookup } from '../lookupCache.js';
 import {
@@ -265,6 +266,7 @@ export function normalizePersonRow(person) {
     owner_name: ownerName(person) || person.owner_name || null,
     campaign_id: person.campaign_id || null,
     campaign_name: person.campaign_name || null,
+    skype_id: resolveContactLinkedInUrl(person) || person.skype_id || null,
     _entityType: entityType,
     _detailHref: personDetailHref({ ...person, record_id: recordId, entity_type: entityType, current_status }),
   };

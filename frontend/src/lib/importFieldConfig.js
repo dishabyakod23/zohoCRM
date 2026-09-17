@@ -1,19 +1,42 @@
 /** CRM import field definitions with labels and header aliases for auto-mapping */
 
+/**
+ * Cold / Warm / Qualified lead CSV mapping — aligns with Create Cold Lead form
+ * and mirrors contact import options where the lead API supports the same data.
+ */
 export const LEAD_IMPORT_FIELDS = [
+  { key: 'owner_id', label: 'Lead Owner', aliases: ['owner', 'owner_id', 'owner_email', 'lead_owner', 'contact_owner'] },
+  { key: 'salutation', label: 'Salutation', aliases: ['prefix', 'honorific'] },
   { key: 'first_name', label: 'First Name', required: true, aliases: ['firstname', 'first', 'givenname', 'given_name', 'fname'] },
   { key: 'last_name', label: 'Last Name', required: true, aliases: ['lastname', 'last', 'surname', 'familyname', 'lname'] },
-  { key: 'company', label: 'Company', required: true, aliases: ['organization', 'organisation', 'org', 'account', 'companyname', 'account_name'] },
+  { key: 'company', label: 'Company', required: true, aliases: ['organization', 'organisation', 'org', 'account', 'companyname', 'account_name', 'company_name', 'accountname'] },
   { key: 'email', label: 'Email', required: true, aliases: ['emailaddress', 'email_address', 'mail', 'e_mail'] },
   { key: 'phone', label: 'Phone', aliases: ['phonenumber', 'phone_number', 'telephone', 'tel', 'workphone', 'work_phone'] },
   { key: 'mobile', label: 'Mobile', aliases: ['mobilephone', 'mobile_phone', 'cell', 'cellphone'] },
-  { key: 'owner_id', label: 'Owner', aliases: ['owner', 'owner_id', 'owner_email', 'lead_owner'] },
-  { key: 'lead_status', label: 'Lead Status', aliases: ['status', 'lead_status', 'lead status'] },
+  { key: 'fax', label: 'Fax', aliases: ['faxnumber', 'fax_number'] },
   { key: 'title', label: 'Title / Designation', aliases: ['designation', 'jobtitle', 'job_title', 'role', 'position'] },
   { key: 'lead_source', label: 'Lead Source', aliases: ['source', 'leadsource'] },
+  { key: 'lead_status', label: 'Lead Status', aliases: ['status', 'lead_status', 'lead status'] },
+  { key: 'lost_reason', label: 'Lost Reason', aliases: ['lostreason', 'loss_reason'] },
   { key: 'campaign_name', label: 'Campaign', aliases: ['campaign', 'campaign_id', 'campaign name'] },
-  { key: 'industry', label: 'Industry', aliases: [] },
-  { key: 'description', label: 'Description', aliases: ['notes', 'comment', 'comments'] },
+  { key: 'industry', label: 'Industry', aliases: ['industry_type', 'sector', 'vertical'] },
+  { key: 'website', label: 'Website', aliases: ['web', 'url', 'homepage', 'site'] },
+  { key: 'annual_revenue', label: 'Annual Revenue', aliases: ['revenue', 'annualrevenue'] },
+  { key: 'no_of_employees', label: 'No. of Employees', aliases: ['employees', 'employee_count', 'headcount', 'number_of_employees'] },
+  { key: 'rating', label: 'Rating', aliases: ['lead_rating'] },
+  { key: 'email_opt_out', label: 'Email Opt Out', aliases: ['opt_out', 'emailoptout', 'do_not_email'] },
+  { key: 'skype_id', label: 'LinkedIn', aliases: ['linkedin', 'linkedin_url', 'linkedin_profile', 'linkedin url', 'li_url', 'profile_url', 'skype'] },
+  { key: 'secondary_email', label: 'Secondary Email', aliases: ['alt_email', 'alternate_email', 'email2'] },
+  { key: 'twitter', label: 'Twitter', aliases: ['twitter_handle', 'x', 'x_handle'] },
+  { key: 'building', label: 'Flat / Building', aliases: ['mailing_flat', 'mailing_building', 'mailing_apartment', 'flat'] },
+  { key: 'street', label: 'Street', aliases: ['mailing_street', 'address', 'mailing_address', 'address1'] },
+  { key: 'city', label: 'City', aliases: ['mailing_city', 'mailingcity'] },
+  { key: 'state', label: 'State / Province', aliases: ['mailing_state', 'province'] },
+  { key: 'country', label: 'Country', aliases: ['mailing_country'] },
+  { key: 'zip_code', label: 'Zip / Postal Code', aliases: ['zip', 'postal', 'zipcode', 'mailing_zip', 'mailing_zip_code', 'mailing_postal'] },
+  { key: 'latitude', label: 'Latitude', aliases: ['mailing_lat', 'lat'] },
+  { key: 'longitude', label: 'Longitude', aliases: ['mailing_lng', 'lng', 'lon'] },
+  { key: 'description', label: 'Description', aliases: ['notes', 'comment', 'comments', 'keywords'] },
 ];
 
 /** Matches fields on the Create Contact form */

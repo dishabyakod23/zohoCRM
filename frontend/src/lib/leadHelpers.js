@@ -5,6 +5,73 @@ import { ownerName } from './recordHelpers.js';
 import { SALUTATIONS } from './constants.js';
 import { isLostLeadStatus, normalizeLostReasonValue } from './statusHelpers.js';
 import { trimStringFields } from './formInput.js';
+import { LEAD_IMPORT_FIELDS } from './importFieldConfig.js';
+import { parseCsvText, suggestColumnMapping, applyColumnMapping } from './csvHelpers.js';
+
+/** LinkedIn is stored as skype_id; CSV/backends may use several aliases. */
+export function resolveLeadLinkedInUrl(record = {}) {
+  const raw = record.skype_id
+    || record.linkedin
+    || record.linkedin_url
+    || record.linkedin_profile
+    || record.linkedinUrl
+    || record.LinkedIn
+    || record['LinkedIn URL']
+    || record['linkedin url']
+    || null;
+  if (raw == null) return null;
+  const value = String(raw).trim();
+  return value || null;
+}
+
+/**
+ * Backend /leads/bulk-upload may drop LinkedIn/skype_id from readyRecords.
+ * Re-apply mapped CSV columns (by email) before bulk-import.
+ */
+export function enrichLeadReadyRecordsFromCsv(readyRecords = [], csvText = '') {
+  if (!readyRecords?.length || !csvText) return readyRecords || [];
+
+  const { headers, rows } = parseCsvText(csvText);
+  if (!headers.length || !rows.length) return readyRecords;
+
+  const mapping = suggestColumnMapping(headers, LEAD_IMPORT_FIELDS);
+  const mappedRows = applyColumnMapping(rows, mapping);
+  const byEmail = new Map();
+  for (const row of mappedRows) {
+    const email = String(row.email || '').trim().toLowerCase();
+    if (!email) continue;
+    if (!byEmail.has(email)) byEmail.set(email, []);
+    byEmail.get(email).push(row);
+  }
+
+  return readyRecords.map((record) => {
+    const email = String(record.email || '').trim().toLowerCase();
+    const queue = email ? byEmail.get(email) : null;
+    const csvRow = queue?.length ? queue.shift() : null;
+    if (!csvRow) {
+      return {
+        ...record,
+        skype_id: resolveLeadLinkedInUrl(record),
+      };
+    }
+
+    const merged = { ...record };
+    for (const field of LEAD_IMPORT_FIELDS) {
+      const key = field.key;
+      const csvVal = csvRow[key];
+      if (csvVal == null || String(csvVal).trim() === '') continue;
+      const existing = merged[key];
+      if (existing == null || String(existing).trim() === '') {
+        merged[key] = String(csvVal).trim();
+      }
+    }
+    if (csvRow.source && !merged.lead_source && !merged.source) {
+      merged.lead_source = String(csvRow.source).trim();
+    }
+    merged.skype_id = resolveLeadLinkedInUrl(merged) || resolveLeadLinkedInUrl(csvRow) || null;
+    return merged;
+  });
+}
 
 export function normalizeSalutation(value) {
   if (!value) return '';
@@ -176,6 +243,7 @@ export function normalizeLead(lead, statusOptions = []) {
     campaign_id: lead.campaign_id || null,
     campaign_name: lead.campaign_name || null,
     salutation: normalizeSalutation(lead.salutation || lead.prefix || ''),
+    skype_id: resolveLeadLinkedInUrl(lead) || lead.skype_id || null,
     lost_reason: normalizeLostReasonValue(
       lead.lost_reason ?? lead.lostReason ?? lead.lost_reason_code ?? lead.lost_reason_value,
     ),

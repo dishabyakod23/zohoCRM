@@ -42,6 +42,12 @@ export async function syncImportedLeadsAsContacts(readyRecords, { campaignId, ca
     lead_source: record.lead_source || record.source || null,
     owner_id: record.owner_id || null,
     title: record.title || null,
+    skype_id: record.skype_id || record.linkedin || record.linkedin_url || null,
+    website: record.website || null,
+    secondary_email: record.secondary_email || null,
+    twitter: record.twitter || null,
+    industry: record.industry || null,
+    description: record.description || null,
     pipeline_stage: record.pipeline_stage || null,
   }));
 

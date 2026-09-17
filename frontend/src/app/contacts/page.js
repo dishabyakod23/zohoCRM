@@ -20,6 +20,7 @@ import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchPipelineConvertTargets 
 import { normalizeContact } from '../../lib/contactHelpers.js';
 import { fetchCompanyLookups, accountMapFromLookups, fetchUsers } from '../../lib/services/lookups.js';
 import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
+import LinkedInCell from '../../components/records/LinkedInCell.js';
 import { tableLinkClass, tableEmailClass, tableAvatarClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter, DateFilter, CreatedUpdatedDateFilters } from '../../components/layout/ListFilterFields.js';
 import { EMPTY_CONTACT_FILTERS, countActiveFilters, matchLeadStatus, hasTimestampFilters, matchesRecordTimestampFilters } from '../../lib/listRecordFilters.js';
@@ -273,6 +274,7 @@ export default function ContactsPage() {
     { id: 'lead_status', header: 'Lead Status', cell: (c) => c.lead_status_label || '—' },
     { id: 'email', header: 'Email', sortField: 'email', cell: (c) => <span className={tableEmailClass}>{c.email || '—'}</span> },
     { id: 'phone', header: 'Phone', cell: (c) => <PhoneCell value={c.phone || c.mobile} label="Call contact" /> },
+    { id: 'linkedin_url', header: 'LinkedIn', cell: (c) => <LinkedInCell record={c} /> },
     { id: 'last_call', header: 'Last Call', cell: (c) => (
       <span className="text-xs text-zoho-text whitespace-nowrap">{c.last_call_label || '—'}</span>
     ) },

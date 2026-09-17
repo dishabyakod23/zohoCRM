@@ -1,5 +1,5 @@
 import api from '../api.js';
-import { normalizeLead, toLeadPayload, resolveLeadOwnerId, resolveLeadStatusForApi, withClientSalutation, wasLeadSalutationDropped } from '../leadHelpers.js';
+import { normalizeLead, toLeadPayload, resolveLeadOwnerId, resolveLeadStatusForApi, withClientSalutation, wasLeadSalutationDropped, enrichLeadReadyRecordsFromCsv, resolveLeadLinkedInUrl } from '../leadHelpers.js';
 import { toConvertPayload } from '../dealHelpers.js';
 import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS, assertReadyRecordsComplete, resolveReadyCount, formatBulkUploadSkipMessages } from '../importHelpers.js';
 import {
@@ -511,6 +511,8 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
 
   assertReadyRecordsComplete(payload);
 
+  const enrichedReady = enrichLeadReadyRecordsFromCsv(readyRecords, csv);
+
   let campaignLookups = [];
   try {
     campaignLookups = await fetchCampaignLookups();
@@ -518,10 +520,13 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
     campaignLookups = [];
   }
   const defaultCampaignId = await resolveImportCampaignId(campaignId);
-  const records = attachCampaignIdsToImportRecords(readyRecords, {
+  const records = attachCampaignIdsToImportRecords(enrichedReady, {
     defaultCampaignId,
     campaignLookups,
-  });
+  }).map((row) => ({
+    ...row,
+    skype_id: resolveLeadLinkedInUrl(row),
+  }));
 
   const result = await postBulkImportInChunks(api, '/leads/bulk-import', {
     records,
@@ -529,10 +534,12 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
     onProgress,
   });
 
+  await persistImportedLeadLinkedInUrls(result, records);
+
   await finalizeLeadBulkImport({
     campaignId: defaultCampaignId,
     importResult: result,
-    readyRecords,
+    readyRecords: records,
     campaignLookups,
     syncContacts: defaultLeadStatus === PIPELINE_RAW,
   });
@@ -549,6 +556,33 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
     skip_messages: result.skip_messages,
     partial: result.partial,
   });
+}
+
+/** After bulk-import, PATCH skype_id for rows that had a LinkedIn URL in the CSV. */
+export async function persistImportedLeadLinkedInUrls(importResult = {}, processedRecords = []) {
+  const created = Array.isArray(importResult.records) ? importResult.records : [];
+  if (!created.length || !processedRecords?.length) return;
+
+  const byEmail = new Map();
+  for (const record of processedRecords) {
+    const email = String(record.email || '').trim().toLowerCase();
+    const linkedIn = resolveLeadLinkedInUrl(record);
+    if (!email || !linkedIn) continue;
+    byEmail.set(email, linkedIn);
+  }
+  if (!byEmail.size) return;
+
+  await Promise.allSettled(created.map(async (row) => {
+    const id = row?.id;
+    const email = String(row?.email || '').trim().toLowerCase();
+    const linkedIn = email ? byEmail.get(email) : null;
+    if (!id || !linkedIn) return;
+    try {
+      await api.patch(`/leads/${id}`, { skype_id: linkedIn });
+    } catch {
+      // Non-fatal — lead was created; LinkedIn can be edited manually.
+    }
+  }));
 }
 
 export async function advanceLeadStage(id, lead_status, { proposal = false, clearProposal = false } = {}) {
