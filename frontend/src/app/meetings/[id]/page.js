@@ -15,6 +15,7 @@ import { getApiError } from '../../../lib/api.js';
 import { relatedRecordFromActivity } from '../../../lib/recordHelpers.js';
 import * as meetingsApi from '../../../lib/services/meetings.js';
 import { fetchUsers } from '../../../lib/services/lookups.js';
+import MeetingMicrosoftPanel from '../../../components/meetings/MeetingMicrosoftPanel.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function MeetingDetailPage() {
@@ -106,6 +107,14 @@ export default function MeetingDetailPage() {
                 <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: e.target.value }))} />
               ) },
             ]} />
+          <MeetingMicrosoftPanel
+            meeting={meeting}
+            canEdit={canEdit}
+            onUpdated={(updated) => {
+              if (updated) setMeeting(updated);
+              else load();
+            }}
+          />
         </div>
       </RecordDetailLayout>
       <ConfirmDialog open={deleteConfirm} message={`Delete meeting "${meeting.title}"?`} confirmLabel="Confirm Delete" danger

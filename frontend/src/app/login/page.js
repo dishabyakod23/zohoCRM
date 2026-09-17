@@ -39,19 +39,20 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(form.email, form.password);
+      // Keep spinner until navigation leaves /login — do not clear submitting on success.
     } catch (err) {
       const message = getApiError(err) || 'Invalid email or password.';
       setError(isInactiveUserError(message) ? INACTIVE_ACCOUNT_MESSAGE : message);
-    } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading || submitting) {
+  // Avoid flashing the login form after a successful sign-in while router.replace is in flight.
+  if (loading || submitting || user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-black gap-3">
         <div className="w-10 h-10 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" />
-        {submitting && <p className="text-sm text-white/70">Signing in…</p>}
+        {(submitting || user) && <p className="text-sm text-white/70">Signing in…</p>}
       </div>
     );
   }

@@ -20,7 +20,17 @@ import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
 
-const EMPTY = { title: '', from_datetime: '', to_datetime: '', host_id: '', location: '', description: '', participant_ids: [] };
+const EMPTY = {
+  title: '',
+  from_datetime: '',
+  to_datetime: '',
+  host_id: '',
+  location: '',
+  description: '',
+  participant_ids: [],
+  is_online_meeting: false,
+  sync_to_microsoft: true,
+};
 const REQUIRED = { title: 'Meeting Title', from_datetime: 'From Date & Time', to_datetime: 'To Date & Time', host_id: 'Host' };
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -80,10 +90,21 @@ export default function MeetingsPage() {
     if (Object.keys(errs).length) { showToast('Fill all the required fields.'); return; }
     setSaving(true);
     try {
-      await meetingsApi.createMeeting(form);
+      const created = await meetingsApi.createMeeting(form);
       setModal(false);
       fetchItems();
       showToast('Meeting saved', 'success');
+      if (String(created.microsoft_sync_status || '').toLowerCase() === 'disconnected') {
+        showToast('Connect Microsoft in Settings to sync to Outlook', 'error');
+      }
+      if (created.teams_join_url) {
+        try {
+          await navigator.clipboard.writeText(created.teams_join_url);
+          showToast('Teams join link copied', 'success');
+        } catch {
+          showToast('Teams join link ready on the meeting detail page', 'success');
+        }
+      }
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -185,6 +206,27 @@ export default function MeetingsPage() {
           </FormField>
           <FormField label="Location"><input className="input" value={form.location || ''} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} /></FormField>
           <FormField label="Description"><textarea className="input min-h-[72px]" value={form.description || ''} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></FormField>
+          <div className="space-y-2 pt-1">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!form.is_online_meeting}
+                onChange={(e) => setForm((p) => ({ ...p, is_online_meeting: e.target.checked }))}
+                className="rounded border-zoho-border text-brand-600 focus:ring-brand-500"
+              />
+              <span>Add Teams meeting link</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.sync_to_microsoft !== false}
+                onChange={(e) => setForm((p) => ({ ...p, sync_to_microsoft: e.target.checked }))}
+                className="rounded border-zoho-border text-brand-600 focus:ring-brand-500"
+              />
+              <span>Sync to Outlook</span>
+            </label>
+            <p className="text-[11px] text-zoho-muted">Host must connect Microsoft 365 in Settings for Outlook/Teams sync.</p>
+          </div>
         </div>
         <div className="flex gap-2 justify-end mt-4"><button onClick={() => setModal(false)} className="btn-secondary">Cancel</button><button onClick={save} disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save'}</button></div>
       </Modal>}

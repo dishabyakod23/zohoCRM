@@ -22,6 +22,7 @@ import * as authApi from '../../lib/services/auth.js';
 import AnnouncementsPanel from '../../components/admin/AnnouncementsPanel.js';
 import ManageRolesPanel from '../../components/settings/ManageRolesPanel.js';
 import SalesTargetsPanel from '../../components/settings/SalesTargetsPanel.js';
+import MicrosoftIntegrationCard from '../../components/settings/MicrosoftIntegrationCard.js';
 import { slugifyStatusValue } from '../../lib/statusHelpers.js';
 import { normalizeLoginEmail } from '../../lib/authHelpers.js';
 const EMPTY_USER = {
@@ -105,9 +106,21 @@ function SettingsPageContent() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    const microsoft = searchParams.get('microsoft');
+    if (!microsoft) return;
+    setTab('profile');
+    if (microsoft === 'connected') {
+      showToast('Microsoft 365 connected', 'success');
+    } else if (microsoft === 'error') {
+      showToast(searchParams.get('message') || 'Microsoft connection failed', 'error');
+    }
+    router.replace('/settings', { scroll: false });
+  }, [searchParams, router, showToast]);
+
   const handleTabChange = useCallback((nextTab) => {
     setTab(nextTab);
-    if (searchParams.get('sales_targets') && nextTab !== 'sales_targets') {
+    if ((searchParams.get('sales_targets') || searchParams.get('microsoft')) && nextTab !== 'sales_targets') {
       router.replace('/settings', { scroll: false });
     }
   }, [router, searchParams]);
@@ -469,6 +482,7 @@ function SettingsPageContent() {
               <h2 className="text-sm font-semibold mb-2">Your Access</h2>
               <p className="text-sm text-zoho-muted">{roleAccess}</p>
             </div>
+            <MicrosoftIntegrationCard />
             {canManageUsers && (
             <div className="card p-5">
               <h2 className="text-sm font-semibold mb-3">Role Permissions Reference</h2>

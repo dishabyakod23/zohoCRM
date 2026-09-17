@@ -19,6 +19,14 @@ export function normalizeMeeting(meeting) {
     host_name: userBriefName(meeting.host) || meeting.host_name,
     participants,
     participant_ids: participantIds,
+    is_online_meeting: !!meeting.is_online_meeting,
+    sync_to_microsoft: meeting.sync_to_microsoft !== false,
+    teams_join_url: meeting.teams_join_url || null,
+    microsoft_sync_status: meeting.microsoft_sync_status || null,
+    microsoft_last_error: meeting.microsoft_last_error || null,
+    microsoft_event_id: meeting.microsoft_event_id || null,
+    microsoft_sync_direction: meeting.microsoft_sync_direction || null,
+    microsoft_imported: !!meeting.microsoft_imported,
   };
 }
 
@@ -57,6 +65,8 @@ function toMeetingPayload(form) {
     related_entity_type: form.related_entity_type || form.related_type || undefined,
     related_entity_id: form.related_entity_id || form.related_id || null,
     contact_id: form.contact_id || null,
+    is_online_meeting: form.is_online_meeting != null ? !!form.is_online_meeting : undefined,
+    sync_to_microsoft: form.sync_to_microsoft != null ? !!form.sync_to_microsoft : undefined,
   });
 }
 
@@ -107,4 +117,10 @@ export async function listMeetingReminders() {
 export async function acknowledgeMeetingReminder(meetingId) {
   const res = await api.post(`/meetings/reminders/${meetingId}/ack`);
   return res.data;
+}
+
+/** POST /meetings/{id}/sync-to-microsoft — retry Outlook sync */
+export async function syncMeetingToMicrosoft(id) {
+  const res = await api.post(`/meetings/${id}/sync-to-microsoft`);
+  return normalizeMeeting(res.data.data);
 }
