@@ -108,48 +108,29 @@ function EmailActivityList({
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [search, setSearch] = useState('');
-  const debouncedSearch = useDebouncedValue(search, 250);
+  const debouncedSearch = useDebouncedValue(search, 400);
   const pageSize = 25;
   const senderNorm = String(sendingEmail || '').trim().toLowerCase();
 
   const load = useCallback(async () => {
     if (!sequenceId || !eventType) return;
-    setLoading(true);
+    const q = debouncedSearch.trim();
+    const tokens = tokenizeSearchQuery(q);
+    const isSearch = tokens.length > 0;
+    // Keep prior rows visible while refining search — only block on first load.
+    if (isSearch) setSearching(true);
+    else setLoading(true);
     try {
-      const q = debouncedSearch.trim();
-      const tokens = tokenizeSearchQuery(q);
-      const fetchingAllForSearch = tokens.length > 0;
-      const apiPageSize = fetchingAllForSearch ? 100 : pageSize;
-      let data = [];
-      let serverTotal = 0;
-
-      if (fetchingAllForSearch) {
-        // API caps page_size at 100 — page through results for client-side name/email filter.
-        let pageNum = 1;
-        while (pageNum <= 20) {
-          const result = await sequencesApi.listSequenceEmailEvents(sequenceId, {
-            event_type: eventType,
-            page: pageNum,
-            page_size: apiPageSize,
-            ...(q ? { search: q } : {}),
-          });
-          const batch = result.data || [];
-          serverTotal = result.total ?? serverTotal;
-          data.push(...batch);
-          if (!batch.length || data.length >= serverTotal) break;
-          pageNum += 1;
-        }
-      } else {
-        const result = await sequencesApi.listSequenceEmailEvents(sequenceId, {
-          event_type: eventType,
-          page,
-          page_size: pageSize,
-        });
-        data = result.data || [];
-        serverTotal = result.total ?? data.length;
-      }
-
+      // Single request only (API page_size ≤ 100). Rely on server search + light client filter.
+      const result = await sequencesApi.listSequenceEmailEvents(sequenceId, {
+        event_type: eventType,
+        page: isSearch ? 1 : page,
+        page_size: isSearch ? 100 : pageSize,
+        ...(q ? { search: q } : {}),
+      });
+      let data = result.data || [];
       // Hide obvious self-opens (sender opened their own mail) in the detail list.
       if (eventType === 'OPENED' && senderNorm) {
         data = data.filter((row) => {
@@ -157,7 +138,6 @@ function EmailActivityList({
           return email && email !== senderNorm;
         });
       }
-      // Client-side name/email match (covers APIs that ignore search, and multi-word names).
       if (tokens.length) {
         data = data.filter((row) => {
           const haystack = [
@@ -178,7 +158,7 @@ function EmailActivityList({
         setRows(data.slice(start, start + pageSize));
       } else {
         setRows(data);
-        setTotal(serverTotal);
+        setTotal(result.total ?? data.length);
       }
     } catch (err) {
       setRows([]);
@@ -186,6 +166,7 @@ function EmailActivityList({
       showToast(getApiError(err));
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   }, [sequenceId, eventType, page, showToast, senderNorm, debouncedSearch]);
 
@@ -214,7 +195,9 @@ function EmailActivityList({
               </p>
             )}
           </div>
-          <span className="text-xs text-zoho-muted shrink-0">{total} total</span>
+          <span className="text-xs text-zoho-muted shrink-0">
+            {searching ? 'Searching…' : `${total} total`}
+          </span>
         </div>
         <div className="relative max-w-md">
           <input
@@ -240,7 +223,7 @@ function EmailActivityList({
             : `No ${label.toLowerCase()} emails yet.`}
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className={`overflow-x-auto ${searching ? 'opacity-60' : ''}`}>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zoho-border">
@@ -306,7 +289,7 @@ function EmailActivityList({
           <button
             type="button"
             className="btn-secondary-sm"
-            disabled={page <= 1 || loading}
+            disabled={page <= 1 || loading || searching}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
             Previous
@@ -315,7 +298,7 @@ function EmailActivityList({
           <button
             type="button"
             className="btn-secondary-sm"
-            disabled={page >= totalPages || loading}
+            disabled={page >= totalPages || loading || searching}
             onClick={() => setPage((p) => p + 1)}
           >
             Next
@@ -328,13 +311,11 @@ function EmailActivityList({
 
 export default function SequenceAnalyticsPanel({
   sequenceId,
-  steps = [],
   sequenceTimezone = 'UTC',
   sendingEmail = '',
 }) {
   const { showToast } = useToast();
   const [stats, setStats] = useState(null);
-  const [stepStats, setStepStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
@@ -348,25 +329,6 @@ export default function SequenceAnalyticsPanel({
     return () => { cancelled = true; };
   }, [sequenceId, showToast]);
 
-  useEffect(() => {
-    if (!steps.length) return;
-    let cancelled = false;
-    Promise.all(
-      steps.filter((s) => s.id).map(async (step) => {
-        try {
-          const data = await sequencesApi.getStepStats(sequenceId, step.id);
-          return [step.id, data];
-        } catch {
-          return [step.id, null];
-        }
-      }),
-    ).then((pairs) => {
-      if (cancelled) return;
-      setStepStats(Object.fromEntries(pairs.filter(([, v]) => v)));
-    });
-    return () => { cancelled = true; };
-  }, [sequenceId, steps]);
-
   const toggleEvent = (eventType) => {
     setSelectedEvent((prev) => (prev === eventType ? null : eventType));
   };
@@ -374,6 +336,7 @@ export default function SequenceAnalyticsPanel({
   if (loading) return <p className="text-sm text-zoho-muted py-8 text-center">Loading analytics…</p>;
   if (!stats) return <p className="text-sm text-zoho-muted py-8 text-center">No analytics available yet.</p>;
 
+  // Prefer funnel from the main stats payload — avoids N+1 getStepStats calls.
   const funnel = stats.step_funnel || stats.steps || [];
 
   return (
@@ -435,23 +398,20 @@ export default function SequenceAnalyticsPanel({
               </tr>
             </thead>
             <tbody>
-              {funnel.map((row, i) => {
-                const detail = stepStats[row.step_id] || row;
-                return (
-                  <tr key={row.step_id || `step-${i}`} className="border-b border-zoho-border">
-                    <td className="table-td">Step {row.step_order ?? i + 1}</td>
-                    <td className="table-td"><Badge label={stepTypeLabel(row.type)} /></td>
-                    <td className="table-td text-right">{detail.eligible ?? row.eligible ?? '—'}</td>
-                    <td className="table-td text-right">{detail.sent ?? row.sent ?? 0}</td>
-                    <td className="table-td text-right">{detail.delivered ?? row.delivered ?? 0}</td>
-                    <td className="table-td text-right">{detail.opened ?? row.opened ?? 0}</td>
-                    <td className="table-td text-right">{detail.clicked ?? row.clicked ?? 0}</td>
-                    <td className="table-td text-right">{detail.replied ?? row.replied ?? 0}</td>
-                    <td className="table-td text-right">{detail.bounced ?? row.bounced ?? 0}</td>
-                    <td className="table-td text-right">{detail.pending ?? row.pending ?? 0}</td>
-                  </tr>
-                );
-              })}
+              {funnel.map((row, i) => (
+                <tr key={row.step_id || `step-${i}`} className="border-b border-zoho-border">
+                  <td className="table-td">Step {row.step_order ?? i + 1}</td>
+                  <td className="table-td"><Badge label={stepTypeLabel(row.type)} /></td>
+                  <td className="table-td text-right">{row.eligible ?? '—'}</td>
+                  <td className="table-td text-right">{row.sent ?? 0}</td>
+                  <td className="table-td text-right">{row.delivered ?? 0}</td>
+                  <td className="table-td text-right">{row.opened ?? 0}</td>
+                  <td className="table-td text-right">{row.clicked ?? 0}</td>
+                  <td className="table-td text-right">{row.replied ?? 0}</td>
+                  <td className="table-td text-right">{row.bounced ?? 0}</td>
+                  <td className="table-td text-right">{row.pending ?? 0}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
