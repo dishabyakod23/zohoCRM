@@ -25,6 +25,12 @@ import { sortRecords } from '../listSortHelpers.js';
 import { ensureCsvColumn } from '../csvHelpers.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
 import { sumAmountsInInr } from '../fxRates.js';
+import {
+  listWithTokenSearch,
+  personSearchHaystack,
+  resolveListSearch,
+  matchesSearchTokens,
+} from '../listSearchHelpers.js';
 import { migrateRecordNotes } from './notes.js';
 
 const CONVERT_MASS_TARGETS = new Set(['account', 'deal']);
@@ -146,13 +152,22 @@ function refineLeadPageByPipelineStage(data, pipeline_stage) {
 }
 
 export async function listAllLeads(params = {}, statusOptions) {
-  const { pipeline_stage, filters, campaignMemberIds, ...rest } = params;
+  const { pipeline_stage, filters, campaignMemberIds, search, ...rest } = params;
+  const { apiSearch, tokens, needsClientMatch } = resolveListSearch(search);
   const useMembership = usesCampaignMembershipFilter(filters, campaignMemberIds);
   const apiFilters = useMembership ? { ...filters, campaign_id: '' } : filters;
-  const apiParams = buildLeadListApiParams({ pipeline_stage, filters: apiFilters, ...rest });
+  const apiParams = buildLeadListApiParams({
+    pipeline_stage,
+    filters: apiFilters,
+    search: apiSearch,
+    ...rest,
+  });
   let data = await fetchAllLeadPages(apiParams, statusOptions);
   if (pipeline_stage) {
     data = refineLeadPageByPipelineStage(data, pipeline_stage);
+  }
+  if (needsClientMatch) {
+    data = data.filter((row) => matchesSearchTokens(row, tokens, personSearchHaystack));
   }
   if (useMembership || (filters && hasLeadClientFilters(filters))) {
     data = applyLeadRecordFilters(data, filters, { campaignMemberIds });
@@ -187,10 +202,11 @@ export async function listLeads({
   filters = {},
   campaignMemberIds,
 } = {}) {
+  const { apiSearch, tokens, needsClientMatch } = resolveListSearch(search);
   const params = buildLeadListApiParams({
     pipeline_stage,
     filters,
-    search,
+    search: apiSearch,
     owner_id,
     lead_status,
     sort_by,
@@ -198,14 +214,15 @@ export async function listLeads({
   });
 
   const needsClientFilter = hasLeadClientFilters(filters)
-    || usesCampaignMembershipFilter(filters, campaignMemberIds);
+    || usesCampaignMembershipFilter(filters, campaignMemberIds)
+    || needsClientMatch;
 
   if (needsClientFilter) {
     const apiParams = usesCampaignMembershipFilter(filters, campaignMemberIds)
       ? buildLeadListApiParams({
         pipeline_stage,
         filters: { ...filters, campaign_id: '' },
-        search,
+        search: apiSearch,
         owner_id,
         lead_status,
         sort_by,
@@ -214,6 +231,9 @@ export async function listLeads({
       : params;
     const allLeads = await fetchAllLeadPages(apiParams, statusOptions);
     let filtered = refineLeadPageByPipelineStage(allLeads, pipeline_stage);
+    if (needsClientMatch) {
+      filtered = filtered.filter((row) => matchesSearchTokens(row, tokens, personSearchHaystack));
+    }
     filtered = applyLeadRecordFilters(filtered, filters, { campaignMemberIds });
     const start = (page - 1) * page_size;
     return {
@@ -223,14 +243,31 @@ export async function listLeads({
     };
   }
 
-  const res = await api.get('/leads', { params: { ...params, page, page_size } });
-  let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
-  data = refineLeadPageByPipelineStage(data, pipeline_stage);
-  return {
-    data,
-    total: res.data.meta?.total ?? data.length,
-    meta: res.data.meta,
-  };
+  return listWithTokenSearch({
+    search,
+    page,
+    page_size,
+    haystackFn: personSearchHaystack,
+    fetchPage: async ({ page: p, page_size: size, search: term }) => {
+      const pageParams = buildLeadListApiParams({
+        pipeline_stage,
+        filters,
+        search: term,
+        owner_id,
+        lead_status,
+        sort_by,
+        sort_order,
+      });
+      const res = await api.get('/leads', { params: { ...pageParams, page: p, page_size: size } });
+      let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
+      data = refineLeadPageByPipelineStage(data, pipeline_stage);
+      return {
+        data,
+        total: res.data.meta?.total ?? data.length,
+        meta: res.data.meta,
+      };
+    },
+  });
 }
 
 export async function listWorkItems({

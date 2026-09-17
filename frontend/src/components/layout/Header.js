@@ -75,31 +75,31 @@ export default function Header({ onMenuClick }) {
     searchRequestRef.current = latestRequest;
     const t = setTimeout(() => {
       Promise.all([
+        contactsApi.listContacts({ search, page_size: 6 }),
         leadsApi.listLeads({ search, page_size: 4 }),
-        contactsApi.listContacts({ search, page_size: 4 }),
-        accountsApi.listAccounts({ search, page_size: 4 }),
-      ]).then(([leads, contacts, accounts]) => {
+        accountsApi.listAccounts({ search, page_size: 3 }),
+      ]).then(([contacts, leads, accounts]) => {
         if (cancelled || searchRequestRef.current !== latestRequest) return;
         setResults([
-          ...leads.data.map(l => ({
-            type: 'lead',
-            id: l.id,
-            name: `${l.first_name || ''} ${l.last_name}`.trim(),
-            sub: l.company,
-            href: getLeadDetailPath(l, l.id),
-          })),
-          ...contacts.data.map(c => ({
+          ...contacts.data.map((c) => ({
             type: 'contact',
             id: c.id,
-            name: `${c.first_name || ''} ${c.last_name}`.trim(),
-            sub: c.account_name,
+            name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || 'Contact',
+            sub: c.email || c.account_name || '',
             href: `/contacts/${c.id}`,
           })),
-          ...accounts.data.map(a => ({
+          ...leads.data.map((l) => ({
+            type: 'lead',
+            id: l.id,
+            name: `${l.first_name || ''} ${l.last_name || ''}`.trim() || l.email || 'Lead',
+            sub: l.email || l.company || '',
+            href: getLeadDetailPath(l, l.id),
+          })),
+          ...accounts.data.map((a) => ({
             type: 'account',
             id: a.id,
             name: a.name,
-            sub: a.industry,
+            sub: a.industry || a.email || '',
             href: `/accounts/${a.id}`,
           })),
         ].slice(0, 12));
@@ -164,8 +164,8 @@ export default function Header({ onMenuClick }) {
         <div className="relative flex-1 max-w-xl" ref={searchRef}>
           <input
             className="w-full py-2 pl-9 pr-3 text-sm border border-zoho-border rounded-xl bg-brand-50/40 focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400 focus:bg-white transition-all duration-150"
-            placeholder="Search records, modules..."
-            aria-label="Search records and modules"
+            placeholder="Search by name or email…"
+            aria-label="Search contacts, leads, and accounts by name or email"
             value={search}
             onChange={e => { setSearch(e.target.value); setShowResults(true); }}
             onFocus={() => setShowResults(true)}
@@ -178,9 +178,12 @@ export default function Header({ onMenuClick }) {
               <p className="px-3 py-1.5 text-[10px] font-bold text-brand-600 uppercase tracking-wide">Search Results</p>
               {results.map((r, i) => (
                 <button key={i} onClick={() => handleResultClick(r)}
-                  className="w-full text-left px-3 py-2 hover:bg-brand-50 text-sm flex justify-between border-t border-gray-50 transition-colors">
-                  <span className="font-medium">{r.name}</span>
-                  <span className="text-xs text-zoho-muted capitalize">{r.type}</span>
+                  className="w-full text-left px-3 py-2 hover:bg-brand-50 text-sm flex justify-between gap-3 border-t border-gray-50 transition-colors">
+                  <span className="min-w-0">
+                    <span className="font-medium block truncate">{r.name}</span>
+                    {r.sub ? <span className="text-xs text-zoho-muted block truncate">{r.sub}</span> : null}
+                  </span>
+                  <span className="text-xs text-zoho-muted capitalize shrink-0 pt-0.5">{r.type}</span>
                 </button>
               ))}
             </div>

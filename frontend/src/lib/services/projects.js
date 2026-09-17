@@ -39,10 +39,13 @@ export async function listProjects(params = {}, accountMap = {}) {
 
 function matchesProjectSearch(project, search) {
   if (!search) return true;
-  const q = search.toLowerCase();
-  return (project.name || '').toLowerCase().includes(q)
-    || (project.account_name || '').toLowerCase().includes(q)
-    || (project.status_label || '').toLowerCase().includes(q);
+  const tokens = String(search).trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return true;
+  const haystack = [project.name, project.account_name, project.status_label]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return tokens.every((token) => haystack.includes(token));
 }
 
 export async function listAllMatchingProjectIds(params = {}, accountMap = {}, { search } = {}) {

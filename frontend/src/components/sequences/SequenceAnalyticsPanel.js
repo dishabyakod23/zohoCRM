@@ -13,6 +13,8 @@ import {
   resolveBounceReasonText,
   bounceReasonHint,
 } from '../../lib/sequenceHelpers.js';
+import { tokenizeSearchQuery } from '../../lib/listSearchHelpers.js';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 
 const EMAIL_STAT_KEYS = [
   { key: 'SENT', label: 'Sent', valueKeys: ['sent', 'emails_sent', 'sent_count'] },
@@ -106,6 +108,8 @@ function EmailActivityList({
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 250);
   const pageSize = 25;
   const senderNorm = String(sendingEmail || '').trim().toLowerCase();
 
@@ -113,10 +117,14 @@ function EmailActivityList({
     if (!sequenceId || !eventType) return;
     setLoading(true);
     try {
+      const q = debouncedSearch.trim();
+      const tokens = tokenizeSearchQuery(q);
+      const fetchingAllForSearch = tokens.length > 0;
       const result = await sequencesApi.listSequenceEmailEvents(sequenceId, {
         event_type: eventType,
-        page,
-        page_size: pageSize,
+        page: fetchingAllForSearch ? 1 : page,
+        page_size: fetchingAllForSearch ? 500 : pageSize,
+        ...(q ? { search: q } : {}),
       });
       let data = result.data || [];
       // Hide obvious self-opens (sender opened their own mail) in the detail list.
@@ -126,8 +134,29 @@ function EmailActivityList({
           return email && email !== senderNorm;
         });
       }
-      setRows(data);
-      setTotal(result.total ?? data.length);
+      // Client-side name/email match (covers APIs that ignore search, and multi-word names).
+      if (tokens.length) {
+        data = data.filter((row) => {
+          const haystack = [
+            row.member_name,
+            row.member_email,
+            row.email,
+            row.to_email,
+            row.first_name,
+            row.last_name,
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+          return tokens.every((token) => haystack.includes(token));
+        });
+        const start = (page - 1) * pageSize;
+        setTotal(data.length);
+        setRows(data.slice(start, start + pageSize));
+      } else {
+        setRows(data);
+        setTotal(result.total ?? data.length);
+      }
     } catch (err) {
       setRows([]);
       setTotal(0);
@@ -135,11 +164,11 @@ function EmailActivityList({
     } finally {
       setLoading(false);
     }
-  }, [sequenceId, eventType, page, showToast, senderNorm]);
+  }, [sequenceId, eventType, page, showToast, senderNorm, debouncedSearch]);
 
   useEffect(() => {
     setPage(1);
-  }, [eventType]);
+  }, [eventType, debouncedSearch]);
 
   useEffect(() => {
     load();
@@ -151,23 +180,42 @@ function EmailActivityList({
 
   return (
     <div className="rounded-xl border border-zoho-border overflow-hidden">
-      <div className="px-4 py-3 border-b border-zoho-border bg-gray-50 flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-zoho-text">{label} emails</h3>
-          {showBounceReason && (
-            <p className="text-[11px] text-zoho-muted mt-1">
-              Reason comes from Resend bounce webhooks (CRM API). Permanent / “not found” ≈ invalid email;
-              Transient / MailboxFull ≈ temporary; Suppressed ≈ Resend blocked resend.
-            </p>
-          )}
+      <div className="px-4 py-3 border-b border-zoho-border bg-gray-50 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-zoho-text">{label} emails</h3>
+            {showBounceReason && (
+              <p className="text-[11px] text-zoho-muted mt-1">
+                Reason comes from Resend bounce webhooks (CRM API). Permanent / “not found” ≈ invalid email;
+                Transient / MailboxFull ≈ temporary; Suppressed ≈ Resend blocked resend.
+              </p>
+            )}
+          </div>
+          <span className="text-xs text-zoho-muted shrink-0">{total} total</span>
         </div>
-        <span className="text-xs text-zoho-muted shrink-0">{total} total</span>
+        <div className="relative max-w-md">
+          <input
+            type="search"
+            className="w-full py-2 pl-9 pr-3 text-sm border border-zoho-border rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400"
+            placeholder="Search by email, first name, or full name…"
+            aria-label="Search prospects by email or name"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zoho-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
       </div>
 
       {loading ? (
         <p className="text-sm text-zoho-muted py-8 text-center">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-zoho-muted py-8 text-center">No {label.toLowerCase()} emails yet.</p>
+        <p className="text-sm text-zoho-muted py-8 text-center">
+          {debouncedSearch.trim()
+            ? 'No matching prospects found.'
+            : `No ${label.toLowerCase()} emails yet.`}
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

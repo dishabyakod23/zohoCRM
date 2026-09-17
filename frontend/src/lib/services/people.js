@@ -5,6 +5,12 @@ import { DIRECTORY_STATUS_OPTIONS, resolveDirectoryCurrentStatus, directoryLeadS
 import { leadStatusLabel } from '../leadHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { cachedLookup } from '../lookupCache.js';
+import {
+  listWithTokenSearch,
+  personSearchHaystack,
+  resolveListSearch,
+  matchesSearchTokens,
+} from '../listSearchHelpers.js';
 import * as contactsApi from './contacts.js';
 import * as leadsApi from './leads.js';
 import * as dealsApi from './deals.js';
@@ -324,31 +330,56 @@ export async function listPeople({
   sort_order,
   filters = {},
 } = {}) {
-  const params = buildPeopleParams({
+  return listWithTokenSearch({
+    search,
     page,
     page_size,
-    search,
-    owner_id,
-    sort_by,
-    sort_order,
-    filters,
+    haystackFn: personSearchHaystack,
+    fetchPage: ({ page: p, page_size: size, search: apiSearch }) => {
+      const params = buildPeopleParams({
+        page: p,
+        page_size: size,
+        search: apiSearch,
+        owner_id,
+        sort_by,
+        sort_order,
+        filters,
+      });
+      return requestDirectoryList(params);
+    },
   });
-  return requestDirectoryList(params);
 }
 
 export async function listAllMatchingPeopleIds(params = {}) {
-  const baseParams = buildPeopleParams({ ...params, page_size: 250 });
+  const { apiSearch, tokens, needsClientMatch } = resolveListSearch(params.search);
+  const baseParams = buildPeopleParams({
+    ...params,
+    search: apiSearch,
+    page_size: 250,
+  });
   let page = 1;
   const ids = [];
   let total = 0;
+  const collected = [];
 
   while (page <= 50) {
     const result = await requestDirectoryList({ ...baseParams, page });
-
-    ids.push(...result.data.map((row) => row.id).filter(Boolean));
+    const batch = result.data || [];
+    if (needsClientMatch) {
+      collected.push(...batch);
+    } else {
+      ids.push(...batch.map((row) => row.id).filter(Boolean));
+    }
     total = result.total;
-    if (!result.data.length || ids.length >= total) break;
+    if (!batch.length || (needsClientMatch ? collected.length >= total : ids.length >= total)) break;
     page += 1;
+  }
+
+  if (needsClientMatch) {
+    return collected
+      .filter((row) => matchesSearchTokens(row, tokens, personSearchHaystack))
+      .map((row) => row.id)
+      .filter(Boolean);
   }
 
   return ids;

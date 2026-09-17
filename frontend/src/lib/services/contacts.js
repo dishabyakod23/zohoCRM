@@ -14,6 +14,12 @@ import {
 import { CONTACT_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from '../constants.js';
 import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
+import {
+  listWithTokenSearch,
+  personSearchHaystack,
+  resolveListSearch,
+  matchesSearchTokens,
+} from '../listSearchHelpers.js';
 import { advanceLeadStage, convertLead, massUpdateLeads, applyLeadMassUpdate } from './leads.js';
 import * as accountsApi from './accounts.js';
 import { migrateRecordNotes } from './notes.js';
@@ -63,10 +69,11 @@ export async function listAllContacts(params = {}, accountMap = {}) {
     account_id,
     company_id,
   } = params;
+  const { apiSearch, tokens, needsClientMatch } = resolveListSearch(search);
   const mergedOwnerId = filters.owner_id || owner_id;
   const useMembership = usesCampaignMembershipFilter(filters, campaignMemberIds);
   const apiParams = {
-    search,
+    search: apiSearch,
     owner_id: mergedOwnerId,
     sort_by,
     sort_order,
@@ -78,6 +85,9 @@ export async function listAllContacts(params = {}, accountMap = {}) {
   }
 
   let data = await fetchAllContactPages(apiParams, accountMap);
+  if (needsClientMatch) {
+    data = data.filter((row) => matchesSearchTokens(row, tokens, personSearchHaystack));
+  }
   if (useMembership || hasContactClientFilters(filters)) {
     data = applyContactRecordFilters(data, filters, { campaignMemberIds });
   }
@@ -96,22 +106,14 @@ export async function listContacts({
   filters = {},
   campaignMemberIds,
 } = {}, accountMap = {}) {
-  const params = { page, page_size };
-  if (search) params.search = search;
-  if (account_id) params.account_id = account_id;
-  if (company_id) params.company_id = company_id;
   const mergedOwnerId = filters.owner_id || owner_id;
-  if (mergedOwnerId) params.owner_id = mergedOwnerId;
-  if (sort_by) params.sort_by = sort_by;
-  if (sort_order) params.sort_order = sort_order;
-
   const useMembership = usesCampaignMembershipFilter(filters, campaignMemberIds);
-  if (!useMembership && filters.campaign_id) params.campaign_id = filters.campaign_id;
+  const { apiSearch, tokens, needsClientMatch } = resolveListSearch(search);
 
   if (hasContactClientFilters(filters) || useMembership) {
     const allContacts = await fetchAllContactPages(
       {
-        search,
+        search: apiSearch,
         owner_id: mergedOwnerId,
         sort_by,
         sort_order,
@@ -121,7 +123,10 @@ export async function listContacts({
       },
       accountMap,
     );
-    const filtered = applyContactRecordFilters(allContacts, filters, { campaignMemberIds });
+    let filtered = applyContactRecordFilters(allContacts, filters, { campaignMemberIds });
+    if (needsClientMatch) {
+      filtered = filtered.filter((row) => matchesSearchTokens(row, tokens, personSearchHaystack));
+    }
     const start = (page - 1) * page_size;
     return {
       data: filtered.slice(start, start + page_size),
@@ -130,12 +135,29 @@ export async function listContacts({
     };
   }
 
-  const res = await api.get('/contacts', { params });
-  return {
-    data: (res.data.data || []).map(c => normalizeContact(c, accountMap)),
-    total: res.data.meta?.total ?? 0,
-    meta: res.data.meta,
-  };
+  return listWithTokenSearch({
+    search,
+    page,
+    page_size,
+    haystackFn: personSearchHaystack,
+    fetchPage: async ({ page: p, page_size: size, search: term }) => {
+      const params = { page: p, page_size: size };
+      if (term) params.search = term;
+      if (account_id) params.account_id = account_id;
+      if (company_id) params.company_id = company_id;
+      if (mergedOwnerId) params.owner_id = mergedOwnerId;
+      if (sort_by) params.sort_by = sort_by;
+      if (sort_order) params.sort_order = sort_order;
+      if (filters.campaign_id) params.campaign_id = filters.campaign_id;
+
+      const res = await api.get('/contacts', { params });
+      return {
+        data: (res.data.data || []).map((c) => normalizeContact(c, accountMap)),
+        total: res.data.meta?.total ?? 0,
+        meta: res.data.meta,
+      };
+    },
+  });
 }
 
 export async function getContact(id, accountMap = {}) {

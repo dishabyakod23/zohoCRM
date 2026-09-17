@@ -36,10 +36,13 @@ export async function listVisits(params = {}, accountMap = {}) {
 
 function matchesVisitSearch(visit, search) {
   if (!search) return true;
-  const q = search.toLowerCase();
-  return (visit.title || visit.visit_name || '').toLowerCase().includes(q)
-    || (visit.account_name || '').toLowerCase().includes(q)
-    || (visit.location || '').toLowerCase().includes(q);
+  const tokens = String(search).trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return true;
+  const haystack = [visit.title, visit.visit_name, visit.account_name, visit.location]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return tokens.every((token) => haystack.includes(token));
 }
 
 export async function listAllMatchingVisitIds(params = {}, accountMap = {}, { search } = {}) {

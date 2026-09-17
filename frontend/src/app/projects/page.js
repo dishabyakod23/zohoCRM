@@ -45,12 +45,13 @@ export default function ProjectsPage() {
   accountMapRef.current = accountMap;
 
   const filteredItems = useMemo(() => {
-    const base = !debouncedSearch ? items : items.filter((p) => {
-      const q = debouncedSearch.toLowerCase();
-      return (p.name || '').toLowerCase().includes(q)
-        || (p.account_name || '').toLowerCase().includes(q)
-        || (p.status_label || '').toLowerCase().includes(q);
-    });
+    const base = !debouncedSearch
+      ? items
+      : items.filter((p) => {
+        const tokens = String(debouncedSearch).trim().toLowerCase().split(/\s+/).filter(Boolean);
+        const haystack = [p.name, p.account_name, p.status_label].filter(Boolean).join(' ').toLowerCase();
+        return tokens.every((token) => haystack.includes(token));
+      });
     return sortRecords(base, sort, 'projects');
   }, [items, debouncedSearch, sort]);
 
