@@ -1,12 +1,16 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import AppLink from '../../components/ui/AppLink.js';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import CalendarEventModal from '../../components/calendar/CalendarEventModal.js';
+import CreateMeetingModal from '../../components/meetings/CreateMeetingModal.js';
 import { useToast } from '../../components/ui/Toast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as calendarApi from '../../lib/services/calendar.js';
+import * as meetingsApi from '../../lib/services/meetings.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import {
   EVENT_TYPES,
@@ -14,30 +18,40 @@ import {
   addMonths,
   buildMonthGrid,
   buildWeekDays,
-  endOfMonth,
   eventTypeMeta,
   formatMonthYear,
   formatTime,
   groupEventsByDate,
-  startOfMonth,
   startOfWeek,
   toDateKey,
   resolveCalendarAssigneeIds,
   ASSIGN_TO_ME,
 } from '../../lib/calendarHelpers.js';
+import {
+  meetingToCalendarItem,
+  filterMeetingsInRange,
+  filterMeetingsByHost,
+  defaultMeetingDatetimesForDate,
+} from '../../lib/calendarMeetingHelpers.js';
 import { defaultOwnerFilterId } from '../../lib/listRecordFilters.js';
+import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+function isCrmMeeting(item) {
+  return item?.source === 'crm_meeting' || Boolean(item?.meeting_id);
+}
+
 function EventPill({ event, onClick }) {
   const meta = eventTypeMeta(event.event_type);
+  const meeting = isCrmMeeting(event);
   return (
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(event); }}
-      className={`block w-full max-w-full text-left text-xs leading-snug px-2 py-1 rounded truncate shrink-0 ${meta.bg} ${meta.text} hover:opacity-90 ${event.completed ? 'opacity-50 line-through' : ''}`}
-      title={event.title}
+      className={`block w-full max-w-full text-left text-xs leading-snug px-2 py-1 rounded truncate shrink-0 ${meta.bg} ${meta.text} hover:opacity-90 ${event.completed ? 'opacity-50 line-through' : ''} ${meeting ? 'ring-1 ring-violet-300/80' : ''}`}
+      title={meeting ? `${event.title} (CRM meeting)` : event.title}
     >
       {!event.all_day && event.start_time ? `${formatTime(event.start_time)} ` : ''}{event.title}
     </button>
@@ -47,10 +61,13 @@ function EventPill({ event, onClick }) {
 function SidebarEventRow({ event, onEdit, onToggleComplete, toggling, canEdit }) {
   const meta = eventTypeMeta(event.event_type);
   const completed = !!event.completed;
+  const meeting = isCrmMeeting(event);
 
   return (
     <div className={`flex items-start gap-2 p-2 rounded-lg border border-zoho-border hover:bg-brand-50 text-sm ${completed ? 'bg-gray-50/80' : ''}`}>
-      {canEdit ? (
+      {meeting ? (
+        <span className="mt-1 w-4 h-4 shrink-0 rounded-full bg-violet-500" title="CRM / Outlook meeting" />
+      ) : canEdit ? (
         <input
           type="checkbox"
           checked={completed}
@@ -73,7 +90,7 @@ function SidebarEventRow({ event, onEdit, onToggleComplete, toggling, canEdit })
       )}
       <button type="button" onClick={() => onEdit(event)} className="flex-1 min-w-0 text-left">
         <p className={`font-medium truncate ${completed ? 'line-through text-zoho-muted' : ''}`}>{event.title}</p>
-        <p className="text-[10px] text-zoho-muted">{meta.label}</p>
+        <p className="text-[10px] text-zoho-muted">{meeting ? 'CRM / Outlook meeting' : meta.label}</p>
       </button>
     </div>
   );
@@ -125,18 +142,25 @@ function MonthDayCell({
   );
 }
 
-export default function CalendarPage() {
+function CalendarPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast } = useToast();
   const { user } = useAuth();
   const { can, canAssignLeads } = usePermissions();
-  const canCreate = can('calendar', 'create');
-  const canEdit = can('calendar', 'edit');
+  const canCreateEvent = can('calendar', 'create');
+  const canEditEvent = can('calendar', 'edit');
+  const canViewMeetings = can('meetings', 'view');
+  const canCreateMeeting = can('meetings', 'create');
   const [view, setView] = useState('month');
   const [viewDate, setViewDate] = useState(() => new Date());
   const [events, setEvents] = useState([]);
+  const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editEvent, setEditEvent] = useState(null);
+  const [meetingModalOpen, setMeetingModalOpen] = useState(false);
+  const [meetingDefaults, setMeetingDefaults] = useState({});
   const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()));
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
@@ -147,6 +171,14 @@ export default function CalendarPage() {
     if (!user?.id) return;
     setOwnerFilter(defaultOwnerFilterId(user));
   }, [user?.id, user?.role]);
+
+  useEffect(() => {
+    if (!canCreateMeeting) return;
+    if (searchParams.get('create_meeting') !== '1' && searchParams.get('create') !== '1') return;
+    setMeetingDefaults(defaultMeetingDatetimesForDate(selectedDate));
+    setMeetingModalOpen(true);
+    router.replace('/calendar', { scroll: false });
+  }, [searchParams, canCreateMeeting, router, selectedDate]);
 
   const range = useMemo(() => {
     if (view === 'week') {
@@ -161,43 +193,67 @@ export default function CalendarPage() {
   }, [view, viewDate]);
 
   useEffect(() => {
-    if (canEdit) fetchUsers().then(setUsers).catch(() => setUsers([]));
-  }, [canEdit]);
+    if (canEditEvent || canCreateMeeting) {
+      fetchUsers().then(setUsers).catch(() => setUsers([]));
+    }
+  }, [canEditEvent, canCreateMeeting]);
 
-  const loadEvents = useCallback(async () => {
+  const loadCalendar = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await calendarApi.listEvents({
+      const eventPromise = calendarApi.listEvents({
         ...range,
         owner_id: ownerFilter || undefined,
       });
-      setEvents(data);
+      const meetingPromise = canViewMeetings
+        ? meetingsApi.listMeetings({ page: 1, page_size: 200, limit: 200 }).catch(() => ({ data: [] }))
+        : Promise.resolve({ data: [] });
+
+      const [eventData, meetingResult] = await Promise.all([eventPromise, meetingPromise]);
+      setEvents(eventData);
+      const ranged = filterMeetingsInRange(meetingResult.data || [], range.from, range.to);
+      setMeetings(filterMeetingsByHost(ranged, ownerFilter));
     } catch (err) {
       showToast(getApiError(err));
     } finally {
       setLoading(false);
     }
-  }, [range, ownerFilter, showToast]);
+  }, [range, ownerFilter, showToast, canViewMeetings]);
 
-  useEffect(() => { loadEvents(); }, [loadEvents]);
+  useEffect(() => { loadCalendar(); }, [loadCalendar]);
 
-  const eventsByDate = useMemo(() => groupEventsByDate(events), [events]);
+  const calendarItems = useMemo(() => {
+    const meetingItems = meetings.map(meetingToCalendarItem);
+    return [...events, ...meetingItems];
+  }, [events, meetings]);
+
+  const eventsByDate = useMemo(() => groupEventsByDate(calendarItems), [calendarItems]);
   const today = toDateKey(new Date());
   const monthGrid = useMemo(() => buildMonthGrid(viewDate), [viewDate]);
   const weekDays = useMemo(() => buildWeekDays(viewDate), [viewDate]);
   const selectedEvents = eventsByDate[selectedDate] || [];
 
-  const openCreate = (dateKey) => {
-    if (!canCreate) return;
+  const openCreateEvent = (dateKey) => {
+    if (!canCreateEvent) return;
     setEditEvent({ event_date: dateKey || selectedDate });
     setModalOpen(true);
   };
 
-  const openEdit = async (event) => {
-    setEditEvent(event);
+  const openCreateMeeting = (dateKey) => {
+    if (!canCreateMeeting) return;
+    setMeetingDefaults(defaultMeetingDatetimesForDate(dateKey || selectedDate));
+    setMeetingModalOpen(true);
+  };
+
+  const openItem = async (item) => {
+    if (isCrmMeeting(item)) {
+      navigateToRecord(`/meetings/${item.meeting_id}`);
+      return;
+    }
+    setEditEvent(item);
     setModalOpen(true);
     try {
-      const fresh = await calendarApi.getEvent(event.id);
+      const fresh = await calendarApi.getEvent(item.id);
       setEditEvent(fresh);
     } catch (err) {
       showToast(getApiError(err));
@@ -229,7 +285,7 @@ export default function CalendarPage() {
       }
       setModalOpen(false);
       setEditEvent(null);
-      loadEvents();
+      loadCalendar();
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -238,13 +294,13 @@ export default function CalendarPage() {
   };
 
   const handleDelete = async () => {
-    if (!editEvent?.id) return;
+    if (!editEvent?.id || isCrmMeeting(editEvent)) return;
     setSaving(true);
     try {
       await calendarApi.deleteEvent(editEvent.id);
       setModalOpen(false);
       setEditEvent(null);
-      loadEvents();
+      loadCalendar();
       showToast('Event deleted', 'success');
     } catch (err) {
       showToast(getApiError(err));
@@ -254,6 +310,7 @@ export default function CalendarPage() {
   };
 
   const toggleEventComplete = async (event, completed) => {
+    if (isCrmMeeting(event)) return;
     setTogglingId(event.id);
     try {
       await calendarApi.updateEvent(event.id, { completed });
@@ -277,12 +334,25 @@ export default function CalendarPage() {
   return (
     <CRMLayout>
       <div className="h-[calc(100vh-6rem)] flex flex-col bg-white">
-        {/* Google Calendar-style toolbar */}
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-zoho-border shrink-0">
-          <button type="button" onClick={() => openCreate(selectedDate)} disabled={!canCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-zoho-border shadow-sm hover:shadow text-sm font-medium disabled:opacity-50">
-            <PlusIcon className="w-4 h-4" /> Create
-          </button>
+          {canCreateEvent && (
+            <button
+              type="button"
+              onClick={() => openCreateEvent(selectedDate)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-zoho-border shadow-sm hover:shadow text-sm font-medium"
+            >
+              <PlusIcon className="w-4 h-4" /> Event
+            </button>
+          )}
+          {canCreateMeeting && (
+            <button
+              type="button"
+              onClick={() => openCreateMeeting(selectedDate)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-600 text-white shadow-sm hover:bg-violet-700 text-sm font-medium"
+            >
+              <PlusIcon className="w-4 h-4" /> Meeting
+            </button>
+          )}
           <button type="button" onClick={() => { const n = new Date(); setViewDate(n); setSelectedDate(toDateKey(n)); }}
             className="px-4 py-2 rounded-full border border-zoho-border text-sm font-medium hover:bg-gray-50">
             Today
@@ -297,6 +367,11 @@ export default function CalendarPage() {
           </div>
           <h1 className="text-xl text-zoho-text font-normal min-w-[180px]">{formatMonthYear(viewDate)}</h1>
           <div className="ml-auto flex items-center gap-2">
+            {canViewMeetings && (
+              <AppLink href="/settings" className="text-xs text-zoho-muted hover:text-brand-600 hidden md:inline">
+                Outlook sync in Settings
+              </AppLink>
+            )}
             {canAssignLeads && users.length > 0 && (
               <select className="input text-sm w-40" value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
                 <option value="">All users</option>
@@ -311,7 +386,6 @@ export default function CalendarPage() {
         </div>
 
         <div className="flex flex-1 min-h-0">
-          {/* Left sidebar */}
           <aside className="w-56 shrink-0 border-r border-zoho-border p-4 hidden lg:block overflow-y-auto">
             <div className="mb-6">
               <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-2">Legend</p>
@@ -319,7 +393,7 @@ export default function CalendarPage() {
                 {EVENT_TYPES.map((t) => (
                   <div key={t.value} className="flex items-center gap-2 text-xs">
                     <span className="w-3 h-3 rounded-full" style={{ backgroundColor: t.color }} />
-                    {t.label}
+                    {t.label}{t.value === 'meeting' ? ' (CRM / Outlook)' : ''}
                   </div>
                 ))}
               </div>
@@ -329,30 +403,36 @@ export default function CalendarPage() {
                 {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </p>
               {selectedEvents.length === 0 ? (
-                <p className="text-xs text-zoho-muted">No events</p>
+                <p className="text-xs text-zoho-muted">No events or meetings</p>
               ) : (
                 <div className="space-y-2">
                   {selectedEvents.map((e) => (
                     <SidebarEventRow
                       key={e.id}
                       event={e}
-                      onEdit={openEdit}
+                      onEdit={openItem}
                       onToggleComplete={toggleEventComplete}
                       toggling={togglingId === e.id}
-                      canEdit={canEdit}
+                      canEdit={canEditEvent}
                     />
                   ))}
                 </div>
               )}
-              {canCreate && (
-                <button type="button" onClick={() => openCreate(selectedDate)} className="mt-3 text-xs text-brand-600 hover:underline">
-                  + Add event
-                </button>
-              )}
+              <div className="mt-3 flex flex-col gap-1">
+                {canCreateEvent && (
+                  <button type="button" onClick={() => openCreateEvent(selectedDate)} className="text-xs text-brand-600 hover:underline text-left">
+                    + Add event
+                  </button>
+                )}
+                {canCreateMeeting && (
+                  <button type="button" onClick={() => openCreateMeeting(selectedDate)} className="text-xs text-violet-700 hover:underline text-left">
+                    + Add meeting
+                  </button>
+                )}
+              </div>
             </div>
           </aside>
 
-          {/* Main calendar grid */}
           <div className="flex-1 min-w-0 flex flex-col border-l border-zoho-border">
             <div className="grid grid-cols-7 border-b border-zoho-border bg-gray-50/80 shrink-0">
               {WEEKDAYS.map((d) => (
@@ -379,8 +459,8 @@ export default function CalendarPage() {
                       selectedDate={selectedDate}
                       eventsByDate={eventsByDate}
                       onSelect={setSelectedDate}
-                      onCreate={openCreate}
-                      onEdit={openEdit}
+                      onCreate={canCreateEvent ? openCreateEvent : openCreateMeeting}
+                      onEdit={openItem}
                     />
                   ))}
                 </div>
@@ -398,9 +478,12 @@ export default function CalendarPage() {
                         <p className="text-[10px] text-zoho-muted uppercase">{WEEKDAYS[day.getDay()]}</p>
                         <p className={`text-lg ${isToday ? 'text-brand-600 font-semibold' : ''}`}>{day.getDate()}</p>
                       </button>
-                      <div className="flex-1 overflow-y-auto p-2 space-y-1" onDoubleClick={() => openCreate(key)}>
-                        {dayEvents.map((e) => <EventPill key={e.id} event={e} onClick={openEdit} />)}
-                        {dayEvents.length === 0 && canCreate && (
+                      <div
+                        className="flex-1 overflow-y-auto p-2 space-y-1"
+                        onDoubleClick={() => (canCreateEvent ? openCreateEvent(key) : openCreateMeeting(key))}
+                      >
+                        {dayEvents.map((e) => <EventPill key={e.id} event={e} onClick={openItem} />)}
+                        {dayEvents.length === 0 && (canCreateEvent || canCreateMeeting) && (
                           <p className="text-[10px] text-zoho-muted text-center pt-4">Double-click to add</p>
                         )}
                       </div>
@@ -417,7 +500,7 @@ export default function CalendarPage() {
         open={modalOpen}
         onClose={() => { setModalOpen(false); setEditEvent(null); }}
         onSave={handleSave}
-        onDelete={editEvent?.id ? handleDelete : null}
+        onDelete={editEvent?.id && !isCrmMeeting(editEvent) ? handleDelete : null}
         initial={editEvent}
         saving={saving}
         users={users}
@@ -425,6 +508,26 @@ export default function CalendarPage() {
         currentUserName={currentUserName}
         canAssignToOthers={canAssignLeads}
       />
+
+      <CreateMeetingModal
+        open={meetingModalOpen}
+        onClose={() => setMeetingModalOpen(false)}
+        onCreated={() => loadCalendar()}
+        defaults={meetingDefaults}
+        defaultHostId={user?.id || ''}
+      />
     </CRMLayout>
+  );
+}
+
+export default function CalendarPage() {
+  return (
+    <Suspense fallback={(
+      <CRMLayout>
+        <div className="p-6 text-sm text-zoho-muted">Loading calendar…</div>
+      </CRMLayout>
+    )}>
+      <CalendarPageContent />
+    </Suspense>
   );
 }

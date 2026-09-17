@@ -53,6 +53,7 @@ export const QUICK_CREATE = [
   { label: 'Proposal', href: '/proposals/create', group: 'Sales', permissionKey: 'proposals' },
   { label: 'Account', href: '/accounts/create', group: 'Sales', permissionKey: 'accounts' },
   { label: 'Calendar Event', href: '/calendar', group: 'Sales', permissionKey: 'calendar' },
+  { label: 'Meeting', href: '/calendar?create_meeting=1', group: 'Sales', permissionKey: 'meetings' },
   { label: 'Campaign', href: '/campaigns/create', group: 'Marketing', permissionKey: 'campaigns' },
   { label: 'Sequence', href: '/sequences/create', group: 'Marketing', permissionKey: 'sequences' },
 ];

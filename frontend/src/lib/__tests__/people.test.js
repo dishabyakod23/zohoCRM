@@ -57,12 +57,14 @@ describe('normalizePersonRow', () => {
       last_name: 'Lee',
       company_name: 'Acme',
       current_status: 'Contact',
+      skype_id: 'https://www.linkedin.com/in/ann-lee',
     });
 
     expect(row.id).toBe('contact:c1');
     expect(row.account_name).toBe('Acme');
     expect(row.current_status).toBe('Contact');
     expect(row._detailHref).toBe('/contacts/c1');
+    expect(row.skype_id).toBe('https://www.linkedin.com/in/ann-lee');
   });
 
   it('does not mark company-linked contacts as Account', () => {

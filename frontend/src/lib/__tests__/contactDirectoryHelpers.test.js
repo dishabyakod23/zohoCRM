@@ -34,10 +34,29 @@ describe('buildDirectoryRows', () => {
     expect(rows.find((row) => row.email === 'ann@example.com')?.current_status).toBe('Contact');
   });
 
+  it('preserves LinkedIn skype_id when merging contact into a higher-status lead row', () => {
+    const contacts = [{
+      id: 'c1',
+      first_name: 'Ann',
+      last_name: 'Lee',
+      email: 'ann@example.com',
+      skype_id: 'https://www.linkedin.com/in/ann-lee',
+    }];
+    const leads = [{
+      id: 'l1',
+      first_name: 'Ann',
+      last_name: 'Lee',
+      email: 'ann@example.com',
+      lead_status: PIPELINE_RAW,
+    }];
+    const rows = buildDirectoryRows({ contacts, leads });
+    const row = rows.find((r) => r.email === 'ann@example.com');
+    expect(row?.skype_id).toBe('https://www.linkedin.com/in/ann-lee');
+  });
+
   it('dedupes by email and keeps the higher pipeline status', () => {
     const contacts = [{ id: 'c1', first_name: 'Ann', last_name: 'Lee', email: 'ann@example.com' }];
     const leads = [{ id: 'l1', first_name: 'Ann', last_name: 'Lee', email: 'ann@example.com', lead_status: PIPELINE_RAW }];
-
     const rows = buildDirectoryRows({ contacts, leads });
     expect(rows).toHaveLength(1);
     expect(rows[0].current_status).toBe('Cold Lead');

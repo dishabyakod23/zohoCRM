@@ -42,7 +42,7 @@ export function recordDetailHref(entityType, recordId) {
     deal: '/deals',
     task: '/tasks',
     call: '/calls',
-    meeting: '/meetings',
+    meeting: '/calendar',
     campaign: '/campaigns',
     document: '/documents',
     visit: '/visits',

@@ -9,7 +9,8 @@ import {
   PIPELINE_RAW,
 } from './pipelineHelpers.js';
 import { includesText, matchLeadStatus, matchesRecordTimestampFilters, matchesCampaignMembership } from './listRecordFilters.js';
-import { leadStatusLabel } from './leadHelpers.js';
+import { leadStatusLabel, resolveLeadLinkedInUrl } from './leadHelpers.js';
+import { resolveContactLinkedInUrl } from './contactHelpers.js';
 
 export const DIRECTORY_STATUS_OPTIONS = [
   { value: 'Contact', label: 'Contact' },
@@ -196,6 +197,7 @@ export function leadToDirectoryRow(lead, statusOptions = []) {
     account_name: lead.company || lead.account_name,
     campaign_id: lead.campaign_id,
     campaign_name: lead.campaign_name,
+    skype_id: resolveLeadLinkedInUrl(lead) || lead.skype_id || null,
     owner_id: lead.owner_id,
     owner_name: lead.owner_name,
     lead_status,
@@ -210,11 +212,13 @@ export function leadToDirectoryRow(lead, statusOptions = []) {
 export function contactToDirectoryRow(contact) {
   const current_status = resolveDirectoryCurrentStatus({ ...contact, entity_type: 'contact' });
   const lead_status = directoryLeadStatusValue(contact);
+  const linkedIn = resolveContactLinkedInUrl(contact);
 
   return {
     ...contact,
     _entityType: 'contact',
     _detailHref: `/contacts/${contact.id}`,
+    skype_id: linkedIn || contact.skype_id || null,
     lead_status,
     lead_status_label: lead_status ? (leadStatusLabel(lead_status) || lead_status) : '—',
     current_status,
@@ -239,6 +243,7 @@ export function dealToDirectoryRow(deal, contactLookup = {}) {
     account_name: deal.account_name || linked?.account_name,
     campaign_id: linked?.campaign_id,
     campaign_name: linked?.campaign_name,
+    skype_id: resolveContactLinkedInUrl(linked) || linked?.skype_id || null,
     owner_id: deal.owner_id || linked?.owner_id,
     owner_name: deal.owner_name || linked?.owner_name,
     current_status,
@@ -260,6 +265,13 @@ function directoryDedupeKey(row) {
 }
 
 function mergeRowFields(primary, secondary) {
+  const linkedIn = resolveContactLinkedInUrl(primary)
+    || resolveLeadLinkedInUrl(primary)
+    || resolveContactLinkedInUrl(secondary)
+    || resolveLeadLinkedInUrl(secondary)
+    || primary.skype_id
+    || secondary.skype_id
+    || null;
   return {
     ...secondary,
     ...primary,
@@ -270,6 +282,8 @@ function mergeRowFields(primary, secondary) {
     account_name: primary.account_name || secondary.account_name,
     campaign_id: primary.campaign_id || secondary.campaign_id,
     campaign_name: primary.campaign_name || secondary.campaign_name,
+    skype_id: linkedIn,
+    linkedin_url: linkedIn,
     owner_id: primary.owner_id || secondary.owner_id,
     owner_name: primary.owner_name || secondary.owner_name,
     _detailHref: primary._detailHref || secondary._detailHref,

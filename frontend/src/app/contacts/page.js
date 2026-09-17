@@ -43,6 +43,8 @@ import { navigateToRecord } from '../../lib/recordNavigation.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 const ACTIVITY_LOOKBACK_DAYS = 120;
+/** Stable member types for directory campaign filter (avoids effect loops). */
+const CONTACT_DIRECTORY_CAMPAIGN_MEMBER_TYPES = ['contact', 'lead'];
 
 export default function ContactsPage() {
   const { showToast } = useToast();
@@ -66,7 +68,7 @@ export default function ContactsPage() {
   const { campaigns } = useCampaignLookups();
   const { memberIds: campaignMemberIds, ready: campaignMembersReady } = useCampaignMemberFilter(
     filters.campaign_id,
-    ['contact', 'lead'],
+    CONTACT_DIRECTORY_CAMPAIGN_MEMBER_TYPES,
   );
   const activityCallsRef = useRef([]);
   const activityCallsLoadedRef = useRef(false);
@@ -274,7 +276,7 @@ export default function ContactsPage() {
     { id: 'lead_status', header: 'Lead Status', cell: (c) => c.lead_status_label || '—' },
     { id: 'email', header: 'Email', sortField: 'email', cell: (c) => <span className={tableEmailClass}>{c.email || '—'}</span> },
     { id: 'phone', header: 'Phone', cell: (c) => <PhoneCell value={c.phone || c.mobile} label="Call contact" /> },
-    { id: 'linkedin_url', header: 'LinkedIn', cell: (c) => <LinkedInCell record={c} /> },
+    { id: 'linkedin_url', header: 'LinkedIn', cell: (c) => <LinkedInCell value={c.skype_id || c.linkedin_url || c.linkedin} record={c} /> },
     { id: 'last_call', header: 'Last Call', cell: (c) => (
       <span className="text-xs text-zoho-text whitespace-nowrap">{c.last_call_label || '—'}</span>
     ) },

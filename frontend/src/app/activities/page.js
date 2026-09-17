@@ -116,7 +116,7 @@ export default function ActivitiesPage() {
 
   const tabs = [
     { id: 'tasks', label: 'Tasks', count: tasks.length, href: '/tasks' },
-    { id: 'meetings', label: 'Meetings', count: meetings.length, href: '/meetings' },
+    { id: 'meetings', label: 'Meetings', count: meetings.length, href: '/calendar' },
     { id: 'calls', label: 'Calls', count: calls.length, href: '/calls' },
   ];
 
@@ -130,7 +130,7 @@ export default function ActivitiesPage() {
           primaryAction={canCreate ? (
             <button
               type="button"
-              onClick={() => navigateToRecord(`/${tab}?create=1`)}
+              onClick={() => navigateToRecord(tab === 'meetings' ? '/calendar?create_meeting=1' : `/${tab}?create=1`)}
               className="btn-primary-sm"
             >
               Create {tab === 'tasks' ? 'Task' : tab === 'meetings' ? 'Meeting' : 'Call'}

@@ -52,13 +52,14 @@ export default function LinkedInCell({ value, record, className = '' }) {
   }
 
   const label = (() => {
+    const display = String(raw || href).trim();
     try {
       const url = new URL(href);
-      const path = url.pathname.replace(/\/$/, '');
-      if (path.startsWith('/in/')) return path.slice(4) || 'Profile';
-      return 'Open profile';
+      const hostPath = `${url.hostname.replace(/^www\./, '')}${url.pathname}`.replace(/\/$/, '');
+      const text = hostPath || display;
+      return text.length > 42 ? `${text.slice(0, 40)}…` : text;
     } catch {
-      return 'Open profile';
+      return display.length > 42 ? `${display.slice(0, 40)}…` : (display || 'Open profile');
     }
   })();
 
@@ -68,7 +69,7 @@ export default function LinkedInCell({ value, record, className = '' }) {
       target="_blank"
       rel="noopener noreferrer"
       title={href}
-      className={`text-brand-600 hover:underline text-xs font-medium max-w-[9rem] truncate inline-block ${className}`}
+      className={`text-brand-600 hover:underline text-xs font-medium max-w-[14rem] truncate inline-block ${className}`}
       onClick={(e) => e.stopPropagation()}
     >
       {label}
