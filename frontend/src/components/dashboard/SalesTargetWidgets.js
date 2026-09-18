@@ -29,10 +29,10 @@ function PipelineRoleList({ title, rows, emptyLabel }) {
   return (
     <div className="min-w-0">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-zoho-muted mb-2">{title}</p>
-      <div className="space-y-2">
+      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
         {rows.length === 0 ? (
           <p className="text-sm text-zoho-muted py-2">{emptyLabel}</p>
-        ) : rows.slice(0, 5).map((item, index) => (
+        ) : rows.map((item, index) => (
           <div key={item.employee_id || item.id || `${title}-${index}`} className="flex items-center justify-between text-sm py-1.5 gap-2">
             <span className="truncate min-w-0" title={item.employee_name || item.name}>
               {item.employee_name || item.name}
