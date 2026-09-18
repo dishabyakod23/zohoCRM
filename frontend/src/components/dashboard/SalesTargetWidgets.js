@@ -34,8 +34,11 @@ function PipelineRoleList({ title, rows, emptyLabel }) {
           <p className="text-sm text-zoho-muted py-2">{emptyLabel}</p>
         ) : rows.slice(0, 5).map((item, index) => (
           <div key={item.employee_id || item.id || `${title}-${index}`} className="flex items-center justify-between text-sm py-1.5 gap-2">
-            <span className="truncate" title={item.employee_name || item.name}>
+            <span className="truncate min-w-0" title={item.employee_name || item.name}>
               {item.employee_name || item.name}
+              {item.role_label && item.role_label !== title ? (
+                <span className="ml-1 text-[10px] font-medium uppercase text-zoho-muted">{item.role_label}</span>
+              ) : null}
             </span>
             <span className="font-medium text-brand-600 shrink-0">
               {formatTargetAmount(item.actual_pipeline || item.pipeline_actual)}
@@ -73,7 +76,10 @@ export default function SalesTargetWidgets() {
     ));
   const bdmRows = summary.bdm_leaderboard
     || (summary.pipeline_leaderboard || summary.bde_leaderboard || []).filter((row) => (
-      row.role_label === 'BDM' || row.role === 'sales_manager'
+      row.role_label === 'BDM'
+      || row.role_label === 'Admin'
+      || row.role === 'sales_manager'
+      || row.role === 'super_admin'
     ));
 
   return (

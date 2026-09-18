@@ -5,10 +5,11 @@ import { sumAmountsInInr } from './fxRates.js';
 import * as leadsApi from './services/leads.js';
 import { fetchUsers } from './services/lookups.js';
 
-/** Roles shown on the dashboard pipeline leaderboard. */
+/** Roles shown on the dashboard pipeline leaderboard (includes Super Admin). */
 export const PIPELINE_LEADERBOARD_ROLES = {
   sales_rep: 'BDE',
   sales_manager: 'BDM',
+  super_admin: 'Admin',
 };
 
 function leaderboardPipelineAmount(item = {}) {
@@ -124,8 +125,17 @@ export async function enrichSalesTargetDashboard(summary = {}, {
   }
 
   const pipeline_leaderboard = sortLeaderboard([...leaderboardMap.values()]);
-  const bde_leaderboard = pipeline_leaderboard.filter((row) => row.role_label === 'BDE' || normalizeRole(row.role) === 'sales_rep');
-  const bdm_leaderboard = pipeline_leaderboard.filter((row) => row.role_label === 'BDM' || normalizeRole(row.role) === 'sales_manager');
+  const bde_leaderboard = pipeline_leaderboard.filter((row) => (
+    row.role_label === 'BDE' || normalizeRole(row.role) === 'sales_rep'
+  ));
+  // BDM column includes Sales Managers and Super Admins so admin-owned pipeline ranks too.
+  const bdm_leaderboard = pipeline_leaderboard.filter((row) => {
+    const role = normalizeRole(row.role);
+    return row.role_label === 'BDM'
+      || row.role_label === 'Admin'
+      || role === 'sales_manager'
+      || role === 'super_admin';
+  });
 
   const crmTotalPipeline = [...pipelineByOwner.values()].reduce((sum, value) => sum + value, 0);
   const apiMonthly = Number(summary.monthly_pipeline_actual || 0);
@@ -133,7 +143,7 @@ export async function enrichSalesTargetDashboard(summary = {}, {
   return {
     ...summary,
     monthly_pipeline_actual: String(Math.max(apiMonthly, crmTotalPipeline)),
-    // Keep legacy key for callers; now includes BDE + BDM sorted by pipeline.
+    // Keep legacy key for callers; now includes BDE + BDM + Super Admin sorted by pipeline.
     bde_leaderboard: pipeline_leaderboard,
     pipeline_leaderboard,
     bde_only_leaderboard: bde_leaderboard,

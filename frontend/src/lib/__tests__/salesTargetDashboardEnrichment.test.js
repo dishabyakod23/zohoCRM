@@ -82,4 +82,29 @@ describe('enrichSalesTargetDashboard', () => {
     expect(summary.bdm_leaderboard[0].actual_pipeline).toBe('250000');
     expect(summary.pipeline_leaderboard.some((row) => row.employee_id === 'viewer1')).toBe(false);
   });
+
+  it('includes Super Admin pipeline in the BDM column ranking', async () => {
+    const summary = await enrichSalesTargetDashboard({
+      bde_leaderboard: [],
+      monthly_pipeline_actual: '0',
+    }, {
+      listProposals: async () => ({
+        data: [
+          { owner_id: 'bde1', deal_size: 100000, currency: 'INR' },
+          { owner_id: 'admin1', deal_size: 500000, currency: 'INR' },
+        ],
+      }),
+      loadUsers: async () => ([
+        { id: 'bde1', first_name: 'Rep', last_name: 'One', role: 'sales_rep' },
+        { id: 'admin1', first_name: 'Super', last_name: 'Admin', role: 'super_admin', email: 'admin@example.com' },
+      ]),
+    });
+
+    expect(summary.pipeline_leaderboard.some((row) => row.employee_id === 'admin1')).toBe(true);
+    expect(summary.bdm_leaderboard).toHaveLength(1);
+    expect(summary.bdm_leaderboard[0].employee_id).toBe('admin1');
+    expect(summary.bdm_leaderboard[0].role_label).toBe('Admin');
+    expect(summary.bdm_leaderboard[0].actual_pipeline).toBe('500000');
+    expect(summary.bde_only_leaderboard[0].employee_id).toBe('bde1');
+  });
 });
