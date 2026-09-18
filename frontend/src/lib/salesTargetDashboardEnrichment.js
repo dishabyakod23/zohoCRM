@@ -5,6 +5,12 @@ import { sumAmountsInInr } from './fxRates.js';
 import * as leadsApi from './services/leads.js';
 import { fetchUsers } from './services/lookups.js';
 
+/** Roles shown on the dashboard pipeline leaderboard. */
+export const PIPELINE_LEADERBOARD_ROLES = {
+  sales_rep: 'BDE',
+  sales_manager: 'BDM',
+};
+
 function leaderboardPipelineAmount(item = {}) {
   const value = item.actual_pipeline ?? item.pipeline_actual ?? item.pipeline_value ?? item.actuals?.actual_pipeline;
   const num = Number(value);
@@ -13,6 +19,19 @@ function leaderboardPipelineAmount(item = {}) {
 
 function leaderboardEmployeeId(item = {}) {
   return String(item.employee_id || item.id || item.user_id || '');
+}
+
+function roleShortLabel(role) {
+  const key = normalizeRole(role);
+  return PIPELINE_LEADERBOARD_ROLES[key] || null;
+}
+
+function isPipelineLeaderboardRole(role) {
+  return Boolean(roleShortLabel(role));
+}
+
+function sortLeaderboard(rows = []) {
+  return [...rows].sort((a, b) => leaderboardPipelineAmount(b) - leaderboardPipelineAmount(a));
 }
 
 /** Sum open proposal deal sizes in INR, grouped by owner. */
@@ -38,7 +57,7 @@ export async function buildProposalPipelineInrByOwner(proposals = []) {
 }
 
 /**
- * Fill BDE pipeline leaderboard from CRM proposals when the dashboard API
+ * Fill BDE + BDM pipeline leaderboard from CRM proposals when the dashboard API
  * returns zero (common for USD proposals before backend FX conversion).
  */
 export async function enrichSalesTargetDashboard(summary = {}, {
@@ -51,44 +70,62 @@ export async function enrichSalesTargetDashboard(summary = {}, {
   ]);
 
   const pipelineByOwner = await buildProposalPipelineInrByOwner(proposals);
+  const usersById = new Map((users || []).map((u) => [String(u.id), u]));
   const leaderboardMap = new Map();
 
-  for (const item of summary.bde_leaderboard || []) {
+  for (const item of summary.bde_leaderboard || summary.pipeline_leaderboard || []) {
     const id = leaderboardEmployeeId(item);
-    if (id) leaderboardMap.set(id, { ...item });
+    if (!id) continue;
+    const user = usersById.get(id);
+    const role = item.role || user?.role || 'sales_rep';
+    if (user && !isPipelineLeaderboardRole(user.role) && !roleShortLabel(item.role)) continue;
+    leaderboardMap.set(id, {
+      ...item,
+      employee_id: id,
+      role: normalizeRole(role),
+      role_label: roleShortLabel(role) || item.role_label || 'BDE',
+    });
   }
 
   for (const user of users) {
-    if (normalizeRole(user.role) !== 'sales_rep') continue;
+    if (!isPipelineLeaderboardRole(user.role)) continue;
     const id = String(user.id);
     const crmPipeline = pipelineByOwner.get(id) || 0;
     const existing = leaderboardMap.get(id) || {};
     const apiPipeline = leaderboardPipelineAmount(existing);
     const actual = Math.max(apiPipeline, crmPipeline);
+    const role = normalizeRole(user.role);
 
     leaderboardMap.set(id, {
       ...existing,
       employee_id: user.id,
       employee_name: existing.employee_name || existing.name || userDisplayName(user),
+      role,
+      role_label: roleShortLabel(role),
       actual_pipeline: String(actual),
       pipeline_actual: String(actual),
     });
   }
 
-  // Keep API-only rows (e.g. inactive users) but still apply CRM totals when API is zero.
+  // Keep proposal owners who are BDE/BDM even if missing from the users list response.
   for (const [ownerId, crmPipeline] of pipelineByOwner) {
-    if (!leaderboardMap.has(ownerId)) {
-      leaderboardMap.set(ownerId, {
-        employee_id: ownerId,
-        employee_name: users.find((u) => String(u.id) === ownerId)?.name || 'Unknown',
-        actual_pipeline: String(crmPipeline),
-        pipeline_actual: String(crmPipeline),
-      });
-    }
+    if (leaderboardMap.has(ownerId)) continue;
+    const user = usersById.get(ownerId);
+    if (user && !isPipelineLeaderboardRole(user.role)) continue;
+    const role = normalizeRole(user?.role || 'sales_rep');
+    leaderboardMap.set(ownerId, {
+      employee_id: ownerId,
+      employee_name: userDisplayName(user) || user?.name || 'Unknown',
+      role,
+      role_label: roleShortLabel(role) || 'BDE',
+      actual_pipeline: String(crmPipeline),
+      pipeline_actual: String(crmPipeline),
+    });
   }
 
-  const bde_leaderboard = [...leaderboardMap.values()]
-    .sort((a, b) => leaderboardPipelineAmount(b) - leaderboardPipelineAmount(a));
+  const pipeline_leaderboard = sortLeaderboard([...leaderboardMap.values()]);
+  const bde_leaderboard = pipeline_leaderboard.filter((row) => row.role_label === 'BDE' || normalizeRole(row.role) === 'sales_rep');
+  const bdm_leaderboard = pipeline_leaderboard.filter((row) => row.role_label === 'BDM' || normalizeRole(row.role) === 'sales_manager');
 
   const crmTotalPipeline = [...pipelineByOwner.values()].reduce((sum, value) => sum + value, 0);
   const apiMonthly = Number(summary.monthly_pipeline_actual || 0);
@@ -96,6 +133,10 @@ export async function enrichSalesTargetDashboard(summary = {}, {
   return {
     ...summary,
     monthly_pipeline_actual: String(Math.max(apiMonthly, crmTotalPipeline)),
-    bde_leaderboard,
+    // Keep legacy key for callers; now includes BDE + BDM sorted by pipeline.
+    bde_leaderboard: pipeline_leaderboard,
+    pipeline_leaderboard,
+    bde_only_leaderboard: bde_leaderboard,
+    bdm_leaderboard,
   };
 }

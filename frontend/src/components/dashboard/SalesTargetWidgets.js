@@ -25,6 +25,28 @@ function ProgressBar({ actual, target, color = 'bg-brand-500' }) {
   );
 }
 
+function PipelineRoleList({ title, rows, emptyLabel }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-zoho-muted mb-2">{title}</p>
+      <div className="space-y-2">
+        {rows.length === 0 ? (
+          <p className="text-sm text-zoho-muted py-2">{emptyLabel}</p>
+        ) : rows.slice(0, 5).map((item, index) => (
+          <div key={item.employee_id || item.id || `${title}-${index}`} className="flex items-center justify-between text-sm py-1.5 gap-2">
+            <span className="truncate" title={item.employee_name || item.name}>
+              {item.employee_name || item.name}
+            </span>
+            <span className="font-medium text-brand-600 shrink-0">
+              {formatTargetAmount(item.actual_pipeline || item.pipeline_actual)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function SalesTargetWidgets() {
   const { showToast } = useToast();
   const [summary, setSummary] = useState(null);
@@ -44,6 +66,15 @@ export default function SalesTargetWidgets() {
   }
 
   if (!summary) return null;
+
+  const bdeRows = summary.bde_only_leaderboard
+    || (summary.pipeline_leaderboard || summary.bde_leaderboard || []).filter((row) => (
+      row.role_label === 'BDE' || row.role === 'sales_rep'
+    ));
+  const bdmRows = summary.bdm_leaderboard
+    || (summary.pipeline_leaderboard || summary.bde_leaderboard || []).filter((row) => (
+      row.role_label === 'BDM' || row.role === 'sales_manager'
+    ));
 
   return (
     <>
@@ -70,20 +101,12 @@ export default function SalesTargetWidgets() {
 
       <div className="col-span-12 lg:col-span-6 zoho-widget">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="zoho-widget-title mb-0">BDE Pipeline Leaderboard</h3>
+          <h3 className="zoho-widget-title mb-0">BDE &amp; BDM Pipeline</h3>
           <AppLink href="/reports" className="text-xs text-brand-600 hover:underline">View reports →</AppLink>
         </div>
-        <div className="space-y-2">
-          {(summary.bde_leaderboard || []).length === 0 ? (
-            <p className="text-sm text-zoho-muted text-center py-4">No leaderboard data</p>
-          ) : summary.bde_leaderboard.slice(0, 5).map((item, index) => (
-            <div key={item.employee_id || item.id || index} className="flex items-center justify-between text-sm py-1.5">
-              <span className="truncate">{item.employee_name || item.name}</span>
-              <span className="font-medium text-brand-600 shrink-0">
-                {formatTargetAmount(item.actual_pipeline || item.pipeline_actual)}
-              </span>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <PipelineRoleList title="BDE" rows={bdeRows} emptyLabel="No BDE pipeline yet" />
+          <PipelineRoleList title="BDM" rows={bdmRows} emptyLabel="No BDM pipeline yet" />
         </div>
       </div>
 
