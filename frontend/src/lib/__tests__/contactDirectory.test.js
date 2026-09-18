@@ -11,10 +11,12 @@ jest.mock('../services/people.js', () => ({
 
 jest.mock('../services/contacts.js', () => ({
   listAllContacts: jest.fn(),
+  getContact: jest.fn(),
 }));
 
 jest.mock('../services/leads.js', () => ({
   listAllLeads: jest.fn(),
+  getLead: jest.fn(),
 }));
 
 jest.mock('../services/deals.js', () => ({
@@ -64,31 +66,31 @@ describe('listContactDirectory', () => {
     expect(contactsApi.listAllContacts).not.toHaveBeenCalled();
   });
 
-  it('uses membership client merge when campaignMemberIds are provided', async () => {
-    peopleApi.listPeople.mockResolvedValue({
-      data: [{ id: 'contact:p1', first_name: 'Ignored', entity_type: 'contact', record_id: 'p1' }],
-      total: 1,
-    });
-    contactsApi.listAllContacts.mockResolvedValue({
-      data: [
-        { id: 'c1', first_name: 'In', last_name: 'Campaign', email: 'in@example.com' },
-        { id: 'c2', first_name: 'Out', last_name: 'Campaign', email: 'out@example.com' },
-      ],
-      total: 2,
-    });
-    leadsApi.listAllLeads.mockResolvedValue({ data: [], total: 0 });
-    dealsApi.listAllDeals.mockResolvedValue({ data: [], total: 0 });
+  it('loads only campaign member records instead of scraping all contacts', async () => {
+    contactsApi.getContact.mockImplementation(async (id) => ({
+      id,
+      first_name: id === 'c1' ? 'In' : 'Other',
+      last_name: 'Campaign',
+      email: `${id}@example.com`,
+    }));
+    leadsApi.getLead.mockResolvedValue(null);
 
     const result = await listContactDirectory({
       page: 1,
       page_size: 25,
       filters: { campaign_id: 'camp-1' },
       campaignMemberIds: new Set(['c1']),
+      memberGroups: {
+        ids: new Set(['c1']),
+        contactIds: ['c1'],
+        leadIds: [],
+        accountIds: [],
+      },
     });
 
-    expect(peopleApi.listPeople).not.toHaveBeenCalled();
-    expect(contactsApi.listAllContacts).toHaveBeenCalled();
+    expect(contactsApi.listAllContacts).not.toHaveBeenCalled();
+    expect(contactsApi.getContact).toHaveBeenCalledWith('c1', expect.anything());
     expect(result.total).toBe(1);
-    expect(result.data[0].email).toBe('in@example.com');
+    expect(result.data[0].email).toBe('c1@example.com');
   });
 });

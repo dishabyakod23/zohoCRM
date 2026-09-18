@@ -312,6 +312,15 @@ export async function tryAttachCampaignAfterCreate({
  * @param {string|string[]|null} memberType single type, list of types, or null/undefined for all
  */
 export async function loadCampaignMemberIdSet(campaignId, memberType) {
+  const groups = await loadCampaignMemberGroups(campaignId, memberType);
+  return groups?.ids ?? null;
+}
+
+/**
+ * Load campaign members grouped by type (for targeted list fetches).
+ * @returns {Promise<null|{ ids: Set<string>, contactIds: string[], leadIds: string[], accountIds: string[] }>}
+ */
+export async function loadCampaignMemberGroups(campaignId, memberType) {
   if (!campaignId) return null;
   const typeKey = Array.isArray(memberType)
     ? [...memberType].map(String).sort().join(',')
@@ -320,15 +329,23 @@ export async function loadCampaignMemberIdSet(campaignId, memberType) {
     ? new Set(memberType.map(String))
     : (memberType ? new Set([String(memberType)]) : null);
 
-  return cachedLookup(`campaign-members:${campaignId}:${typeKey}`, async () => {
+  return cachedLookup(`campaign-members-grouped:${campaignId}:${typeKey}`, async () => {
     const { data: members } = await campaignsApi.listCampaignMembers(campaignId);
-    const set = new Set();
+    const ids = new Set();
+    const contactIds = [];
+    const leadIds = [];
+    const accountIds = [];
     for (const member of members || []) {
-      if (!allowed || allowed.has(String(member.member_type))) {
-        set.add(String(member.member_id));
-      }
+      const type = String(member.member_type || '');
+      const id = member.member_id != null ? String(member.member_id) : '';
+      if (!id) continue;
+      if (allowed && !allowed.has(type)) continue;
+      ids.add(id);
+      if (type === 'contact') contactIds.push(id);
+      else if (type === 'lead') leadIds.push(id);
+      else if (type === 'account') accountIds.push(id);
     }
-    return set;
+    return { ids, contactIds, leadIds, accountIds };
   });
 }
 
@@ -371,6 +388,7 @@ export async function saveRecordCampaignChange({
 export function invalidateCampaignCaches() {
   invalidateCachedRequest('lookup:campaigns-list');
   invalidateCachedRequestPrefix('lookup:campaign-members:');
+  invalidateCachedRequestPrefix('lookup:campaign-members-grouped:');
 }
 
 function personNameParts(record = {}) {

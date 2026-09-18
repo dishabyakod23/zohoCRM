@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { loadCampaignMemberIdSet } from '../lib/campaignRecordHelpers.js';
+import { loadCampaignMemberGroups } from '../lib/campaignRecordHelpers.js';
 
 /** Stable string key for memberType (string | string[] | null). */
 export function campaignMemberTypeKey(memberType) {
@@ -9,44 +9,62 @@ export function campaignMemberTypeKey(memberType) {
   return memberType == null || memberType === '' ? '' : String(memberType);
 }
 
+const EMPTY_GROUPS = {
+  ids: null,
+  contactIds: [],
+  leadIds: [],
+  accountIds: [],
+};
+
 /**
  * Loads campaign member ids for client-side filtering.
- * Returns { memberIds, ready } — wait for ready before fetching when campaign_id is set.
+ * Returns { memberIds, memberGroups, ready }.
+ * Wait for ready before fetching when campaign_id is set.
  *
- * `memberType` may be a string or string[] — array identity is ignored; only contents matter,
- * so callers can pass `['contact', 'lead']` inline without causing fetch loops.
+ * `memberType` may be a string or string[] — array identity is ignored.
  */
 export function useCampaignMemberFilter(campaignId, memberType) {
-  const [memberIds, setMemberIds] = useState(null);
+  const [memberGroups, setMemberGroups] = useState(EMPTY_GROUPS);
   const [ready, setReady] = useState(true);
-  // Recompute each render — string result is stable for the same contents.
   const typeKey = campaignMemberTypeKey(memberType);
   const memberTypeRef = useRef(memberType);
   memberTypeRef.current = memberType;
 
   useEffect(() => {
     if (!campaignId) {
-      setMemberIds(null);
+      setMemberGroups(EMPTY_GROUPS);
       setReady(true);
       return undefined;
     }
     let active = true;
     setReady(false);
-    loadCampaignMemberIdSet(campaignId, memberTypeRef.current)
-      .then((ids) => {
-        if (active) {
-          setMemberIds(ids);
-          setReady(true);
-        }
+    loadCampaignMemberGroups(campaignId, memberTypeRef.current)
+      .then((groups) => {
+        if (!active) return;
+        setMemberGroups(groups || {
+          ids: new Set(),
+          contactIds: [],
+          leadIds: [],
+          accountIds: [],
+        });
+        setReady(true);
       })
       .catch(() => {
-        if (active) {
-          setMemberIds(new Set());
-          setReady(true);
-        }
+        if (!active) return;
+        setMemberGroups({
+          ids: new Set(),
+          contactIds: [],
+          leadIds: [],
+          accountIds: [],
+        });
+        setReady(true);
       });
     return () => { active = false; };
   }, [campaignId, typeKey]);
 
-  return { memberIds, ready };
+  return {
+    memberIds: memberGroups.ids,
+    memberGroups,
+    ready,
+  };
 }

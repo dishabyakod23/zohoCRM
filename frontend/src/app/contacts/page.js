@@ -66,16 +66,26 @@ export default function ContactsPage() {
   const [leadStatusOptions, setLeadStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const leadStatusOptionsRef = useRef(FALLBACK_LEAD_STATUSES);
   const { campaigns } = useCampaignLookups();
-  const { memberIds: campaignMemberIds, ready: campaignMembersReady } = useCampaignMemberFilter(
+  const {
+    memberIds: campaignMemberIds,
+    memberGroups: campaignMemberGroups,
+    ready: campaignMembersReady,
+  } = useCampaignMemberFilter(
     filters.campaign_id,
     CONTACT_DIRECTORY_CAMPAIGN_MEMBER_TYPES,
   );
   const activityCallsRef = useRef([]);
   const activityCallsLoadedRef = useRef(false);
+  const fetchGenRef = useRef(0);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
   const accountMapRef = useRef(accountMap);
   accountMapRef.current = accountMap;
+
+  const campaignMemberIdsKey = useMemo(() => {
+    if (!campaignMemberIds) return '';
+    return [...campaignMemberIds].sort().join(',');
+  }, [campaignMemberIds]);
 
   useEffect(() => {
     fetchCompanyLookups().then((rows) => {
@@ -152,6 +162,7 @@ export default function ContactsPage() {
   const fetchContacts = useCallback(async () => {
     if (filters.campaign_id && !campaignMembersReady) return;
 
+    const gen = ++fetchGenRef.current;
     setLoading(true);
     try {
       const directoryFilters = filters;
@@ -162,9 +173,12 @@ export default function ContactsPage() {
         search: debouncedSearch || undefined,
         filters: directoryFilters,
         campaignMemberIds,
+        memberGroups: campaignMemberGroups,
         sort_key: sort,
         ...getSortApiParams(sort, 'contacts'),
       }, accountMapRef.current);
+
+      if (gen !== fetchGenRef.current) return;
 
       let rows = result.data;
 
@@ -189,6 +203,7 @@ export default function ContactsPage() {
 
       if (needsClientPagination) {
         const enrichedRows = await enrichRowsWithActivity(rows);
+        if (gen !== fetchGenRef.current) return;
         let filteredRows = enrichedRows;
         if (filters.activity_from || filters.activity_to) {
           const calls = activityCallsRef.current;
@@ -199,7 +214,6 @@ export default function ContactsPage() {
         setTotal(filteredRows.length);
         setContacts(filteredRows.slice(start, start + LIMIT));
       } else {
-        // Apply LinkedIn/local outreach sync so the column updates without waiting on CloudTalk.
         const syncEnriched = enrichContactDirectoryRows(rows, {
           calls: activityCallsRef.current || [],
           outreachIndex: buildOutreachActivityIndex(),
@@ -208,6 +222,7 @@ export default function ContactsPage() {
         setContacts(syncEnriched);
         setTotal(result.total);
         enrichRowsWithActivity(rows).then((enriched) => {
+          if (gen !== fetchGenRef.current) return;
           setContacts((current) => {
             if (current.length !== enriched.length) return current;
             const currentIds = current.map((row) => row.id).join('|');
@@ -217,11 +232,12 @@ export default function ContactsPage() {
         }).catch(() => {});
       }
     } catch (err) {
+      if (gen !== fetchGenRef.current) return;
       showToast(getApiError(err));
       setContacts([]);
       setTotal(0);
     } finally {
-      setLoading(false);
+      if (gen === fetchGenRef.current) setLoading(false);
     }
   }, [
     page,
@@ -230,9 +246,10 @@ export default function ContactsPage() {
     filters,
     sort,
     campaignMemberIds,
+    campaignMemberIdsKey,
+    campaignMemberGroups,
     campaignMembersReady,
     needsClientPagination,
-    needsActivityData,
     enrichRowsWithActivity,
   ]);
 
@@ -248,7 +265,8 @@ export default function ContactsPage() {
     sort_order: getSortApiParams(sort, 'contacts').sort_order,
     filters,
     campaignMemberIds,
-  }), [debouncedSearch, sort, filters, campaignMemberIds]);
+    memberGroups: campaignMemberGroups,
+  }), [debouncedSearch, sort, filters, campaignMemberIdsKey, campaignMemberGroups]);
 
   const fetchAllMatchingContactIds = useCallback(
     () => contactDirectoryApi.listAllMatchingContactDirectoryIds(contactListParams, accountMapRef.current),
@@ -257,7 +275,7 @@ export default function ContactsPage() {
 
   const tableSelection = useTableSelection({
     total,
-    resetDeps: [debouncedSearch, filters, sort, campaignMemberIds],
+    resetDeps: [debouncedSearch, filters, sort, campaignMemberIdsKey],
     fetchAllIds: fetchAllMatchingContactIds,
   });
 
