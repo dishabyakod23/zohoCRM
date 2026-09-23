@@ -69,6 +69,9 @@ export function enrichLeadReadyRecordsFromCsv(readyRecords = [], csvText = '') {
       merged.lead_source = String(csvRow.source).trim();
     }
     merged.skype_id = resolveLeadLinkedInUrl(merged) || resolveLeadLinkedInUrl(csvRow) || null;
+    // Always prefer CSV industry when present — bulk-upload/import often omit this field.
+    const csvIndustry = String(csvRow.industry || '').trim();
+    if (csvIndustry) merged.industry = csvIndustry;
     return merged;
   });
 }

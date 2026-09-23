@@ -1,11 +1,26 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import SequenceStepEditor from './SequenceStepEditor.js';
-import { emptyStepForm, getUnsafeSequenceEmailReason, isEmailStep, isAbEmailStep, htmlToPlainText } from '../../lib/sequenceHelpers.js';
+import {
+  emptyStepForm,
+  getUnsafeSequenceEmailReason,
+  isEmailStep,
+  isAbEmailStep,
+  htmlToPlainText,
+  sequenceStepEditSignature,
+} from '../../lib/sequenceHelpers.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
 import { useToast } from '../ui/Toast.js';
 import { getApiError } from '../../lib/api.js';
 import { validationToastMessage } from '../../lib/validators.js';
+
+function buildBaselineMap(steps = []) {
+  const map = {};
+  for (const step of steps) {
+    if (step?.id) map[step.id] = sequenceStepEditSignature(step);
+  }
+  return map;
+}
 
 export default function SequenceBuilder({
   sequenceId,
@@ -13,22 +28,40 @@ export default function SequenceBuilder({
   sequenceTimezone = 'UTC',
   sequence = null,
   readOnly = false,
+  stepProgress = null,
   onStepsChange,
   onScheduleSynced,
 }) {
   const { showToast } = useToast();
   const [steps, setSteps] = useState(initialSteps);
+  const [baselineById, setBaselineById] = useState(() => buildBaselineMap(initialSteps));
   const [savingId, setSavingId] = useState(null);
   const [savingAll, setSavingAll] = useState(false);
 
   useEffect(() => {
     setSteps(initialSteps);
+    setBaselineById(buildBaselineMap(initialSteps));
   }, [initialSteps]);
 
   const syncSteps = (next) => {
     setSteps(next);
     onStepsChange?.(next);
   };
+
+  const isStepDirty = (step) => {
+    if (!step?.id) return true;
+    return baselineById[step.id] !== sequenceStepEditSignature(step);
+  };
+
+  const dirtyIndexes = useMemo(() => steps
+    .map((step, index) => {
+      if (!step?.id) return index;
+      if (baselineById[step.id] !== sequenceStepEditSignature(step)) return index;
+      return -1;
+    })
+    .filter((i) => i >= 0), [steps, baselineById]);
+  const dirtyCount = dirtyIndexes.length;
+  const hasDirtySteps = dirtyCount > 0;
 
   const addStep = () => {
     syncSteps([...steps, emptyStepForm(steps.length + 1, sequenceTimezone)]);
@@ -60,6 +93,7 @@ export default function SequenceBuilder({
     syncSteps(ordered);
     try {
       await persistStepOrders(ordered);
+      setBaselineById(buildBaselineMap(ordered));
     } catch (err) {
       showToast(getApiError(err));
     }
@@ -84,8 +118,9 @@ export default function SequenceBuilder({
     syncSteps(ordered);
     try {
       await persistStepOrders(ordered);
+      setBaselineById(buildBaselineMap(ordered));
     } catch {
-      // best-effort order sync
+      setBaselineById(buildBaselineMap(ordered));
     }
   };
 
@@ -153,6 +188,10 @@ export default function SequenceBuilder({
       if (!saved) return;
       const next = steps.map((s, i) => (i === index ? saved : s));
       syncSteps(next);
+      setBaselineById((prev) => ({
+        ...prev,
+        [saved.id]: sequenceStepEditSignature(saved),
+      }));
       showToast('Step saved', 'success');
       const scheduleChanged = previous?.scheduled_date !== saved.scheduled_date
         || previous?.scheduled_time !== saved.scheduled_time
@@ -168,7 +207,7 @@ export default function SequenceBuilder({
   };
 
   const saveAllSteps = async () => {
-    if (!sequenceId || !steps.length) return;
+    if (!sequenceId || !dirtyIndexes.length) return;
     setSavingAll(true);
     try {
       const previousByOrder = new Map(
@@ -176,7 +215,7 @@ export default function SequenceBuilder({
       );
       let next = [...steps];
       const changedOrders = [];
-      for (let i = 0; i < next.length; i += 1) {
+      for (const i of dirtyIndexes) {
         const saved = await saveStep(i, { quiet: false });
         next = next.map((s, idx) => (idx === i ? saved : s));
         syncSteps(next);
@@ -190,7 +229,8 @@ export default function SequenceBuilder({
           changedOrders.push(order);
         }
       }
-      showToast(`Saved ${next.length} step(s)`, 'success');
+      setBaselineById(buildBaselineMap(next));
+      showToast(`Saved ${dirtyIndexes.length} step(s)`, 'success');
       if (changedOrders.length) {
         await syncEnrollmentSchedules(next, { stepOrders: changedOrders });
       }
@@ -203,22 +243,34 @@ export default function SequenceBuilder({
     }
   };
 
-  const unsavedCount = steps.filter((s) => !s.id).length;
+  const currentStepOrder = stepProgress?.currentStepOrder ?? null;
+  const activeTotal = stepProgress?.activeTotal ?? 0;
 
   return (
     <div className="space-y-6">
+      {activeTotal > 0 && (
+        <div className="rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">
+          {currentStepOrder != null ? (
+            <>
+              Currently executing <span className="font-semibold">Step {currentStepOrder}</span>
+              {' '}· {activeTotal} active enrollment{activeTotal === 1 ? '' : 's'} in progress
+            </>
+          ) : (
+            <>{activeTotal} active enrollment{activeTotal === 1 ? '' : 's'} in this sequence</>
+          )}
+        </div>
+      )}
+
       {steps.length === 0 && (
         <p className="text-sm text-zoho-muted py-8 text-center border border-dashed border-zoho-border rounded-xl">
           No steps yet. Add your first touchpoint with an exact date and time.
         </p>
       )}
 
-      {!readOnly && sequenceId && steps.length > 0 && (
+      {!readOnly && sequenceId && steps.length > 0 && hasDirtySteps && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zoho-border bg-gray-50 px-3 py-2">
           <p className="text-xs text-zoho-muted">
-            {unsavedCount
-              ? `${unsavedCount} unsaved step(s) will not run until saved.`
-              : 'All steps are saved. Reorder is synced to the server.'}
+            {dirtyCount} unsaved change{dirtyCount === 1 ? '' : 's'} — steps will not run with these edits until saved.
           </p>
           <button
             type="button"
@@ -231,29 +283,42 @@ export default function SequenceBuilder({
         </div>
       )}
 
-      {steps.map((step, index) => (
-        <div key={step.id || `draft-${index}`} className="space-y-3">
-          <SequenceStepEditor
-            step={step}
-            stepIndex={index + 1}
-            sequenceId={sequenceId}
-            sequenceTimezone={sequenceTimezone}
-            readOnly={readOnly}
-            onChange={(next) => updateStep(index, next)}
-            onDelete={readOnly ? null : () => removeStep(index)}
-            onDuplicate={readOnly ? null : () => duplicateStep(index)}
-            onMoveUp={readOnly || index === 0 ? null : () => moveStep(index, -1)}
-            onMoveDown={readOnly || index === steps.length - 1 ? null : () => moveStep(index, 1)}
-          />
-          {!readOnly && sequenceId && (
-            <div className="flex justify-end">
-              <button type="button" onClick={() => handleSaveStep(index)} disabled={savingId === (step.id || `new-${index}`) || savingAll} className="btn-secondary-sm">
-                {savingId === (step.id || `new-${index}`) ? 'Saving…' : 'Save Step'}
-              </button>
-            </div>
-          )}
-        </div>
-      ))}
+      {steps.map((step, index) => {
+        const order = Number(step.step_order || index + 1);
+        const progress = stepProgress?.byStep?.get(order) || null;
+        const isCurrent = currentStepOrder != null && order === currentStepOrder;
+        const dirty = isStepDirty(step);
+        return (
+          <div key={step.id || `draft-${index}`} className="space-y-3">
+            <SequenceStepEditor
+              step={step}
+              stepIndex={index + 1}
+              sequenceId={sequenceId}
+              sequenceTimezone={sequenceTimezone}
+              readOnly={readOnly}
+              progress={progress}
+              isCurrentExecuting={isCurrent}
+              onChange={(next) => updateStep(index, next)}
+              onDelete={readOnly ? null : () => removeStep(index)}
+              onDuplicate={readOnly ? null : () => duplicateStep(index)}
+              onMoveUp={readOnly || index === 0 ? null : () => moveStep(index, -1)}
+              onMoveDown={readOnly || index === steps.length - 1 ? null : () => moveStep(index, 1)}
+            />
+            {!readOnly && sequenceId && dirty && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleSaveStep(index)}
+                  disabled={savingId === (step.id || `new-${index}`) || savingAll}
+                  className="btn-secondary-sm"
+                >
+                  {savingId === (step.id || `new-${index}`) ? 'Saving…' : 'Save Step'}
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {!readOnly && (
         <button type="button" onClick={addStep} className="btn-secondary w-full">

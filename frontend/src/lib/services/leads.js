@@ -534,7 +534,8 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
     onProgress,
   });
 
-  await persistImportedLeadLinkedInUrls(result, records);
+  // bulk-upload/bulk-import whitelist drops LinkedIn (skype_id) and often industry; restore via PATCH.
+  await persistImportedLeadCsvExtras(result, records);
 
   await finalizeLeadBulkImport({
     campaignId: defaultCampaignId,
@@ -558,31 +559,48 @@ export async function importLeadsFile(file, { dry_run = true, defaultLeadStatus 
   });
 }
 
-/** After bulk-import, PATCH skype_id for rows that had a LinkedIn URL in the CSV. */
-export async function persistImportedLeadLinkedInUrls(importResult = {}, processedRecords = []) {
+/**
+ * After bulk-import, PATCH fields the API whitelist drops (LinkedIn / industry)
+ * when those values were present on the enriched CSV rows.
+ */
+export async function persistImportedLeadCsvExtras(importResult = {}, processedRecords = []) {
   const created = Array.isArray(importResult.records) ? importResult.records : [];
-  if (!created.length || !processedRecords?.length) return;
+  if (!created.length || !processedRecords?.length) return { patched: 0 };
 
   const byEmail = new Map();
   for (const record of processedRecords) {
     const email = String(record.email || '').trim().toLowerCase();
-    const linkedIn = resolveLeadLinkedInUrl(record);
-    if (!email || !linkedIn) continue;
-    byEmail.set(email, linkedIn);
+    if (!email) continue;
+    const skype_id = resolveLeadLinkedInUrl(record);
+    const industry = String(record.industry || '').trim() || null;
+    if (!skype_id && !industry) continue;
+    byEmail.set(email, { skype_id, industry });
   }
-  if (!byEmail.size) return;
+  if (!byEmail.size) return { patched: 0 };
 
+  let patched = 0;
   await Promise.allSettled(created.map(async (row) => {
     const id = row?.id;
     const email = String(row?.email || '').trim().toLowerCase();
-    const linkedIn = email ? byEmail.get(email) : null;
-    if (!id || !linkedIn) return;
+    const extras = email ? byEmail.get(email) : null;
+    if (!id || !extras) return;
+    const payload = {};
+    if (extras.skype_id) payload.skype_id = extras.skype_id;
+    if (extras.industry) payload.industry = extras.industry;
+    if (!Object.keys(payload).length) return;
     try {
-      await api.patch(`/leads/${id}`, { skype_id: linkedIn });
+      await api.patch(`/leads/${id}`, payload);
+      patched += 1;
     } catch {
-      // Non-fatal — lead was created; LinkedIn can be edited manually.
+      // Non-fatal — lead was created; fields can be edited manually.
     }
   }));
+  return { patched };
+}
+
+/** @deprecated Prefer persistImportedLeadCsvExtras (also restores industry). */
+export async function persistImportedLeadLinkedInUrls(importResult = {}, processedRecords = []) {
+  return persistImportedLeadCsvExtras(importResult, processedRecords);
 }
 
 export async function advanceLeadStage(id, lead_status, { proposal = false, clearProposal = false } = {}) {

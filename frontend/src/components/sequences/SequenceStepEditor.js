@@ -77,6 +77,8 @@ export default function SequenceStepEditor({
   sequenceId,
   sequenceTimezone = 'UTC',
   readOnly = false,
+  progress = null,
+  isCurrentExecuting = false,
 }) {
   const { showToast } = useToast();
   const [templates, setTemplates] = useState([]);
@@ -136,12 +138,27 @@ export default function SequenceStepEditor({
   };
 
   return (
-    <div className="border border-zoho-border rounded-xl bg-white p-4 space-y-4 relative">
+    <div className={`border rounded-xl bg-white p-4 space-y-4 relative ${isCurrentExecuting ? 'border-brand-400 ring-2 ring-brand-100' : 'border-zoho-border'}`}>
       <div className="absolute left-1/2 -bottom-3 w-px h-6 bg-zoho-border hidden md:block" aria-hidden="true" />
 
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <p className="text-xs font-semibold text-brand-600 uppercase tracking-wide">Step {stepIndex}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-xs font-semibold text-brand-600 uppercase tracking-wide">Step {stepIndex}</p>
+            {isCurrentExecuting && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-brand-600 text-white">
+                Executing now
+              </span>
+            )}
+            {progress?.total > 0 && (
+              <span className="text-[11px] text-zoho-muted">
+                {progress.active > 0 && `${progress.active} active`}
+                {progress.active > 0 && progress.paused > 0 && ' · '}
+                {progress.paused > 0 && `${progress.paused} paused`}
+                {' '}on this step
+              </span>
+            )}
+          </div>
           <p className="text-sm font-medium text-zoho-text">{formatStepSchedule(step, sequenceTimezone)}</p>
         </div>
         <div className="flex gap-2 flex-wrap">

@@ -658,6 +658,78 @@ export function canEditSequenceSteps(status) {
   return s === 'DRAFT' || s === 'PAUSED';
 }
 
+/**
+ * Aggregate active/paused enrollments by current_step_order for the Steps timeline.
+ * currentStepOrder = earliest step that still has ACTIVE people on it.
+ */
+export function enrollmentProgressByStep(enrollments = []) {
+  const byStep = new Map();
+  let activeTotal = 0;
+  for (const row of enrollments || []) {
+    const status = String(row.status || '').toUpperCase();
+    if (status !== 'ACTIVE' && status !== 'PAUSED') continue;
+    const order = Number(row.current_step_order);
+    if (!Number.isFinite(order) || order < 1) continue;
+    const entry = byStep.get(order) || { active: 0, paused: 0, total: 0 };
+    if (status === 'ACTIVE') {
+      entry.active += 1;
+      activeTotal += 1;
+    } else {
+      entry.paused += 1;
+    }
+    entry.total += 1;
+    byStep.set(order, entry);
+  }
+
+  let currentStepOrder = null;
+  for (const [order, entry] of [...byStep.entries()].sort((a, b) => a[0] - b[0])) {
+    if (entry.active > 0) {
+      currentStepOrder = order;
+      break;
+    }
+  }
+
+  return { byStep, activeTotal, currentStepOrder };
+}
+
+/** Stable signature of editable step fields — used to detect unsaved edits. */
+export function sequenceStepEditSignature(step = {}) {
+  return JSON.stringify({
+    type: step.type || '',
+    step_order: Number(step.step_order) || 0,
+    scheduled_date: step.scheduled_date || '',
+    scheduled_time: String(step.scheduled_time || '').slice(0, 5),
+    timezone: step.timezone || '',
+    active: step.active !== false,
+    template_id: step.template_id || '',
+    subject: step.subject || '',
+    html_body: step.html_body || '',
+    text_body: step.text_body || '',
+    task_title: step.task_title || '',
+    task_description: step.task_description || '',
+    variants: step.variants || [],
+  });
+}
+
+/** Compare settings form vs last-saved sequence settings. */
+export function isSequenceSettingsDirty(settings, sequence) {
+  if (!settings || !sequence) return false;
+  const start = (v) => String(v || '').slice(0, 5);
+  return String(settings.name || '').trim() !== String(sequence.name || '').trim()
+    || String(settings.description || '') !== String(sequence.description || '')
+    || String(settings.sending_email || '') !== String(sequence.sending_email || '')
+    || String(settings.timezone || 'UTC') !== String(sequence.timezone || 'UTC')
+    || start(settings.send_window_start) !== start(sequence.send_window_start || '09:00')
+    || start(settings.send_window_end) !== start(sequence.send_window_end || '18:00')
+    || Number(settings.send_days ?? 62) !== Number(sequence.send_days ?? 62)
+    || Number(settings.daily_send_limit ?? 100) !== Number(sequence.daily_send_limit ?? 100)
+    || String(settings.hourly_send_limit ?? '') !== String(sequence.hourly_send_limit ?? '')
+    || Boolean(settings.use_contact_timezone) !== Boolean(sequence.use_contact_timezone)
+    || Boolean(settings.stop_on_reply !== false) !== Boolean(sequence.stop_on_reply !== false)
+    || Boolean(settings.stop_on_click) !== Boolean(sequence.stop_on_click)
+    || String(settings.owner_id || '') !== String(sequence.owner_id || '');
+}
+
 export function memberRefFromRecord(record, memberType) {
   return { member_type: memberType, member_id: record.id };
 }

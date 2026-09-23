@@ -36,7 +36,7 @@ export default function RecordNoteRowIcon({
   const [latestNote, setLatestNote] = useState(latestNoteProp || null);
   const [noteCount, setNoteCount] = useState(noteCountProp);
   const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(Boolean(noteCountProp) || Boolean(latestNoteProp));
   const requestIdRef = useRef(0);
   const notesRecordId = bareRecordId(recordId);
 
@@ -70,6 +70,34 @@ export default function RecordNoteRowIcon({
     setLoaded(false);
   }, [relatedType, notesRecordId, latestNoteProp, noteCountProp]);
 
+  // Eagerly load note presence so the icon stays highlighted without requiring hover.
+  useEffect(() => {
+    if (!relatedType || !notesRecordId) return undefined;
+    let cancelled = false;
+    const requestId = ++requestIdRef.current;
+    setLoading(true);
+    notesApi.listNotes(relatedType, notesRecordId)
+      .then((notes) => {
+        if (cancelled || requestId !== requestIdRef.current) return;
+        const sorted = [...notes].sort(
+          (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
+        );
+        setLatestNote(sorted[0] || null);
+        setNoteCount(sorted.length);
+        setLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled || requestId !== requestIdRef.current) return;
+        setLatestNote(null);
+        setNoteCount(0);
+        setLoaded(false);
+      })
+      .finally(() => {
+        if (!cancelled && requestId === requestIdRef.current) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [relatedType, notesRecordId, latestNoteProp, noteCountProp]);
+
   useEffect(() => {
     const onNotesChanged = (event) => {
       const { relatedType: type, recordId: id } = event.detail || {};
@@ -94,6 +122,7 @@ export default function RecordNoteRowIcon({
   };
 
   const displayCount = noteCountProp || noteCount;
+  const hasNotes = displayCount > 0;
 
   return (
     <>
@@ -105,12 +134,12 @@ export default function RecordNoteRowIcon({
         onMouseLeave={() => setHover(false)}
         onFocus={() => loadNotes()}
         className={`w-7 h-7 rounded border flex items-center justify-center transition-colors shrink-0 ${
-          displayCount > 0
-            ? 'border-brand-200 bg-brand-50 text-brand-600 hover:bg-brand-100'
+          hasNotes
+            ? 'border-brand-300 bg-brand-50 text-brand-700'
             : 'border-zoho-border/80 bg-white text-zoho-muted hover:border-brand-200 hover:text-brand-600'
         }`}
-        aria-label={displayCount ? `${displayCount} notes` : 'Notes'}
-        title={loading ? 'Loading notes…' : 'Notes'}
+        aria-label={hasNotes ? `${displayCount} notes` : 'Notes'}
+        title={loading ? 'Loading notes…' : (hasNotes ? `${displayCount} note${displayCount === 1 ? '' : 's'}` : 'Notes')}
       >
         <NoteIconSvg className="w-3.5 h-3.5" />
       </button>

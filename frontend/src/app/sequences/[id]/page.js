@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRecordId } from '../../../hooks/useRecordId.js';
 import { useRecordIdGuard } from '../../../hooks/useRecordIdGuard.js';
 import CRMLayout from '../../../components/layout/CRMLayout.js';
@@ -14,9 +14,11 @@ import FormField, { inputClass } from '../../../components/forms/FormField.js';
 import TimezoneSelect from '../../../components/forms/TimezoneSelect.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../../lib/api.js';
 import * as sequencesApi from '../../../lib/services/sequences.js';
-import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel } from '../../../lib/sequenceHelpers.js';
+import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel, enrollmentProgressByStep, isSequenceSettingsDirty } from '../../../lib/sequenceHelpers.js';
+import { tokenizeSearchQuery } from '../../../lib/listSearchHelpers.js';
 import { fetchUsers } from '../../../lib/services/lookups.js';
 
 const TABS = ['Steps', 'Enrollments', 'Analytics', 'Settings'];
@@ -31,26 +33,34 @@ export default function SequenceDetailPage() {
   const [sequence, setSequence] = useState(null);
   const [steps, setSteps] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
+  const [enrollmentsLoading, setEnrollmentsLoading] = useState(false);
+  const [enrollmentsLoaded, setEnrollmentsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('Steps');
   const [saving, setSaving] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
+  const [enrollmentSearch, setEnrollmentSearch] = useState('');
+  const debouncedEnrollmentSearch = useDebouncedValue(enrollmentSearch, 250);
   const [settings, setSettings] = useState(null);
   const [settingsErrors, setSettingsErrors] = useState({});
   const [users, setUsers] = useState([]);
+  const [usersLoaded, setUsersLoaded] = useState(false);
 
   const load = useCallback(async () => {
     if (!ready || !id) return;
     setLoading(true);
     try {
-      const [seq, stepRows, enrollRows] = await Promise.all([
+      // Load sequence + steps first — enrollments are heavy and only needed on that tab.
+      const [seq, stepRows] = await Promise.all([
         sequencesApi.getSequence(id),
         sequencesApi.listSequenceSteps(id),
-        sequencesApi.listEnrollments(id, { page_size: 50 }),
       ]);
       setSequence(seq);
       setSteps(stepRows);
-      setEnrollments(enrollRows.data || []);
+      setEnrollmentsLoaded(false);
+      setEnrollments([]);
+      // Warm the slow /stats endpoint while user is still on Steps.
+      sequencesApi.prefetchSequenceStats(id).catch(() => {});
       setSettings({
         name: seq.name,
         description: seq.description || '',
@@ -73,11 +83,81 @@ export default function SequenceDetailPage() {
     }
   }, [id, ready, showToast]);
 
+  const loadEnrollments = useCallback(async ({ force = false } = {}) => {
+    if (!id) return;
+    if (enrollmentsLoaded && !force) return;
+    setEnrollmentsLoading(true);
+    try {
+      // First page fast (API page_size max is typically 100).
+      const first = await sequencesApi.listEnrollments(id, { page: 1, page_size: 100 });
+      let all = first.data || [];
+      setEnrollments(all);
+      setEnrollmentsLoaded(true);
+      setEnrollmentsLoading(false);
+
+      const total = first.total ?? all.length;
+      if (all.length >= total) return;
+
+      // Fill remaining pages in the background without blocking the tab.
+      let page = 2;
+      while (all.length < total && page <= 20) {
+        const next = await sequencesApi.listEnrollments(id, { page, page_size: 100 });
+        const batch = next.data || [];
+        if (!batch.length) break;
+        all = all.concat(batch);
+        setEnrollments(all);
+        page += 1;
+      }
+    } catch (err) {
+      showToast(getApiError(err));
+      setEnrollmentsLoading(false);
+    }
+  }, [id, enrollmentsLoaded, showToast]);
+
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    fetchUsers().then(setUsers).catch(() => setUsers([]));
-  }, []);
+    // Steps tab needs enrollments to show which step is currently executing.
+    if (tab === 'Enrollments' || tab === 'Steps') loadEnrollments();
+  }, [tab, loadEnrollments]);
+
+  const stepProgress = useMemo(
+    () => enrollmentProgressByStep(enrollments),
+    [enrollments],
+  );
+
+  const settingsDirty = useMemo(
+    () => isSequenceSettingsDirty(settings, sequence),
+    [settings, sequence],
+  );
+
+  useEffect(() => {
+    if (tab !== 'Settings' || usersLoaded) return;
+    fetchUsers()
+      .then((list) => {
+        setUsers(list);
+        setUsersLoaded(true);
+      })
+      .catch(() => setUsers([]));
+  }, [tab, usersLoaded]);
+
+  const filteredEnrollments = useMemo(() => {
+    const tokens = tokenizeSearchQuery(debouncedEnrollmentSearch);
+    if (!tokens.length) return enrollments;
+    return enrollments.filter((e) => {
+      const haystack = [
+        e.member_name,
+        e.member_email,
+        e.email,
+        e.first_name,
+        e.last_name,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return tokens.every((token) => haystack.includes(token));
+    });
+  }, [enrollments, debouncedEnrollmentSearch]);
 
   const setStatus = async (action) => {
     setSaving(true);
@@ -130,8 +210,7 @@ export default function SequenceDetailPage() {
             'success',
           );
         }
-        const enrollRows = await sequencesApi.listEnrollments(id, { page_size: 50 });
-        setEnrollments(enrollRows.data || []);
+        await loadEnrollments({ force: true });
       }
     } catch (err) {
       showToast(getApiError(err));
@@ -209,20 +288,32 @@ export default function SequenceDetailPage() {
             sequenceTimezone={sequence.timezone || 'UTC'}
             sequence={sequence}
             readOnly={!stepsEditable}
+            stepProgress={stepProgress}
             onStepsChange={setSteps}
-            onScheduleSynced={async () => {
-              try {
-                const enrollRows = await sequencesApi.listEnrollments(id, { page_size: 50 });
-                setEnrollments(enrollRows.data || []);
-              } catch {
-                // ignore refresh errors
-              }
-            }}
+            onScheduleSynced={() => loadEnrollments({ force: true })}
           />
         )}
 
         {tab === 'Enrollments' && (
           <div className="rounded-xl border border-zoho-border overflow-hidden">
+            <div className="px-4 py-3 border-b border-zoho-border bg-gray-50">
+              <div className="relative max-w-md">
+                <input
+                  type="search"
+                  className="w-full py-2 pl-9 pr-3 text-sm border border-zoho-border rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400"
+                  placeholder="Search by email, first name, or full name…"
+                  aria-label="Search enrollments by email or name"
+                  value={enrollmentSearch}
+                  onChange={(e) => setEnrollmentSearch(e.target.value)}
+                />
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zoho-muted pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+            {enrollmentsLoading && !enrollments.length ? (
+              <p className="text-sm text-zoho-muted py-8 text-center">Loading enrollments…</p>
+            ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zoho-border bg-gray-50">
@@ -236,9 +327,13 @@ export default function SequenceDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {enrollments.length === 0 ? (
-                  <tr><td colSpan={7} className="table-td text-center text-zoho-muted py-8">No enrollments yet</td></tr>
-                ) : enrollments.map((e) => (
+                {filteredEnrollments.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="table-td text-center text-zoho-muted py-8">
+                      {debouncedEnrollmentSearch.trim() ? 'No matching enrollments found.' : 'No enrollments yet'}
+                    </td>
+                  </tr>
+                ) : filteredEnrollments.map((e) => (
                   <tr key={e.id} className="border-b border-zoho-border last:border-0">
                     <td className="table-td">{e.member_name}</td>
                     <td className="table-td capitalize">{e.member_type}</td>
@@ -289,13 +384,14 @@ export default function SequenceDetailPage() {
                 ))}
               </tbody>
             </table>
+            )}
           </div>
         )}
 
         {tab === 'Analytics' && (
           <SequenceAnalyticsPanel
             sequenceId={id}
-            steps={steps}
+            sequence={sequence}
             sequenceTimezone={sequence.timezone || 'UTC'}
             sendingEmail={sequence.sending_email || settings?.sending_email || ''}
           />
@@ -402,7 +498,7 @@ export default function SequenceDetailPage() {
                 </label>
               ))}
             </div>
-            {canEdit && (
+            {canEdit && settingsDirty && (
               <button type="button" onClick={saveSettings} disabled={saving} className="btn-primary">
                 {saving ? 'Saving…' : 'Save Settings'}
               </button>
@@ -414,7 +510,10 @@ export default function SequenceDetailPage() {
       <EnrollMembersModal
         open={enrollOpen}
         onClose={() => setEnrollOpen(false)}
-        onEnrolled={load}
+        onEnrolled={() => {
+          load();
+          loadEnrollments({ force: true });
+        }}
         sequenceId={id}
         members={[]}
       />

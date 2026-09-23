@@ -225,7 +225,8 @@ export default function CsvImportModal({
       {step === STEPS.mapping && (
         <div className="space-y-4">
           <p className="text-sm text-zoho-muted">
-            We mapped fields we recognized automatically. For any that look wrong, choose the correct CRM field from the dropdown.
+            We mapped fields we recognized automatically. For any that look wrong, choose the correct CRM field from the dropdown
+            (includes <span className="font-medium text-zoho-text">Industry</span>, Company, Lead Source, LinkedIn, and more).
           </p>
 
           <div className="flex flex-wrap items-center gap-3 text-xs">
