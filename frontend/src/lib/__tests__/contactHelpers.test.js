@@ -126,6 +126,33 @@ describe('contact LinkedIn / skype_id import', () => {
     expect(enriched.skype_id).toBe('https://www.linkedin.com/in/ada-lovelace');
   });
 
+  it('rehydrates industry from CSV when bulk-upload dropped it', () => {
+    const ready = [{
+      first_name: 'Ada',
+      last_name: 'Lovelace',
+      email: 'ada@example.com',
+      account_id: '550e8400-e29b-41d4-a716-446655440000',
+      account_name: 'Acme',
+    }];
+    const csv = [
+      'first_name,last_name,email,account_name,industry',
+      'Ada,Lovelace,ada@example.com,Acme,Technology',
+    ].join('\n');
+
+    const [enriched] = enrichContactReadyRecordsFromCsv(ready, csv);
+    expect(enriched.industry).toBe('Technology');
+  });
+
+  it('prefers CSV industry over an empty bulk-upload value', () => {
+    const ready = [{
+      email: 'ada@example.com',
+      industry: '',
+    }];
+    const csv = 'email,Industry\nada@example.com,Healthcare\n';
+    const [enriched] = enrichContactReadyRecordsFromCsv(ready, csv);
+    expect(enriched.industry).toBe('Healthcare');
+  });
+
   it('exposes LinkedIn aliases on normalizeContact for detail pages', () => {
     const contact = normalizeContact({
       id: 'c1',

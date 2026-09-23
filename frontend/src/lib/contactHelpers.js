@@ -229,8 +229,9 @@ export function normalizeBulkUploadContactRecords(readyRecords = []) {
 }
 
 /**
- * Backend /contacts/bulk-upload only returns a whitelist of fields and drops LinkedIn/skype_id.
- * Re-apply mapped CSV columns (by email) onto readyRecords before bulk-import.
+ * Backend /contacts/bulk-upload only returns a whitelist of fields and drops
+ * LinkedIn/skype_id (and often industry). Re-apply mapped CSV columns (by email)
+ * onto readyRecords before bulk-import.
  */
 export function enrichContactReadyRecordsFromCsv(readyRecords = [], csvText = '') {
   if (!readyRecords?.length || !csvText) return readyRecords || [];
@@ -270,6 +271,9 @@ export function enrichContactReadyRecordsFromCsv(readyRecords = [], csvText = ''
       }
     }
     merged.skype_id = resolveContactLinkedInUrl(merged) || resolveContactLinkedInUrl(csvRow) || null;
+    // Always prefer CSV industry when present — bulk-upload/import often omit this field.
+    const csvIndustry = String(csvRow.industry || '').trim();
+    if (csvIndustry) merged.industry = csvIndustry;
     return merged;
   });
 }

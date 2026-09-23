@@ -342,8 +342,8 @@ export async function importContactsFile(file, { dry_run = true, campaignId, onP
     onProgress,
   });
 
-  // bulk-upload/bulk-import whitelist drops LinkedIn (skype_id); restore via PATCH.
-  await persistImportedContactLinkedInUrls(result, processedRecords);
+  // bulk-upload/bulk-import whitelist drops LinkedIn (skype_id) and often industry; restore via PATCH.
+  await persistImportedContactCsvExtras(result, processedRecords);
 
   return normalizeImportResult({
     imported_count: result.imported ?? result.imported_count ?? 0,
@@ -357,16 +357,22 @@ export async function importContactsFile(file, { dry_run = true, campaignId, onP
   });
 }
 
-/** After bulk-import, PATCH skype_id for rows that had a LinkedIn URL in the CSV. */
-export async function persistImportedContactLinkedInUrls(importResult = {}, processedRecords = []) {
+/**
+ * After bulk-import, PATCH fields the API whitelist drops (LinkedIn / industry)
+ * when those values were present on the enriched CSV rows.
+ */
+export async function persistImportedContactCsvExtras(importResult = {}, processedRecords = []) {
   const created = Array.isArray(importResult?.records) ? importResult.records : [];
   if (!created.length || !processedRecords?.length) return { patched: 0 };
 
   const byEmail = new Map();
   for (const record of processedRecords) {
     const email = String(record?.email || '').trim().toLowerCase();
-    const linkedIn = resolveContactLinkedInUrl(record);
-    if (email && linkedIn) byEmail.set(email, linkedIn);
+    if (!email) continue;
+    const skype_id = resolveContactLinkedInUrl(record);
+    const industry = String(record?.industry || '').trim() || null;
+    if (!skype_id && !industry) continue;
+    byEmail.set(email, { skype_id, industry });
   }
   if (!byEmail.size) return { patched: 0 };
 
@@ -374,16 +380,25 @@ export async function persistImportedContactLinkedInUrls(importResult = {}, proc
   await Promise.allSettled(created.map(async (row) => {
     const id = row?.id;
     const email = String(row?.email || '').trim().toLowerCase();
-    const skype_id = email ? byEmail.get(email) : null;
-    if (!id || !skype_id) return;
+    const extras = email ? byEmail.get(email) : null;
+    if (!id || !extras) return;
+    const payload = {};
+    if (extras.skype_id) payload.skype_id = extras.skype_id;
+    if (extras.industry) payload.industry = extras.industry;
+    if (!Object.keys(payload).length) return;
     try {
-      await api.patch(`/contacts/${id}`, { skype_id });
+      await api.patch(`/contacts/${id}`, payload);
       patched += 1;
     } catch {
-      // Non-fatal — contact was created; LinkedIn can be edited manually.
+      // Non-fatal — contact was created; fields can be edited manually.
     }
   }));
   return { patched };
+}
+
+/** @deprecated Prefer persistImportedContactCsvExtras (also restores industry). */
+export async function persistImportedContactLinkedInUrls(importResult = {}, processedRecords = []) {
+  return persistImportedContactCsvExtras(importResult, processedRecords);
 }
 
 /** Only contact conversion endpoint exposed by the API. */

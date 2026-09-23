@@ -308,6 +308,14 @@ export default function CreateContactForm() {
               />
             </FormField>
 
+            <IndustryField
+              value={form.industry}
+              onChange={(industry) => {
+                setForm((f) => ({ ...f, industry }));
+                setErrors((er) => ({ ...er, industry: null }));
+              }}
+            />
+
             <FormField label="Phone" error={errors.phone} name="phone">
               <input className={inputClass(errors.phone)} value={form.phone} onChange={set('phone')} maxLength={32} inputMode="tel" />
             </FormField>
@@ -378,11 +386,6 @@ export default function CreateContactForm() {
             <FormField label="Department" name="department">
               <input className="input" value={form.department} onChange={set('department')} />
             </FormField>
-
-            <IndustryField
-              value={form.industry}
-              onChange={(industry) => setForm((f) => ({ ...f, industry }))}
-            />
 
             <FormField label="Home Phone" error={errors.home_phone} name="home_phone">
               <input className={inputClass(errors.home_phone)} value={form.home_phone} onChange={set('home_phone')} maxLength={32} inputMode="tel" />
