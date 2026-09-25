@@ -20,6 +20,7 @@ import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchUsers, fetchMassUpdateFieldOptions, fetchLostReasons, isConvertMassUpdateField, filterLeadMassUpdateFields } from '../../lib/services/lookups.js';
 import { fetchCampaignLookups, resolveOrCreateCampaignId, reassignRecordsToCampaign } from '../../lib/campaignRecordHelpers.js';
 import { personRecordId, parsePersonRowId, campaignMembersFromSelection } from '../../lib/services/people.js';
+import { buildSelectionLookup, isSelectionIdSelected, expandSelectionId } from '../../lib/selectionIdHelpers.js';
 import EnrollMembersModal, { SEQUENCE_MEMBER_TYPES } from '../sequences/EnrollMembersModal.js';
 import { isLostLeadStatus, isLeadStatusMassField } from '../../lib/statusHelpers.js';
 import { logEmailSent, bulkSetLinkedInRequestSent } from '../../lib/outreachActivity.js';
@@ -233,15 +234,20 @@ export default function RecordDataTable({
 
   const canEnrollInSequence = can('sequences', 'enroll') && Boolean(SEQUENCE_MEMBER_TYPES[moduleKey]);
 
+  const selectedLookup = useMemo(() => buildSelectionLookup(selected), [selected]);
+
   const selectedRecords = useMemo(
-    () => records.filter((r) => selected.includes(getRowId(r))),
-    [records, selected, getRowId],
+    () => records.filter((r) => isSelectionIdSelected(selectedLookup, getRowId(r))),
+    [records, selectedLookup, getRowId],
   );
 
-  const canMassEditSelection = selectedRecords.length > 0
-    && selectedRecords.every((record) => canEditRecord(record));
-  const canMassDeleteSelection = selectedRecords.length > 0
-    && selectedRecords.every((record) => canDeleteRecord(record));
+  // Select-all-matching may include off-page rows — allow Mass Update with module edit access.
+  const canMassEditSelection = allMatchingSelected
+    ? Boolean(canEdit)
+    : (selectedRecords.length > 0 && selectedRecords.every((record) => canEditRecord(record)));
+  const canMassDeleteSelection = allMatchingSelected
+    ? Boolean(canDelete)
+    : (selectedRecords.length > 0 && selectedRecords.every((record) => canDeleteRecord(record)));
 
   useEffect(() => {
     setSelected([]);
@@ -258,12 +264,20 @@ export default function RecordDataTable({
 
   const toggleSelect = useCallback((id) => {
     setAllMatchingSelected(false);
-    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+    setSelected((s) => {
+      const lookup = buildSelectionLookup(s);
+      if (isSelectionIdSelected(lookup, id)) {
+        const drop = new Set(expandSelectionId(id));
+        return s.filter((x) => !expandSelectionId(x).some((v) => drop.has(v)));
+      }
+      return [...s, id];
+    });
   }, []);
 
   const toggleSelectAll = useCallback(() => {
     const ids = records.map(getRowId);
-    const allOnPageSelected = ids.length > 0 && ids.every((id) => selected.includes(id));
+    const lookup = buildSelectionLookup(selected);
+    const allOnPageSelected = ids.length > 0 && ids.every((id) => isSelectionIdSelected(lookup, id));
     if (allOnPageSelected) {
       setSelected([]);
       setAllMatchingSelected(false);
@@ -284,6 +298,10 @@ export default function RecordDataTable({
 
   const handleSelectAllMatching = async () => {
     if (!fetchAllMatchingIds) return;
+    // Instant UI: mark all-matching and check the current page while IDs load.
+    const pageIds = records.map(getRowId);
+    setAllMatchingSelected(true);
+    setSelected((prev) => [...new Set([...prev, ...pageIds])]);
     setSelectingAllMatching(true);
     try {
       const ids = await fetchAllMatchingIds();
@@ -291,13 +309,17 @@ export default function RecordDataTable({
       setAllMatchingSelected(true);
       showToast(`Selected all ${ids.length} ${config.label.toLowerCase()}`, 'success');
     } catch (err) {
+      setAllMatchingSelected(false);
       showToast(getApiError(err));
     } finally {
       setSelectingAllMatching(false);
     }
   };
 
-  const allSelected = records.length > 0 && records.every((r) => selected.includes(getRowId(r)));
+  const allSelected = records.length > 0 && (
+    allMatchingSelected
+    || records.every((r) => isSelectionIdSelected(selectedLookup, getRowId(r)))
+  );
   const resolvedTotalMatching = totalMatching ?? records.length;
   const showSelectAllMatchingBanner = Boolean(
     fetchAllMatchingIds
@@ -836,7 +858,9 @@ export default function RecordDataTable({
           <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 shrink-0 bg-brand-50/80 border-b border-brand-200 text-sm">
             <span className="font-medium text-brand-800">
               {allMatchingSelected && resolvedTotalMatching > records.length
-                ? `All ${resolvedTotalMatching} ${config.label} selected.`
+                ? (selectingAllMatching
+                  ? `Selecting all ${resolvedTotalMatching} ${config.label.toLowerCase()}…`
+                  : `All ${resolvedTotalMatching} ${config.label} selected.`)
                 : `${selected.length} ${config.label} Selected.`}
             </span>
             <button type="button" onClick={clearSelection} className="text-brand-600 hover:underline text-xs font-medium">Clear</button>
@@ -935,7 +959,7 @@ export default function RecordDataTable({
                             }}
                           />
                         )}
-                        <input type="checkbox" className="rounded border-zoho-border" checked={selected.includes(id)} onChange={() => toggleSelect(id)} />
+                        <input type="checkbox" className="rounded border-zoho-border" checked={allMatchingSelected || isSelectionIdSelected(selectedLookup, id)} onChange={() => toggleSelect(id)} />
                       </div>
                     </td>
                     {columns.map((col) => (

@@ -4,8 +4,9 @@ import { getLeadDetailPath } from '../pipelineHelpers.js';
 import { DIRECTORY_STATUS_OPTIONS, resolveDirectoryCurrentStatus, directoryLeadStatusValue, isConvertedToAccount } from '../contactDirectoryHelpers.js';
 import { leadStatusLabel } from '../leadHelpers.js';
 import { resolveContactLinkedInUrl } from '../contactHelpers.js';
-import { DEFAULT_PAGE_SIZE } from '../constants.js';
+import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from '../constants.js';
 import { cachedLookup } from '../lookupCache.js';
+import { fetchRemainingPagesParallel } from '../listSelectionHelpers.js';
 import {
   listWithTokenSearch,
   personSearchHaystack,
@@ -354,37 +355,34 @@ export async function listPeople({
 
 export async function listAllMatchingPeopleIds(params = {}) {
   const { apiSearch, tokens, needsClientMatch } = resolveListSearch(params.search);
+  const pageSize = BULK_FETCH_PAGE_SIZE;
   const baseParams = buildPeopleParams({
     ...params,
     search: apiSearch,
-    page_size: 250,
+    page_size: pageSize,
   });
-  let page = 1;
-  const ids = [];
-  let total = 0;
-  const collected = [];
 
-  while (page <= 50) {
-    const result = await requestDirectoryList({ ...baseParams, page });
-    const batch = result.data || [];
-    if (needsClientMatch) {
-      collected.push(...batch);
-    } else {
-      ids.push(...batch.map((row) => row.id).filter(Boolean));
-    }
-    total = result.total;
-    if (!batch.length || (needsClientMatch ? collected.length >= total : ids.length >= total)) break;
-    page += 1;
-  }
+  const first = await requestDirectoryList({ ...baseParams, page: 1 });
+  const firstBatch = first.data || [];
+  const total = first.total ?? firstBatch.length;
+
+  const allRows = await fetchRemainingPagesParallel({
+    total,
+    pageSize,
+    firstPageData: firstBatch,
+    maxPages: 50,
+    concurrency: 5,
+    fetchPage: (page) => requestDirectoryList({ ...baseParams, page }),
+  });
 
   if (needsClientMatch) {
-    return collected
+    return allRows
       .filter((row) => matchesSearchTokens(row, tokens, personSearchHaystack))
       .map((row) => row.id)
       .filter(Boolean);
   }
 
-  return ids;
+  return allRows.map((row) => row.id).filter(Boolean);
 }
 
 export async function fetchPeopleStatusOptions() {

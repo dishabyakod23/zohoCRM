@@ -185,7 +185,8 @@ export function leadToDirectoryRow(lead, statusOptions = []) {
   const lead_status = directoryLeadStatusValue(lead);
 
   return {
-    id: lead.id,
+    id: lead.id ? `lead:${lead.id}` : lead.id,
+    record_id: lead.id,
     _entityType: 'lead',
     _detailHref: getLeadDetailPath(lead, lead.id),
     first_name: lead.first_name,
@@ -213,11 +214,14 @@ export function contactToDirectoryRow(contact) {
   const current_status = resolveDirectoryCurrentStatus({ ...contact, entity_type: 'contact' });
   const lead_status = directoryLeadStatusValue(contact);
   const linkedIn = resolveContactLinkedInUrl(contact);
+  const recordId = contact.record_id || contact.entity_id || contact.id;
 
   return {
     ...contact,
+    id: recordId ? `contact:${recordId}` : contact.id,
+    record_id: recordId,
     _entityType: 'contact',
-    _detailHref: `/contacts/${contact.id}`,
+    _detailHref: `/contacts/${recordId}`,
     skype_id: linkedIn || contact.skype_id || null,
     lead_status,
     lead_status_label: lead_status ? (leadStatusLabel(lead_status) || lead_status) : '—',
@@ -231,7 +235,8 @@ export function dealToDirectoryRow(deal, contactLookup = {}) {
   const linked = contactLookup[deal.contact_id];
   const current_status = 'Deal';
   return {
-    id: deal.contact_id,
+    id: deal.contact_id ? `contact:${deal.contact_id}` : deal.contact_id,
+    record_id: deal.contact_id,
     _entityType: 'contact',
     _detailHref: `/contacts/${deal.contact_id}`,
     first_name: linked?.first_name || deal.contact_name?.split(' ')?.[0] || '',
