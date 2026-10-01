@@ -590,10 +590,24 @@ export function looksLikeHtml(value) {
  * Convert plain-text email bodies (with newlines) into HTML so clients like Outlook
  * keep paragraph breaks. Leaves real HTML content unchanged.
  */
+const EMAIL_LIST_STYLES = {
+  ul: 'margin:0 0 12px 0;padding-left:24px;list-style-type:disc;',
+  ol: 'margin:0 0 12px 0;padding-left:24px;list-style-type:decimal;',
+  li: 'margin:0 0 4px 0;',
+};
+
+/** Inline list styles on bare `<ul>/<ol>/<li>` so Outlook/Gmail render them like the in-app preview. */
+export function inlineEmailListStyles(html) {
+  return String(html || '').replace(/<(ul|ol|li)(\s[^>]*)?>/gi, (match, tag, attrs = '') => {
+    if (/\sstyle\s*=/i.test(attrs)) return match;
+    return `<${tag}${attrs} style="${EMAIL_LIST_STYLES[tag.toLowerCase()]}">`;
+  });
+}
+
 export function ensureEmailHtmlBody(value) {
   const raw = String(value || '');
   if (!raw.trim()) return '';
-  if (looksLikeHtml(raw)) return raw;
+  if (looksLikeHtml(raw)) return inlineEmailListStyles(raw);
 
   const escaped = escapeHtml(raw);
   return escaped
@@ -611,6 +625,8 @@ export function htmlToPlainText(value) {
   if (!looksLikeHtml(value)) return String(value);
   return String(value)
     .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<li(\s[^>]*)?>/gi, '\n• ')
+    .replace(/<\/(ul|ol)>/gi, '\n\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<\/div>/gi, '\n')
     .replace(/<[^>]+>/g, '')

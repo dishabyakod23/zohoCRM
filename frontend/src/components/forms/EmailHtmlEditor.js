@@ -63,6 +63,29 @@ export default function EmailHtmlEditor({
   const [linkUrl, setLinkUrl] = useState('https://');
   const [linkText, setLinkText] = useState('');
   const [linkError, setLinkError] = useState('');
+  const [listState, setListState] = useState({ ul: false, ol: false });
+
+  const refreshListState = () => {
+    const el = editorRef.current;
+    const sel = typeof window !== 'undefined' ? window.getSelection() : null;
+    if (!el || !sel || !sel.anchorNode || !el.contains(sel.anchorNode)) {
+      setListState((prev) => (prev.ul || prev.ol ? { ul: false, ol: false } : prev));
+      return;
+    }
+    let ul = false;
+    let ol = false;
+    for (let node = sel.anchorNode; node && node !== el; node = node.parentNode) {
+      const tag = node.nodeName;
+      if (tag === 'UL') { ul = true; break; }
+      if (tag === 'OL') { ol = true; break; }
+    }
+    setListState((prev) => (prev.ul === ul && prev.ol === ol ? prev : { ul, ol }));
+  };
+
+  useEffect(() => {
+    document.addEventListener('selectionchange', refreshListState);
+    return () => document.removeEventListener('selectionchange', refreshListState);
+  }, []);
 
   useEffect(() => {
     const el = editorRef.current;
@@ -88,6 +111,7 @@ export default function EmailHtmlEditor({
     editorRef.current?.focus();
     document.execCommand(cmd, false, arg ?? null);
     emit();
+    refreshListState();
   };
 
   const openLinkDialog = () => {
@@ -176,13 +200,14 @@ export default function EmailHtmlEditor({
           <ToolbarButton label="Left" title="Align left" onMouseDown={(e) => { e.preventDefault(); run('justifyLeft'); }} />
           <ToolbarButton label="Center" title="Align center" onMouseDown={(e) => { e.preventDefault(); run('justifyCenter'); }} />
           <ToolbarButton label="Right" title="Align right" onMouseDown={(e) => { e.preventDefault(); run('justifyRight'); }} />
-          <ToolbarButton label="• List" title="Bullet list" onMouseDown={(e) => { e.preventDefault(); run('insertUnorderedList'); }} />
+          <ToolbarButton label="• List" title="Bullet list (click again to remove)" active={listState.ul} onMouseDown={(e) => { e.preventDefault(); run('insertUnorderedList'); }} />
+          <ToolbarButton label="1. List" title="Numbered list (click again to remove)" active={listState.ol} onMouseDown={(e) => { e.preventDefault(); run('insertOrderedList'); }} />
           <ToolbarButton label="Link" title="Insert hyperlink" onMouseDown={(e) => { e.preventDefault(); openLinkDialog(); }} />
         </div>
       )}
       <div
         ref={editorRef}
-        className="input !rounded-none !border-0 min-h-[120px] text-sm leading-relaxed focus:!ring-0 [&_a]:text-brand-600 [&_a]:underline"
+        className="input !rounded-none !border-0 min-h-[120px] text-sm leading-relaxed focus:!ring-0 [&_a]:text-brand-600 [&_a]:underline [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6"
         style={{ minHeight }}
         contentEditable={!disabled}
         suppressContentEditableWarning
