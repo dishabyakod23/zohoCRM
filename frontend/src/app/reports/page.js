@@ -49,6 +49,8 @@ export default function ReportsPage() {
   const [logsPage, setLogsPage] = useState(1);
   const [savingSettings, setSavingSettings] = useState(false);
   const [triggering, setTriggering] = useState(false);
+  const [externalEmailInput, setExternalEmailInput] = useState('');
+  const [externalEmailError, setExternalEmailError] = useState('');
 
   const dateParams = {
     date_from: dateRange.start || undefined,
@@ -172,9 +174,17 @@ export default function ReportsPage() {
         recipient_user_ids: Array.isArray(weeklySettings.recipient_user_ids)
           ? weeklySettings.recipient_user_ids
           : reportRecipients.map((u) => u.id),
+        external_recipient_emails: reportsApi.getExternalRecipientEmails(weeklySettings),
       });
-      setWeeklySettings(updated.weekly_report || updated);
-      showToast('Weekly report settings saved', 'success');
+      const saved = updated.weekly_report || updated;
+      const sentExternal = reportsApi.getExternalRecipientEmails(weeklySettings);
+      const serverStoresExternal = Array.isArray(saved?.external_recipient_emails);
+      setWeeklySettings(serverStoresExternal ? saved : { ...saved, external_recipient_emails: sentExternal });
+      if (sentExternal.length && !serverStoresExternal) {
+        showToast('Settings saved, but the server did not store the external emails yet (backend update pending).');
+      } else {
+        showToast('Weekly report settings saved', 'success');
+      }
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -183,15 +193,15 @@ export default function ReportsPage() {
   };
 
   const handleTriggerWeekly = async () => {
-    const recipients = reportsApi.getWeeklyReportRecipients(adminUsers, weeklySettings);
-    if (!recipients.length) {
-      showToast('No recipients selected. Enable a role and include at least one user with an email.');
+    const recipientEmails = reportsApi.getWeeklyRecipientEmails(adminUsers, weeklySettings);
+    if (!recipientEmails.length) {
+      showToast('No recipients selected. Tick at least one user or add an external email.');
       return;
     }
     setTriggering(true);
     try {
       const result = await reportsApi.triggerWeeklyReport();
-      const emails = recipients.map(u => u.email).join(', ');
+      const emails = recipientEmails.join(', ');
       showToast(result.message || `Sent ${result.sent_count} report(s) to ${emails}`, 'success');
       const logs = await reportsApi.listWeeklyReportLogs({ page: 1, page_size: DEFAULT_PAGE_SIZE });
       setWeeklyLogs(logs.data);
@@ -219,6 +229,23 @@ export default function ReportsPage() {
     () => reportsApi.getWeeklyReportRecipients(adminUsers, weeklySettings),
     [adminUsers, weeklySettings],
   );
+  const recipientEmails = useMemo(
+    () => reportsApi.getWeeklyRecipientEmails(adminUsers, weeklySettings),
+    [adminUsers, weeklySettings],
+  );
+  const externalRecipientEmails = reportsApi.getExternalRecipientEmails(weeklySettings);
+
+  const addExternalRecipient = () => {
+    const result = reportsApi.validateExternalRecipientEmail(externalEmailInput, weeklySettings, adminUsers);
+    if (result.error) {
+      setExternalEmailError(result.error);
+      return;
+    }
+    setWeeklySettings((s) => reportsApi.addExternalRecipientEmail(s, result.email));
+    setExternalEmailInput('');
+    setExternalEmailError('');
+  };
+
   const weeklyMembers = useMemo(
     () => reportsApi.extractWeeklyMemberRows(weeklyPreview),
     [weeklyPreview],
@@ -444,7 +471,7 @@ export default function ReportsPage() {
                     <button type="button" onClick={applyRecommendedSchedule} className="btn-secondary text-xs">
                       Use recommended: Fri 3:30 PM IST
                     </button>
-                    <button onClick={handleTriggerWeekly} disabled={triggering || !reportRecipients.length} className="btn-secondary text-xs">{triggering ? 'Sending...' : `Send report now to ${reportRecipients.length} recipient(s)`}</button>
+                    <button onClick={handleTriggerWeekly} disabled={triggering || !recipientEmails.length} className="btn-secondary text-xs">{triggering ? 'Sending...' : `Send report now to ${recipientEmails.length} recipient(s)`}</button>
                     <button onClick={() => { loadWeeklySettings(); loadWeeklyLogs(); }} className="btn-secondary text-xs">Refresh Preview</button>
                   </div>
                   <p className="text-xs text-gray-500 mt-3">
@@ -504,9 +531,9 @@ export default function ReportsPage() {
                   <h3 className="font-semibold mb-1">Email recipients</h3>
                   <p className="text-xs text-gray-500 mb-4">
                     Who receives the weekly email (`recipient_user_ids`). Separate from report subjects.
-                    {reportRecipients.length > 0 && (
+                    {recipientEmails.length > 0 && (
                       <span className="block mt-1 text-brand-700 font-medium">
-                        Will send to: {reportRecipients.map((u) => u.email).join(', ')}
+                        Will send to: {recipientEmails.join(', ')}
                       </span>
                     )}
                   </p>
@@ -551,6 +578,56 @@ export default function ReportsPage() {
                   <p className="text-xs text-gray-400 mt-3">
                     Role toggles above still apply when the API has not returned `recipient_user_ids` yet. After you toggle anyone here, saves use explicit recipient IDs.
                   </p>
+
+                  <div className="mt-5 border-t border-zoho-border pt-4">
+                    <h4 className="text-sm font-semibold mb-1">External recipients</h4>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Send the weekly report to people who are not CRM users (e.g. founders, investors). Click Save Settings after adding.
+                    </p>
+                    <div className="flex flex-wrap items-start gap-2">
+                      <div className="flex-1 min-w-[240px] max-w-md">
+                        <input
+                          type="email"
+                          className={`input w-full ${externalEmailError ? 'border-red-400' : ''}`}
+                          placeholder="name@company.com"
+                          value={externalEmailInput}
+                          onChange={(e) => {
+                            setExternalEmailInput(e.target.value);
+                            if (externalEmailError) setExternalEmailError('');
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              addExternalRecipient();
+                            }
+                          }}
+                        />
+                        {externalEmailError && <p className="text-xs text-red-600 mt-1">{externalEmailError}</p>}
+                      </div>
+                      <button type="button" onClick={addExternalRecipient} className="btn-secondary text-xs">
+                        + Add email
+                      </button>
+                    </div>
+                    {externalRecipientEmails.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {externalRecipientEmails.map((email) => (
+                          <span key={email} className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 text-brand-700 text-xs px-3 py-1">
+                            {email}
+                            <button
+                              type="button"
+                              title={`Remove ${email}`}
+                              className="text-brand-700 hover:text-red-600 font-semibold"
+                              onClick={() => setWeeklySettings((s) => reportsApi.removeExternalRecipientEmail(s, email))}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 mt-3">No external recipients added.</p>
+                    )}
+                  </div>
                 </div>
 
                 {(summary || weeklyPreview) && (

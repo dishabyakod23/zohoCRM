@@ -1,0 +1,46 @@
+import {
+  validateExternalRecipientEmail,
+  addExternalRecipientEmail,
+  removeExternalRecipientEmail,
+  getWeeklyRecipientEmails,
+  getExternalRecipientEmails,
+} from '../services/reports.js';
+
+const users = [
+  { id: 'u1', email: 'Admin@Origami.dev', is_active: true, role: 'super_admin' },
+  { id: 'u2', email: 'bdm@origami.dev', is_active: true, role: 'sales_manager' },
+];
+
+describe('weekly report external recipients', () => {
+  it('normalizes and accepts a new outside email', () => {
+    expect(validateExternalRecipientEmail('  CEO@Partner.com ', {}, users)).toEqual({ email: 'ceo@partner.com' });
+  });
+
+  it('rejects empty, malformed, duplicate, and CRM-user emails', () => {
+    expect(validateExternalRecipientEmail('', {}, users).error).toBeTruthy();
+    expect(validateExternalRecipientEmail('not-an-email', {}, users).error).toBeTruthy();
+    expect(validateExternalRecipientEmail('a@b.com', { external_recipient_emails: ['A@b.com'] }, users).error)
+      .toMatch(/already added/);
+    expect(validateExternalRecipientEmail('admin@origami.dev', {}, users).error).toMatch(/CRM user/);
+  });
+
+  it('adds and removes emails without touching other settings', () => {
+    const base = { enabled: true, recipient_user_ids: ['u1'] };
+    const added = addExternalRecipientEmail(base, 'ceo@partner.com');
+    expect(added).toEqual({ ...base, external_recipient_emails: ['ceo@partner.com'] });
+    expect(getExternalRecipientEmails(removeExternalRecipientEmail(added, 'CEO@partner.com'))).toEqual([]);
+  });
+
+  it('combines selected CRM users with external emails, deduped', () => {
+    const settings = {
+      recipient_user_ids: ['u1'],
+      external_recipient_emails: ['ceo@partner.com', 'admin@origami.dev'],
+    };
+    expect(getWeeklyRecipientEmails(users, settings)).toEqual(['Admin@Origami.dev', 'ceo@partner.com']);
+  });
+
+  it('treats a missing external list as empty', () => {
+    expect(getExternalRecipientEmails({})).toEqual([]);
+    expect(getWeeklyRecipientEmails(users, { recipient_user_ids: ['u2'] })).toEqual(['bdm@origami.dev']);
+  });
+});

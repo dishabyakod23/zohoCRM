@@ -2,9 +2,28 @@ import {
   formatContactLastCallLabel,
   buildLatestCallByPhoneKey,
   rowMatchesActivityDateRange,
+  filterCallsForPhones,
 } from '../contactActivityEnrichment.js';
 import { buildOutreachActivityIndex, setLinkedInRequestSent } from '../outreachActivity.js';
 import { ownerContactCallSummary } from '../services/cloudTalkCalls.js';
+
+describe('filterCallsForPhones', () => {
+  const calls = [
+    { id: 'a', source: 'cloudtalk', created_at: '2026-09-30T10:00:00Z', meta: { cdr: { public_external: '17039308062' } } },
+    { id: 'b', source: 'cloudtalk', created_at: '2026-09-29T10:00:00Z', meta: { external_number: '+201555524718' } },
+    { id: 'c', source: 'cloudtalk', created_at: '2026-09-28T10:00:00Z', meta: { cdr: { public_external: '+6598181494' } } },
+    { id: 'd', source: 'manual', created_at: '2026-09-28T10:00:00Z', meta: { external_number: '17039308062' } },
+  ];
+
+  it('keeps only CloudTalk calls to the record phones (formatting-insensitive)', () => {
+    expect(filterCallsForPhones(calls, ['+1 (703) 930-8062', null]).map((c) => c.id)).toEqual(['a']);
+    expect(filterCallsForPhones(calls, ['', '+20 155 552 4718']).map((c) => c.id)).toEqual(['b']);
+  });
+
+  it('returns nothing when the record has no phone', () => {
+    expect(filterCallsForPhones(calls, [null, ''])).toEqual([]);
+  });
+});
 
 describe('ownerContactCallSummary', () => {
   it('formats xyz called abc(1234567890)', () => {

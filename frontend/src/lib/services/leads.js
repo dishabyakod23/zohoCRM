@@ -23,7 +23,7 @@ import { LEAD_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
 import { ensureCsvColumn } from '../csvHelpers.js';
-import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
+import { listAllMatchingIdsFromListFn, fetchRemainingPagesParallel } from '../listSelectionHelpers.js';
 import { sumAmountsInInr } from '../fxRates.js';
 import {
   listWithTokenSearch,
@@ -69,20 +69,34 @@ async function convertPipelineTargets(ids, value, extras = {}) {
 }
 
 async function fetchAllLeadPages(params, statusOptions, pageSize = BULK_FETCH_PAGE_SIZE, maxRecords = CLIENT_FILTER_MAX_RECORDS) {
-  let page = 1;
-  let all = [];
-  let serverTotal = 0;
-
-  while (page <= 50 && all.length < maxRecords) {
+  const fetchPage = async (page) => {
     const res = await api.get('/leads', { params: { ...params, page, page_size: pageSize } });
-    const batch = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
-    serverTotal = res.data.meta?.total ?? all.length + batch.length;
-    all = all.concat(batch);
-    if (batch.length === 0 || all.length >= serverTotal) break;
-    page += 1;
+    return {
+      data: (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions)),
+      total: res.data.meta?.total,
+    };
+  };
+
+  const first = await fetchPage(1);
+  if (first.total == null) {
+    let all = first.data;
+    let page = 2;
+    let batchLength = first.data.length;
+    while (page <= 50 && batchLength === pageSize && all.length < maxRecords) {
+      const next = await fetchPage(page);
+      batchLength = next.data.length;
+      all = all.concat(next.data);
+      page += 1;
+    }
+    return all;
   }
 
-  return all;
+  return fetchRemainingPagesParallel({
+    total: Math.min(first.total, maxRecords),
+    pageSize,
+    firstPageData: first.data,
+    fetchPage,
+  });
 }
 
 /** Map UI pipeline stage / filters to API query params supported by GET /leads. */

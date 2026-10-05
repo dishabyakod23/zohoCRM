@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { getLinkedInRequestSent, getEmailSentEvents } from '../../lib/outreachActivity.js';
-import { formatContactLastCallLabel } from '../../lib/contactActivityEnrichment.js';
+import { formatContactLastCallLabel, filterCallsForPhones } from '../../lib/contactActivityEnrichment.js';
 import * as cloudTalkApi from '../../lib/services/cloudTalkCalls.js';
 import * as followupsApi from '../../lib/services/followups.js';
 
@@ -25,11 +25,17 @@ export default function ProspectOutreachTimeline({
       .catch(() => setFollowups([]));
   }, [memberType, memberId]);
 
+  const phoneKey = phones.filter(Boolean).join('|');
+
   useEffect(() => {
-    cloudTalkApi.listCloudTalkCallsLastDays(30, {}, { limit: 50 }).then((res) => {
-      setCalls(res.data || res || []);
+    if (!phoneKey) {
+      setCalls([]);
+      return;
+    }
+    cloudTalkApi.listCloudTalkCallsLastDays(90, {}, { limit: 500 }).then((res) => {
+      setCalls(filterCallsForPhones(res.data || res || [], phoneKey.split('|')));
     }).catch(() => setCalls([]));
-  }, []);
+  }, [phoneKey]);
 
   const events = useMemo(() => {
     const rows = [];

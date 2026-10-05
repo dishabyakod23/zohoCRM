@@ -65,6 +65,17 @@ export function buildLatestCallByPhoneKey(calls = []) {
   return byKey;
 }
 
+/** CloudTalk call logs whose external number matches one of the record's phones. */
+export function filterCallsForPhones(calls = [], phones = []) {
+  const keys = new Set(phones.filter(Boolean).flatMap((phone) => phoneMatchKeys(phone)));
+  if (!keys.size) return [];
+  return (calls || []).filter((log) => {
+    if (log.source !== 'cloudtalk') return false;
+    const { phone } = callMeta(log);
+    return Boolean(phone) && phoneMatchKeys(phone).some((key) => keys.has(key));
+  });
+}
+
 function resolveCallForRow(row, callByPhone) {
   const phones = [row.phone, row.mobile, row.other_phone, row.home_phone, row.asst_phone].filter(Boolean);
   for (const phone of phones) {

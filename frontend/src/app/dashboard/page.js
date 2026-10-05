@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AppLink from '../../components/ui/AppLink.js';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import { useToast } from '../../components/ui/Toast.js';
@@ -56,6 +56,38 @@ function KpiCard({ title, value, sub, subClass, icon: Icon, gradient }) {
   );
 }
 
+const DASHBOARD_CACHE_KEY = 'crm-dashboard-cache-v1';
+
+const EMPTY_DASHBOARD = {
+  topAccounts: [],
+  pipeline: {
+    leadsByPipeline: [],
+    totalLeads: 0,
+    qualifiedCount: 0,
+    leadsThisMonth: 0,
+    proposals: { total: 0, dealSize: 0 },
+  },
+  accountsTotal: 0,
+  auditLogs: [],
+};
+
+function readDashboardCache(userId) {
+  try {
+    const raw = window.localStorage.getItem(`${DASHBOARD_CACHE_KEY}:${userId}`);
+    return raw ? { ...EMPTY_DASHBOARD, ...JSON.parse(raw) } : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDashboardCache(userId, value) {
+  try {
+    window.localStorage.setItem(`${DASHBOARD_CACHE_KEY}:${userId}`, JSON.stringify(value));
+  } catch {
+    // Quota exceeded or storage disabled; the dashboard still works uncached.
+  }
+}
+
 function formatProposalKpi({ dealSize = 0, total = 0 } = {}) {
   return `${formatIndianRupees(dealSize)}(${total})`;
 }
@@ -70,68 +102,87 @@ export default function DashboardPage() {
   const canViewProposals = can('proposals', 'view');
   const canViewAuditLogs = can('audit_logs', 'view');
   const quickCreateItems = QUICK_CREATE.filter((item) => can(item.permissionKey, 'create'));
-  const [stats, setStats] = useState(null);
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(EMPTY_DASHBOARD);
+  const [loaded, setLoaded] = useState({ home: false, pipeline: false, accounts: false, audit: false });
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) return undefined;
+    let cancelled = false;
+    const cached = readDashboardCache(user.id);
+    if (cached) {
+      setData(cached);
+      setLoaded({ home: true, pipeline: true, accounts: true, audit: true });
+    }
 
-    Promise.all([
-      dashboardApi.getDashboardHome(),
-      leadsApi.summarizePipelineDashboard().catch(() => ({
-        leadsByPipeline: [],
-        totalLeads: 0,
-        qualifiedCount: 0,
-        leadsThisMonth: 0,
-        proposals: { total: 0, dealSize: 0 },
-      })),
-      canViewAuditLogs
-        ? auditLogsApi.listRecentActivityLogs(30, {
-          user,
-          canSeeAll: role === 'super_admin' || role === 'sales_manager',
-          limit: DEFAULT_PAGE_SIZE,
-          enrichPhones: false,
-          cloudTalkLimit: 50,
-        }).catch(() => [])
-        : Promise.resolve([]),
-    ]).then(async ([home, pipelineSummary, logs]) => {
-      const accountsTotal = canViewAccounts
-        ? await accountsApi.countAccounts().catch(() => 0)
-        : 0;
-      const topAccountsRaw = canViewAccounts
-        ? (home.top_accounts || []).filter((account) => isConfirmedAccount(account))
-        : [];
-      const visiblePipeline = (pipelineSummary.leadsByPipeline || []).filter((row) => (
-        !row.permissionKey || can(row.permissionKey, 'view')
-      ));
-      setAuditLogs(logs);
-      setStats({
-        leads: {
-          total: visiblePipeline.reduce((sum, row) => sum + (row.count || 0), 0),
-          this_month: pipelineSummary.leadsThisMonth ?? 0,
-          qualified: canViewQualified ? pipelineSummary.qualifiedCount : 0,
-        },
-        accounts: { total: accountsTotal },
-        proposals: canViewProposals ? pipelineSummary.proposals : { total: 0, dealSize: 0 },
-        topAccounts: topAccountsRaw.map((a) => ({
-          id: a.id,
-          name: a.account_name || a.name,
-          revenue: Number(a.annual_revenue ?? a.revenue) || 0,
-          currency: a.currency || DEFAULT_CURRENCY,
-        })),
-        leadsByStatus: visiblePipeline,
+    const update = (key, patch) => {
+      if (cancelled) return;
+      setData((prev) => {
+        const next = { ...prev, ...patch };
+        writeDashboardCache(user.id, next);
+        return next;
       });
-      setLoading(false);
-    }).catch((err) => {
-      if (isSessionExpiredError(err)) {
-        setLoading(false);
-        return;
-      }
-      showToast(getApiError(err));
-      setLoading(false);
-    });
-  }, [showToast, user?.id, role, can, canViewAccounts, canViewAuditLogs, canViewProposals, canViewQualified]);
+      setLoaded((prev) => ({ ...prev, [key]: true }));
+    };
+
+    dashboardApi.getDashboardHome()
+      .then((home) => update('home', { topAccounts: home.top_accounts || [] }))
+      .catch((err) => {
+        if (cancelled) return;
+        if (!isSessionExpiredError(err)) showToast(getApiError(err));
+        if (!cached) setFailed(true);
+        setLoaded((prev) => ({ ...prev, home: true }));
+      });
+
+    leadsApi.summarizePipelineDashboard()
+      .catch(() => EMPTY_DASHBOARD.pipeline)
+      .then((pipeline) => update('pipeline', { pipeline }));
+
+    (canViewAccounts ? accountsApi.countAccounts().catch(() => 0) : Promise.resolve(0))
+      .then((accountsTotal) => update('accounts', { accountsTotal }));
+
+    (canViewAuditLogs
+      ? auditLogsApi.listRecentActivityLogs(30, {
+        user,
+        canSeeAll: role === 'super_admin' || role === 'sales_manager',
+        limit: DEFAULT_PAGE_SIZE,
+        enrichPhones: false,
+        cloudTalkLimit: 50,
+      }).catch(() => [])
+      : Promise.resolve([])
+    ).then((auditLogs) => update('audit', { auditLogs }));
+
+    return () => { cancelled = true; };
+  }, [showToast, user?.id, role, canViewAccounts, canViewAuditLogs]);
+
+  const stats = useMemo(() => {
+    const pipeline = data.pipeline || EMPTY_DASHBOARD.pipeline;
+    const visiblePipeline = (pipeline.leadsByPipeline || []).filter((row) => (
+      !row.permissionKey || can(row.permissionKey, 'view')
+    ));
+    const topAccountsRaw = canViewAccounts
+      ? (data.topAccounts || []).filter((account) => isConfirmedAccount(account))
+      : [];
+    return {
+      leads: {
+        total: visiblePipeline.reduce((sum, row) => sum + (row.count || 0), 0),
+        this_month: pipeline.leadsThisMonth ?? 0,
+        qualified: canViewQualified ? pipeline.qualifiedCount : 0,
+      },
+      accounts: { total: data.accountsTotal || 0 },
+      proposals: canViewProposals ? pipeline.proposals : { total: 0, dealSize: 0 },
+      topAccounts: topAccountsRaw.map((a) => ({
+        id: a.id,
+        name: a.account_name || a.name,
+        revenue: Number(a.annual_revenue ?? a.revenue) || 0,
+        currency: a.currency || DEFAULT_CURRENCY,
+      })),
+      leadsByStatus: visiblePipeline,
+    };
+  }, [data, can, canViewAccounts, canViewQualified, canViewProposals]);
+  const auditLogs = data.auditLogs || [];
+  const loading = !user?.id;
+  const kpi = (ready, value) => (ready ? value : '…');
 
   const fmt = (amount, currency) => formatCompactMoney(amount, currency);
 
@@ -147,13 +198,13 @@ export default function DashboardPage() {
 
         {loading ? (
           <div className="flex items-center justify-center h-48"><div className="w-8 h-8 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
-        ) : stats ? (
+        ) : !failed ? (
           <div className="grid grid-cols-12 gap-4">
             {/* Row 1 - KPI cards with vibrant gradients */}
             <KpiCard
               title="Total Leads"
-              value={stats.leads.total}
-              sub={`+${stats.leads.this_month} this month`}
+              value={kpi(loaded.pipeline, stats.leads.total)}
+              sub={loaded.pipeline ? `+${stats.leads.this_month} this month` : 'Loading…'}
               icon={UserGroupIcon}
               gradient="bg-gradient-to-br from-accent-teal to-brand-600"
             />
@@ -161,7 +212,7 @@ export default function DashboardPage() {
             <AppLink href="/qualified-leads" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
                 title="Qualified Leads"
-                value={stats.leads.qualified}
+                value={kpi(loaded.pipeline, stats.leads.qualified)}
                 sub="In qualified stage"
                 icon={ChartBarIcon}
                 gradient="bg-gradient-to-br from-accent-yellow to-brand-600"
@@ -172,7 +223,7 @@ export default function DashboardPage() {
             <AppLink href="/accounts" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
                 title="Accounts"
-                value={stats.accounts.total}
+                value={kpi(loaded.accounts, stats.accounts.total)}
                 sub="Confirmed customers"
                 icon={BuildingOffice2Icon}
                 gradient="bg-gradient-to-br from-accent-orange to-accent-pink"
@@ -183,7 +234,7 @@ export default function DashboardPage() {
             <AppLink href="/proposals" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
               <KpiCard
                 title="Proposals"
-                value={formatProposalKpi(stats.proposals)}
+                value={kpi(loaded.pipeline, formatProposalKpi(stats.proposals))}
                 sub="In proposal pipeline"
                 icon={DocumentTextIcon}
                 gradient="bg-gradient-to-br from-accent-pink to-brand-600"
@@ -244,7 +295,9 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 </>
-              ) : <p className="text-sm text-zoho-muted text-center py-8">No leads</p>}
+              ) : (
+                <p className="text-sm text-zoho-muted text-center py-8">{loaded.pipeline ? 'No leads' : 'Loading…'}</p>
+              )}
             </Widget>
 
             {canViewAuditLogs && (
@@ -270,7 +323,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )) : (
-                  <p className="text-sm text-zoho-muted text-center py-8">No audit logs found</p>
+                  <p className="text-sm text-zoho-muted text-center py-8">{loaded.audit ? 'No audit logs found' : 'Loading…'}</p>
                 )}
               </div>
             </Widget>
@@ -293,7 +346,7 @@ export default function DashboardPage() {
                     <span className="text-brand-600 font-semibold shrink-0">{fmt(a.revenue, a.currency)}</span>
                   </div>
                 )) : (
-                  <p className="text-sm text-zoho-muted text-center py-8">No confirmed accounts yet</p>
+                  <p className="text-sm text-zoho-muted text-center py-8">{loaded.home ? 'No confirmed accounts yet' : 'Loading…'}</p>
                 )}
               </div>
             </Widget>

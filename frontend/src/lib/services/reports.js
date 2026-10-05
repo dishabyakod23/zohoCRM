@@ -1,6 +1,7 @@
 import api from '../api.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
 import { normalizeRole } from '../roles.js';
+import { validateEmail } from '../validators.js';
 
 function dateParams({ date_from, date_to } = {}) {
   const params = {};
@@ -127,6 +128,56 @@ export function getWeeklyReportRecipients(users, settings) {
   }
   const excluded = new Set(settings?.excluded_user_ids || []);
   return (users || []).filter((u) => isWeeklyRecipientEligible(u, settings) && !excluded.has(u.id));
+}
+
+export function getExternalRecipientEmails(settings) {
+  return Array.isArray(settings?.external_recipient_emails) ? settings.external_recipient_emails : [];
+}
+
+/**
+ * Validate an email typed into "Add external recipient".
+ * Returns `{ email }` (trimmed + lowercased) or `{ error }`.
+ */
+export function validateExternalRecipientEmail(raw, settings, users = []) {
+  const email = String(raw || '').trim().toLowerCase();
+  if (!email) return { error: 'Enter an email address.' };
+  const formatError = validateEmail(email);
+  if (formatError) return { error: formatError };
+  if (getExternalRecipientEmails(settings).some((e) => e.toLowerCase() === email)) {
+    return { error: 'This email is already added.' };
+  }
+  const crmUser = (users || []).find((u) => String(u?.email || '').toLowerCase() === email);
+  if (crmUser) {
+    return { error: 'This email belongs to a CRM user — tick them in the recipients table instead.' };
+  }
+  return { email };
+}
+
+export function addExternalRecipientEmail(settings, email) {
+  return { ...settings, external_recipient_emails: [...getExternalRecipientEmails(settings), email] };
+}
+
+export function removeExternalRecipientEmail(settings, email) {
+  const target = String(email || '').toLowerCase();
+  return {
+    ...settings,
+    external_recipient_emails: getExternalRecipientEmails(settings).filter((e) => e.toLowerCase() !== target),
+  };
+}
+
+/** All addresses the weekly email goes to: selected CRM users + external emails (deduped). */
+export function getWeeklyRecipientEmails(users, settings) {
+  const seen = new Set();
+  const out = [];
+  const push = (email) => {
+    const key = String(email || '').trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(String(email).trim());
+  };
+  getWeeklyReportRecipients(users, settings).forEach((u) => push(u.email));
+  getExternalRecipientEmails(settings).forEach(push);
+  return out;
 }
 
 export function isUserIncludedInReports(user, settings) {
