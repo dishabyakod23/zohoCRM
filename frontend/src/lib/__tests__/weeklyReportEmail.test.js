@@ -7,7 +7,23 @@ import {
   RECOMMENDED_WEEKLY_REPORT_SCHEDULE,
   weeklyReportRoleShort,
   formatWeeklyRate,
+  formatWeeklyGeneratedOn,
 } from '../weeklyReportEmail.js';
+
+describe('formatWeeklyGeneratedOn', () => {
+  it('formats raw ISO timestamps (with microseconds) as readable local date/time', () => {
+    const label = formatWeeklyGeneratedOn('2026-10-05T11:33:47.242363Z', { locale: 'en-IN', timeZone: 'Asia/Kolkata' });
+    expect(label).not.toContain('T11:33');
+    expect(label).toMatch(/5 Oct 2026/);
+    expect(label).toMatch(/5:03/);
+  });
+
+  it('leaves non-ISO labels and empty values alone', () => {
+    expect(formatWeeklyGeneratedOn('2026-09-08 15:30 IST')).toBe('2026-09-08 15:30 IST');
+    expect(formatWeeklyGeneratedOn('')).toBe('');
+    expect(formatWeeklyGeneratedOn(null)).toBe('');
+  });
+});
 
 describe('weekly team performance report helpers', () => {
   const members = [

@@ -83,28 +83,35 @@ describe('enrichSalesTargetDashboard', () => {
     expect(summary.pipeline_leaderboard.some((row) => row.employee_id === 'viewer1')).toBe(false);
   });
 
-  it('includes Super Admin pipeline in the BDM column ranking', async () => {
+  it('hides admins and inactive users; only sales_rep (BDE) and sales_manager (BDM)', async () => {
     const summary = await enrichSalesTargetDashboard({
-      bde_leaderboard: [],
+      bde_leaderboard: [
+        { employee_id: 'admin1', actual_pipeline: '900000', role: 'super_admin' },
+        { employee_id: 'gone1', actual_pipeline: '800000', role: 'sales_rep' },
+        { employee_id: 'old1', actual_pipeline: '700000', role: 'sales_rep' },
+      ],
       monthly_pipeline_actual: '0',
     }, {
       listProposals: async () => ({
         data: [
           { owner_id: 'bde1', deal_size: 100000, currency: 'INR' },
           { owner_id: 'admin1', deal_size: 500000, currency: 'INR' },
+          { owner_id: 'old1', deal_size: 400000, currency: 'INR' },
+          { owner_id: 'bdm1', deal_size: 200000, currency: 'INR' },
         ],
       }),
       loadUsers: async () => ([
-        { id: 'bde1', first_name: 'Rep', last_name: 'One', role: 'sales_rep' },
-        { id: 'admin1', first_name: 'Super', last_name: 'Admin', role: 'super_admin', email: 'admin@example.com' },
+        { id: 'bde1', first_name: 'Rep', last_name: 'One', role: 'sales_rep', is_active: true },
+        { id: 'bdm1', first_name: 'Mgr', last_name: 'One', role: 'sales_manager', is_active: true },
+        { id: 'admin1', first_name: 'Super', last_name: 'Admin', role: 'super_admin', is_active: true },
+        { id: 'old1', first_name: 'Old', last_name: 'Rep', role: 'sales_rep', is_active: false },
       ]),
     });
 
-    expect(summary.pipeline_leaderboard.some((row) => row.employee_id === 'admin1')).toBe(true);
-    expect(summary.bdm_leaderboard).toHaveLength(1);
-    expect(summary.bdm_leaderboard[0].employee_id).toBe('admin1');
-    expect(summary.bdm_leaderboard[0].role_label).toBe('Admin');
-    expect(summary.bdm_leaderboard[0].actual_pipeline).toBe('500000');
-    expect(summary.bde_only_leaderboard[0].employee_id).toBe('bde1');
+    const ids = summary.pipeline_leaderboard.map((row) => row.employee_id);
+    expect(ids).toEqual(['bdm1', 'bde1']);
+    expect(summary.bde_only_leaderboard.map((r) => r.employee_id)).toEqual(['bde1']);
+    expect(summary.bdm_leaderboard.map((r) => r.employee_id)).toEqual(['bdm1']);
+    expect(summary.bdm_leaderboard[0].role_label).toBe('BDM');
   });
 });

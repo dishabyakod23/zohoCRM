@@ -306,6 +306,26 @@ export function buildWeeklyReportIntroText({ periodStart, periodEnd } = {}) {
  * Team weekly digest HTML built from member_rows (fallback when API html_body is absent).
  * Two sections: module snapshot + activity, then Sat–Fri conversions.
  */
+/**
+ * "2026-10-05T11:33:47.242363Z" → "5 Oct 2026, 5:03 pm" in the viewer's locale/timezone.
+ * Non-ISO labels (e.g. "2026-09-08 15:30 IST") are returned unchanged.
+ */
+export function formatWeeklyGeneratedOn(value, { locale, timeZone } = {}) {
+  if (!value) return '';
+  const raw = String(value).trim();
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw)) return raw;
+  const date = new Date(raw.replace(/(\.\d{3})\d+/, '$1'));
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    ...(timeZone ? { timeZone } : {}),
+  });
+}
+
 export function buildWeeklyReportHtml({
   companyName = 'Origami CRM',
   periodStart,

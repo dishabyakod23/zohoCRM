@@ -5,12 +5,15 @@ import { sumAmountsInInr } from './fxRates.js';
 import * as leadsApi from './services/leads.js';
 import { fetchUsers } from './services/lookups.js';
 
-/** Roles shown on the dashboard pipeline leaderboard (includes Super Admin). */
+/** Roles shown on the dashboard pipeline leaderboard: BDE = sales_rep, BDM = sales_manager. */
 export const PIPELINE_LEADERBOARD_ROLES = {
   sales_rep: 'BDE',
   sales_manager: 'BDM',
-  super_admin: 'Admin',
 };
+
+function isInactive(record) {
+  return record?.is_active === false || String(record?.status || '').toLowerCase() === 'inactive';
+}
 
 function leaderboardPipelineAmount(item = {}) {
   const value = item.actual_pipeline ?? item.pipeline_actual ?? item.pipeline_value ?? item.actuals?.actual_pipeline;
@@ -72,24 +75,28 @@ export async function enrichSalesTargetDashboard(summary = {}, {
 
   const pipelineByOwner = await buildProposalPipelineInrByOwner(proposals);
   const usersById = new Map((users || []).map((u) => [String(u.id), u]));
+  const haveUsers = usersById.size > 0;
   const leaderboardMap = new Map();
 
   for (const item of summary.bde_leaderboard || summary.pipeline_leaderboard || []) {
     const id = leaderboardEmployeeId(item);
-    if (!id) continue;
+    if (!id || isInactive(item)) continue;
     const user = usersById.get(id);
-    const role = item.role || user?.role || 'sales_rep';
-    if (user && !isPipelineLeaderboardRole(user.role) && !roleShortLabel(item.role)) continue;
+    // Users missing from /lookups/users are inactive or deleted.
+    if (haveUsers && !user) continue;
+    if (user && (isInactive(user) || !isPipelineLeaderboardRole(user.role))) continue;
+    const role = normalizeRole(user?.role || item.role || 'sales_rep');
+    if (!isPipelineLeaderboardRole(role)) continue;
     leaderboardMap.set(id, {
       ...item,
       employee_id: id,
-      role: normalizeRole(role),
-      role_label: roleShortLabel(role) || item.role_label || 'BDE',
+      role,
+      role_label: roleShortLabel(role),
     });
   }
 
   for (const user of users) {
-    if (!isPipelineLeaderboardRole(user.role)) continue;
+    if (isInactive(user) || !isPipelineLeaderboardRole(user.role)) continue;
     const id = String(user.id);
     const crmPipeline = pipelineByOwner.get(id) || 0;
     const existing = leaderboardMap.get(id) || {};
@@ -108,34 +115,24 @@ export async function enrichSalesTargetDashboard(summary = {}, {
     });
   }
 
-  // Keep proposal owners who are BDE/BDM even if missing from the users list response.
-  for (const [ownerId, crmPipeline] of pipelineByOwner) {
-    if (leaderboardMap.has(ownerId)) continue;
-    const user = usersById.get(ownerId);
-    if (user && !isPipelineLeaderboardRole(user.role)) continue;
-    const role = normalizeRole(user?.role || 'sales_rep');
-    leaderboardMap.set(ownerId, {
-      employee_id: ownerId,
-      employee_name: userDisplayName(user) || user?.name || 'Unknown',
-      role,
-      role_label: roleShortLabel(role) || 'BDE',
-      actual_pipeline: String(crmPipeline),
-      pipeline_actual: String(crmPipeline),
-    });
+  // Users list unavailable: still rank proposal owners as BDE rather than dropping the panel.
+  if (!haveUsers) {
+    for (const [ownerId, crmPipeline] of pipelineByOwner) {
+      if (leaderboardMap.has(ownerId)) continue;
+      leaderboardMap.set(ownerId, {
+        employee_id: ownerId,
+        employee_name: 'Unknown',
+        role: 'sales_rep',
+        role_label: 'BDE',
+        actual_pipeline: String(crmPipeline),
+        pipeline_actual: String(crmPipeline),
+      });
+    }
   }
 
   const pipeline_leaderboard = sortLeaderboard([...leaderboardMap.values()]);
-  const bde_leaderboard = pipeline_leaderboard.filter((row) => (
-    row.role_label === 'BDE' || normalizeRole(row.role) === 'sales_rep'
-  ));
-  // BDM column includes Sales Managers and Super Admins so admin-owned pipeline ranks too.
-  const bdm_leaderboard = pipeline_leaderboard.filter((row) => {
-    const role = normalizeRole(row.role);
-    return row.role_label === 'BDM'
-      || row.role_label === 'Admin'
-      || role === 'sales_manager'
-      || role === 'super_admin';
-  });
+  const bde_leaderboard = pipeline_leaderboard.filter((row) => normalizeRole(row.role) === 'sales_rep');
+  const bdm_leaderboard = pipeline_leaderboard.filter((row) => normalizeRole(row.role) === 'sales_manager');
 
   const crmTotalPipeline = [...pipelineByOwner.values()].reduce((sum, value) => sum + value, 0);
   const apiMonthly = Number(summary.monthly_pipeline_actual || 0);
@@ -143,7 +140,7 @@ export async function enrichSalesTargetDashboard(summary = {}, {
   return {
     ...summary,
     monthly_pipeline_actual: String(Math.max(apiMonthly, crmTotalPipeline)),
-    // Keep legacy key for callers; now includes BDE + BDM + Super Admin sorted by pipeline.
+    // Keep legacy key for callers; includes active BDE + BDM sorted by pipeline.
     bde_leaderboard: pipeline_leaderboard,
     pipeline_leaderboard,
     bde_only_leaderboard: bde_leaderboard,

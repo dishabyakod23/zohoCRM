@@ -71,16 +71,9 @@ export default function SalesTargetWidgets() {
   if (!summary) return null;
 
   const bdeRows = summary.bde_only_leaderboard
-    || (summary.pipeline_leaderboard || summary.bde_leaderboard || []).filter((row) => (
-      row.role_label === 'BDE' || row.role === 'sales_rep'
-    ));
+    || (summary.pipeline_leaderboard || summary.bde_leaderboard || []).filter((row) => row.role === 'sales_rep');
   const bdmRows = summary.bdm_leaderboard
-    || (summary.pipeline_leaderboard || summary.bde_leaderboard || []).filter((row) => (
-      row.role_label === 'BDM'
-      || row.role_label === 'Admin'
-      || row.role === 'sales_manager'
-      || row.role === 'super_admin'
-    ));
+    || (summary.pipeline_leaderboard || summary.bde_leaderboard || []).filter((row) => row.role === 'sales_manager');
 
   return (
     <>

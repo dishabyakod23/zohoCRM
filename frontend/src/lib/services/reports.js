@@ -146,8 +146,9 @@ export function validateExternalRecipientEmail(raw, settings, users = []) {
   if (getExternalRecipientEmails(settings).some((e) => e.toLowerCase() === email)) {
     return { error: 'This email is already added.' };
   }
-  const crmUser = (users || []).find((u) => String(u?.email || '').toLowerCase() === email);
-  if (crmUser) {
+  // Inactive users can't be ticked in the recipients table, so they're allowed here.
+  const activeCrmUser = (users || []).find((u) => u?.is_active && String(u.email || '').toLowerCase() === email);
+  if (activeCrmUser) {
     return { error: 'This email belongs to a CRM user — tick them in the recipients table instead.' };
   }
   return { email };

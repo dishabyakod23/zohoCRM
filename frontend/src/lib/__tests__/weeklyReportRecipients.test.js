@@ -9,6 +9,7 @@ import {
 const users = [
   { id: 'u1', email: 'Admin@Origami.dev', is_active: true, role: 'super_admin' },
   { id: 'u2', email: 'bdm@origami.dev', is_active: true, role: 'sales_manager' },
+  { id: 'u3', email: 'former@origami.dev', is_active: false, role: 'sales_rep' },
 ];
 
 describe('weekly report external recipients', () => {
@@ -22,6 +23,10 @@ describe('weekly report external recipients', () => {
     expect(validateExternalRecipientEmail('a@b.com', { external_recipient_emails: ['A@b.com'] }, users).error)
       .toMatch(/already added/);
     expect(validateExternalRecipientEmail('admin@origami.dev', {}, users).error).toMatch(/CRM user/);
+  });
+
+  it('accepts an inactive CRM user email as an external recipient', () => {
+    expect(validateExternalRecipientEmail('Former@origami.dev', {}, users)).toEqual({ email: 'former@origami.dev' });
   });
 
   it('adds and removes emails without touching other settings', () => {

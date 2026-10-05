@@ -12,6 +12,7 @@ import { formatWeeklyReportSchedule } from '../../lib/weeklyReportSchedule.js';
 import {
   RECOMMENDED_WEEKLY_REPORT_SCHEDULE,
   buildWeeklyReportHtml,
+  formatWeeklyGeneratedOn,
 } from '../../lib/weeklyReportEmail.js';
 import { roleLabel } from '../../lib/roles.js';
 import PerformanceReportsPanel from '../../components/reports/PerformanceReportsPanel.js';
@@ -225,6 +226,7 @@ export default function ReportsPage() {
   ];
 
   const summary = weeklyPreview?.summary;
+  const generatedOnLabel = formatWeeklyGeneratedOn(weeklyPreview?.generated_on || summary?.generated_on);
   const reportRecipients = useMemo(
     () => reportsApi.getWeeklyReportRecipients(adminUsers, weeklySettings),
     [adminUsers, weeklySettings],
@@ -256,13 +258,12 @@ export default function ReportsPage() {
       companyName: weeklyPreview?.company_name || 'Origami CRM',
       periodStart: weeklyPreview?.period_start || summary?.period_start,
       periodEnd: weeklyPreview?.period_end || summary?.period_end,
-      generatedOn: weeklyPreview?.generated_on || summary?.generated_on,
+      generatedOn: generatedOnLabel,
       teamLabel: weeklyPreview?.team_label || summary?.team_label,
       members: weeklyMembers,
       summary: summary || {},
     });
   }, [weeklyMembers, weeklyPreview, summary]);
-  // Prefer authoritative backend digest HTML; fall back to FE build from member_rows.
   const emailPreviewHtml = weeklyPreview?.html_body || teamPreviewHtml;
 
   const applyRecommendedSchedule = () => {
@@ -635,7 +636,7 @@ export default function ReportsPage() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {[
                         ['Team', weeklyPreview?.team_label || summary?.team_label || summary?.team_member_count],
-                        ['Generated on', weeklyPreview?.generated_on || summary?.generated_on],
+                        ['Generated on', generatedOnLabel || null],
                         ['Period start', weeklyPreview?.period_start || summary?.period_start],
                         ['Period end', weeklyPreview?.period_end || summary?.period_end],
                       ].map(([l, v]) => (
@@ -654,7 +655,7 @@ export default function ReportsPage() {
                     periodStart={weeklyPreview?.period_start || summary?.period_start}
                     periodEnd={weeklyPreview?.period_end || summary?.period_end}
                     teamLabel={weeklyPreview?.team_label || summary?.team_label}
-                    generatedOn={weeklyPreview?.generated_on || summary?.generated_on}
+                    generatedOn={generatedOnLabel}
                   />
                 )}
 
@@ -669,9 +670,7 @@ export default function ReportsPage() {
                           : 'No preview HTML available.'}
                       {' '}
                       {weeklyPreview?.team_label || summary?.team_label || ''}
-                      {(weeklyPreview?.generated_on || summary?.generated_on)
-                        ? ` · Generated ${weeklyPreview?.generated_on || summary?.generated_on}`
-                        : ''}
+                      {generatedOnLabel ? ` · Generated ${generatedOnLabel}` : ''}
                       {' · Saturday–Friday '}
                       {weeklyPreview?.period_start || summary?.period_start || '—'}
                       {' to '}
