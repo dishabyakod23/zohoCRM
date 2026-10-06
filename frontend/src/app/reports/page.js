@@ -111,8 +111,8 @@ export default function ReportsPage() {
     setLoading(true);
     try {
       const [settings, preview, users] = await Promise.all([
-        reportsApi.getAdminSettings(),
-        reportsApi.previewWeeklyReport(),
+        reportsApi.getAdminSettings({ fresh: true }),
+        reportsApi.previewWeeklyReport().catch(() => null),
         reportsApi.listAdminUsers(),
       ]);
       setWeeklySettings(settings.weekly_report);
@@ -177,15 +177,8 @@ export default function ReportsPage() {
           : reportRecipients.map((u) => u.id),
         external_recipient_emails: reportsApi.getExternalRecipientEmails(weeklySettings),
       });
-      const saved = updated.weekly_report || updated;
-      const sentExternal = reportsApi.getExternalRecipientEmails(weeklySettings);
-      const serverStoresExternal = Array.isArray(saved?.external_recipient_emails);
-      setWeeklySettings(serverStoresExternal ? saved : { ...saved, external_recipient_emails: sentExternal });
-      if (sentExternal.length && !serverStoresExternal) {
-        showToast('Settings saved, but the server did not store the external emails yet (backend update pending).');
-      } else {
-        showToast('Weekly report settings saved', 'success');
-      }
+      setWeeklySettings(updated.weekly_report || updated);
+      showToast('Weekly report settings saved', 'success');
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -264,6 +257,7 @@ export default function ReportsPage() {
       summary: summary || {},
     });
   }, [weeklyMembers, weeklyPreview, summary]);
+  // Prefer authoritative backend digest HTML; fall back to FE build from member_rows.
   const emailPreviewHtml = weeklyPreview?.html_body || teamPreviewHtml;
 
   const applyRecommendedSchedule = () => {

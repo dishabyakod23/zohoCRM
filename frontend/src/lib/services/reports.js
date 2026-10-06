@@ -130,6 +130,8 @@ export function getWeeklyReportRecipients(users, settings) {
   return (users || []).filter((u) => isWeeklyRecipientEligible(u, settings) && !excluded.has(u.id));
 }
 
+export const MAX_EXTERNAL_RECIPIENT_EMAILS = 20;
+
 export function getExternalRecipientEmails(settings) {
   return Array.isArray(settings?.external_recipient_emails) ? settings.external_recipient_emails : [];
 }
@@ -143,8 +145,12 @@ export function validateExternalRecipientEmail(raw, settings, users = []) {
   if (!email) return { error: 'Enter an email address.' };
   const formatError = validateEmail(email);
   if (formatError) return { error: formatError };
-  if (getExternalRecipientEmails(settings).some((e) => e.toLowerCase() === email)) {
+  const existing = getExternalRecipientEmails(settings);
+  if (existing.some((e) => e.toLowerCase() === email)) {
     return { error: 'This email is already added.' };
+  }
+  if (existing.length >= MAX_EXTERNAL_RECIPIENT_EMAILS) {
+    return { error: `You can add up to ${MAX_EXTERNAL_RECIPIENT_EMAILS} external emails.` };
   }
   // Inactive users can't be ticked in the recipients table, so they're allowed here.
   const activeCrmUser = (users || []).find((u) => u?.is_active && String(u.email || '').toLowerCase() === email);

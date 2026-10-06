@@ -25,6 +25,11 @@ describe('weekly report external recipients', () => {
     expect(validateExternalRecipientEmail('admin@origami.dev', {}, users).error).toMatch(/CRM user/);
   });
 
+  it('caps external recipients at 20', () => {
+    const full = { external_recipient_emails: Array.from({ length: 20 }, (_, i) => `p${i}@x.com`) };
+    expect(validateExternalRecipientEmail('new@x.com', full, users).error).toMatch(/up to 20/);
+  });
+
   it('accepts an inactive CRM user email as an external recipient', () => {
     expect(validateExternalRecipientEmail('Former@origami.dev', {}, users)).toEqual({ email: 'former@origami.dev' });
   });

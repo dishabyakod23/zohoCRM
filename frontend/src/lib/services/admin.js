@@ -66,7 +66,8 @@ export async function updateAdminUser(id, payload) {
   return res.data.data;
 }
 
-export async function getAdminSettings() {
+export async function getAdminSettings({ fresh = false } = {}) {
+  if (fresh) invalidateCachedRequest('admin:settings');
   return cachedRequest('admin:settings', async () => {
     const res = await api.get('/admin/settings');
     return res.data.data;
