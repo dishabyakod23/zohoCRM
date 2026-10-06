@@ -4,6 +4,7 @@ import {
   removeExternalRecipientEmail,
   getWeeklyRecipientEmails,
   getExternalRecipientEmails,
+  buildExternalRecipientRows,
 } from '../services/reports.js';
 
 const users = [
@@ -23,6 +24,16 @@ describe('weekly report external recipients', () => {
     expect(validateExternalRecipientEmail('a@b.com', { external_recipient_emails: ['A@b.com'] }, users).error)
       .toMatch(/already added/);
     expect(validateExternalRecipientEmail('admin@origami.dev', {}, users).error).toMatch(/CRM user/);
+  });
+
+  it('builds external rows, matching inactive CRM users by email', () => {
+    const rows = buildExternalRecipientRows(users, {
+      external_recipient_emails: ['former@origami.dev', 'ceo@partner.com'],
+    });
+    expect(rows).toEqual([
+      { email: 'former@origami.dev', user: users[2] },
+      { email: 'ceo@partner.com', user: null },
+    ]);
   });
 
   it('caps external recipients at 20', () => {

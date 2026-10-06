@@ -172,6 +172,22 @@ export function removeExternalRecipientEmail(settings, email) {
   };
 }
 
+/**
+ * Rows for the bottom "External recipient" section of the recipients table.
+ * Each external email is matched to a CRM user (often inactive) when one exists.
+ */
+export function buildExternalRecipientRows(users, settings) {
+  const byEmail = new Map(
+    (users || [])
+      .filter((u) => u?.email)
+      .map((u) => [String(u.email).toLowerCase(), u]),
+  );
+  return getExternalRecipientEmails(settings).map((email) => ({
+    email,
+    user: byEmail.get(String(email).toLowerCase()) || null,
+  }));
+}
+
 /** All addresses the weekly email goes to: selected CRM users + external emails (deduped). */
 export function getWeeklyRecipientEmails(users, settings) {
   const seen = new Set();

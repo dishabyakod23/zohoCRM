@@ -52,6 +52,7 @@ export default function ReportsPage() {
   const [triggering, setTriggering] = useState(false);
   const [externalEmailInput, setExternalEmailInput] = useState('');
   const [externalEmailError, setExternalEmailError] = useState('');
+  const [savingExternal, setSavingExternal] = useState(false);
 
   const dateParams = {
     date_from: dateRange.start || undefined,
@@ -228,17 +229,67 @@ export default function ReportsPage() {
     () => reportsApi.getWeeklyRecipientEmails(adminUsers, weeklySettings),
     [adminUsers, weeklySettings],
   );
-  const externalRecipientEmails = reportsApi.getExternalRecipientEmails(weeklySettings);
+  const externalRecipientRows = useMemo(
+    () => reportsApi.buildExternalRecipientRows(adminUsers, weeklySettings),
+    [adminUsers, weeklySettings],
+  );
+  const internalRecipientUsers = useMemo(() => {
+    const externalSet = new Set(externalRecipientRows.map((row) => row.email.toLowerCase()));
+    return (adminUsers || []).filter((u) => !externalSet.has(String(u.email || '').toLowerCase()));
+  }, [adminUsers, externalRecipientRows]);
 
-  const addExternalRecipient = () => {
+  /** Save the full external list right away so it survives a reload without clicking Save Settings. */
+  const persistExternalEmails = async (nextSettings, successMessage) => {
+    setSavingExternal(true);
+    try {
+      const updated = await reportsApi.updateWeeklyReportSettings({
+        external_recipient_emails: reportsApi.getExternalRecipientEmails(nextSettings),
+      });
+      const saved = updated.weekly_report || updated;
+      setWeeklySettings((s) => ({ ...s, external_recipient_emails: saved.external_recipient_emails || [] }));
+      showToast(successMessage, 'success');
+      return true;
+    } catch (err) {
+      showToast(getApiError(err));
+      return false;
+    } finally {
+      setSavingExternal(false);
+    }
+  };
+
+  const addInactiveUserAsExternal = (email) => {
+    const result = reportsApi.validateExternalRecipientEmail(email, weeklySettings, []);
+    if (result.error) {
+      showToast(result.error);
+      return;
+    }
+    persistExternalEmails(
+      reportsApi.addExternalRecipientEmail(weeklySettings, result.email),
+      `${result.email} added as an external recipient`,
+    );
+  };
+
+  const removeExternalRecipient = (email) => {
+    persistExternalEmails(
+      reportsApi.removeExternalRecipientEmail(weeklySettings, email),
+      `${email} removed from recipients`,
+    );
+  };
+
+  const addExternalRecipient = async () => {
     const result = reportsApi.validateExternalRecipientEmail(externalEmailInput, weeklySettings, adminUsers);
     if (result.error) {
       setExternalEmailError(result.error);
       return;
     }
-    setWeeklySettings((s) => reportsApi.addExternalRecipientEmail(s, result.email));
-    setExternalEmailInput('');
-    setExternalEmailError('');
+    const ok = await persistExternalEmails(
+      reportsApi.addExternalRecipientEmail(weeklySettings, result.email),
+      `${result.email} added as an external recipient`,
+    );
+    if (ok) {
+      setExternalEmailInput('');
+      setExternalEmailError('');
+    }
   };
 
   const weeklyMembers = useMemo(
@@ -525,12 +576,9 @@ export default function ReportsPage() {
                 <div className="card p-5">
                   <h3 className="font-semibold mb-1">Email recipients</h3>
                   <p className="text-xs text-gray-500 mb-4">
-                    Who receives the weekly email (`recipient_user_ids`). Separate from report subjects.
-                    {recipientEmails.length > 0 && (
-                      <span className="block mt-1 text-brand-700 font-medium">
-                        Will send to: {recipientEmails.join(', ')}
-                      </span>
-                    )}
+                    Who receives the weekly email. Tick CRM users, or add any other email below — it appears at the bottom as an external recipient.
+                    {' '}
+                    <span className="font-medium text-zoho-text">{recipientEmails.length} recipient(s) selected.</span>
                   </p>
                   <div className="overflow-x-auto">
                     <table className="w-full">
@@ -543,10 +591,11 @@ export default function ReportsPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {adminUsers.length === 0 ? (
+                        {internalRecipientUsers.length === 0 && externalRecipientRows.length === 0 ? (
                           <tr><td colSpan={4} className="table-td text-center py-6 text-gray-400">No users found</td></tr>
-                        ) : adminUsers.map((u) => {
+                        ) : internalRecipientUsers.map((u) => {
                           const canReceive = Boolean(u?.is_active && u.email);
+                          const canAddAsExternal = Boolean(!u?.is_active && u.email);
                           const included = reportsApi.isUserIncludedInReports(u, weeklySettings);
                           return (
                             <tr key={`recipient-${u.id}`} className={!u.is_active ? 'opacity-50' : ''}>
@@ -556,6 +605,14 @@ export default function ReportsPage() {
                                     type="checkbox"
                                     checked={included}
                                     onChange={(e) => toggleRecipient(u.id, e.target.checked)}
+                                  />
+                                ) : canAddAsExternal ? (
+                                  <input
+                                    type="checkbox"
+                                    checked={false}
+                                    title="Inactive user — tick to send as an external recipient"
+                                    disabled={savingExternal}
+                                    onChange={() => addInactiveUserAsExternal(u.email)}
                                   />
                                 ) : (
                                   <span className="text-xs text-gray-400">—</span>
@@ -567,6 +624,29 @@ export default function ReportsPage() {
                             </tr>
                           );
                         })}
+                        {externalRecipientRows.map(({ email, user: matchedUser }) => (
+                          <tr key={`external-${email}`} className="bg-brand-50/40">
+                            <td className="table-td">
+                              <input
+                                type="checkbox"
+                                checked
+                                title="Untick to stop sending to this email"
+                                disabled={savingExternal}
+                                onChange={() => removeExternalRecipient(email)}
+                              />
+                            </td>
+                            <td className="table-td">{matchedUser ? userDisplayName(matchedUser) : '—'}</td>
+                            <td className="table-td text-blue-600">{email}</td>
+                            <td className="table-td">
+                              <span className="inline-flex items-center rounded-full bg-brand-100 text-brand-700 text-[11px] font-medium px-2 py-0.5">
+                                External recipient
+                              </span>
+                              {matchedUser && !matchedUser.is_active && (
+                                <span className="ml-1.5 text-[11px] text-gray-500">(inactive {roleLabel(matchedUser.role)})</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -577,7 +657,7 @@ export default function ReportsPage() {
                   <div className="mt-5 border-t border-zoho-border pt-4">
                     <h4 className="text-sm font-semibold mb-1">External recipients</h4>
                     <p className="text-xs text-gray-500 mb-3">
-                      Send the weekly report to people who are not CRM users (e.g. founders, investors). Click Save Settings after adding.
+                      Send the weekly report to people who are not CRM users (e.g. founders, investors) or inactive users. Added emails appear at the bottom of the table above and are saved immediately. Use Save Settings to save the ticked CRM users.
                     </p>
                     <div className="flex flex-wrap items-start gap-2">
                       <div className="flex-1 min-w-[240px] max-w-md">
@@ -599,29 +679,13 @@ export default function ReportsPage() {
                         />
                         {externalEmailError && <p className="text-xs text-red-600 mt-1">{externalEmailError}</p>}
                       </div>
-                      <button type="button" onClick={addExternalRecipient} className="btn-secondary text-xs">
-                        + Add email
+                      <button type="button" onClick={addExternalRecipient} disabled={savingExternal} className="btn-secondary text-xs">
+                        {savingExternal ? 'Saving…' : '+ Add email'}
+                      </button>
+                      <button type="button" onClick={saveWeeklySettings} disabled={savingSettings || savingExternal} className="btn-primary text-xs">
+                        {savingSettings ? 'Saving...' : 'Save Settings'}
                       </button>
                     </div>
-                    {externalRecipientEmails.length > 0 ? (
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        {externalRecipientEmails.map((email) => (
-                          <span key={email} className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 text-brand-700 text-xs px-3 py-1">
-                            {email}
-                            <button
-                              type="button"
-                              title={`Remove ${email}`}
-                              className="text-brand-700 hover:text-red-600 font-semibold"
-                              onClick={() => setWeeklySettings((s) => reportsApi.removeExternalRecipientEmail(s, email))}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-400 mt-3">No external recipients added.</p>
-                    )}
                   </div>
                 </div>
 
