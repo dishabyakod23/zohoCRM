@@ -35,10 +35,13 @@ export default function NoteRichTextEditor({
 }) {
   const editorRef = useRef(null);
   const lastValueRef = useRef(null);
+  const lastEmittedRef = useRef(null);
 
   useEffect(() => {
     const el = editorRef.current;
     if (!el) return;
+    // Our own onChange echoing back: rewriting innerHTML here would reset the caret.
+    if (value === lastEmittedRef.current && el.innerHTML) return;
     const next = noteBodyToHtml(value);
     if (next === lastValueRef.current && el.innerHTML === next) return;
     if (el.innerHTML !== next) el.innerHTML = next || '';
@@ -48,7 +51,9 @@ export default function NoteRichTextEditor({
   const emit = () => {
     const html = sanitizeNoteHtml(editorRef.current?.innerHTML || '');
     lastValueRef.current = html;
-    onChange?.(isNoteBodyEmpty(html) ? '' : html);
+    const out = isNoteBodyEmpty(html) ? '' : html;
+    lastEmittedRef.current = out;
+    onChange?.(out);
   };
 
   const run = (cmd, arg) => {

@@ -455,7 +455,7 @@ async function convertLeadsToContact(ids = []) {
       await convertLeadToContact(id);
       success += 1;
     } catch (err) {
-      errors.push(`${id}: ${err.response?.data?.message || err.response?.data?.error || err.message || 'Convert failed'}`);
+      errors.push(`${id}: ${err.response?.data?.detail || err.response?.data?.message || err.response?.data?.error || err.message || 'Convert failed'}`);
     }
   }
   if (errors.length) {
