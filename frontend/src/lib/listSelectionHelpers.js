@@ -48,6 +48,41 @@ export async function fetchRemainingPagesParallel({
   return first.concat(...batches.filter(Array.isArray));
 }
 
+/**
+ * Load every page of a list: page 1 first (for the total), the rest in parallel.
+ * `fetchPage(page)` must resolve `{ data, total }`; falls back to sequential paging
+ * when the API doesn't report a total.
+ */
+export async function fetchAllPagesFast({
+  fetchPage,
+  pageSize,
+  maxRecords = Infinity,
+  maxPages = 50,
+  concurrency = 5,
+}) {
+  const first = await fetchPage(1);
+  const firstData = first?.data || [];
+  if (first?.total == null) {
+    let all = firstData;
+    let batchLength = firstData.length;
+    for (let page = 2; page <= maxPages && batchLength >= pageSize && all.length < maxRecords; page += 1) {
+      const next = await fetchPage(page);
+      const rows = next?.data || [];
+      batchLength = rows.length;
+      all = all.concat(rows);
+    }
+    return all;
+  }
+  return fetchRemainingPagesParallel({
+    total: Math.min(Number(first.total) || 0, maxRecords),
+    pageSize,
+    firstPageData: firstData,
+    maxPages,
+    concurrency,
+    fetchPage,
+  });
+}
+
 export async function fetchAllIdsFromEndpoint(
   endpoint,
   params = {},

@@ -14,8 +14,8 @@ import {
   usesCampaignMembershipFilter,
 } from '../listRecordFilters.js';
 import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
-import { cachedRequest, invalidateCachedRequest } from '../requestCache.js';
-import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
+import { cachedRequest, invalidateCachedRequest, cachedFullList } from '../requestCache.js';
+import { listAllMatchingIdsFromListFn, fetchAllPagesFast } from '../listSelectionHelpers.js';
 
 const EMAIL_MAP_CACHE_MS = 5 * 60 * 1000;
 const STICKY_ACCOUNTS_CACHE_MS = 30 * 1000;
@@ -23,22 +23,19 @@ const STICKY_ACCOUNTS_CACHE_MS = 30 * 1000;
 async function fetchAccountContactEmailMap() {
   return cachedRequest('account-contact-emails', async () => {
     const pageSize = BULK_FETCH_PAGE_SIZE;
-    let page = 1;
+    const contacts = await fetchAllPagesFast({
+      pageSize,
+      fetchPage: async (page) => {
+        const res = await api.get('/contacts', { params: { page, page_size: pageSize } });
+        return { data: res.data.data || [], total: res.data.meta?.total };
+      },
+    });
     const map = new Map();
-
-    while (page <= 50) {
-      const res = await api.get('/contacts', { params: { page, page_size: pageSize } });
-      const batch = res.data.data || [];
-      for (const contact of batch) {
-        const accountId = contact.account_id;
-        const email = String(contact.email || '').trim();
-        if (accountId && email && !map.has(accountId)) map.set(accountId, email);
-      }
-      const total = res.data.meta?.total ?? batch.length;
-      if (batch.length === 0 || page * pageSize >= total) break;
-      page += 1;
+    for (const contact of contacts) {
+      const accountId = contact.account_id;
+      const email = String(contact.email || '').trim();
+      if (accountId && email && !map.has(accountId)) map.set(accountId, email);
     }
-
     return map;
   }, EMAIL_MAP_CACHE_MS);
 }
@@ -52,44 +49,36 @@ function attachContactEmails(accounts, emailMap) {
 
 async function fetchAllAccountPages(params, maxRecords = CLIENT_FILTER_MAX_RECORDS) {
   const pageSize = BULK_FETCH_PAGE_SIZE;
-  let page = 1;
-  let all = [];
-  let serverTotal = 0;
-
-  while (page <= 50 && all.length < maxRecords) {
-    const res = await api.get('/accounts', { params: { ...params, page, page_size: pageSize } });
-    const batch = (res.data.data || []).map((row) => normalizeAccount(row, { defaultModule: 'account' }));
-    serverTotal = res.data.meta?.total ?? all.length + batch.length;
-    all = all.concat(batch);
-    if (batch.length === 0 || all.length >= serverTotal) break;
-    page += 1;
-  }
-
-  return all;
+  return cachedFullList('accounts', { ...params, maxRecords }, () => fetchAllPagesFast({
+    pageSize,
+    maxRecords,
+    fetchPage: async (page) => {
+      const res = await api.get('/accounts', { params: { ...params, page, page_size: pageSize } });
+      return {
+        data: (res.data.data || []).map((row) => normalizeAccount(row, { defaultModule: 'account' })),
+        total: res.data.meta?.total,
+      };
+    },
+  }));
 }
 
 /** Accounts that API moved to /companies after account_type change but still belong in Accounts. */
 async function fetchStickyAccountRowsFromCompanies() {
   return cachedRequest('sticky-account-module-rows', async () => {
     const pageSize = BULK_FETCH_PAGE_SIZE;
-    let page = 1;
-    let all = [];
-    let serverTotal = 0;
-
-    while (page <= 50 && all.length < CLIENT_FILTER_MAX_RECORDS) {
-      const res = await api.get('/companies', { params: { page, page_size: pageSize } });
-      const batch = res.data.data || [];
-      serverTotal = res.data.meta?.total ?? all.length + batch.length;
-      for (const row of batch) {
-        if (detectRecordModule(row) === 'account') {
-          all.push(normalizeAccount(row, { defaultModule: 'account' }));
-        }
-      }
-      if (batch.length === 0 || page * pageSize >= serverTotal) break;
-      page += 1;
-    }
-
-    return all;
+    return fetchAllPagesFast({
+      pageSize,
+      maxRecords: CLIENT_FILTER_MAX_RECORDS,
+      fetchPage: async (page) => {
+        const res = await api.get('/companies', { params: { page, page_size: pageSize } });
+        return {
+          data: (res.data.data || [])
+            .filter((row) => detectRecordModule(row) === 'account')
+            .map((row) => normalizeAccount(row, { defaultModule: 'account' })),
+          total: res.data.meta?.total,
+        };
+      },
+    });
   }, STICKY_ACCOUNTS_CACHE_MS);
 }
 

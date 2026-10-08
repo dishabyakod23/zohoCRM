@@ -2,28 +2,24 @@ import api from '../api.js';
 import { normalizeCompany, toCompanyPayload, detectRecordModule } from '../companyHelpers.js';
 import { applyAccountRecordFilters } from '../listRecordFilters.js';
 import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
-import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
-import { invalidateCachedRequest } from '../requestCache.js';
+import { listAllMatchingIdsFromListFn, fetchAllPagesFast } from '../listSelectionHelpers.js';
+import { invalidateCachedRequest, cachedFullList } from '../requestCache.js';
 
 async function fetchAllCompanyPages(params = {}, maxRecords = CLIENT_FILTER_MAX_RECORDS) {
   const pageSize = BULK_FETCH_PAGE_SIZE;
-  let page = 1;
-  let all = [];
-  let serverTotal = 0;
-
-  while (page <= 50 && all.length < maxRecords) {
-    const res = await api.get('/companies', { params: { ...params, page, page_size: pageSize } });
-    const raw = res.data.data || [];
-    serverTotal = res.data.meta?.total ?? all.length + raw.length;
-    const batch = raw
-      .filter((row) => detectRecordModule(row) !== 'account')
-      .map((row) => normalizeCompany(row, { defaultModule: 'company' }));
-    all = all.concat(batch);
-    if (raw.length === 0 || page * pageSize >= serverTotal) break;
-    page += 1;
-  }
-
-  return all;
+  return cachedFullList('companies', { ...params, maxRecords }, () => fetchAllPagesFast({
+    pageSize,
+    maxRecords,
+    fetchPage: async (page) => {
+      const res = await api.get('/companies', { params: { ...params, page, page_size: pageSize } });
+      return {
+        data: (res.data.data || [])
+          .filter((row) => detectRecordModule(row) !== 'account')
+          .map((row) => normalizeCompany(row, { defaultModule: 'company' })),
+        total: res.data.meta?.total,
+      };
+    },
+  }));
 }
 
 export async function listAllMatchingCompanyIds(params = {}) {

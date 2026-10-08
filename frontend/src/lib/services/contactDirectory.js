@@ -9,6 +9,7 @@ import {
 import { DEFAULT_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
 import { usesCampaignMembershipFilter } from '../listRecordFilters.js';
+import { cachedFullList } from '../requestCache.js';
 
 const MEMBER_FETCH_CONCURRENCY = 10;
 /** Above this, fall back to directory API + membership filter instead of per-id gets. */
@@ -132,10 +133,16 @@ async function listContactDirectoryForCampaign({
     }
   }
 
-  const [contacts, leads] = await Promise.all([
+  const memberKey = {
+    campaign_id: filters.campaign_id,
+    contactIds: [...contactIds].map(String).sort(),
+    leadIds: [...leadIds].map(String).sort(),
+    accountKey: Object.keys(accountMap || {}).length,
+  };
+  const [contacts, leads] = await cachedFullList('campaign-members', memberKey, () => Promise.all([
     fetchContactsByIds(contactIds, accountMap),
     fetchLeadsByIds(leadIds, statusOptions),
-  ]);
+  ]));
 
   let rows = buildDirectoryRows({
     contacts,
