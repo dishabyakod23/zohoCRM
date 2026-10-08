@@ -13,7 +13,8 @@ import {
 } from '../campaignRecordHelpers.js';
 import { CONTACT_IMPORT_FIELDS } from '../importFieldConfig.js';
 import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE } from '../constants.js';
-import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
+import { listAllMatchingIdsFromListFn, fetchAllPagesFast } from '../listSelectionHelpers.js';
+import { cachedFullList } from '../requestCache.js';
 import {
   listWithTokenSearch,
   personSearchHaystack,
@@ -35,20 +36,17 @@ import { splitDirectorySelectionIds } from './people.js';
 
 async function fetchAllContactPages(params, accountMap) {
   const pageSize = BULK_FETCH_PAGE_SIZE;
-  let page = 1;
-  let all = [];
-  let serverTotal = 0;
-
-  while (page <= 50) {
-    const res = await api.get('/contacts', { params: { ...params, page, page_size: pageSize } });
-    const batch = (res.data.data || []).map((c) => normalizeContact(c, accountMap));
-    serverTotal = res.data.meta?.total ?? all.length + batch.length;
-    all = all.concat(batch);
-    if (batch.length === 0 || all.length >= serverTotal) break;
-    page += 1;
-  }
-
-  return all;
+  const accountKey = Object.keys(accountMap || {}).length;
+  return cachedFullList('contacts', { ...params, accountKey }, () => fetchAllPagesFast({
+    pageSize,
+    fetchPage: async (page) => {
+      const res = await api.get('/contacts', { params: { ...params, page, page_size: pageSize } });
+      return {
+        data: (res.data.data || []).map((c) => normalizeContact(c, accountMap)),
+        total: res.data.meta?.total,
+      };
+    },
+  }));
 }
 
 export async function listAllMatchingContactIds(params = {}, accountMap = {}) {

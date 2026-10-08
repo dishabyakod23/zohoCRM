@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import CampaignCombobox from '../forms/CampaignCombobox.js';
 import { resolveCampaignId } from '../../lib/campaignRecordHelpers.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -42,17 +42,42 @@ export function FilterField({ label, children, className = '' }) {
   );
 }
 
+const TEXT_FILTER_DEBOUNCE_MS = 350;
+
 export function TextFilter({ label, value, onChange, placeholder, className = '' }) {
   const layout = useFilterLayout();
   const widthClass = layout === 'sidebar' ? 'w-full' : (className || 'w-40');
+  const [draft, setDraft] = useState(value || '');
+  const lastSentRef = useRef(value || '');
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // External changes (e.g. "Clear filters") replace the draft.
+  useEffect(() => {
+    const next = value || '';
+    if (next !== lastSentRef.current) {
+      lastSentRef.current = next;
+      setDraft(next);
+    }
+  }, [value]);
+
+  // Typing reloads the list once the user pauses, not on every keystroke.
+  useEffect(() => {
+    if (draft === lastSentRef.current) return undefined;
+    const timer = setTimeout(() => {
+      lastSentRef.current = draft;
+      onChangeRef.current(draft);
+    }, TEXT_FILTER_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [draft]);
 
   return (
     <FilterField label={label}>
       <input
         className={`input text-xs ${widthClass}`}
-        value={value || ''}
+        value={draft}
         placeholder={placeholder || `Filter ${label.toLowerCase()}…`}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => setDraft(e.target.value)}
       />
     </FilterField>
   );

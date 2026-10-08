@@ -1,7 +1,8 @@
 import api from '../api.js';
 import { normalizeDeal, toDealPayload } from '../dealHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
-import { listAllMatchingIdsFromListFn } from '../listSelectionHelpers.js';
+import { listAllMatchingIdsFromListFn, fetchAllPagesFast } from '../listSelectionHelpers.js';
+import { cachedFullList } from '../requestCache.js';
 
 const LIST_PAGE_SIZE_MAX = DEFAULT_PAGE_SIZE;
 
@@ -26,19 +27,20 @@ export async function listDeals({ page = 1, page_size = DEFAULT_PAGE_SIZE, searc
 /** Fetch all deals by paging with API-safe page_size (for kanban / related lists). */
 export async function listAllDeals(params = {}, accountMap = {}, stageOptions = []) {
   const pageSize = LIST_PAGE_SIZE_MAX;
-  let page = 1;
-  const all = [];
-  let total = 0;
-
-  for (;;) {
-    const result = await listDeals({ ...params, page, page_size: pageSize }, accountMap, stageOptions);
-    all.push(...result.data);
-    total = result.total || all.length;
-    if (result.data.length < pageSize || all.length >= total) break;
-    page += 1;
-  }
-
-  return { data: all, total };
+  const cacheKey = {
+    ...params,
+    accountKey: Object.keys(accountMap || {}).length,
+    stageKey: (stageOptions || []).length,
+  };
+  const all = await cachedFullList('deals', cacheKey, () => fetchAllPagesFast({
+    pageSize,
+    maxPages: 400,
+    fetchPage: async (page) => {
+      const result = await listDeals({ ...params, page, page_size: pageSize }, accountMap, stageOptions);
+      return { data: result.data, total: result.meta?.total };
+    },
+  }));
+  return { data: all, total: all.length };
 }
 
 export async function listAllMatchingDealIds(params = {}, accountMap = {}, stageOptions = []) {

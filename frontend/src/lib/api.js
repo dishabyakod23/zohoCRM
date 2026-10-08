@@ -8,6 +8,7 @@ import {
   handleSessionExpired,
   isAuthFailureError,
 } from './authSession.js';
+import { invalidateFullListCache } from './requestCache.js';
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'https://salescrm-api.duckdns.org/api/v1';
@@ -18,7 +19,12 @@ const api = axios.create({
   timeout: 45000,
 });
 
+function isWriteRequest(config) {
+  return String(config?.method || 'get').toLowerCase() !== 'get';
+}
+
 api.interceptors.request.use(async (config) => {
+  if (isWriteRequest(config)) invalidateFullListCache();
   if (typeof window === 'undefined') return config;
 
   // Let the browser set multipart boundary; default JSON Content-Type breaks FormData uploads.
@@ -47,9 +53,13 @@ api.interceptors.request.use(async (config) => {
 });
 
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    if (isWriteRequest(res.config)) invalidateFullListCache();
+    return res;
+  },
   async (err) => {
     const original = err.config;
+    if (isWriteRequest(original)) invalidateFullListCache();
     if (shouldAttemptTokenRefresh(original, err.response?.status)) {
       original._retry = true;
       try {

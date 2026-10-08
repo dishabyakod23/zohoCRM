@@ -1,3 +1,5 @@
+import { fetchAllPagesFast } from './listSelectionHelpers.js';
+
 /**
  * List-table search helpers.
  *
@@ -94,7 +96,9 @@ export function resolveListSearch(search) {
 export function filterRowsBySearchTokens(rows, search, haystackFn = personSearchHaystack) {
   const { tokens, needsClientMatch } = resolveListSearch(search);
   if (!needsClientMatch && tokens.length <= 1) {
+    // Single-token / empty: API already filtered (or no search).
     if (!tokens.length) return rows;
+    // Still apply client match for single token when caller fetched without search.
     return rows.filter((row) => matchesSearchTokens(row, tokens, haystackFn));
   }
   return (rows || []).filter((row) => matchesSearchTokens(row, tokens, haystackFn));
@@ -119,22 +123,14 @@ export async function listWithTokenSearch({
     return fetchPage({ page, page_size, search: apiSearch });
   }
 
-  const collected = [];
-  let serverTotal = 0;
-  let pageNum = 1;
-
-  while (pageNum <= 50 && collected.length < maxRecords) {
-    const result = await fetchPage({
-      page: pageNum,
-      page_size: fetchPageSize,
-      search: apiSearch,
-    });
-    const batch = result?.data || [];
-    serverTotal = result?.total ?? result?.meta?.total ?? collected.length + batch.length;
-    collected.push(...batch);
-    if (!batch.length || collected.length >= serverTotal) break;
-    pageNum += 1;
-  }
+  const collected = await fetchAllPagesFast({
+    pageSize: fetchPageSize,
+    maxRecords,
+    fetchPage: async (pageNum) => {
+      const result = await fetchPage({ page: pageNum, page_size: fetchPageSize, search: apiSearch });
+      return { data: result?.data || [], total: result?.total ?? result?.meta?.total };
+    },
+  });
 
   const filtered = collected.filter((row) => matchesSearchTokens(row, tokens, haystackFn));
   const start = (page - 1) * page_size;
