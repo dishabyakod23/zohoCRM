@@ -5,6 +5,11 @@
   "engines": {
     "node": "24.x"
   },
+  "allowScripts": {
+    "core-js": true,
+    "unrs-resolver": true,
+    "fsevents": true
+  },
   "scripts": {
     "dev": "node api.js && next dev -p 3002",
     "build": "node api.js && next build",
