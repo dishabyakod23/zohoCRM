@@ -10,9 +10,12 @@ const nextConfig = {
     : {}),
   trailingSlash: true,
   images: { unoptimized: true },
-  // Keep compile workers low on constrained CI (Vercel) to avoid OOM worker crashes.
+  // Keep compile workers low on constrained CI (Vercel) to avoid OOM / Node 24
+  // "Jest worker encountered 1 child process exceptions" crashes.
   experimental: {
     cpus: 1,
+    workerThreads: false,
+    webpackBuildWorker: false,
   },
 };
 
