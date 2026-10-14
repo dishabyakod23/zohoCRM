@@ -17,7 +17,7 @@ import { usePermissions } from '../../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../../lib/api.js';
 import * as sequencesApi from '../../../lib/services/sequences.js';
-import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel, enrollmentProgressByStep, isSequenceSettingsDirty } from '../../../lib/sequenceHelpers.js';
+import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel, enrollmentProgressByStep, isSequenceSettingsDirty, canEditSequenceSteps } from '../../../lib/sequenceHelpers.js';
 import { tokenizeSearchQuery } from '../../../lib/listSearchHelpers.js';
 import { fetchUsers } from '../../../lib/services/lookups.js';
 
@@ -223,8 +223,7 @@ export default function SequenceDetailPage() {
     return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
   }
 
-  // Allow adding/editing steps while active or paused (not draft-only).
-  const stepsEditable = canEdit && ['DRAFT', 'ACTIVE', 'PAUSED'].includes(sequence.status);
+  const stepsEditable = canEdit && canEditSequenceSteps(sequence.status);
   const canActivate = canEdit && (sequence.status === 'DRAFT' || sequence.status === 'PAUSED');
   const canPause = canEdit && sequence.status === 'ACTIVE';
 
@@ -282,16 +281,23 @@ export default function SequenceDetailPage() {
         </div>
 
         {tab === 'Steps' && (
-          <SequenceBuilder
-            sequenceId={id}
-            steps={steps}
-            sequenceTimezone={sequence.timezone || 'UTC'}
-            sequence={sequence}
-            readOnly={!stepsEditable}
-            stepProgress={stepProgress}
-            onStepsChange={setSteps}
-            onScheduleSynced={() => loadEnrollments({ force: true })}
-          />
+          <div className="space-y-3">
+            {sequence.status === 'ACTIVE' && (
+              <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                This sequence is active. Pause it to add, edit, or copy steps so live sends are not changed.
+              </p>
+            )}
+            <SequenceBuilder
+              sequenceId={id}
+              steps={steps}
+              sequenceTimezone={sequence.timezone || 'UTC'}
+              sequence={sequence}
+              readOnly={!stepsEditable}
+              stepProgress={stepProgress}
+              onStepsChange={setSteps}
+              onScheduleSynced={() => loadEnrollments({ force: true })}
+            />
+          </div>
         )}
 
         {tab === 'Enrollments' && (

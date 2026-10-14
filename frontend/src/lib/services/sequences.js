@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { assigneeName, listResult, omitEmpty } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
-import { sequenceStatusLabel, normalizeStepFromApi, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText, isSequenceNameTaken, enrollmentNextActionFromStep, sameScheduleInstant } from '../sequenceHelpers.js';
+import { sequenceStatusLabel, normalizeStepFromApi, annotateStepSchedules, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText, isSequenceNameTaken, enrollmentNextActionFromStep, sameScheduleInstant, SCHEDULE_MODE_DATE, SCHEDULE_MODE_AFTER_PREVIOUS, isAfterPreviousSchedule, stepWaitDays, canEditSequenceSteps } from '../sequenceHelpers.js';
 
 
 export function normalizeSequence(row) {
@@ -83,6 +83,10 @@ export function toStepPayload(form, { partial = false, sequenceTimezone } = {}) 
     })
     : undefined;
 
+  const afterPrevious = isAfterPreviousSchedule(form, Number(form.step_order || 1) - 1)
+    || form.schedule_mode === SCHEDULE_MODE_AFTER_PREVIOUS;
+  const waitDays = afterPrevious ? Number(stepWaitDays(form) ?? 0) : null;
+
   const payload = {
     step_order: form.step_order != null ? Number(form.step_order) : undefined,
     type: stepType,
@@ -99,7 +103,16 @@ export function toStepPayload(form, { partial = false, sequenceTimezone } = {}) 
     active: form.active,
     variants,
   };
-  return partial ? omitEmpty(payload) : payload;
+  const cleaned = partial ? omitEmpty(payload) : payload;
+  const stepIndex = Number(form.step_order || 1) - 1;
+  if (stepIndex <= 0) return cleaned;
+  const includeWait = afterPrevious || form.schedule_mode === SCHEDULE_MODE_DATE;
+  if (!includeWait) return cleaned;
+  return {
+    ...cleaned,
+    wait_value: afterPrevious ? waitDays : null,
+    wait_unit: afterPrevious ? 'days' : null,
+  };
 }
 
 export async function listSequences(params = {}) {
@@ -172,7 +185,7 @@ export async function listSequenceSteps(sequenceId) {
   const res = await api.get(`/sequences/${sequenceId}/steps`);
   const data = res.data.data ?? res.data;
   const rows = Array.isArray(data) ? data : data?.steps || [];
-  return rows.map(normalizeStepFromApi);
+  return annotateStepSchedules(rows.map(normalizeStepFromApi));
 }
 
 export async function createSequenceStep(sequenceId, form, options = {}) {
@@ -286,6 +299,36 @@ export async function listMemberEnrollments({ member_type, member_id }) {
 export async function previewSequenceStep(sequenceId, payload) {
   const res = await api.post(`/sequences/${sequenceId}/preview`, payload);
   return res.data.data ?? res.data;
+}
+
+export async function replaceSequenceSteps(sequenceId, steps = [], { sequenceTimezone } = {}) {
+  const existing = await listSequenceSteps(sequenceId);
+  for (const step of existing) {
+    if (step?.id) await deleteSequenceStep(sequenceId, step.id);
+  }
+  const created = [];
+  for (const step of steps) {
+    const saved = await createSequenceStep(sequenceId, step, { sequenceTimezone });
+    created.push({ ...step, ...saved });
+  }
+  return annotateStepSchedules(created);
+}
+
+/** Persist copied steps onto a DRAFT/PAUSED destination. Replaces existing dest steps. */
+export async function copyStepsToSequence(destSequence, copiedSteps, { sequenceTimezone } = {}) {
+  const destId = destSequence?.id || destSequence;
+  const status = destSequence?.status;
+  if (status && !canEditSequenceSteps(status)) {
+    throw new Error('Pause the destination sequence before copying steps into it.');
+  }
+  const timezone = sequenceTimezone
+    || destSequence?.timezone
+    || 'UTC';
+  const missingSchedule = (copiedSteps || []).some((step) => !step?.scheduled_date || !step?.scheduled_time);
+  if (missingSchedule) {
+    throw new Error('Set Step 1’s date so every copied step has a schedule.');
+  }
+  return replaceSequenceSteps(destId, copiedSteps, { sequenceTimezone: timezone });
 }
 
 export async function sendSequenceTest(sequenceId, payload) {

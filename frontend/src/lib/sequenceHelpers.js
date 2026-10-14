@@ -380,10 +380,191 @@ function minutesFromTime(time) {
   return (hh * 60) + mm;
 }
 
-function addDaysToDateString(dateStr, days) {
+export function addDaysToDateString(dateStr, days) {
   const [y, m, d] = String(dateStr).split('-').map(Number);
-  const utc = new Date(Date.UTC(y, m - 1, d + days));
+  const utc = new Date(Date.UTC(y, m - 1, d + Number(days || 0)));
   return utc.toISOString().slice(0, 10);
+}
+
+/** Whole calendar days from `from` to `to` (`YYYY-MM-DD`). */
+export function diffDateStringsInDays(from, to) {
+  if (!from || !to) return null;
+  const [fy, fm, fd] = String(from).split('-').map(Number);
+  const [ty, tm, td] = String(to).split('-').map(Number);
+  if (!fy || !fm || !fd || !ty || !tm || !td) return null;
+  const a = Date.UTC(fy, fm - 1, fd);
+  const b = Date.UTC(ty, tm - 1, td);
+  return Math.round((b - a) / 86_400_000);
+}
+
+export const SCHEDULE_MODE_DATE = 'date';
+export const SCHEDULE_MODE_AFTER_PREVIOUS = 'after_previous';
+
+export function isAfterPreviousSchedule(step, stepIndex = 0) {
+  if (Number(stepIndex) <= 0) return false;
+  if (step?.schedule_mode === SCHEDULE_MODE_DATE) return false;
+  if (step?.schedule_mode === SCHEDULE_MODE_AFTER_PREVIOUS) return true;
+  return step?.wait_value != null && Number.isFinite(Number(step.wait_value));
+}
+
+export function stepWaitDays(step) {
+  if (step?.wait_days != null && step.wait_days !== '') {
+    const n = Number(step.wait_days);
+    return Number.isFinite(n) ? n : null;
+  }
+  if (step?.wait_value != null && step.wait_value !== '') {
+    const unit = String(step.wait_unit || 'days').toLowerCase();
+    if (unit && !unit.startsWith('day')) return null;
+    const n = Number(step.wait_value);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/**
+ * When copying steps, treat calendar gaps as "N days after previous"
+ * so the destination can pick a new Step 1 date without inheriting it.
+ */
+export function inferCopiedStepSchedule(step, previous, index) {
+  if (index === 0) {
+    return { schedule_mode: SCHEDULE_MODE_DATE, wait_days: null };
+  }
+  if (step?.schedule_mode === SCHEDULE_MODE_DATE) {
+    return { schedule_mode: SCHEDULE_MODE_DATE, wait_days: null };
+  }
+  const explicitWait = stepWaitDays(step);
+  if (
+    step?.schedule_mode === SCHEDULE_MODE_AFTER_PREVIOUS
+    || (step?.wait_value != null && explicitWait != null)
+  ) {
+    return {
+      schedule_mode: SCHEDULE_MODE_AFTER_PREVIOUS,
+      wait_days: explicitWait ?? 1,
+    };
+  }
+  if (previous?.scheduled_date && step?.scheduled_date) {
+    const days = diffDateStringsInDays(previous.scheduled_date, step.scheduled_date);
+    if (days != null && days >= 0) {
+      return { schedule_mode: SCHEDULE_MODE_AFTER_PREVIOUS, wait_days: days };
+    }
+  }
+  return { schedule_mode: SCHEDULE_MODE_DATE, wait_days: null };
+}
+
+/** Recompute delay-based dates from the previous step. Step 1 stays a fixed date. */
+export function resolveRelativeStepSchedules(steps = []) {
+  const next = [];
+  for (let i = 0; i < steps.length; i += 1) {
+    const step = { ...steps[i], step_order: i + 1 };
+    if (i === 0) {
+      next.push({
+        ...step,
+        schedule_mode: SCHEDULE_MODE_DATE,
+        wait_days: null,
+        wait_value: null,
+        wait_unit: null,
+      });
+      continue;
+    }
+    const afterPrevious = isAfterPreviousSchedule(step, i);
+    if (!afterPrevious) {
+      next.push({
+        ...step,
+        schedule_mode: SCHEDULE_MODE_DATE,
+        wait_days: null,
+        wait_value: null,
+        wait_unit: null,
+      });
+      continue;
+    }
+    const wait = Number(stepWaitDays(step) ?? 0);
+    const prevDate = next[i - 1]?.scheduled_date;
+    next.push({
+      ...step,
+      schedule_mode: SCHEDULE_MODE_AFTER_PREVIOUS,
+      wait_days: wait,
+      wait_value: wait,
+      wait_unit: 'days',
+      scheduled_date: prevDate ? addDaysToDateString(prevDate, wait) : '',
+    });
+  }
+  return next;
+}
+
+function stripStepIdentity(step = {}) {
+  const {
+    id,
+    sequence_id,
+    created_at,
+    updated_at,
+    scheduled_at,
+    stats,
+    ...rest
+  } = step;
+  return rest;
+}
+
+/**
+ * Copy steps into another sequence. Drops Step 1's date; keeps content, times,
+ * delay gaps, and later absolute dates. Delay dates recalculate after Step 1 is set.
+ */
+export function copySequenceSteps(sourceSteps = []) {
+  const rows = Array.isArray(sourceSteps) ? sourceSteps : [];
+  const prepared = rows.map((step, i) => {
+    const inferred = inferCopiedStepSchedule(step, rows[i - 1], i);
+    const rest = stripStepIdentity(step);
+    const variants = Array.isArray(step.variants)
+      ? step.variants.map((v) => {
+        const { id, step_id, ...variantRest } = v || {};
+        return { ...variantRest };
+      })
+      : step.variants;
+    return {
+      ...rest,
+      id: undefined,
+      step_order: i + 1,
+      variants,
+      schedule_mode: inferred.schedule_mode,
+      wait_days: inferred.wait_days,
+      wait_value: inferred.schedule_mode === SCHEDULE_MODE_AFTER_PREVIOUS ? inferred.wait_days : null,
+      wait_unit: inferred.schedule_mode === SCHEDULE_MODE_AFTER_PREVIOUS ? 'days' : null,
+    };
+  });
+  if (prepared[0]) {
+    prepared[0] = {
+      ...prepared[0],
+      scheduled_date: '',
+      scheduled_at: null,
+      schedule_mode: SCHEDULE_MODE_DATE,
+      wait_days: null,
+      wait_value: null,
+      wait_unit: null,
+    };
+  }
+  return resolveRelativeStepSchedules(prepared);
+}
+
+export function annotateStepSchedules(steps = []) {
+  return (steps || []).map((step, i) => {
+    if (i === 0) {
+      return {
+        ...step,
+        schedule_mode: SCHEDULE_MODE_DATE,
+        wait_days: null,
+      };
+    }
+    if (isAfterPreviousSchedule(step, i)) {
+      const wait = Number(stepWaitDays(step) ?? 0);
+      return {
+        ...step,
+        schedule_mode: SCHEDULE_MODE_AFTER_PREVIOUS,
+        wait_days: wait,
+        wait_value: wait,
+        wait_unit: 'days',
+      };
+    }
+    return step;
+  });
 }
 
 /**
@@ -453,20 +634,23 @@ export function enrollmentNextActionFromStep(step, sequence = {}) {
   });
 }
 
-/** Primary schedule label — exact date/time per corrected plan. */
+/** Primary schedule label — exact date/time or delay after the previous step. */
 export function formatStepSchedule(step, fallbackTimezone = 'UTC') {
   if (!step) return '—';
-  const date = step.scheduled_date;
-  const time = step.scheduled_time;
-  if (!date) {
-    if (step.wait_value != null && step.wait_unit) {
-      const u = step.wait_unit;
-      return step.wait_value ? `Wait ${step.wait_value} ${u}` : 'Immediately';
-    }
-    return '—';
-  }
   const tz = normalizeSequenceTimezone(step.timezone || fallbackTimezone);
-  const timePart = time ? ` ${time}` : '';
+  const time = step.scheduled_time;
+  const timePart = time ? ` ${String(time).slice(0, 5)}` : '';
+  const afterPrevious = isAfterPreviousSchedule(step, Number(step.step_order || 1) - 1);
+  if (afterPrevious) {
+    const wait = stepWaitDays(step) ?? 0;
+    const gap = wait === 1 ? '1 day' : `${wait} days`;
+    if (step.scheduled_date) {
+      return `${gap} after previous · ${step.scheduled_date}${timePart} (${formatTimezoneLabel(tz)})`;
+    }
+    return `${gap} after previous step`;
+  }
+  const date = step.scheduled_date;
+  if (!date) return '—';
   return `${date}${timePart} (${formatTimezoneLabel(tz)})`;
 }
 
@@ -525,12 +709,17 @@ export function emptyStepVariant(key = 'A') {
 }
 
 export function emptyStepForm(order = 1, sequenceTimezone = 'UTC') {
+  const isFirst = Number(order) <= 1;
   return {
     step_order: order,
     type: 'AUTO_EMAIL',
-    scheduled_date: defaultScheduledDate(order),
+    scheduled_date: isFirst ? defaultScheduledDate(1) : '',
     scheduled_time: '10:00',
     timezone: sequenceTimezone,
+    schedule_mode: isFirst ? SCHEDULE_MODE_DATE : SCHEDULE_MODE_AFTER_PREVIOUS,
+    wait_days: isFirst ? null : 1,
+    wait_value: isFirst ? null : 1,
+    wait_unit: isFirst ? null : 'days',
     template_id: '',
     subject: '',
     html_body: '',
@@ -713,6 +902,8 @@ export function sequenceStepEditSignature(step = {}) {
   return JSON.stringify({
     type: step.type || '',
     step_order: Number(step.step_order) || 0,
+    schedule_mode: step.schedule_mode || SCHEDULE_MODE_DATE,
+    wait_days: stepWaitDays(step),
     scheduled_date: step.scheduled_date || '',
     scheduled_time: String(step.scheduled_time || '').slice(0, 5),
     timezone: step.timezone || '',

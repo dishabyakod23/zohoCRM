@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import SequenceStepEditor from './SequenceStepEditor.js';
+import CopySequenceStepsModal from './CopySequenceStepsModal.js';
 import {
   emptyStepForm,
   getUnsafeSequenceEmailReason,
@@ -8,6 +9,9 @@ import {
   isAbEmailStep,
   htmlToPlainText,
   sequenceStepEditSignature,
+  resolveRelativeStepSchedules,
+  isAfterPreviousSchedule,
+  stepWaitDays,
 } from '../../lib/sequenceHelpers.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
 import { useToast } from '../ui/Toast.js';
@@ -37,6 +41,7 @@ export default function SequenceBuilder({
   const [baselineById, setBaselineById] = useState(() => buildBaselineMap(initialSteps));
   const [savingId, setSavingId] = useState(null);
   const [savingAll, setSavingAll] = useState(false);
+  const [copyDirection, setCopyDirection] = useState(null);
 
   useEffect(() => {
     setSteps(initialSteps);
@@ -64,11 +69,14 @@ export default function SequenceBuilder({
   const hasDirtySteps = dirtyCount > 0;
 
   const addStep = () => {
-    syncSteps([...steps, emptyStepForm(steps.length + 1, sequenceTimezone)]);
+    syncSteps(resolveRelativeStepSchedules([
+      ...steps,
+      emptyStepForm(steps.length + 1, sequenceTimezone),
+    ]));
   };
 
   const updateStep = (index, step) => {
-    syncSteps(steps.map((s, i) => (i === index ? step : s)));
+    syncSteps(resolveRelativeStepSchedules(steps.map((s, i) => (i === index ? step : s))));
   };
 
   const persistStepOrders = async (ordered) => {
@@ -101,7 +109,7 @@ export default function SequenceBuilder({
 
   const duplicateStep = (index) => {
     const copy = { ...steps[index], id: undefined, step_order: steps.length + 1 };
-    syncSteps([...steps, copy]);
+    syncSteps(resolveRelativeStepSchedules([...steps, copy]));
   };
 
   const removeStep = async (index) => {
@@ -132,7 +140,18 @@ export default function SequenceBuilder({
       timezone: steps[index].timezone || sequenceTimezone,
     };
     const requiredErrs = {};
-    if (!step.scheduled_date) requiredErrs.scheduled_date = 'Scheduled Date is required.';
+    const afterPrevious = isAfterPreviousSchedule(step, index);
+    if (afterPrevious) {
+      const wait = stepWaitDays(step);
+      if (wait == null || wait < 0) {
+        requiredErrs.wait_days = 'Enter how many days after the previous step this step should run.';
+      }
+      if (!step.scheduled_date) {
+        requiredErrs.scheduled_date = 'Set the previous step’s schedule first so this date can be calculated.';
+      }
+    } else if (!step.scheduled_date) {
+      requiredErrs.scheduled_date = 'Scheduled Date is required.';
+    }
     if (!step.scheduled_time) requiredErrs.scheduled_time = 'Scheduled Time is required.';
     if (isEmailStep(step.type) && !isAbEmailStep(step)) {
       if (!String(step.subject || '').trim()) requiredErrs.subject = 'Subject is required.';
@@ -195,7 +214,9 @@ export default function SequenceBuilder({
       showToast('Step saved', 'success');
       const scheduleChanged = previous?.scheduled_date !== saved.scheduled_date
         || previous?.scheduled_time !== saved.scheduled_time
-        || previous?.timezone !== saved.timezone;
+        || previous?.timezone !== saved.timezone
+        || previous?.wait_value !== saved.wait_value
+        || previous?.wait_days !== saved.wait_days;
       if (scheduleChanged) {
         await syncEnrollmentSchedules(next, { stepOrders: [saved.step_order || index + 1] });
       }
@@ -225,6 +246,8 @@ export default function SequenceBuilder({
           previous?.scheduled_date !== saved.scheduled_date
           || previous?.scheduled_time !== saved.scheduled_time
           || previous?.timezone !== saved.timezone
+          || previous?.wait_value !== saved.wait_value
+          || previous?.wait_days !== saved.wait_days
         ) {
           changedOrders.push(order);
         }
@@ -261,9 +284,24 @@ export default function SequenceBuilder({
         </div>
       )}
 
+      {(!readOnly || steps.length > 0) && (
+        <div className="flex flex-wrap gap-2">
+          {!readOnly && (
+            <button type="button" className="btn-secondary-sm" onClick={() => setCopyDirection('from')}>
+              Copy steps from another sequence
+            </button>
+          )}
+          {steps.length > 0 && (
+            <button type="button" className="btn-secondary-sm" onClick={() => setCopyDirection('to')}>
+              Copy these steps to another sequence
+            </button>
+          )}
+        </div>
+      )}
+
       {steps.length === 0 && (
         <p className="text-sm text-zoho-muted py-8 text-center border border-dashed border-zoho-border rounded-xl">
-          No steps yet. Add your first touchpoint with an exact date and time.
+          No steps yet. Add a first touchpoint, or copy the step list from another sequence.
         </p>
       )}
 
@@ -324,6 +362,27 @@ export default function SequenceBuilder({
         <button type="button" onClick={addStep} className="btn-secondary w-full">
           + Add Step
         </button>
+      )}
+
+      {copyDirection && (
+        <CopySequenceStepsModal
+          open
+          direction={copyDirection}
+          currentSequenceId={sequenceId}
+          currentSteps={steps}
+          currentTimezone={sequenceTimezone}
+          onClose={() => setCopyDirection(null)}
+          onApplyFrom={async (copied) => {
+            const oldIds = steps.filter((s) => s.id).map((s) => s.id);
+            if (sequenceId) {
+              for (const stepId of oldIds) {
+                await sequencesApi.deleteSequenceStep(sequenceId, stepId);
+              }
+            }
+            syncSteps(copied);
+            setBaselineById({});
+          }}
+        />
       )}
     </div>
   );

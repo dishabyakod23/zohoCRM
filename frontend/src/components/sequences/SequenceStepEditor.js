@@ -16,6 +16,10 @@ import {
   normalizeSequenceTimezone,
   emptyStepVariant,
   getUnsafeSequenceEmailReason,
+  SCHEDULE_MODE_DATE,
+  SCHEDULE_MODE_AFTER_PREVIOUS,
+  isAfterPreviousSchedule,
+  stepWaitDays,
 } from '../../lib/sequenceHelpers.js';
 import { listEmailTemplates, templateLabel } from '../../lib/services/emailTemplates.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
@@ -101,6 +105,8 @@ export default function SequenceStepEditor({
   }, [step.html_body, step.text_body, step.variants]);
 
   const update = (patch) => onChange({ ...step, ...patch });
+  const isFirstStep = Number(stepIndex) <= 1;
+  const afterPrevious = !isFirstStep && isAfterPreviousSchedule(step, Number(stepIndex) - 1);
 
   const applyTemplate = (templateId) => {
     const t = templates.find((x) => String(x.id) === String(templateId));
@@ -210,21 +216,103 @@ export default function SequenceStepEditor({
         </FormField>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <FormField label="Scheduled Date" required>
-          <input className="input" type="date" value={step.scheduled_date || ''} disabled={readOnly} onChange={(e) => update({ scheduled_date: e.target.value })} />
-        </FormField>
-        <FormField label="Scheduled Time" required>
-          <input className="input" type="time" value={step.scheduled_time || ''} disabled={readOnly} onChange={(e) => update({ scheduled_time: e.target.value })} />
-        </FormField>
-        <FormField label="Timezone">
-          <TimezoneSelect
-            value={normalizeSequenceTimezone(step.timezone || sequenceTimezone)}
-            disabled={readOnly}
-            onChange={(timezone) => update({ timezone })}
-          />
-        </FormField>
-      </div>
+      {isFirstStep ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField label="Scheduled Date" required>
+            <input className="input" type="date" value={step.scheduled_date || ''} disabled={readOnly} onChange={(e) => update({ scheduled_date: e.target.value, schedule_mode: SCHEDULE_MODE_DATE })} />
+          </FormField>
+          <FormField label="Scheduled Time" required>
+            <input className="input" type="time" value={step.scheduled_time || ''} disabled={readOnly} onChange={(e) => update({ scheduled_time: e.target.value })} />
+          </FormField>
+          <FormField label="Timezone">
+            <TimezoneSelect
+              value={normalizeSequenceTimezone(step.timezone || sequenceTimezone)}
+              disabled={readOnly}
+              onChange={(timezone) => update({ timezone })}
+            />
+          </FormField>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-xs font-semibold text-zoho-muted">When to run this step</p>
+          <div className="flex flex-wrap gap-4">
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={`schedule-mode-${step.id || stepIndex}`}
+                checked={!afterPrevious}
+                disabled={readOnly}
+                onChange={() => update({
+                  schedule_mode: SCHEDULE_MODE_DATE,
+                  wait_days: null,
+                  wait_value: null,
+                  wait_unit: null,
+                })}
+              />
+              On a specific date
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={`schedule-mode-${step.id || stepIndex}`}
+                checked={afterPrevious}
+                disabled={readOnly}
+                onChange={() => update({
+                  schedule_mode: SCHEDULE_MODE_AFTER_PREVIOUS,
+                  wait_days: stepWaitDays(step) ?? 1,
+                  wait_value: stepWaitDays(step) ?? 1,
+                  wait_unit: 'days',
+                })}
+              />
+              After previous step
+            </label>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {afterPrevious ? (
+              <FormField label="Days after previous step" required>
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={stepWaitDays(step) ?? ''}
+                  disabled={readOnly}
+                  onChange={(e) => {
+                    const wait_days = e.target.value === '' ? '' : Number(e.target.value);
+                    update({
+                      schedule_mode: SCHEDULE_MODE_AFTER_PREVIOUS,
+                      wait_days,
+                      wait_value: wait_days,
+                      wait_unit: 'days',
+                    });
+                  }}
+                />
+              </FormField>
+            ) : (
+              <FormField label="Scheduled Date" required>
+                <input className="input" type="date" value={step.scheduled_date || ''} disabled={readOnly} onChange={(e) => update({ scheduled_date: e.target.value, schedule_mode: SCHEDULE_MODE_DATE })} />
+              </FormField>
+            )}
+            <FormField label="Scheduled Time" required>
+              <input className="input" type="time" value={step.scheduled_time || ''} disabled={readOnly} onChange={(e) => update({ scheduled_time: e.target.value })} />
+            </FormField>
+            <FormField label="Timezone">
+              <TimezoneSelect
+                value={normalizeSequenceTimezone(step.timezone || sequenceTimezone)}
+                disabled={readOnly}
+                onChange={(timezone) => update({ timezone })}
+              />
+            </FormField>
+          </div>
+          {afterPrevious && (
+            <p className="text-xs text-zoho-muted">
+              {step.scheduled_date
+                ? `Runs on ${step.scheduled_date}${step.scheduled_time ? ` at ${String(step.scheduled_time).slice(0, 5)}` : ''} based on the previous step.`
+                : 'Set Step 1’s date to calculate this send date. The gap is copied with the steps.'}
+            </p>
+          )}
+        </div>
+      )}
 
       {isEmailStep(step.type) && !isAbEmailStep(step) && (
         <>
