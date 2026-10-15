@@ -948,6 +948,17 @@ export function replyRatePercent(stats) {
   return `${Math.round((replied / sent) * 100)}%`;
 }
 
+export function openRatePercent(stats) {
+  if (stats?.open_rate != null && stats.open_rate !== '') {
+    const n = Number(stats.open_rate);
+    if (Number.isFinite(n)) return `${Math.round(n)}%`;
+  }
+  const sent = stats?.sent ?? stats?.emails_sent ?? stats?.sent_count ?? 0;
+  const opened = stats?.opened ?? stats?.open_count ?? stats?.opens ?? 0;
+  if (!sent) return '—';
+  return `${Math.round((opened / sent) * 100)}%`;
+}
+
 export function normalizeStepFromApi(step) {
   if (!step) return step;
   const variants = step.type === 'AB_EMAIL'

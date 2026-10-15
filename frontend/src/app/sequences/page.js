@@ -16,7 +16,7 @@ import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
 import { navigateToRecord, sequenceDetailHref } from '../../lib/recordNavigation.js';
-import { SEQUENCE_STATUSES, replyRatePercent } from '../../lib/sequenceHelpers.js';
+import { SEQUENCE_STATUSES, openRatePercent } from '../../lib/sequenceHelpers.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -74,7 +74,7 @@ export default function SequencesPage() {
     { id: 'enrolled', header: 'Total Leads', cell: (s) => s.enrollment_count ?? 0 },
     { id: 'active', header: 'Active', cell: (s) => s.active_enrollment_count ?? 0 },
     { id: 'completed', header: 'Completed', cell: (s) => s.completed_count ?? '—' },
-    { id: 'reply_rate', header: 'Reply Rate', cell: (s) => replyRatePercent(s) },
+    { id: 'open_rate', header: 'Open Rate', cell: (s) => openRatePercent(s) },
     { id: 'created', header: 'Created', cell: (s) => s.created_at ? new Date(s.created_at).toLocaleDateString() : '—' },
   ], []);
 
