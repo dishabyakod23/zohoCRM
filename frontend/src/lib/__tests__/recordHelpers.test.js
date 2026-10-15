@@ -1,4 +1,11 @@
-import { isGenericRoleName, personDisplayName, ownerName } from '../recordHelpers.js';
+import {
+  isGenericRoleName,
+  personDisplayName,
+  ownerName,
+  preferredCasedLabel,
+  dedupeLookupOptionsInsensitive,
+  mergeCountRowsInsensitive,
+} from '../recordHelpers.js';
 
 describe('isGenericRoleName', () => {
   it('flags known role labels, case-insensitively', () => {
@@ -57,5 +64,33 @@ describe('ownerName (record owner resolution — "Super Admin" regression)', () 
   it('returns null for a record with no owner information at all', () => {
     expect(ownerName({})).toBeNull();
     expect(ownerName(null)).toBeNull();
+  });
+});
+
+describe('case-insensitive source collapse', () => {
+  it('prefers mixed-case labels over lowercase duplicates', () => {
+    expect(preferredCasedLabel('apollo.io', 'Apollo.io')).toBe('Apollo.io');
+  });
+
+  it('dedupes lookup options that differ only by capitalization', () => {
+    expect(dedupeLookupOptionsInsensitive([
+      { value: 'apollo.io', label: 'apollo.io' },
+      { value: 'Apollo.io', label: 'Apollo.io' },
+      { value: 'inbound_call', label: 'inbound_call' },
+    ])).toEqual([
+      { value: 'Apollo.io', label: 'Apollo.io' },
+      { value: 'inbound_call', label: 'inbound_call' },
+    ]);
+  });
+
+  it('sums report rows that differ only by capitalization', () => {
+    expect(mergeCountRowsInsensitive([
+      { label: 'apollo.io', count: 4 },
+      { label: 'Apollo.io', count: 6 },
+      { label: 'inbound_call', count: 2 },
+    ])).toEqual([
+      { label: 'Apollo.io', count: 10 },
+      { label: 'inbound_call', count: 2 },
+    ]);
   });
 });

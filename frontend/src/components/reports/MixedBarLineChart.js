@@ -1,5 +1,6 @@
 'use client';
 import { useMemo } from 'react';
+import { mergeCountRowsInsensitive } from '../../lib/recordHelpers.js';
 import {
   ComposedChart,
   Bar,
@@ -27,7 +28,7 @@ export default function MixedBarLineChart({
   height = 280,
 }) {
   const rows = useMemo(() => {
-    const list = (data || []).map((row) => ({
+    const list = mergeCountRowsInsensitive(data || [], { nameKey, countKey: dataKey }).map((row) => ({
       ...row,
       name: row[nameKey] ?? row.name ?? row.label ?? '—',
       count: Number(row[dataKey] ?? row.count ?? row.value ?? 0) || 0,

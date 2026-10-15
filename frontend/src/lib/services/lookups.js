@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { leadStatusLabel } from '../leadHelpers.js';
 import { dealStageLabel, FALLBACK_DEAL_STAGES } from '../dealHelpers.js';
-import { parseLookupOptions } from '../recordHelpers.js';
+import { parseLookupOptions, dedupeLookupOptionsInsensitive } from '../recordHelpers.js';
 import { LEAD_SOURCES, RATINGS } from '../constants.js';
 import { PIPELINE_RAW, outreachLeadStatusOptions } from '../pipelineHelpers.js';
 import { cachedLookup, invalidateLookup } from '../lookupCache.js';
@@ -262,10 +262,12 @@ export async function fetchLeadSources() {
   return cachedLookup('lead-sources', async () => {
     const res = await api.get('/lookups/lead-sources');
     // Never treat "Proposal" as a lead source — module membership is pipeline_stage.
-    return parseLookupOptions(res.data.data).filter((option) => (
-      String(option.value || '').toLowerCase() !== 'proposal'
-      && String(option.label || '').toLowerCase() !== 'proposal'
-    ));
+    return dedupeLookupOptionsInsensitive(
+      parseLookupOptions(res.data.data).filter((option) => (
+        String(option.value || '').toLowerCase() !== 'proposal'
+        && String(option.label || '').toLowerCase() !== 'proposal'
+      )),
+    );
   });
 }
 
@@ -391,7 +393,11 @@ export async function fetchMassUpdateFieldOptions(fieldDef) {
   }
 
   if (Array.isArray(field.options) && field.options.length) {
-    return parseLookupOptions(field.options);
+    const options = parseLookupOptions(field.options);
+    const fieldKey = String(field.value || '').toLowerCase();
+    return fieldKey === 'source' || fieldKey === 'lead_source'
+      ? dedupeLookupOptionsInsensitive(options)
+      : options;
   }
 
   let lookupPath = field.lookup || MASS_UPDATE_FIELD_LOOKUPS[field.value];
@@ -402,7 +408,10 @@ export async function fetchMassUpdateFieldOptions(fieldDef) {
       const res = await api.get(lookupPath);
       const labelFn = lookupPath.includes('lead-status') ? leadStatusLabel : undefined;
       const options = parseLookupOptions(res.data.data, labelFn);
-      if (options.length) return options;
+      const resolved = lookupPath.includes('lead-source')
+        ? dedupeLookupOptionsInsensitive(options)
+        : options;
+      if (resolved.length) return resolved;
       if (lookupPath.includes('lead-status')) return FALLBACK_LEAD_STATUSES;
     } catch {
       if (lookupPath.includes('lead-status')) return FALLBACK_LEAD_STATUSES;
