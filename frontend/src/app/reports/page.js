@@ -23,6 +23,7 @@ import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import NightingaleRoseChart from '../../components/reports/NightingaleRoseChart.js';
 import MixedBarLineChart from '../../components/reports/MixedBarLineChart.js';
+import { mergeCountRowsInsensitive } from '../../lib/recordHelpers.js';
 
 const COLORS = ['#378ADD', '#639922', '#EF9F27', '#D85A30', '#1D9E75', '#E24B4A', '#7F77DD', '#888'];
 
@@ -70,7 +71,7 @@ export default function ReportsPage() {
           reportsApi.getLeadConversionReport(dateParams),
         ]);
         setData({
-          source: source.rows || [],
+          source: mergeCountRowsInsensitive(source.rows || []),
           status: status.rows || [],
           conversion: {
             rate: Math.round((conversion.conversion_rate || 0) * 100) / 100,

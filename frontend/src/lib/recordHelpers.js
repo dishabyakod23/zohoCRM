@@ -33,6 +33,67 @@ export function parseLookupOptions(data, labelFn) {
   }).filter((item) => item.value);
 }
 
+function insensitiveKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+/** Prefer mixed/title case over an all-lowercase duplicate (`Apollo.io` over `apollo.io`). */
+export function preferredCasedLabel(current, candidate) {
+  const a = String(current || '').trim();
+  const b = String(candidate || '').trim();
+  if (!a) return b;
+  if (!b) return a;
+  const aCaps = (a.match(/[A-Z]/g) || []).length;
+  const bCaps = (b.match(/[A-Z]/g) || []).length;
+  if (bCaps !== aCaps) return bCaps > aCaps ? b : a;
+  return a.length >= b.length ? a : b;
+}
+
+/** Collapse lookup options that differ only by capitalization. */
+export function dedupeLookupOptionsInsensitive(options = []) {
+  const byKey = new Map();
+  for (const option of options) {
+    if (!option) continue;
+    const value = option.value ?? option.label;
+    const label = option.label ?? value;
+    const key = insensitiveKey(label) || insensitiveKey(value);
+    if (!key) continue;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, { ...option, value, label });
+      continue;
+    }
+    const preferredLabel = preferredCasedLabel(existing.label, label);
+    const preferredValue = preferredCasedLabel(existing.value, value);
+    byKey.set(key, { ...existing, ...option, value: preferredValue, label: preferredLabel });
+  }
+  return Array.from(byKey.values());
+}
+
+/** Sum report rows whose labels differ only by capitalization. */
+export function mergeCountRowsInsensitive(rows = [], { nameKey = 'label', countKey = 'count' } = {}) {
+  const byKey = new Map();
+  for (const row of rows) {
+    if (!row) continue;
+    const rawName = row[nameKey] ?? row.label ?? row.name ?? row.value;
+    const key = insensitiveKey(rawName);
+    if (!key) continue;
+    const count = Number(row[countKey] ?? row.count ?? row.value ?? 0) || 0;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, { ...row, [nameKey]: String(rawName ?? '').trim(), [countKey]: count });
+      continue;
+    }
+    byKey.set(key, {
+      ...existing,
+      ...row,
+      [nameKey]: preferredCasedLabel(existing[nameKey], rawName),
+      [countKey]: (Number(existing[countKey]) || 0) + count,
+    });
+  }
+  return Array.from(byKey.values());
+}
+
 export function recordDetailHref(entityType, recordId) {
   if (!entityType || recordId == null) return null;
   const routes = {
