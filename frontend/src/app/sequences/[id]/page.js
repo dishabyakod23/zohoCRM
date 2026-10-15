@@ -17,7 +17,7 @@ import { usePermissions } from '../../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../../lib/api.js';
 import * as sequencesApi from '../../../lib/services/sequences.js';
-import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel, enrollmentProgressByStep, isSequenceSettingsDirty, canEditSequenceSteps } from '../../../lib/sequenceHelpers.js';
+import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel, enrollmentProgressByStep, isSequenceSettingsDirty, canEditSequenceSteps, MAX_DAILY_SEND_LIMIT, dailySendLimitError, isDailySendLimitOverMax } from '../../../lib/sequenceHelpers.js';
 import { tokenizeSearchQuery } from '../../../lib/listSearchHelpers.js';
 import { fetchUsers } from '../../../lib/services/lookups.js';
 
@@ -69,7 +69,7 @@ export default function SequenceDetailPage() {
         send_window_start: (seq.send_window_start || '09:00').slice(0, 5),
         send_window_end: (seq.send_window_end || '18:00').slice(0, 5),
         send_days: seq.send_days ?? 62,
-        daily_send_limit: seq.daily_send_limit ?? 100,
+        daily_send_limit: seq.daily_send_limit ?? 50,
         hourly_send_limit: seq.hourly_send_limit ?? '',
         use_contact_timezone: seq.use_contact_timezone ?? false,
         stop_on_reply: seq.stop_on_reply !== false,
@@ -185,6 +185,12 @@ export default function SequenceDetailPage() {
     if (uniqueErr) {
       setSettingsErrors({ name: uniqueErr });
       showToast(uniqueErr);
+      return;
+    }
+    const limitErr = dailySendLimitError(settings?.daily_send_limit);
+    if (limitErr) {
+      setSettingsErrors({ daily_send_limit: limitErr });
+      showToast(limitErr);
       return;
     }
     setSettingsErrors({});
@@ -474,8 +480,26 @@ export default function SequenceDetailPage() {
               </div>
             </FormField>
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="Daily limit">
-                <input className="input" type="number" value={settings.daily_send_limit} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, daily_send_limit: e.target.value }))} />
+              <FormField label="Daily limit" error={dailySendLimitError(settings.daily_send_limit)} name="daily_send_limit">
+                <input
+                  className={inputClass(dailySendLimitError(settings.daily_send_limit))}
+                  type="number"
+                  min={1}
+                  max={MAX_DAILY_SEND_LIMIT}
+                  value={settings.daily_send_limit}
+                  disabled={!canEdit}
+                  onChange={(e) => {
+                    const daily_send_limit = e.target.value;
+                    setSettings((s) => ({ ...s, daily_send_limit }));
+                    setSettingsErrors((prev) => {
+                      const next = { ...prev };
+                      const err = dailySendLimitError(daily_send_limit);
+                      if (err) next.daily_send_limit = err;
+                      else delete next.daily_send_limit;
+                      return next;
+                    });
+                  }}
+                />
               </FormField>
               <FormField label="Hourly limit">
                 <input className="input" type="number" placeholder="Optional" value={settings.hourly_send_limit} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, hourly_send_limit: e.target.value }))} />
@@ -505,7 +529,7 @@ export default function SequenceDetailPage() {
               ))}
             </div>
             {canEdit && settingsDirty && (
-              <button type="button" onClick={saveSettings} disabled={saving} className="btn-primary">
+              <button type="button" onClick={saveSettings} disabled={saving || isDailySendLimitOverMax(settings.daily_send_limit)} className="btn-primary">
                 {saving ? 'Saving…' : 'Save Settings'}
               </button>
             )}

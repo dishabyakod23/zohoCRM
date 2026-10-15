@@ -11,7 +11,7 @@ import { validateRequired, validateEmail, validationToastMessage } from '../../l
 import { makeFieldSetter } from '../../lib/formInput.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
-import { emptySequenceForm, SEND_DAYS } from '../../lib/sequenceHelpers.js';
+import { emptySequenceForm, SEND_DAYS, MAX_DAILY_SEND_LIMIT, dailySendLimitError, isDailySendLimitOverMax } from '../../lib/sequenceHelpers.js';
 import { navigateToRecord, sequenceDetailHref } from '../../lib/recordNavigation.js';
 
 const REQUIRED = {
@@ -61,6 +61,8 @@ export default function CreateSequenceForm() {
       const uniqueErr = await sequencesApi.validateSequenceNameUnique(form.name);
       if (uniqueErr) nextErrors.name = uniqueErr;
     }
+    const limitErr = dailySendLimitError(form.daily_send_limit);
+    if (limitErr) nextErrors.daily_send_limit = limitErr;
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
       showToast(validationToastMessage(nextErrors));
@@ -171,8 +173,25 @@ export default function CreateSequenceForm() {
 
           <SectionTitle>Limits &amp; Stop Rules</SectionTitle>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Daily send limit">
-              <input className="input" type="number" min={1} value={form.daily_send_limit} onChange={(e) => setForm((f) => ({ ...f, daily_send_limit: e.target.value }))} />
+            <FormField label="Daily send limit" error={errors.daily_send_limit || dailySendLimitError(form.daily_send_limit)} name="daily_send_limit">
+              <input
+                className={inputClass(errors.daily_send_limit || dailySendLimitError(form.daily_send_limit))}
+                type="number"
+                min={1}
+                max={MAX_DAILY_SEND_LIMIT}
+                value={form.daily_send_limit}
+                onChange={(e) => {
+                  const daily_send_limit = e.target.value;
+                  setForm((f) => ({ ...f, daily_send_limit }));
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    const err = dailySendLimitError(daily_send_limit);
+                    if (err) next.daily_send_limit = err;
+                    else delete next.daily_send_limit;
+                    return next;
+                  });
+                }}
+              />
             </FormField>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-sm">
@@ -192,7 +211,7 @@ export default function CreateSequenceForm() {
 
           <div className="flex gap-2 justify-end pt-8">
             <AppLink href="/sequences" className="btn-secondary">Cancel</AppLink>
-            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary">
+            <button type="button" onClick={handleSave} disabled={saving || isDailySendLimitOverMax(form.daily_send_limit)} className="btn-primary">
               {saving ? 'Creating…' : 'Create & Add Steps'}
             </button>
           </div>

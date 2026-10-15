@@ -2,6 +2,8 @@ import {
   enrollmentProgressByStep,
   sequenceStepEditSignature,
   isSequenceSettingsDirty,
+  dailySendLimitError,
+  isDailySendLimitOverMax,
 } from '../sequenceHelpers.js';
 
 describe('enrollmentProgressByStep', () => {
@@ -58,5 +60,14 @@ describe('sequenceStepEditSignature / settings dirty', () => {
       send_window_end: '18:00',
       name: 'Renamed',
     }, sequence)).toBe(true);
+  });
+});
+
+describe('daily send limit', () => {
+  it('errors immediately when the value is above 50', () => {
+    expect(dailySendLimitError(50)).toBeNull();
+    expect(dailySendLimitError(51)).toBe('the max limit is 50');
+    expect(isDailySendLimitOverMax(100)).toBe(true);
+    expect(isDailySendLimitOverMax(50)).toBe(false);
   });
 });

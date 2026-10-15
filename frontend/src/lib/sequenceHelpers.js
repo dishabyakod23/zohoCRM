@@ -654,6 +654,21 @@ export function formatStepSchedule(step, fallbackTimezone = 'UTC') {
   return `${date}${timePart} (${formatTimezoneLabel(tz)})`;
 }
 
+export const MAX_DAILY_SEND_LIMIT = 50;
+export const DAILY_SEND_LIMIT_MAX_ERROR = 'the max limit is 50';
+
+export function dailySendLimitError(value) {
+  if (value === '' || value == null) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n > MAX_DAILY_SEND_LIMIT) return DAILY_SEND_LIMIT_MAX_ERROR;
+  return null;
+}
+
+export function isDailySendLimitOverMax(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > MAX_DAILY_SEND_LIMIT;
+}
+
 export function emptySequenceForm(ownerId = '') {
   return {
     name: '',
@@ -665,7 +680,7 @@ export function emptySequenceForm(ownerId = '') {
     send_window_start: '09:00',
     send_window_end: '18:00',
     send_days: DEFAULT_SEND_DAYS,
-    daily_send_limit: 100,
+    daily_send_limit: 50,
     use_contact_timezone: false,
     stop_on_reply: true,
     stop_on_click: false,
@@ -957,6 +972,18 @@ export function openRatePercent(stats) {
   const opened = stats?.opened ?? stats?.open_count ?? stats?.opens ?? 0;
   if (!sent) return '—';
   return `${Math.round((opened / sent) * 100)}%`;
+}
+
+/** Same opened total Analytics uses (`opened` / `open_count` / `opens`). */
+export function pickOpenedCount(stats) {
+  if (!stats) return null;
+  for (const key of ['opened', 'open_count', 'opens']) {
+    if (stats[key] != null && stats[key] !== '') {
+      const n = Number(stats[key]);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return null;
 }
 
 export function normalizeStepFromApi(step) {

@@ -416,6 +416,20 @@ export function prefetchSequenceStats(sequenceId) {
  * Fast path for email funnel card counts via email-events totals
  * (usually much faster than /stats on large sequences).
  */
+/** Opened total from email-events — same source as the Analytics Opened card. */
+export async function getSequenceOpenedCount(sequenceId) {
+  try {
+    const result = await listSequenceEmailEvents(sequenceId, {
+      event_type: 'OPENED',
+      page: 1,
+      page_size: 1,
+    });
+    return result.total ?? 0;
+  } catch {
+    return null;
+  }
+}
+
 export async function getEmailEventCountMap(sequenceId) {
   const keys = ['SENT', 'DELIVERED', 'OPENED', 'CLICKED', 'REPLIED', 'BOUNCED', 'UNSUBSCRIBED'];
   const pairs = await Promise.all(keys.map(async (event_type) => {
