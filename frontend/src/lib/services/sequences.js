@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { assigneeName, listResult, omitEmpty } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
-import { sequenceStatusLabel, normalizeStepFromApi, annotateStepSchedules, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText, isSequenceNameTaken, enrollmentNextActionFromStep, sameScheduleInstant, SCHEDULE_MODE_DATE, SCHEDULE_MODE_AFTER_PREVIOUS, isAfterPreviousSchedule, stepWaitDays, canEditSequenceSteps } from '../sequenceHelpers.js';
+import { sequenceStatusLabel, normalizeStepFromApi, annotateStepSchedules, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText, isSequenceNameTaken, enrollmentNextActionFromStep, sameScheduleInstant, SCHEDULE_MODE_DATE, SCHEDULE_MODE_AFTER_PREVIOUS, isAfterPreviousSchedule, stepWaitDays, canEditSequenceSteps, enrollmentStatusesToSyncWithSequence, enrollmentsMatchingStatuses } from '../sequenceHelpers.js';
 
 
 export function normalizeSequence(row) {
@@ -219,6 +219,31 @@ export async function listEnrollments(sequenceId, params = {}) {
 
 export async function removeEnrollment(enrollmentId) {
   return updateEnrollment(enrollmentId, { status: 'REMOVED' });
+}
+
+export async function listAllEnrollments(sequenceId) {
+  const first = await listEnrollments(sequenceId, { page: 1, page_size: 100 });
+  let all = first.data || [];
+  const total = first.total ?? all.length;
+  let page = 2;
+  while (all.length < total && page <= 20) {
+    const next = await listEnrollments(sequenceId, { page, page_size: 100 });
+    const batch = next.data || [];
+    if (!batch.length) break;
+    all = all.concat(batch);
+    page += 1;
+  }
+  return all;
+}
+
+/** Pause/resume in-progress enrollments to match sequence activate/pause. */
+export async function syncEnrollmentsWithSequenceStatus(sequenceId, sequenceStatus, enrollments) {
+  const sync = enrollmentStatusesToSyncWithSequence(sequenceStatus);
+  if (!sequenceId || !sync) return { updated: 0 };
+  const rows = enrollments?.length ? enrollments : await listAllEnrollments(sequenceId);
+  const targets = enrollmentsMatchingStatuses(rows, sync.from);
+  await Promise.all(targets.map((row) => updateEnrollment(row.id, { status: sync.to })));
+  return { updated: targets.length, status: sync.to };
 }
 
 export async function updateEnrollment(enrollmentId, payload) {

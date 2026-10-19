@@ -176,6 +176,21 @@ export default function SequenceDetailPage() {
     }
   };
 
+  const resumeEnrollment = async (enrollment) => {
+    setRemovingId(enrollment.id);
+    try {
+      const updated = await sequencesApi.updateEnrollment(enrollment.id, { status: 'ACTIVE' });
+      setEnrollments((rows) => rows.map((row) => (
+        row.id === enrollment.id ? { ...row, ...updated, id: row.id, status: updated.status || 'ACTIVE' } : row
+      )));
+      showToast(`${enrollment.member_name || 'Contact'} resumed`, 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
   const confirmRemoveEnrollment = async () => {
     if (!removeTarget?.id) return;
     setRemovingId(removeTarget.id);
@@ -202,7 +217,18 @@ export default function SequenceDetailPage() {
         ? await sequencesApi.activateSequence(id)
         : await sequencesApi.pauseSequence(id);
       setSequence(updated);
-      showToast(`Sequence ${action === 'activate' ? 'activated' : 'paused'}`, 'success');
+      const synced = await sequencesApi.syncEnrollmentsWithSequenceStatus(id, updated.status);
+      await loadEnrollments({ force: true });
+      if (synced.updated > 0) {
+        showToast(
+          action === 'activate'
+            ? `Sequence activated. ${synced.updated} prospect${synced.updated === 1 ? '' : 's'} resumed.`
+            : `Sequence paused. ${synced.updated} prospect${synced.updated === 1 ? '' : 's'} paused.`,
+          'success',
+        );
+      } else {
+        showToast(`Sequence ${action === 'activate' ? 'activated' : 'paused'}`, 'success');
+      }
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -412,6 +438,7 @@ export default function SequenceDetailPage() {
                         enrollment={e}
                         canManage={canManageEnrollments}
                         busy={removingId === e.id}
+                        onResume={resumeEnrollment}
                         onMarkReplied={markEnrollmentReplied}
                         onRemove={setRemoveTarget}
                       />

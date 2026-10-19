@@ -6,6 +6,9 @@ import {
   isDailySendLimitOverMax,
   canRemoveEnrollment,
   canMarkEnrollmentReplied,
+  canResumeEnrollment,
+  enrollmentStatusesToSyncWithSequence,
+  enrollmentsMatchingStatuses,
 } from '../sequenceHelpers.js';
 
 describe('enrollmentProgressByStep', () => {
@@ -91,5 +94,21 @@ describe('enrollment remove/replied actions', () => {
     expect(canMarkEnrollmentReplied('PAUSED')).toBe(true);
     expect(canMarkEnrollmentReplied('ACTIVE')).toBe(true);
     expect(canMarkEnrollmentReplied('COMPLETED')).toBe(false);
+  });
+
+  it('offers resume only while the enrollment is paused', () => {
+    expect(canResumeEnrollment('PAUSED')).toBe(true);
+    expect(canResumeEnrollment('ACTIVE')).toBe(false);
+  });
+
+  it('resumes paused enrollments when the sequence becomes active', () => {
+    expect(enrollmentStatusesToSyncWithSequence('ACTIVE')).toEqual({ from: ['PAUSED'], to: 'ACTIVE' });
+    expect(enrollmentStatusesToSyncWithSequence('PAUSED')).toEqual({ from: ['ACTIVE'], to: 'PAUSED' });
+    const paused = enrollmentsMatchingStatuses([
+      { id: '1', status: 'PAUSED' },
+      { id: '2', status: 'ACTIVE' },
+      { id: '3', status: 'COMPLETED' },
+    ], ['PAUSED']);
+    expect(paused.map((row) => row.id)).toEqual(['1']);
   });
 });

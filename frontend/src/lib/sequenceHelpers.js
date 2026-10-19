@@ -166,6 +166,23 @@ export function canMarkEnrollmentReplied(status) {
   return key === 'ACTIVE' || key === 'PAUSED';
 }
 
+export function canResumeEnrollment(status) {
+  return enrollmentStatusKey(status) === 'PAUSED';
+}
+
+/** When a sequence is activated or paused, which enrollments should follow that status. */
+export function enrollmentsMatchingStatuses(enrollments = [], statuses = []) {
+  const allowed = new Set((statuses || []).map((status) => enrollmentStatusKey(status)));
+  return (enrollments || []).filter((row) => allowed.has(enrollmentStatusKey(row?.status)));
+}
+
+export function enrollmentStatusesToSyncWithSequence(sequenceStatus) {
+  const next = enrollmentStatusKey(sequenceStatus);
+  if (next === 'ACTIVE') return { from: ['PAUSED'], to: 'ACTIVE' };
+  if (next === 'PAUSED') return { from: ['ACTIVE'], to: 'PAUSED' };
+  return null;
+}
+
 export function stepTypeLabel(type) {
   return STEP_TYPES.find((s) => s.value === type)?.label || type || '—';
 }
