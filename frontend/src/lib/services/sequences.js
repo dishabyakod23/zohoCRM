@@ -217,6 +217,10 @@ export async function listEnrollments(sequenceId, params = {}) {
   };
 }
 
+export async function removeEnrollment(enrollmentId) {
+  return updateEnrollment(enrollmentId, { status: 'REMOVED' });
+}
+
 export async function updateEnrollment(enrollmentId, payload) {
   const res = await api.patch(`/enrollments/${enrollmentId}`, payload);
   const raw = res.data?.data ?? res.data?.enrollment ?? res.data;

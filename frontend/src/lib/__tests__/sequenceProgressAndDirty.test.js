@@ -4,6 +4,8 @@ import {
   isSequenceSettingsDirty,
   dailySendLimitError,
   isDailySendLimitOverMax,
+  canRemoveEnrollment,
+  canMarkEnrollmentReplied,
 } from '../sequenceHelpers.js';
 
 describe('enrollmentProgressByStep', () => {
@@ -69,5 +71,25 @@ describe('daily send limit', () => {
     expect(dailySendLimitError(51)).toBe('the max limit is 50');
     expect(isDailySendLimitOverMax(100)).toBe(true);
     expect(isDailySendLimitOverMax(50)).toBe(false);
+  });
+});
+
+describe('enrollment remove/replied actions', () => {
+  it('allows removing paused, active, and failed enrollments', () => {
+    expect(canRemoveEnrollment('PAUSED')).toBe(true);
+    expect(canRemoveEnrollment('active')).toBe(true);
+    expect(canRemoveEnrollment('FAILED')).toBe(true);
+  });
+
+  it('does not offer remove for completed or already removed enrollments', () => {
+    expect(canRemoveEnrollment('COMPLETED')).toBe(false);
+    expect(canRemoveEnrollment('REMOVED')).toBe(false);
+    expect(canRemoveEnrollment('')).toBe(false);
+  });
+
+  it('allows mark replied on paused enrollments, not only active', () => {
+    expect(canMarkEnrollmentReplied('PAUSED')).toBe(true);
+    expect(canMarkEnrollmentReplied('ACTIVE')).toBe(true);
+    expect(canMarkEnrollmentReplied('COMPLETED')).toBe(false);
   });
 });

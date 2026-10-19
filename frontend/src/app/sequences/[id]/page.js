@@ -10,6 +10,8 @@ import SequenceBuilder from '../../../components/sequences/SequenceBuilder.js';
 import SequenceAnalyticsPanel from '../../../components/sequences/SequenceAnalyticsPanel.js';
 import EnrollMembersModal from '../../../components/sequences/EnrollMembersModal.js';
 import EnrollmentNextActionCell from '../../../components/sequences/EnrollmentNextActionCell.js';
+import EnrollmentRowActions from '../../../components/sequences/EnrollmentRowActions.js';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../../components/forms/FormField.js';
 import TimezoneSelect from '../../../components/forms/TimezoneSelect.js';
 import { useToast } from '../../../components/ui/Toast.js';
@@ -30,6 +32,7 @@ export default function SequenceDetailPage() {
   const { can } = usePermissions();
   const canEdit = can('sequences', 'edit');
   const canEnroll = can('sequences', 'enroll');
+  const canManageEnrollments = canEdit || canEnroll;
   const [sequence, setSequence] = useState(null);
   const [steps, setSteps] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
@@ -41,6 +44,8 @@ export default function SequenceDetailPage() {
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [enrollmentSearch, setEnrollmentSearch] = useState('');
   const debouncedEnrollmentSearch = useDebouncedValue(enrollmentSearch, 250);
+  const [removeTarget, setRemoveTarget] = useState(null);
+  const [removingId, setRemovingId] = useState(null);
   const [settings, setSettings] = useState(null);
   const [settingsErrors, setSettingsErrors] = useState({});
   const [users, setUsers] = useState([]);
@@ -158,6 +163,37 @@ export default function SequenceDetailPage() {
       return tokens.every((token) => haystack.includes(token));
     });
   }, [enrollments, debouncedEnrollmentSearch]);
+
+  const markEnrollmentReplied = async (enrollment) => {
+    try {
+      const updated = await sequencesApi.updateEnrollment(enrollment.id, { mark_replied: true });
+      setEnrollments((rows) => rows.map((row) => (
+        row.id === enrollment.id ? { ...row, ...updated, id: row.id } : row
+      )));
+      showToast('Marked as replied', 'success');
+    } catch (err) {
+      showToast(getApiError(err));
+    }
+  };
+
+  const confirmRemoveEnrollment = async () => {
+    if (!removeTarget?.id) return;
+    setRemovingId(removeTarget.id);
+    try {
+      const updated = await sequencesApi.removeEnrollment(removeTarget.id);
+      setEnrollments((rows) => rows.map((row) => (
+        row.id === removeTarget.id
+          ? { ...row, ...updated, id: row.id, status: updated.status || 'REMOVED' }
+          : row
+      )));
+      showToast(`${removeTarget.member_name || 'Contact'} removed from sequence`, 'success');
+      setRemoveTarget(null);
+    } catch (err) {
+      showToast(getApiError(err));
+    } finally {
+      setRemovingId(null);
+    }
+  };
 
   const setStatus = async (action) => {
     setSaving(true);
@@ -372,25 +408,13 @@ export default function SequenceDetailPage() {
                     </td>
                     <td className="table-td text-xs">{e.last_action_at ? formatDateTimeInTimezone(e.last_action_at, sequence.timezone) : '—'}</td>
                     <td className="table-td">
-                      {canEdit && String(e.status || '').toUpperCase() === 'ACTIVE' && (
-                        <button
-                          type="button"
-                          className="text-xs text-brand-600 hover:underline"
-                          onClick={async () => {
-                            try {
-                              const updated = await sequencesApi.updateEnrollment(e.id, { mark_replied: true });
-                              setEnrollments((rows) => rows.map((row) => (
-                                row.id === e.id ? { ...row, ...updated, id: row.id } : row
-                              )));
-                              showToast('Marked as replied', 'success');
-                            } catch (err) {
-                              showToast(getApiError(err));
-                            }
-                          }}
-                        >
-                          Mark replied
-                        </button>
-                      )}
+                      <EnrollmentRowActions
+                        enrollment={e}
+                        canManage={canManageEnrollments}
+                        busy={removingId === e.id}
+                        onMarkReplied={markEnrollmentReplied}
+                        onRemove={setRemoveTarget}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -546,6 +570,16 @@ export default function SequenceDetailPage() {
         }}
         sequenceId={id}
         members={[]}
+      />
+      <ConfirmDialog
+        open={Boolean(removeTarget)}
+        title="Remove from sequence"
+        message={`Remove ${removeTarget?.member_name || 'this contact'} from the sequence? They will stop receiving remaining steps.`}
+        confirmLabel="Remove"
+        danger
+        confirming={Boolean(removingId)}
+        onConfirm={confirmRemoveEnrollment}
+        onCancel={() => { if (!removingId) setRemoveTarget(null); }}
       />
     </CRMLayout>
   );

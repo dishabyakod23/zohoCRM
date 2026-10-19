@@ -151,6 +151,21 @@ export function enrollmentStatusLabel(status) {
   return ENROLLMENT_STATUSES.find((s) => s.value === status)?.label || status || '—';
 }
 
+export function enrollmentStatusKey(status) {
+  return String(status || '').trim().toUpperCase();
+}
+
+/** Still in the sequence (active, paused, failed, replied) — not already finished or removed. */
+export function canRemoveEnrollment(status) {
+  const key = enrollmentStatusKey(status);
+  return Boolean(key) && key !== 'REMOVED' && key !== 'COMPLETED';
+}
+
+export function canMarkEnrollmentReplied(status) {
+  const key = enrollmentStatusKey(status);
+  return key === 'ACTIVE' || key === 'PAUSED';
+}
+
 export function stepTypeLabel(type) {
   return STEP_TYPES.find((s) => s.value === type)?.label || type || '—';
 }

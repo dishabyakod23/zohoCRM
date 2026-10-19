@@ -8,7 +8,7 @@ import { useToast } from '../ui/Toast.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
-import { enrollmentStatusLabel } from '../../lib/sequenceHelpers.js';
+import { enrollmentStatusLabel, canMarkEnrollmentReplied, canRemoveEnrollment, enrollmentStatusKey } from '../../lib/sequenceHelpers.js';
 import { tableLinkClass } from '../../lib/tableStyles.js';
 
 export default function MemberSequencesPanel({ memberType, memberId, memberName }) {
@@ -75,7 +75,7 @@ export default function MemberSequencesPanel({ memberType, memberId, memberName 
                 <span className="text-xs text-zoho-muted">Step {e.current_step_order}</span>
               )}
               <div className="ml-auto flex gap-1">
-                {e.status === 'ACTIVE' && (
+                {enrollmentStatusKey(e.status) === 'ACTIVE' && (
                   <button
                     type="button"
                     disabled={updatingId === e.id}
@@ -85,7 +85,7 @@ export default function MemberSequencesPanel({ memberType, memberId, memberName 
                     Pause
                   </button>
                 )}
-                {e.status === 'PAUSED' && (
+                {enrollmentStatusKey(e.status) === 'PAUSED' && (
                   <button
                     type="button"
                     disabled={updatingId === e.id}
@@ -95,25 +95,25 @@ export default function MemberSequencesPanel({ memberType, memberId, memberName 
                     Resume
                   </button>
                 )}
-                {['ACTIVE', 'PAUSED'].includes(e.status) && (
-                  <>
-                    <button
-                      type="button"
-                      disabled={updatingId === e.id}
-                      onClick={() => updateEnrollment(e.id, { mark_replied: true })}
-                      className="text-xs text-zoho-muted hover:text-brand-600"
-                    >
-                      Mark Replied (override)
-                    </button>
-                    <button
-                      type="button"
-                      disabled={updatingId === e.id}
-                      onClick={() => updateEnrollment(e.id, { status: 'REMOVED' })}
-                      className="text-xs text-red-600 hover:underline"
-                    >
-                      Remove
-                    </button>
-                  </>
+                {canMarkEnrollmentReplied(e.status) && (
+                  <button
+                    type="button"
+                    disabled={updatingId === e.id}
+                    onClick={() => updateEnrollment(e.id, { mark_replied: true })}
+                    className="text-xs text-zoho-muted hover:text-brand-600"
+                  >
+                    Mark Replied (override)
+                  </button>
+                )}
+                {canRemoveEnrollment(e.status) && (
+                  <button
+                    type="button"
+                    disabled={updatingId === e.id}
+                    onClick={() => updateEnrollment(e.id, { status: 'REMOVED' })}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    Remove
+                  </button>
                 )}
               </div>
             </li>
