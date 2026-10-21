@@ -91,7 +91,9 @@ export default function CalendarEventModal({
 
           <FormField label="Type">
             <select className="input" value={form.event_type} onChange={set('event_type')}>
-              {EVENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              {EVENT_TYPES.filter((t) => t.value !== 'meeting' || t.value === form.event_type).map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
             </select>
           </FormField>
 
