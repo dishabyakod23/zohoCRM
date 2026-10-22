@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { assigneeName, listResult, omitEmpty } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
-import { sequenceStatusLabel, normalizeStepFromApi, annotateStepSchedules, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText, isSequenceNameTaken, enrollmentNextActionFromStep, sameScheduleInstant, SCHEDULE_MODE_DATE, SCHEDULE_MODE_AFTER_PREVIOUS, isAfterPreviousSchedule, stepWaitDays, canEditSequenceSteps, enrollmentStatusesToSyncWithSequence, enrollmentsMatchingStatuses } from '../sequenceHelpers.js';
+import { sequenceStatusLabel, normalizeStepFromApi, annotateStepSchedules, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText, isSequenceNameTaken, enrollmentNextActionFromStep, sameScheduleInstant, SCHEDULE_MODE_DATE, SCHEDULE_MODE_AFTER_PREVIOUS, isAfterPreviousSchedule, stepWaitDays, canEditSequenceSteps, enrollmentStatusesToSyncWithSequence, enrollmentsMatchingStatuses, openRatePercent } from '../sequenceHelpers.js';
 
 
 export function normalizeSequence(row) {
@@ -454,6 +454,22 @@ export async function getSequenceOpenedCount(sequenceId) {
       page_size: 1,
     });
     return result.total ?? 0;
+  } catch {
+    return null;
+  }
+}
+
+/** Opened / sent as a percent, using the same email-events totals as Analytics. */
+export async function getSequenceOpenRatePercent(sequenceId) {
+  try {
+    const [opened, sent] = await Promise.all([
+      listSequenceEmailEvents(sequenceId, { event_type: 'OPENED', page: 1, page_size: 1 }),
+      listSequenceEmailEvents(sequenceId, { event_type: 'SENT', page: 1, page_size: 1 }),
+    ]);
+    return openRatePercent({
+      opened: opened.total ?? 0,
+      sent: sent.total ?? 0,
+    });
   } catch {
     return null;
   }

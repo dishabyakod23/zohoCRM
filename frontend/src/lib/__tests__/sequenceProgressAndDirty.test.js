@@ -9,6 +9,7 @@ import {
   canResumeEnrollment,
   enrollmentStatusesToSyncWithSequence,
   enrollmentsMatchingStatuses,
+  openRatePercent,
 } from '../sequenceHelpers.js';
 
 describe('enrollmentProgressByStep', () => {
@@ -110,5 +111,16 @@ describe('enrollment remove/replied actions', () => {
       { id: '3', status: 'COMPLETED' },
     ], ['PAUSED']);
     expect(paused.map((row) => row.id)).toEqual(['1']);
+  });
+});
+
+describe('openRatePercent', () => {
+  it('formats opened / sent as a whole-number percent', () => {
+    expect(openRatePercent({ opened: 161, sent: 200 })).toBe('81%');
+    expect(openRatePercent({ opened: 0, sent: 10 })).toBe('0%');
+  });
+
+  it('shows a dash when nothing has been sent', () => {
+    expect(openRatePercent({ opened: 0, sent: 0 })).toBe('—');
   });
 });

@@ -16,7 +16,7 @@ import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
 import { navigateToRecord, sequenceDetailHref } from '../../lib/recordNavigation.js';
-import { SEQUENCE_STATUSES, pickOpenedCount } from '../../lib/sequenceHelpers.js';
+import { SEQUENCE_STATUSES, openRatePercent } from '../../lib/sequenceHelpers.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
 
@@ -31,7 +31,7 @@ export default function SequencesPage() {
   const debouncedSearch = useDebouncedValue(search);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState(DEFAULT_LIST_SORT);
-  const [openedById, setOpenedById] = useState({});
+  const [openRateById, setOpenRateById] = useState({});
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -58,23 +58,23 @@ export default function SequencesPage() {
     let cancelled = false;
     const seed = {};
     for (const row of items) {
-      const fromRow = pickOpenedCount(row);
-      const fromCache = pickOpenedCount(sequencesApi.readCachedSequenceStats(row.id));
-      if (fromRow != null) seed[row.id] = fromRow;
-      else if (fromCache != null) seed[row.id] = fromCache;
+      const fromRow = openRatePercent(row);
+      const fromCache = openRatePercent(sequencesApi.readCachedSequenceStats(row.id) || {});
+      if (fromRow && fromRow !== '—') seed[row.id] = fromRow;
+      else if (fromCache && fromCache !== '—') seed[row.id] = fromCache;
     }
     if (Object.keys(seed).length) {
-      setOpenedById((prev) => ({ ...seed, ...prev }));
+      setOpenRateById((prev) => ({ ...seed, ...prev }));
     }
     Promise.all(items.map(async (row) => {
-      const count = await sequencesApi.getSequenceOpenedCount(row.id);
-      return [row.id, count];
+      const rate = await sequencesApi.getSequenceOpenRatePercent(row.id);
+      return [row.id, rate];
     })).then((pairs) => {
       if (cancelled) return;
-      setOpenedById((prev) => {
+      setOpenRateById((prev) => {
         const next = { ...prev };
-        for (const [id, count] of pairs) {
-          if (count != null) next[id] = count;
+        for (const [id, rate] of pairs) {
+          if (rate != null) next[id] = rate;
         }
         return next;
       });
@@ -104,9 +104,9 @@ export default function SequencesPage() {
     { id: 'enrolled', header: 'Total Leads', cell: (s) => s.enrollment_count ?? 0 },
     { id: 'active', header: 'Active', cell: (s) => s.active_enrollment_count ?? 0 },
     { id: 'completed', header: 'Completed', cell: (s) => s.completed_count ?? '—' },
-    { id: 'opened', header: 'Opened', cell: (s) => openedById[s.id] ?? pickOpenedCount(s) ?? '—' },
+    { id: 'opened', header: 'Opened', cell: (s) => openRateById[s.id] ?? openRatePercent(s) },
     { id: 'created', header: 'Created', cell: (s) => s.created_at ? new Date(s.created_at).toLocaleDateString() : '—' },
-  ], [openedById]);
+  ], [openRateById]);
 
   return (
     <CRMLayout>
