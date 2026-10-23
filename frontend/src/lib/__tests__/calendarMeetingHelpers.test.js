@@ -3,6 +3,8 @@ import {
   filterMeetingsInRange,
   filterMeetingsByHost,
   timeFromDatetime,
+  toLocalDateKey,
+  toDatetimeLocalValue,
   defaultMeetingDatetimesForDate,
 } from '../calendarMeetingHelpers.js';
 
@@ -43,5 +45,24 @@ describe('calendarMeetingHelpers', () => {
       to_datetime: '2026-09-18T11:00',
     });
     expect(timeFromDatetime('2026-09-18T14:30:00Z')).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  it('converts UTC ISO meeting times to the viewer local clock', () => {
+    const iso = '2026-10-23T10:50:00.000Z';
+    const local = new Date(iso);
+    const hh = String(local.getHours()).padStart(2, '0');
+    const mm = String(local.getMinutes()).padStart(2, '0');
+    const y = local.getFullYear();
+    const mo = String(local.getMonth() + 1).padStart(2, '0');
+    const day = String(local.getDate()).padStart(2, '0');
+    expect(timeFromDatetime(iso)).toBe(`${hh}:${mm}`);
+    expect(toLocalDateKey(iso)).toBe(`${y}-${mo}-${day}`);
+    expect(toDatetimeLocalValue(iso)).toBe(`${y}-${mo}-${day}T${hh}:${mm}`);
+    expect(meetingToCalendarItem({
+      id: 'm-utc',
+      title: 'Testing meeting',
+      from_datetime: iso,
+      to_datetime: '2026-10-23T11:20:00.000Z',
+    }).start_time).toBe(`${hh}:${mm}`);
   });
 });

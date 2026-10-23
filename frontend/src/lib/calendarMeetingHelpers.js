@@ -1,14 +1,42 @@
-import { toDateKey, formatTime } from './calendarHelpers.js';
+import { formatTime } from './calendarHelpers.js';
 
-/** Extract HH:MM from an ISO / datetime-local string. */
-export function timeFromDatetime(value) {
-  if (!value) return '';
-  const str = String(value);
-  const match = str.match(/T(\d{2}):(\d{2})/);
-  if (match) return `${match[1]}:${match[2]}`;
+/** Parse API ISO / datetime-local into a Date in the viewer's local timezone. */
+export function parseMeetingDatetime(value) {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  const str = String(value).trim();
+  if (!str) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const d = new Date(`${str}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
   const d = new Date(str);
-  if (Number.isNaN(d.getTime())) return '';
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Local calendar day (YYYY-MM-DD) for a meeting datetime. */
+export function toLocalDateKey(value) {
+  const d = parseMeetingDatetime(value);
+  if (!d) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Local HH:MM for a meeting datetime (not the UTC clock on the ISO string). */
+export function timeFromDatetime(value) {
+  const d = parseMeetingDatetime(value);
+  if (!d) return '';
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Value for `<input type="datetime-local">` in the viewer's timezone. */
+export function toDatetimeLocalValue(value) {
+  if (!value) return '';
+  const d = parseMeetingDatetime(value);
+  if (!d) return '';
+  return `${toLocalDateKey(d)}T${timeFromDatetime(d)}`;
 }
 
 /**
@@ -24,7 +52,7 @@ export function meetingToCalendarItem(meeting) {
     meeting_id: meetingId,
     title: meeting.title || 'Meeting',
     event_type: 'meeting',
-    event_date: toDateKey(from),
+    event_date: toLocalDateKey(from),
     start_time: timeFromDatetime(from),
     end_time: timeFromDatetime(to),
     all_day: false,
@@ -41,7 +69,7 @@ export function meetingToCalendarItem(meeting) {
 /** Keep meetings whose start date falls inside [fromKey, toKey] (inclusive). */
 export function filterMeetingsInRange(meetings = [], fromKey, toKey) {
   return (meetings || []).filter((m) => {
-    const key = toDateKey(m.from_datetime || m.start_at);
+    const key = toLocalDateKey(m.from_datetime || m.start_at);
     if (!key) return false;
     if (fromKey && key < fromKey) return false;
     if (toKey && key > toKey) return false;

@@ -16,6 +16,7 @@ import { relatedRecordFromActivity } from '../../../lib/recordHelpers.js';
 import * as meetingsApi from '../../../lib/services/meetings.js';
 import { fetchUsers } from '../../../lib/services/lookups.js';
 import MeetingMicrosoftPanel from '../../../components/meetings/MeetingMicrosoftPanel.js';
+import { toDatetimeLocalValue } from '../../../lib/calendarMeetingHelpers.js';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function MeetingDetailPage() {
@@ -70,10 +71,10 @@ export default function MeetingDetailPage() {
             fields={[
               { name: 'title', label: 'Title', required: true },
               { name: 'from_datetime', label: 'From', format: (v) => (v ? new Date(v).toLocaleString() : null), render: (d, set) => (
-                <input className="input" type="datetime-local" value={(d.from_datetime ?? '').slice(0, 16)} onChange={(e) => set((p) => ({ ...p, from_datetime: e.target.value }))} />
+                <input className="input" type="datetime-local" value={toDatetimeLocalValue(d.from_datetime)} onChange={(e) => set((p) => ({ ...p, from_datetime: e.target.value }))} />
               ) },
               { name: 'to_datetime', label: 'To', format: (v) => (v ? new Date(v).toLocaleString() : null), render: (d, set) => (
-                <input className="input" type="datetime-local" value={(d.to_datetime ?? '').slice(0, 16)} onChange={(e) => set((p) => ({ ...p, to_datetime: e.target.value }))} />
+                <input className="input" type="datetime-local" value={toDatetimeLocalValue(d.to_datetime)} onChange={(e) => set((p) => ({ ...p, to_datetime: e.target.value }))} />
               ) },
               { name: 'host_id', label: 'Host', format: () => meeting.host_name, render: (d, set) => (
                 <select className="input" value={d.host_id ?? ''} onChange={(e) => set((p) => ({ ...p, host_id: e.target.value }))}>

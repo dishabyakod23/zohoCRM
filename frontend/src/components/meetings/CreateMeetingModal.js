@@ -8,6 +8,7 @@ import { getApiError } from '../../lib/api.js';
 import { validateRequired } from '../../lib/validators.js';
 import * as meetingsApi from '../../lib/services/meetings.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
+import { toDatetimeLocalValue } from '../../lib/calendarMeetingHelpers.js';
 
 const REQUIRED = {
   title: 'Meeting Title',
@@ -126,7 +127,7 @@ export default function CreateMeetingModal({
           <input
             className={inputClass(errors.from_datetime)}
             type="datetime-local"
-            value={form.from_datetime?.slice(0, 16)}
+            value={toDatetimeLocalValue(form.from_datetime)}
             onChange={(e) => setForm((p) => ({ ...p, from_datetime: e.target.value }))}
           />
         </FormField>
@@ -134,7 +135,7 @@ export default function CreateMeetingModal({
           <input
             className={inputClass(errors.to_datetime)}
             type="datetime-local"
-            value={form.to_datetime?.slice(0, 16)}
+            value={toDatetimeLocalValue(form.to_datetime)}
             onChange={(e) => setForm((p) => ({ ...p, to_datetime: e.target.value }))}
           />
         </FormField>
