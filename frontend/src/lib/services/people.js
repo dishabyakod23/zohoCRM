@@ -46,15 +46,19 @@ export function personEntityType(person) {
   return raw;
 }
 
+/** Strip `contact:uuid` / `deal:uuid` prefixes from directory ids. */
+export function barePersonRecordId(value) {
+  if (value == null || value === '') return null;
+  const raw = String(value);
+  if (raw.includes(':')) {
+    const parsed = parsePersonRowId(raw);
+    if (parsed.recordId) return parsed.recordId;
+  }
+  return raw;
+}
+
 export function personRecordId(person) {
-  if (person?.record_id) return person.record_id;
-  if (person?.entity_id) return person.entity_id;
-  const id = person?.id;
-  if (!id) return null;
-  // Prefer bare UUID when list rows encode entity type as "contact:uuid".
-  const parsed = parsePersonRowId(id);
-  if (String(id).includes(':') && parsed.recordId) return parsed.recordId;
-  return id;
+  return barePersonRecordId(person?.record_id || person?.entity_id || person?.id);
 }
 
 /** Stable list-row id that encodes entity type for bulk actions (delete, campaign). */
@@ -200,35 +204,55 @@ export function campaignMembersFromSelection(selectedIds = [], {
   }).filter((member) => member.member_type && member.member_id);
 }
 
+function isDealDirectoryRow(person) {
+  const entityType = String(
+    person?.entity_type || person?._entityType || person?.record_type || person?.source_type || '',
+  ).toLowerCase();
+  const status = String(person?.current_status || '').toLowerCase();
+  return entityType === 'deal' || status === 'deal';
+}
+
 export function personDetailHref(person) {
   if (!person) return '/contacts';
+
+  const recordId = barePersonRecordId(person.record_id || person.entity_id || person.id);
+  const contactId = barePersonRecordId(person.contact_id);
+
+  // Contacts list: Deal is a person status. Open the contact, never the Deals module.
+  if (isDealDirectoryRow(person)) {
+    if (contactId) return `/contacts/${contactId}`;
+    if (recordId) return `/contacts/${recordId}`;
+    return '/contacts';
+  }
 
   const detailPath = person.detail_path || person.detail_href || person.detail_url;
   if (detailPath) {
     const path = String(detailPath).trim();
-    return path.startsWith('/') ? path : `/${path}`;
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    if (/^\/deals(\/|$)/i.test(normalized)) {
+      if (contactId) return `/contacts/${contactId}`;
+      if (recordId) return `/contacts/${recordId}`;
+    }
+    return normalized;
   }
 
   const entityType = String(
     person.entity_type || person.record_type || person.source_type || '',
   ).toLowerCase();
-  const recordId = person.record_id || person.entity_id || person.id;
 
   switch (entityType) {
     case 'contact':
-      return `/contacts/${recordId}`;
+      return recordId ? `/contacts/${recordId}` : '/contacts';
     case 'lead':
     case 'raw_lead':
     case 'qualified_lead':
     case 'proposal':
       return getLeadDetailPath(person, recordId);
-    case 'deal':
-      return `/deals/${recordId}`;
     case 'account':
-      return `/accounts/${recordId}`;
+      return recordId ? `/accounts/${recordId}` : '/accounts';
     default:
-      if (person.contact_id) return `/contacts/${person.contact_id}`;
-      return `/contacts/${recordId}`;
+      if (contactId) return `/contacts/${contactId}`;
+      return recordId ? `/contacts/${recordId}` : '/contacts';
   }
 }
 

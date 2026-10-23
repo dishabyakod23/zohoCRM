@@ -107,7 +107,7 @@ export default function DndPage() {
     { id: 'contact', header: 'Name', cell: (c) => (
       <div className="flex items-center gap-2.5">
         <div className={tableAvatarClass}>{initials(c)}</div>
-        <RecordDetailLink href={c._detailHref || `/contacts/${c.id}`} className={tableLinkClass}>
+        <RecordDetailLink href={c._detailHref || `/contacts/${c.record_id || c.id}`} className={tableLinkClass}>
           {c.first_name} {c.last_name}
         </RecordDetailLink>
       </div>

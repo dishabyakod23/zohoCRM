@@ -2,6 +2,7 @@ import {
   normalizePersonRow,
   personDetailHref,
   personRowId,
+  personRecordId,
   parsePersonRowId,
   deletePersonRecord,
   campaignMembersFromSelection,
@@ -43,9 +44,34 @@ describe('normalizePersonRow', () => {
     expect(personDetailHref({ detail_path: 'leads/uuid-here' })).toBe('/leads/uuid-here');
   });
 
+  it('opens Deal directory rows on the contact, not /deals', () => {
+    expect(personDetailHref({
+      entity_type: 'deal',
+      record_id: 'deal-id',
+      contact_id: 'contact-id',
+      current_status: 'Deal',
+    })).toBe('/contacts/contact-id');
+    expect(personDetailHref({
+      entity_type: 'deal',
+      record_id: 'deal:d1',
+      current_status: 'Deal',
+    })).toBe('/contacts/d1');
+    expect(personDetailHref({
+      entity_type: 'contact',
+      record_id: 'c1',
+      current_status: 'Deal',
+      detail_path: '/deals/d1',
+    })).toBe('/contacts/c1');
+  });
+
   it('keeps plain contact ids for legacy rows', () => {
     expect(personRowId({ id: 'c1' })).toBe('c1');
     expect(parsePersonRowId('c1')).toEqual({ entityType: 'contact', recordId: 'c1' });
+  });
+
+  it('strips encoded deal/contact prefixes from record ids', () => {
+    expect(personRecordId({ record_id: 'deal:d1' })).toBe('d1');
+    expect(personRecordId({ id: 'contact:c1' })).toBe('c1');
   });
 
   it('maps production directory row shape', () => {

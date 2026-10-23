@@ -283,7 +283,7 @@ export default function ContactsPage() {
     { id: 'contact', header: 'Contact Name', cell: (c) => (
       <div className="flex items-center gap-2.5">
         <div className={tableAvatarClass}>{initials(c)}</div>
-        <RecordDetailLink href={c._detailHref || `/contacts/${c.id}`} className={tableLinkClass}>{c.first_name} {c.last_name}</RecordDetailLink>
+        <RecordDetailLink href={c._detailHref || `/contacts/${c.record_id || c.id}`} className={tableLinkClass}>{c.first_name} {c.last_name}</RecordDetailLink>
       </div>
     ) },
     { id: 'title', header: 'Designation', cell: (c) => (
