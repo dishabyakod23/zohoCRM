@@ -179,14 +179,20 @@ export function isProposalLead(lead) {
   const currentStatus = String(lead.current_status || '').toLowerCase().trim();
   if (currentStatus === 'proposal') return true;
 
-  // Convert-to-proposal sometimes leaves pipeline_stage as qualified_lead.
-  // Proposal-module fields must still pull the record out of Qualified / Warm / Cold.
+  return false;
+}
+
+/**
+ * Leftover qualified/warm rows after convert-to-proposal often still have
+ * proposal_date / deal_status. Hide them from earlier stages, but do not
+ * count them as extra proposals — the real proposal row is a separate record.
+ */
+export function hasStaleProposalFields(lead) {
+  if (!lead || isProposalLead(lead)) return false;
   if (lead.proposal_date) return true;
   if (lead.proposal_type) return true;
   const dealStatus = String(lead.deal_status || '').toLowerCase().trim();
-  if (dealStatus && dealStatus !== 'none') return true;
-
-  return false;
+  return Boolean(dealStatus && dealStatus !== 'none');
 }
 
 /** Drop earlier-stage rows that already exist as a proposal (same id or email). */
@@ -217,8 +223,11 @@ export function filterLeadsByPipelineStage(leads, stage) {
   if (stage === PIPELINE_PROPOSAL) {
     return active.filter(isProposalLead);
   }
-  const inStage = active.filter((l) => !isProposalLead(l) && resolveLeadPipelineStage(l) === stage);
-  return inStage;
+  return active.filter((l) => (
+    !isProposalLead(l)
+    && !hasStaleProposalFields(l)
+    && resolveLeadPipelineStage(l) === stage
+  ));
 }
 
 function normalizedLeadStatus(lead) {

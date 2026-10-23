@@ -157,7 +157,7 @@ describe('filterLeadsByPipelineStage — proposals', () => {
     expect(filterLeadsByPipelineStage(leads, PIPELINE_QUALIFIED).map((l) => l.id)).toEqual(['qualified']);
   });
 
-  it('excludes qualified-stage records that already have proposal fields', () => {
+  it('hides leftover qualified rows with proposal fields without counting them as extra proposals', () => {
     const leads = [
       {
         id: 'still-qualified',
@@ -165,15 +165,22 @@ describe('filterLeadsByPipelineStage — proposals', () => {
         email: 'ok@example.com',
       },
       {
-        id: 'moved',
+        id: 'leftover',
         pipeline_stage: 'qualified_lead',
+        email: 'miraaj@rmderpsolutions.com',
+        proposal_date: '2026-10-22',
+        deal_size: 169000,
+      },
+      {
+        id: 'real-proposal',
+        pipeline_stage: 'proposal',
         email: 'miraaj@rmderpsolutions.com',
         proposal_date: '2026-10-22',
         deal_size: 169000,
       },
     ];
     expect(filterLeadsByPipelineStage(leads, PIPELINE_QUALIFIED).map((l) => l.id)).toEqual(['still-qualified']);
-    expect(filterLeadsByPipelineStage(leads, 'proposal').map((l) => l.id)).toEqual(['moved']);
+    expect(filterLeadsByPipelineStage(leads, 'proposal').map((l) => l.id)).toEqual(['real-proposal']);
   });
 });
 

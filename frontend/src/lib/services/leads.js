@@ -704,16 +704,21 @@ export async function summarizePipelineDashboard(statusOptions = []) {
   monthStart.setHours(0, 0, 0, 0);
 
   const stages = [PIPELINE_RAW, PIPELINE_LEAD, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL];
+  const proposalLeads = filterLeadsByPipelineStage(data, PIPELINE_PROPOSAL);
+  const countStage = (stage) => {
+    const rows = filterLeadsByPipelineStage(data, stage);
+    if (stage === PIPELINE_PROPOSAL) return rows.length;
+    return excludeLeadsMatchingProposals(rows, proposalLeads).length;
+  };
   const leadsByPipeline = stages
     .map((stage) => ({
       status: pipelineStageLabel(stage),
-      count: filterLeadsByPipelineStage(data, stage).length,
+      count: countStage(stage),
       permissionKey: PIPELINE_MODULE_PERMISSION[stage],
     }))
     .filter((row) => row.count > 0);
 
-  const proposalLeads = filterLeadsByPipelineStage(data, PIPELINE_PROPOSAL);
-  const qualifiedCount = filterLeadsByPipelineStage(data, PIPELINE_QUALIFIED).length;
+  const qualifiedCount = countStage(PIPELINE_QUALIFIED);
   const dealSize = await sumAmountsInInr(proposalLeads, {
     amountOf: (lead) => Number(lead.deal_size ?? lead.proposal_amount),
     currencyOf: (lead) => lead.currency || 'INR',
