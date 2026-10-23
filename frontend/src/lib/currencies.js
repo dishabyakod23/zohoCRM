@@ -82,7 +82,7 @@ export function formatMoneyTotalsByCurrency(rows, { amountKey = 'revenue', curre
 export function formatMoney(amount, currencyCode = DEFAULT_CURRENCY) {
   if (amount == null || amount === '') return '—';
   const num = Number(amount);
-  if (Number.isNaN(num)) return amount;
+  if (Number.isNaN(num)) return '—';
   const currency = getCurrency(currencyCode);
   const fractionDigits = ['JPY', 'KWD', 'BHD', 'OMR'].includes(currency.code) ? 0 : 2;
   try {

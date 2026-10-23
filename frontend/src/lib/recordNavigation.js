@@ -27,6 +27,32 @@ export function recordDetailHref(href) {
   return appHref(href);
 }
 
+function bareRecordId(id) {
+  if (id == null || id === '') return '';
+  const raw = String(id);
+  const splitAt = raw.indexOf(':');
+  if (splitAt > 0 && splitAt < 20) return raw.slice(splitAt + 1);
+  return raw;
+}
+
+/** Static-export-safe record URL: `/module/_/?id=` when the host has no nginx rewrite. */
+export function moduleRecordHref(module, id) {
+  const slug = String(module || '').replace(/^\/+|\/+$/g, '');
+  const bare = bareRecordId(id);
+  if (!slug) return '/';
+  if (!bare) return `/${slug}/`;
+  if (isStaticExport) return `/${slug}/_/?id=${encodeURIComponent(bare)}`;
+  return `/${slug}/${bare}`;
+}
+
+export function contactDetailHref(id) {
+  return moduleRecordHref('contacts', id);
+}
+
+export function dealDetailHref(id) {
+  return moduleRecordHref('deals', id);
+}
+
 /** Company detail URL — uses placeholder + ?id= on static export so it works without nginx rewrite rules. */
 export function companyDetailHref(id) {
   if (!id) return '/companies/';

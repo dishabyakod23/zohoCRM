@@ -17,6 +17,9 @@ const COLORS = {
 };
 
 export default function Badge({ label }) {
-  const cls = COLORS[label] || 'bg-brand-50 text-brand-700 ring-brand-200';
-  return <span className={`badge ${cls}`}>{label}</span>;
+  const text = label == null || typeof label === 'object'
+    ? (label?.label || label?.value || '—')
+    : String(label);
+  const cls = COLORS[text] || 'bg-brand-50 text-brand-700 ring-brand-200';
+  return <span className={`badge ${cls}`}>{text}</span>;
 }

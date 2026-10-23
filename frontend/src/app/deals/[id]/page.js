@@ -51,7 +51,7 @@ export default function DealDetailPage() {
       setDeal({
         ...r,
         deal_name: r.deal_name || r.name,
-        closing_date: r.closing_date?.split('T')[0] || r.close_date?.split('T')[0] || '',
+        closing_date: String(r.closing_date || r.close_date || '').split('T')[0] || '',
       });
       trackRecentItem({ type: 'deal', id, name: r.name || r.deal_name });
     }).catch(() => {

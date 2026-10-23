@@ -43,7 +43,7 @@ import CallRecordButton from '../../../components/cloudtalk/CallRecordButton.js'
 import AccountNameCombobox from '../../../components/forms/AccountNameCombobox.js';
 import { resolveContactCompanyFields } from '../../../lib/resolveContactAccount.js';
 import { useRecordCampaign } from '../../../hooks/useRecordCampaign.js';
-import { navigateToRecord } from '../../../lib/recordNavigation.js';
+import { navigateToRecord, dealDetailHref } from '../../../lib/recordNavigation.js';
 import { TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import RecordDetailLink from '../../../components/records/RecordDetailLink.js';
@@ -497,10 +497,10 @@ export default function ContactDetailPage() {
               <ul className="divide-y divide-zoho-border">
                 {deals.map((deal) => (
                   <li key={deal.id} className="py-2 flex items-center justify-between gap-3">
-                    <RecordDetailLink href={`/deals/${deal.id}`} className={`text-sm font-medium ${tableLinkClass}`}>
-                      {deal.name || deal.deal_name}
+                    <RecordDetailLink href={dealDetailHref(deal.id)} className={`text-sm font-medium ${tableLinkClass}`}>
+                      {deal.name || deal.deal_name || 'Deal'}
                     </RecordDetailLink>
-                    <span className="text-xs text-zoho-muted">{formatMoney(deal.amount, deal.currency)} · {deal.stage}</span>
+                    <span className="text-xs text-zoho-muted">{formatMoney(deal.amount, deal.currency)} · {typeof deal.stage === 'string' ? deal.stage : '—'}</span>
                   </li>
                 ))}
               </ul>

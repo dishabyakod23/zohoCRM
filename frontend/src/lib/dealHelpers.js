@@ -20,17 +20,28 @@ export const FALLBACK_DEAL_STAGES = Object.entries(STAGE_LABELS).map(([value, la
 
 const SNAKE_CASE_RE = /^[a-z][a-z0-9_]*$/;
 
+/** Normalize API stage (string or `{ value, label }`) to a plain code. */
+export function dealStageCode(stage) {
+  if (stage == null || stage === '') return '';
+  if (typeof stage === 'object') {
+    return String(stage.value ?? stage.key ?? stage.code ?? stage.label ?? '').trim();
+  }
+  return String(stage).trim();
+}
+
 export function dealStageLabel(stage, options = []) {
-  if (!stage) return '—';
-  const fromLookup = options.find(o => o.value === stage);
+  const code = dealStageCode(stage);
+  if (!code) return '—';
+  const fromLookup = (options || []).find((o) => o.value === code || o.label === code);
   if (fromLookup) return fromLookup.label;
-  return STAGE_LABELS[stage] || stage.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return STAGE_LABELS[code] || code.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function resolveDealStageForApi(stage) {
-  if (!stage) return 'qualification';
-  if (SNAKE_CASE_RE.test(stage)) return stage;
-  return LABEL_TO_STAGE[stage] || stage.toLowerCase().replace(/ /g, '_');
+  const code = dealStageCode(stage);
+  if (!code) return 'qualification';
+  if (SNAKE_CASE_RE.test(code)) return code;
+  return LABEL_TO_STAGE[code] || code.toLowerCase().replace(/ /g, '_');
 }
 
 export function normalizeDeal(deal, accountMap = {}, stageOptions = []) {
@@ -43,7 +54,7 @@ export function normalizeDeal(deal, accountMap = {}, stageOptions = []) {
     name: resolvedName,
     deal_name: resolvedName,
     stage: dealStageLabel(deal.stage, stageOptions),
-    stage_value: deal.stage,
+    stage_value: dealStageCode(deal.stage_value || deal.stage),
     close_date: resolvedCloseDate,
     closing_date: resolvedCloseDate,
     amount: deal.amount != null ? Number(deal.amount) : deal.amount,

@@ -1,6 +1,7 @@
 import api from '../api.js';
 import { ownerName } from '../recordHelpers.js';
 import { getLeadDetailPath } from '../pipelineHelpers.js';
+import { contactDetailHref } from '../recordNavigation.js';
 import { DIRECTORY_STATUS_OPTIONS, resolveDirectoryCurrentStatus, directoryLeadStatusValue, isConvertedToAccount } from '../contactDirectoryHelpers.js';
 import { leadStatusLabel } from '../leadHelpers.js';
 import { resolveContactLinkedInUrl } from '../contactHelpers.js';
@@ -220,9 +221,7 @@ export function personDetailHref(person) {
 
   // Contacts list: Deal is a person status. Open the contact, never the Deals module.
   if (isDealDirectoryRow(person)) {
-    if (contactId) return `/contacts/${contactId}`;
-    if (recordId) return `/contacts/${recordId}`;
-    return '/contacts';
+    return contactDetailHref(contactId || recordId) || '/contacts';
   }
 
   const detailPath = person.detail_path || person.detail_href || person.detail_url;
@@ -230,8 +229,7 @@ export function personDetailHref(person) {
     const path = String(detailPath).trim();
     const normalized = path.startsWith('/') ? path : `/${path}`;
     if (/^\/deals(\/|$)/i.test(normalized)) {
-      if (contactId) return `/contacts/${contactId}`;
-      if (recordId) return `/contacts/${recordId}`;
+      return contactDetailHref(contactId || recordId) || '/contacts';
     }
     return normalized;
   }
@@ -242,7 +240,7 @@ export function personDetailHref(person) {
 
   switch (entityType) {
     case 'contact':
-      return recordId ? `/contacts/${recordId}` : '/contacts';
+      return contactDetailHref(recordId) || '/contacts';
     case 'lead':
     case 'raw_lead':
     case 'qualified_lead':
@@ -251,8 +249,7 @@ export function personDetailHref(person) {
     case 'account':
       return recordId ? `/accounts/${recordId}` : '/accounts';
     default:
-      if (contactId) return `/contacts/${contactId}`;
-      return recordId ? `/contacts/${recordId}` : '/contacts';
+      return contactDetailHref(contactId || recordId) || '/contacts';
   }
 }
 
