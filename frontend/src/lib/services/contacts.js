@@ -31,8 +31,26 @@ import {
   getConvertRedirectPath,
 } from '../pipelineHelpers.js';
 import { resolveLeadStatusForApi } from '../leadHelpers.js';
+import { isDndStatus } from '../statusHelpers.js';
 import { isConvertMassUpdateField } from './lookups.js';
+import { ensureDndLeadStatusRegistered } from './admin.js';
 import { splitDirectorySelectionIds } from './people.js';
+
+async function apiLeadStatusForWrite(value, statusOptions = []) {
+  let apiValue = resolveLeadStatusForApi(value, statusOptions);
+  if (isDndStatus(apiValue) || isDndStatus(value)) {
+    const registered = await ensureDndLeadStatusRegistered();
+    if (registered) apiValue = registered;
+  }
+  return apiValue;
+}
+
+async function withRegisteredDndLeadStatus(payload) {
+  if (!payload || !isDndStatus(payload.lead_status)) return payload;
+  const registered = await ensureDndLeadStatusRegistered();
+  if (!registered) return payload;
+  return { ...payload, lead_status: registered };
+}
 
 async function fetchAllContactPages(params, accountMap) {
   const pageSize = BULK_FETCH_PAGE_SIZE;
@@ -164,12 +182,15 @@ export async function getContact(id, accountMap = {}) {
 }
 
 export async function createContact(form) {
-  const res = await api.post('/contacts', toContactPayload(form));
+  const res = await api.post('/contacts', await withRegisteredDndLeadStatus(toContactPayload(form)));
   return normalizeContact(res.data.data);
 }
 
 export async function updateContact(id, form) {
-  const res = await api.patch(`/contacts/${id}`, toContactPayload(form, { partial: true }));
+  const res = await api.patch(
+    `/contacts/${id}`,
+    await withRegisteredDndLeadStatus(toContactPayload(form, { partial: true })),
+  );
   return normalizeContact(res.data.data);
 }
 
@@ -203,7 +224,7 @@ export async function applyContactDirectoryMassUpdate(ids, field, value, extras 
   const { contactIds, leadIds } = splitDirectorySelectionIds(ids, extras.records);
 
   if (fieldKey === 'status' || fieldKey === 'lead_status') {
-    const apiValue = resolveLeadStatusForApi(value, extras.statusOptions || []);
+    const apiValue = await apiLeadStatusForWrite(value, extras.statusOptions || []);
     const apiField = 'lead_status';
     const tasks = [];
     if (contactIds.length) tasks.push(massUpdateContacts(contactIds, apiField, apiValue));

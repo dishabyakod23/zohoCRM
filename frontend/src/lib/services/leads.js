@@ -1,5 +1,7 @@
 import api from '../api.js';
 import { normalizeLead, toLeadPayload, resolveLeadOwnerId, resolveLeadStatusForApi, withClientSalutation, wasLeadSalutationDropped, enrichLeadReadyRecordsFromCsv, resolveLeadLinkedInUrl } from '../leadHelpers.js';
+import { isDndStatus } from '../statusHelpers.js';
+import { ensureDndLeadStatusRegistered } from './admin.js';
 import { toConvertPayload } from '../dealHelpers.js';
 import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS, assertReadyRecordsComplete, resolveReadyCount, formatBulkUploadSkipMessages } from '../importHelpers.js';
 import {
@@ -347,15 +349,22 @@ export async function getLead(id) {
   return normalizeLead(res.data.data);
 }
 
+async function withRegisteredDndLeadStatus(payload) {
+  if (!payload || !isDndStatus(payload.lead_status)) return payload;
+  const registered = await ensureDndLeadStatusRegistered();
+  if (!registered) return payload;
+  return { ...payload, lead_status: registered };
+}
+
 export async function createLead(form, { currentUserId } = {}) {
   const owner_id = resolveLeadOwnerId(form, currentUserId);
-  const payload = toLeadPayload({ ...form, owner_id });
+  const payload = await withRegisteredDndLeadStatus(toLeadPayload({ ...form, owner_id }));
   const res = await api.post('/leads', payload);
   return withClientSalutation(normalizeLead(res.data.data), payload);
 }
 
 export async function updateLead(id, form) {
-  const payload = toLeadPayload(form, { partial: true });
+  const payload = await withRegisteredDndLeadStatus(toLeadPayload(form, { partial: true }));
   const res = await api.patch(`/leads/${id}`, payload);
   return withClientSalutation(normalizeLead(res.data.data), payload);
 }
@@ -417,6 +426,10 @@ export async function applyLeadMassUpdate(ids, field, value, extras = {}) {
   let apiValue = value;
   if (fieldKey === 'status' || fieldKey === 'lead_status') {
     apiValue = resolveLeadStatusForApi(value, extras.statusOptions || []);
+    if (isDndStatus(apiValue) || isDndStatus(value)) {
+      const registered = await ensureDndLeadStatusRegistered();
+      if (registered) apiValue = registered;
+    }
   }
   const result = await massUpdateLeads(ids, apiField, apiValue, extras);
   if (result?.failed_count > 0) {

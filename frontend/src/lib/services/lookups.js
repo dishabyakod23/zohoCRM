@@ -8,7 +8,7 @@ import { cachedLookup, invalidateLookup } from '../lookupCache.js';
 import { fetchCampaignLookups } from '../campaignRecordHelpers.js';
 import { mergeStoredProfileImage } from '../profileImageHelpers.js';
 import { FALLBACK_LOST_REASONS, mergeLeadStatusOptions, ensureDndLeadStatusOption } from '../statusHelpers.js';
-import { listAdminLeadStatuses } from './admin.js';
+import { listAdminLeadStatuses, ensureDndLeadStatusRegistered } from './admin.js';
 
 /** Fallback when GET /lookups/lead-sources is unavailable */
 export const FALLBACK_LEAD_SOURCES = LEAD_SOURCES.map((source) => ({
@@ -54,6 +54,7 @@ export function parseLeadStatusLookups(data) {
 
 export async function fetchLeadStatuses() {
   return cachedLookup('lead-statuses', async () => {
+    await ensureDndLeadStatusRegistered();
     let fromLookups = [];
     try {
       const res = await api.get('/lookups/lead-statuses');

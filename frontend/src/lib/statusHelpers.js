@@ -20,6 +20,12 @@ export function isDndRecord(record) {
     || isDndStatus(record.lead_status_label);
 }
 
+/** Canonical API value for an already-registered DND lookup option, if present. */
+export function pickRegisteredDndValue(options = []) {
+  const hit = (options || []).find((opt) => isDndStatus(opt?.value) || isDndStatus(opt?.label));
+  return hit?.value ? String(hit.value) : null;
+}
+
 /** Always expose DND in Lead Status dropdowns, even if the API list omits it. */
 export function ensureDndLeadStatusOption(options = []) {
   const list = Array.isArray(options) ? [...options] : [];

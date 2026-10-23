@@ -1,4 +1,4 @@
-import { mergeLeadStatusOptions, isDndStatus, isDndRecord, ensureDndLeadStatusOption } from '../statusHelpers.js';
+import { mergeLeadStatusOptions, isDndStatus, isDndRecord, ensureDndLeadStatusOption, pickRegisteredDndValue } from '../statusHelpers.js';
 
 describe('mergeLeadStatusOptions', () => {
   it('adds custom admin statuses missing from public lookups', () => {
@@ -39,5 +39,10 @@ describe('DND lead status', () => {
     expect(withDnd.some((o) => o.value === 'dnd' && o.label === 'DND')).toBe(true);
     const already = ensureDndLeadStatusOption([{ value: 'dnd', label: 'Do Not Disturb' }]);
     expect(already.filter((o) => o.value === 'dnd')).toHaveLength(1);
+  });
+
+  it('picks the registered DND lookup value', () => {
+    expect(pickRegisteredDndValue([{ value: 'not_contacted', label: 'Not Contacted' }])).toBeNull();
+    expect(pickRegisteredDndValue([{ value: 'do_not_disturb', label: 'DND' }])).toBe('do_not_disturb');
   });
 });

@@ -6,6 +6,9 @@ import {
   LEAD_STATUS_CATEGORY_CANDIDATES,
   buildLookupOptionPayload,
   normalizeLookupOption,
+  DND_LEAD_STATUS,
+  isDndStatus,
+  pickRegisteredDndValue,
 } from '../statusHelpers.js';
 
 export { LEAD_STATUS_CATEGORY };
@@ -141,4 +144,69 @@ export async function updateAdminLeadStatus(optionId, payload) {
   const updated = await updateLookupOption(category, optionId, payload);
   invalidateLookup('lead-statuses');
   return normalizeLookupOption(updated);
+}
+
+let dndRegisterPromise = null;
+let registeredDndValue = null;
+
+async function createDndLookupOption() {
+  try {
+    return await createAdminLeadStatus({ label: 'DND', value: DND_LEAD_STATUS });
+  } catch (err) {
+    if (err?.response?.status === 422 || err?.response?.status === 409) {
+      return createAdminLeadStatus({ label: 'DND', value: 'do_not_disturb' });
+    }
+    throw err;
+  }
+}
+
+/**
+ * Create DND in admin lead-status lookups if missing so mass-update/PATCH accept it.
+ * Returns the API value to send, or null if the current user cannot register it.
+ */
+export async function ensureDndLeadStatusRegistered() {
+  if (registeredDndValue) return registeredDndValue;
+  if (dndRegisterPromise) return dndRegisterPromise;
+
+  dndRegisterPromise = (async () => {
+    try {
+      const rows = await listAdminLeadStatuses();
+      const existing = (rows || []).find((row) => isDndStatus(row.value) || isDndStatus(row.label));
+      if (existing?.value) {
+        if (existing.is_active === false && existing.id) {
+          await updateAdminLeadStatus(existing.id, { is_active: true });
+        }
+        registeredDndValue = String(existing.value);
+        return registeredDndValue;
+      }
+    } catch {
+      /* try create anyway — some roles can add options without listing */
+    }
+
+    try {
+      const created = await createDndLookupOption();
+      const value = pickRegisteredDndValue([created]) || created?.value || DND_LEAD_STATUS;
+      registeredDndValue = String(value);
+      return registeredDndValue;
+    } catch (err) {
+      if (err?.response?.status === 409) {
+        try {
+          const rows = await listAdminLeadStatuses();
+          const value = pickRegisteredDndValue(rows);
+          if (value) {
+            registeredDndValue = value;
+            return registeredDndValue;
+          }
+        } catch {
+          /* fall through */
+        }
+        registeredDndValue = DND_LEAD_STATUS;
+        return registeredDndValue;
+      }
+      dndRegisterPromise = null;
+      return null;
+    }
+  })();
+
+  return dndRegisterPromise;
 }
