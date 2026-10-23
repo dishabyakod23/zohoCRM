@@ -53,7 +53,7 @@ export default function PipelineLeadDetail({ stage }) {
   const id = useRecordId();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEditRecord, canDeleteRecord, canAssignLeads, isSuperAdmin } = usePermissions();
+  const { canEditRecord, canDeleteRecord, canAssignLeads, isSuperAdmin, isSalesManager } = usePermissions();
   const [lead, setLead] = useState(null);
   const [users, setUsers] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -80,8 +80,8 @@ export default function PipelineLeadDetail({ stage }) {
   }, []);
 
   useEffect(() => {
-    if (canAssignLeads) fetchUsers().then(setUsers).catch(() => {});
-  }, [canAssignLeads]);
+    fetchUsers().then(setUsers).catch(() => {});
+  }, []);
 
   const loadLead = useCallback(() => {
     if (!isValidRecordId(id)) return;
@@ -201,6 +201,8 @@ export default function PipelineLeadDetail({ stage }) {
 
   const editable = canEditRecord(lead);
   const deletable = canDeleteRecord(lead);
+  const canChangeOwner = canAssignLeads || editable;
+  const adminTier = isSuperAdmin || isSalesManager;
   const statusFieldLabel = stage === PIPELINE_RAW
     ? 'Cold Lead Status'
     : stage === PIPELINE_QUALIFIED
@@ -246,9 +248,9 @@ export default function PipelineLeadDetail({ stage }) {
               leadId={id}
               leadName={`${lead.first_name} ${lead.last_name}`}
               canEdit={editable}
-              isAdmin={isSuperAdmin}
+              isAdmin={adminTier}
             />
-            {canAssignLeads && (
+            {canChangeOwner && (
               <button onClick={() => setAssignOpen(true)} className="btn-secondary text-xs flex items-center gap-1.5">
                 <UserIcon className="w-4 h-4" /> Assign
               </button>
@@ -343,7 +345,7 @@ export default function PipelineLeadDetail({ stage }) {
                 />
               ) },
               campaignField,
-              ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: lead.owner_name }),
+              ownerFieldConfig({ users, canAssign: canChangeOwner, ownerName: lead.owner_name }),
               { name: 'description', label: 'Description', colSpan: true, render: (d, set) => (
                 <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: trimStartValue(e.target.value) }))} />
               ) },

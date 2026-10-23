@@ -48,7 +48,7 @@ export default function LeadDetailPage() {
   const id = useRecordId();
   const ready = useRecordIdGuard(id, { fallbackPath: '/leads', message: 'Lead not found' });
   const { showToast } = useToast();
-  const { canEditRecord, canDeleteRecord, isSuperAdmin, canAssignLeads } = usePermissions();
+  const { canEditRecord, canDeleteRecord, isSuperAdmin, isSalesManager, canAssignLeads } = usePermissions();
   const [lead, setLead] = useState(null);
   const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
@@ -67,8 +67,8 @@ export default function LeadDetailPage() {
       .catch(() => setStatusOptions(outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES)));
     fetchLeadSources().then(setSourceOptions).catch(() => setSourceOptions([]));
     fetchLostReasons().then(setLostReasonOptions).catch(() => setLostReasonOptions([]));
-    if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
-  }, [canAssignLeads]);
+    fetchUsers().then(setUsers).catch(() => setUsers([]));
+  }, []);
 
   const loadLead = useCallback(() => {
     if (!ready || !isValidRecordId(id)) return;
@@ -137,6 +137,7 @@ export default function LeadDetailPage() {
 
   const editable = canEditRecord(lead) && !lead.is_converted;
   const deletable = canDeleteRecord(lead);
+  const canChangeOwner = canAssignLeads || editable;
   const select = (opts, key = 'value', labelKey = 'label') => (draft, setDraft, field) => (
     <select className="input" value={draft[field] ?? ''} onChange={(e) => setDraft((d) => ({ ...d, [field]: e.target.value }))}>
       <option value="">--None--</option>
@@ -165,7 +166,7 @@ export default function LeadDetailPage() {
               leadId={id}
               leadName={`${lead.first_name} ${lead.last_name}`}
               canEdit={editable}
-              isAdmin={isSuperAdmin}
+              isAdmin={isSuperAdmin || isSalesManager}
               isConverted={lead.is_converted}
             />
             {deletable && (
@@ -262,7 +263,7 @@ export default function LeadDetailPage() {
                   { name: 'annual_revenue', label: 'Annual Revenue' },
                   { name: 'no_of_employees', label: 'No. of Employees' },
                   { name: 'website', label: 'Website' },
-                  ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: lead.owner_name }),
+                  ownerFieldConfig({ users, canAssign: canChangeOwner, ownerName: lead.owner_name }),
                 ]}
               />
               <EditableFieldSection

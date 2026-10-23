@@ -124,8 +124,8 @@ export default function ContactDetailPage() {
       .catch(() => setLeadStatusOptions(outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES)));
     fetchLeadSources().then(setLeadSourceOptions).catch(() => setLeadSourceOptions([]));
     fetchLostReasons().then(setLostReasonOptions).catch(() => setLostReasonOptions([]));
-    if (canAssignLeads) fetchUsers().then(setUsers).catch(() => setUsers([]));
-  }, [canAssignLeads]);
+    fetchUsers().then(setUsers).catch(() => setUsers([]));
+  }, []);
 
   useEffect(() => { if (ready) loadContact(); }, [ready, loadContact]);
 
@@ -222,6 +222,7 @@ export default function ContactDetailPage() {
 
   const editable = canEditRecord(contact);
   const deletable = canDeleteRecord(contact);
+  const canChangeOwner = canAssignLeads || editable;
 
   return (
     <CRMLayout>
@@ -360,7 +361,7 @@ export default function ContactDetailPage() {
                 ),
               },
               campaignField,
-              ownerFieldConfig({ users, canAssign: canAssignLeads, ownerName: contact.owner_name }),
+              ownerFieldConfig({ users, canAssign: canChangeOwner, ownerName: contact.owner_name }),
             ]}
           />
           <EditableFieldSection

@@ -9,6 +9,7 @@ import { getRolePermissions } from '../roles.js';
 
 const repPermissions = getRolePermissions('sales_rep');
 const adminPermissions = getRolePermissions('super_admin');
+const managerPermissions = getRolePermissions('sales_manager');
 const viewerPermissions = getRolePermissions('viewer');
 
 describe('recordOwnerId', () => {
@@ -18,6 +19,7 @@ describe('recordOwnerId', () => {
 
   it('falls back through owner.id, assigned_to, assigned_to_id', () => {
     expect(recordOwnerId({ owner: { id: 'u1' } })).toBe('u1');
+    expect(recordOwnerId({ owner: { user_id: 'u1' } })).toBe('u1');
     expect(recordOwnerId({ assigned_to: 'u1' })).toBe('u1');
     expect(recordOwnerId({ assigned_to_id: 'u1' })).toBe('u1');
   });
@@ -34,6 +36,13 @@ describe('isRecordOwner', () => {
     expect(isRecordOwner({ id: 1 }, { owner_id: '1' })).toBe(true);
   });
 
+  it('is true when the user email matches the record owner email', () => {
+    expect(isRecordOwner(
+      { id: 'u1', email: 'akshay@example.com' },
+      { owner: { email: 'akshay@example.com' } },
+    )).toBe(true);
+  });
+
   it('is false for a different owner, missing user, missing record, or ownerless record', () => {
     expect(isRecordOwner({ id: 'u1' }, { owner_id: 'u2' })).toBe(false);
     expect(isRecordOwner(null, { owner_id: 'u1' })).toBe(false);
@@ -45,6 +54,14 @@ describe('isRecordOwner', () => {
 describe('canEditRecord', () => {
   it('lets an admin edit any record regardless of ownership', () => {
     expect(canEditRecord({ id: 'admin1', role: 'super_admin' }, { owner_id: 'someone-else' }, adminPermissions)).toBe(true);
+  });
+
+  it('lets a sales manager edit any record like an admin', () => {
+    expect(canEditRecord(
+      { id: 'mgr1', role: 'sales_manager' },
+      { owner_id: 'someone-else' },
+      managerPermissions,
+    )).toBe(true);
   });
 
   it('lets a sales rep edit only their own record', () => {

@@ -2,7 +2,7 @@
 
 /**
  * EditableFieldSection config for record owner.
- * Super Admin and Sales Manager can reassign via owner_id dropdown.
+ * Admins and the record owner can reassign via owner_id dropdown.
  */
 export function ownerFieldConfig({ users = [], canAssign = false, ownerName } = {}) {
   if (!canAssign) {

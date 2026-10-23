@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import CRMLayout from '../layout/CRMLayout.js';
 import ListPageHeader from '../layout/ListPageHeader.js';
@@ -53,7 +53,7 @@ function formatDealSize(value, currency) {
   return formatMoney(value, currency);
 }
 
-export default function PipelineLeadList({ stage, description }) {
+function PipelineLeadListContent({ stage, description }) {
   const config = getPipelineConfig(stage);
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -375,5 +375,17 @@ export default function PipelineLeadList({ stage, description }) {
         </Modal>
       )}
     </CRMLayout>
+  );
+}
+
+export default function PipelineLeadList(props) {
+  return (
+    <Suspense fallback={(
+      <CRMLayout>
+        <div className="p-6 text-sm text-zoho-muted">Loading…</div>
+      </CRMLayout>
+    )}>
+      <PipelineLeadListContent {...props} />
+    </Suspense>
   );
 }

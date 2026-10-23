@@ -194,7 +194,7 @@ export default function RecordDataTable({
 }) {
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEdit, canDelete, canAssignLeads, canEditRecord, canDeleteRecord, can, isSuperAdmin } = usePermissions();
+  const { canEdit, canDelete, canAssignLeads, canEditRecord, canDeleteRecord, can, isSuperAdmin, isSalesManager } = usePermissions();
   const canRef = useRef(can);
   canRef.current = can;
   const config = useMemo(() => getBulkConfig(moduleKey), [moduleKey]);
@@ -355,7 +355,7 @@ export default function RecordDataTable({
 
     const fallbackTargets = () => convertOptionsToLookup(
       getConvertOptions(currentStageTarget || MODULE_PIPELINE_STAGE[moduleKey], {
-        isAdmin: isSuperAdmin,
+        isAdmin: isSuperAdmin || isSalesManager,
         can: canRef.current,
       }),
     );
@@ -385,7 +385,7 @@ export default function RecordDataTable({
       .catch(() => { if (!cancelled) setDynamicConvertTargets(fallback); });
 
     return () => { cancelled = true; };
-  }, [massField, dynamicMassFields, convertTargetsLoader, moduleKey, currentStageTarget, isSuperAdmin]);
+  }, [massField, dynamicMassFields, convertTargetsLoader, moduleKey, currentStageTarget, isSuperAdmin, isSalesManager]);
 
   useEffect(() => {
     if (!massField) {
