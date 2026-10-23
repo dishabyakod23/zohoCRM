@@ -121,8 +121,8 @@ export function resetFxRateCache() {
   }
 }
 
-export async function sumAmountsInInr(rows = [], { amountOf, currencyOf, forceRates = false } = {}) {
-  const rates = await fetchRatesToInr({ force: forceRates });
+export async function sumAmountsInInr(rows = [], { amountOf, currencyOf, forceRates = false, rates: ratesOverride } = {}) {
+  const rates = ratesOverride || await fetchRatesToInr({ force: forceRates });
   return (rows || []).reduce((sum, row) => {
     const amount = amountOf ? amountOf(row) : Number(row.deal_size ?? row.proposal_amount ?? row.amount);
     const currency = currencyOf ? currencyOf(row) : (row.currency || 'INR');

@@ -32,6 +32,17 @@ describe('sumAmountsInInr', () => {
     expect(total).toBe(28400 * FALLBACK_RATES_TO_INR.USD + 1500000 + 1200000);
     expect(total).not.toBe(2728400);
   });
+
+  it('uses an explicit rate table without fetching live FX', async () => {
+    const fetcher = jest.fn();
+    global.fetch = fetcher;
+    const total = await sumAmountsInInr(
+      [{ deal_size: 10, currency: 'USD' }],
+      { rates: { USD: 2, INR: 1 } },
+    );
+    expect(total).toBe(20);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
 });
 
 describe('fetchRatesToInr', () => {

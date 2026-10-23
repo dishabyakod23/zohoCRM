@@ -1,5 +1,5 @@
 import { enrichSalesTargetDashboard, buildProposalPipelineInrByOwner } from '../salesTargetDashboardEnrichment.js';
-import { resetFxRateCache } from '../fxRates.js';
+import { FALLBACK_RATES_TO_INR, resetFxRateCache } from '../fxRates.js';
 
 describe('buildProposalPipelineInrByOwner', () => {
   beforeEach(() => {
@@ -13,8 +13,20 @@ describe('buildProposalPipelineInrByOwner', () => {
       { owner_id: 'u2', deal_size: 50000, currency: 'INR' },
     ]);
 
-    expect(totals.get('u1')).toBeGreaterThan(2800000);
+    expect(totals.get('u1')).toBe(28400 * FALLBACK_RATES_TO_INR.USD + 100000);
     expect(totals.get('u2')).toBe(50000);
+  });
+
+  it('does not follow live FX so every browser gets the same INR total', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ rates: { INR: 88 } }),
+    });
+    const totals = await buildProposalPipelineInrByOwner([
+      { owner_id: 'u1', deal_size: 1000, currency: 'USD' },
+    ]);
+    expect(totals.get('u1')).toBe(1000 * FALLBACK_RATES_TO_INR.USD);
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });
 
@@ -44,7 +56,7 @@ describe('enrichSalesTargetDashboard', () => {
     expect(summary.bde_only_leaderboard[0].role_label).toBe('BDE');
   });
 
-  it('keeps API value when it is already higher than CRM', async () => {
+  it('uses CRM proposal totals even when the API value is higher', async () => {
     const summary = await enrichSalesTargetDashboard({
       bde_leaderboard: [{ employee_id: 'u1', employee_name: 'Ada', actual_pipeline: '5000000' }],
     }, {
@@ -52,7 +64,7 @@ describe('enrichSalesTargetDashboard', () => {
       loadUsers: async () => ([{ id: 'u1', first_name: 'Ada', last_name: 'Lovelace', role: 'sales_rep' }]),
     });
 
-    expect(summary.bde_leaderboard[0].actual_pipeline).toBe('5000000');
+    expect(summary.bde_leaderboard[0].actual_pipeline).toBe('1000');
   });
 
   it('includes BDM users in a separate leaderboard alongside BDEs', async () => {

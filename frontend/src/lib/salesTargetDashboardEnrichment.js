@@ -1,7 +1,7 @@
 import { PIPELINE_PROPOSAL } from './pipelineHelpers.js';
 import { normalizeRole } from './roles.js';
 import { userDisplayName } from './userHelpers.js';
-import { sumAmountsInInr } from './fxRates.js';
+import { convertToInr, FALLBACK_RATES_TO_INR } from './fxRates.js';
 import * as leadsApi from './services/leads.js';
 import { fetchUsers } from './services/lookups.js';
 
@@ -40,23 +40,16 @@ function sortLeaderboard(rows = []) {
 
 /** Sum open proposal deal sizes in INR, grouped by owner. */
 export async function buildProposalPipelineInrByOwner(proposals = []) {
-  const byOwner = new Map();
+  const totals = new Map();
   for (const lead of proposals || []) {
     const ownerId = lead?.owner_id;
     if (!ownerId) continue;
     const key = String(ownerId);
-    if (!byOwner.has(key)) byOwner.set(key, []);
-    byOwner.get(key).push(lead);
-  }
-
-  const totals = new Map();
-  for (const [ownerId, rows] of byOwner) {
-    const totalInr = await sumAmountsInInr(rows, {
-      amountOf: (lead) => Number(lead.deal_size ?? lead.proposal_amount),
-      currencyOf: (lead) => lead.currency || 'INR',
-      forceRates: true,
-    });
-    totals.set(ownerId, totalInr);
+    const amount = Number(lead.deal_size ?? lead.proposal_amount);
+    const currency = lead.currency || 'INR';
+    // Company book rate — live FX differs per browser/network and made dashboards disagree.
+    const inr = convertToInr(amount, currency, FALLBACK_RATES_TO_INR);
+    totals.set(key, (totals.get(key) || 0) + inr);
   }
   return totals;
 }
@@ -102,7 +95,7 @@ export async function enrichSalesTargetDashboard(summary = {}, {
     const crmPipeline = pipelineByOwner.get(id) || 0;
     const existing = leaderboardMap.get(id) || {};
     const apiPipeline = leaderboardPipelineAmount(existing);
-    const actual = Math.max(apiPipeline, crmPipeline);
+    const actual = crmPipeline > 0 ? crmPipeline : apiPipeline;
     const role = normalizeRole(user.role);
 
     leaderboardMap.set(id, {
@@ -111,8 +104,8 @@ export async function enrichSalesTargetDashboard(summary = {}, {
       employee_name: existing.employee_name || existing.name || userDisplayName(user),
       role,
       role_label: roleShortLabel(role),
-      actual_pipeline: String(actual),
-      pipeline_actual: String(actual),
+      actual_pipeline: String(Math.round(actual)),
+      pipeline_actual: String(Math.round(actual)),
     });
   }
 
@@ -125,8 +118,8 @@ export async function enrichSalesTargetDashboard(summary = {}, {
         employee_name: 'Unknown',
         role: 'sales_rep',
         role_label: 'BDE',
-        actual_pipeline: String(crmPipeline),
-        pipeline_actual: String(crmPipeline),
+        actual_pipeline: String(Math.round(crmPipeline)),
+        pipeline_actual: String(Math.round(crmPipeline)),
       });
     }
   }
@@ -140,7 +133,7 @@ export async function enrichSalesTargetDashboard(summary = {}, {
 
   return {
     ...summary,
-    monthly_pipeline_actual: String(Math.max(apiMonthly, crmTotalPipeline)),
+    monthly_pipeline_actual: String(crmTotalPipeline > 0 ? Math.round(crmTotalPipeline) : apiMonthly),
     // Keep legacy key for callers; includes active BDE + BDM sorted by pipeline.
     bde_leaderboard: pipeline_leaderboard,
     pipeline_leaderboard,

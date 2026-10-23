@@ -25,7 +25,7 @@ import { sortRecords } from '../listSortHelpers.js';
 import { ensureCsvColumn } from '../csvHelpers.js';
 import { listAllMatchingIdsFromListFn, fetchAllPagesFast } from '../listSelectionHelpers.js';
 import { cachedFullList } from '../requestCache.js';
-import { sumAmountsInInr } from '../fxRates.js';
+import { FALLBACK_RATES_TO_INR, sumAmountsInInr } from '../fxRates.js';
 import {
   listWithTokenSearch,
   personSearchHaystack,
@@ -701,7 +701,7 @@ export async function summarizePipelineDashboard(statusOptions = []) {
   const dealSize = await sumAmountsInInr(proposalLeads, {
     amountOf: (lead) => Number(lead.deal_size ?? lead.proposal_amount),
     currencyOf: (lead) => lead.currency || 'INR',
-    forceRates: true,
+    rates: FALLBACK_RATES_TO_INR,
   });
   const leadsThisMonth = data.filter((lead) => {
     if (!lead.created_at) return false;
@@ -722,6 +722,7 @@ export async function summarizeProposals(statusOptions = []) {
   const dealSize = await sumAmountsInInr(data, {
     amountOf: (lead) => Number(lead.deal_size ?? lead.proposal_amount),
     currencyOf: (lead) => lead.currency || 'INR',
+    rates: FALLBACK_RATES_TO_INR,
   });
   return { total: data.length, dealSize };
 }

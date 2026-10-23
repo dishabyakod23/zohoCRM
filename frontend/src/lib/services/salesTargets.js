@@ -15,6 +15,7 @@ import {
   toSalesTargetUpdatePayload,
 } from '../salesTargetHelpers.js';
 import { enrichSalesTargetDashboard } from '../salesTargetDashboardEnrichment.js';
+import { invalidateFullListCache } from '../requestCache.js';
 
 const BASE = '/sales-targets';
 
@@ -97,6 +98,7 @@ export async function exportSalesTargetPerformanceReport(params = {}) {
 }
 
 export async function getSalesTargetDashboard() {
+  invalidateFullListCache();
   const res = await api.get(`${BASE}/dashboard`);
   const summary = normalizeSalesTargetDashboard(res.data.data);
   return enrichSalesTargetDashboard(summary);
