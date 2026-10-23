@@ -179,7 +179,32 @@ export function isProposalLead(lead) {
   const currentStatus = String(lead.current_status || '').toLowerCase().trim();
   if (currentStatus === 'proposal') return true;
 
+  // Convert-to-proposal sometimes leaves pipeline_stage as qualified_lead.
+  // Proposal-module fields must still pull the record out of Qualified / Warm / Cold.
+  if (lead.proposal_date) return true;
+  if (lead.proposal_type) return true;
+  const dealStatus = String(lead.deal_status || '').toLowerCase().trim();
+  if (dealStatus && dealStatus !== 'none') return true;
+
   return false;
+}
+
+/** Drop earlier-stage rows that already exist as a proposal (same id or email). */
+export function excludeLeadsMatchingProposals(leads, proposals = []) {
+  if (!leads?.length || !proposals?.length) return leads || [];
+  const ids = new Set();
+  const emails = new Set();
+  for (const proposal of proposals) {
+    if (proposal?.id) ids.add(String(proposal.id));
+    const email = String(proposal.email || '').trim().toLowerCase();
+    if (email) emails.add(email);
+  }
+  return leads.filter((lead) => {
+    if (lead?.id && ids.has(String(lead.id))) return false;
+    const email = String(lead.email || '').trim().toLowerCase();
+    if (email && emails.has(email)) return false;
+    return true;
+  });
 }
 
 function isConvertedLead(lead) {
@@ -192,13 +217,8 @@ export function filterLeadsByPipelineStage(leads, stage) {
   if (stage === PIPELINE_PROPOSAL) {
     return active.filter(isProposalLead);
   }
-  if (stage === PIPELINE_QUALIFIED) {
-    return active.filter((l) => resolveLeadPipelineStage(l) === PIPELINE_QUALIFIED);
-  }
-  if (stage === PIPELINE_RAW) {
-    return active.filter((l) => resolveLeadPipelineStage(l) === PIPELINE_RAW);
-  }
-  return active.filter((l) => resolveLeadPipelineStage(l) === stage);
+  const inStage = active.filter((l) => !isProposalLead(l) && resolveLeadPipelineStage(l) === stage);
+  return inStage;
 }
 
 function normalizedLeadStatus(lead) {

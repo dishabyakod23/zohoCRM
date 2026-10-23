@@ -6,6 +6,7 @@ import {
   PIPELINE_RAW, PIPELINE_PROPOSAL, PIPELINE_QUALIFIED, PIPELINE_LEAD,
   PROPOSAL_DEFAULT_LEAD_STATUS, PIPELINE_MODULE_PERMISSION,
   filterLeadsByPipelineStage, toApiLeadStatus, RAW_LEAD_CSV_HEADERS, pipelineStageLabel,
+  excludeLeadsMatchingProposals,
   isPipelineStageStatus,
 } from '../pipelineHelpers.js';
 import {
@@ -145,9 +146,24 @@ function buildLeadListApiParams({
   return params;
 }
 
-function refineLeadPageByPipelineStage(data, pipeline_stage) {
+async function loadProposalLeadsForDedupe() {
+  const apiParams = buildLeadListApiParams({ pipeline_stage: PIPELINE_PROPOSAL });
+  const rows = await fetchAllLeadPages(apiParams, []);
+  return filterLeadsByPipelineStage(rows, PIPELINE_PROPOSAL);
+}
+
+async function refineLeadPageByPipelineStage(data, pipeline_stage) {
   if (!pipeline_stage || !data?.length) return data || [];
-  return filterLeadsByPipelineStage(data, pipeline_stage);
+  let refined = filterLeadsByPipelineStage(data, pipeline_stage);
+  if (pipeline_stage !== PIPELINE_PROPOSAL && refined.length) {
+    try {
+      const proposals = await loadProposalLeadsForDedupe();
+      refined = excludeLeadsMatchingProposals(refined, proposals);
+    } catch {
+      // Keep stage-filtered rows if the proposals list cannot be loaded.
+    }
+  }
+  return refined;
 }
 
 export async function listAllLeads(params = {}, statusOptions) {
@@ -163,7 +179,7 @@ export async function listAllLeads(params = {}, statusOptions) {
   });
   let data = await fetchAllLeadPages(apiParams, statusOptions);
   if (pipeline_stage) {
-    data = refineLeadPageByPipelineStage(data, pipeline_stage);
+    data = await refineLeadPageByPipelineStage(data, pipeline_stage);
   }
   if (needsClientMatch) {
     data = data.filter((row) => matchesSearchTokens(row, tokens, personSearchHaystack));
@@ -229,7 +245,7 @@ export async function listLeads({
       })
       : params;
     const allLeads = await fetchAllLeadPages(apiParams, statusOptions);
-    let filtered = refineLeadPageByPipelineStage(allLeads, pipeline_stage);
+    let filtered = await refineLeadPageByPipelineStage(allLeads, pipeline_stage);
     if (needsClientMatch) {
       filtered = filtered.filter((row) => matchesSearchTokens(row, tokens, personSearchHaystack));
     }
@@ -259,7 +275,7 @@ export async function listLeads({
       });
       const res = await api.get('/leads', { params: { ...pageParams, page: p, page_size: size } });
       let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
-      data = refineLeadPageByPipelineStage(data, pipeline_stage);
+      data = await refineLeadPageByPipelineStage(data, pipeline_stage);
       return {
         data,
         total: res.data.meta?.total ?? data.length,
@@ -303,7 +319,7 @@ export async function listWorkItems({
       delete fetchParams.campaign_id;
     }
     const allLeads = await fetchAllLeadPages(fetchParams, statusOptions);
-    let items = refineLeadPageByPipelineStage(allLeads, pipeline_stage);
+    let items = await refineLeadPageByPipelineStage(allLeads, pipeline_stage);
     items = applyLeadRecordFilters(items, filters, { campaignMemberIds });
     items = sortRecords(items, sort_key || 'created_desc', 'leads');
     const start = (page - 1) * page_size;
@@ -315,7 +331,7 @@ export async function listWorkItems({
 
   const res = await api.get('/leads', { params: { ...params, page, page_size } });
   let data = (res.data.data || []).map((lead) => normalizeLead(lead, statusOptions));
-  data = refineLeadPageByPipelineStage(data, pipeline_stage);
+  data = await refineLeadPageByPipelineStage(data, pipeline_stage);
   if (sort_key) {
     data = sortRecords(data, sort_key, 'leads');
   }

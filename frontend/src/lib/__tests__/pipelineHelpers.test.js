@@ -4,6 +4,7 @@ import {
   PIPELINE_QUALIFIED,
   filterLeadsByPipelineStage,
   resolveLeadPipelineStage,
+  excludeLeadsMatchingProposals,
   outreachLeadStatusOptions,
   getConvertOptions,
 } from '../pipelineHelpers.js';
@@ -154,5 +155,37 @@ describe('filterLeadsByPipelineStage — proposals', () => {
     ];
     expect(filterLeadsByPipelineStage(leads, PIPELINE_LEAD).map((l) => l.id)).toEqual(['warm']);
     expect(filterLeadsByPipelineStage(leads, PIPELINE_QUALIFIED).map((l) => l.id)).toEqual(['qualified']);
+  });
+
+  it('excludes qualified-stage records that already have proposal fields', () => {
+    const leads = [
+      {
+        id: 'still-qualified',
+        pipeline_stage: 'qualified_lead',
+        email: 'ok@example.com',
+      },
+      {
+        id: 'moved',
+        pipeline_stage: 'qualified_lead',
+        email: 'miraaj@rmderpsolutions.com',
+        proposal_date: '2026-10-22',
+        deal_size: 169000,
+      },
+    ];
+    expect(filterLeadsByPipelineStage(leads, PIPELINE_QUALIFIED).map((l) => l.id)).toEqual(['still-qualified']);
+    expect(filterLeadsByPipelineStage(leads, 'proposal').map((l) => l.id)).toEqual(['moved']);
+  });
+});
+
+describe('excludeLeadsMatchingProposals', () => {
+  it('hides a leftover qualified row when a proposal already exists for the same email', () => {
+    const qualified = [
+      { id: 'q1', email: 'ankit.shah35@gmail.com', pipeline_stage: 'qualified_lead' },
+      { id: 'q2', email: 'other@example.com', pipeline_stage: 'qualified_lead' },
+    ];
+    const proposals = [
+      { id: 'p1', email: 'ankit.shah35@gmail.com', pipeline_stage: 'proposal' },
+    ];
+    expect(excludeLeadsMatchingProposals(qualified, proposals).map((l) => l.id)).toEqual(['q2']);
   });
 });
