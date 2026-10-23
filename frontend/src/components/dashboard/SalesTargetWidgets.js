@@ -28,9 +28,9 @@ function ProgressBar({ actual, target, color = 'bg-brand-500' }) {
 }
 
 function roleBadgeClass(role) {
-  return role === 'sales_manager'
-    ? 'bg-violet-50 text-violet-700'
-    : 'bg-blue-50 text-blue-700';
+  if (role === 'sales_manager') return 'bg-violet-50 text-violet-700';
+  if (role === 'super_admin') return 'bg-rose-50 text-rose-700';
+  return 'bg-blue-50 text-blue-700';
 }
 
 function statusToneClass(tone) {

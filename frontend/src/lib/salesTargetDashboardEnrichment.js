@@ -6,11 +6,20 @@ import { matchesDateRange } from './listRecordFilters.js';
 import * as leadsApi from './services/leads.js';
 import { fetchUsers } from './services/lookups.js';
 
-/** Roles shown on the dashboard pipeline leaderboard: BDE = sales_rep, BDM = sales_manager. */
+/** Roles shown on the dashboard pipeline leaderboard. */
 export const PIPELINE_LEADERBOARD_ROLES = {
   sales_rep: 'BDE',
   sales_manager: 'BDM',
+  super_admin: 'Admin',
 };
+
+function roleRank(role) {
+  const key = normalizeRole(role);
+  if (key === 'sales_rep') return 0;
+  if (key === 'sales_manager') return 1;
+  if (key === 'super_admin') return 2;
+  return 3;
+}
 
 function isInactive(record) {
   return record?.is_active === false || String(record?.status || '').toLowerCase() === 'inactive';
@@ -118,7 +127,7 @@ export function buildPipelineAchievementRows(leaderboard = [], {
     };
   });
   return rows.sort((a, b) => {
-    const roleDelta = Number(a.role === 'sales_manager') - Number(b.role === 'sales_manager');
+    const roleDelta = roleRank(a.role) - roleRank(b.role);
     if (roleDelta !== 0) return roleDelta;
     return b.achieved_pipeline - a.achieved_pipeline;
   });
@@ -229,6 +238,7 @@ export async function enrichSalesTargetDashboard(summary = {}, {
   const pipeline_leaderboard = sortLeaderboard([...leaderboardMap.values()]);
   const bde_leaderboard = pipeline_leaderboard.filter((row) => normalizeRole(row.role) === 'sales_rep');
   const bdm_leaderboard = pipeline_leaderboard.filter((row) => normalizeRole(row.role) === 'sales_manager');
+  const admin_leaderboard = pipeline_leaderboard.filter((row) => normalizeRole(row.role) === 'super_admin');
 
   const crmTotalPipeline = [...pipelineByOwner.values()].reduce((sum, value) => sum + value, 0);
   const monthProposals = filterProposalsInCalendarMonth(proposals, now);
@@ -248,10 +258,11 @@ export async function enrichSalesTargetDashboard(summary = {}, {
     pipeline_month_label: now.toLocaleString('en-IN', { month: 'long', year: 'numeric' }),
     current_month_proposals_href: currentMonthProposalsHref(now),
     pipeline_achievement,
-    // Keep legacy key for callers; includes active BDE + BDM sorted by pipeline.
+    // Keep legacy key for callers; includes active BDE + BDM + Admin sorted by pipeline.
     bde_leaderboard: pipeline_leaderboard,
     pipeline_leaderboard,
     bde_only_leaderboard: bde_leaderboard,
     bdm_leaderboard,
+    admin_leaderboard,
   };
 }

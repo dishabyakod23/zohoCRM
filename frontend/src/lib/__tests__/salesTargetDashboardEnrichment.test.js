@@ -95,7 +95,7 @@ describe('enrichSalesTargetDashboard', () => {
     expect(summary.pipeline_leaderboard.some((row) => row.employee_id === 'viewer1')).toBe(false);
   });
 
-  it('hides admins and inactive users; only sales_rep (BDE) and sales_manager (BDM)', async () => {
+  it('includes Admin with BDE and BDM, and still hides inactive users', async () => {
     const summary = await enrichSalesTargetDashboard({
       bde_leaderboard: [
         { employee_id: 'admin1', actual_pipeline: '900000', role: 'super_admin' },
@@ -121,10 +121,12 @@ describe('enrichSalesTargetDashboard', () => {
     });
 
     const ids = summary.pipeline_leaderboard.map((row) => row.employee_id);
-    expect(ids).toEqual(['bdm1', 'bde1']);
+    expect(ids).toEqual(['admin1', 'bdm1', 'bde1']);
     expect(summary.bde_only_leaderboard.map((r) => r.employee_id)).toEqual(['bde1']);
     expect(summary.bdm_leaderboard.map((r) => r.employee_id)).toEqual(['bdm1']);
-    expect(summary.bdm_leaderboard[0].role_label).toBe('BDM');
+    expect(summary.admin_leaderboard.map((r) => r.employee_id)).toEqual(['admin1']);
+    expect(summary.admin_leaderboard[0].role_label).toBe('Admin');
+    expect(summary.pipeline_achievement.find((row) => row.employee_id === 'admin1').role_label).toBe('Admin');
   });
 
   it('keeps overall pipeline separate from the current calendar month', async () => {
