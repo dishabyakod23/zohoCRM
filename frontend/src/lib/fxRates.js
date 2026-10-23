@@ -28,10 +28,33 @@ export const FALLBACK_RATES_TO_INR = {
 };
 
 const FX_API_URL = 'https://api.frankfurter.dev/v1/latest?from=USD';
+const FX_STORAGE_KEY = 'crm-fx-rates-to-inr-v1';
 
 const CACHE_MS = 60 * 60 * 1000;
 let cachedRates = null;
 let cachedAt = 0;
+let cachedIsLive = false;
+
+function readStoredRates() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(FX_STORAGE_KEY) || 'null');
+    if (!parsed?.rates || !parsed?.at) return null;
+    if (Date.now() - parsed.at > CACHE_MS) return null;
+    return parsed.rates;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredRates(rates) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(FX_STORAGE_KEY, JSON.stringify({ at: Date.now(), rates }));
+  } catch {
+    // ignore quota
+  }
+}
 
 export function convertToInr(amount, currency = 'INR', ratesToInr = FALLBACK_RATES_TO_INR) {
   const num = Number(amount);
@@ -56,8 +79,10 @@ function ratesFromUsdBase(usdRates = {}) {
   return rates;
 }
 
-export async function fetchRatesToInr({ fetcher = fetch } = {}) {
-  if (cachedRates && Date.now() - cachedAt < CACHE_MS) return cachedRates;
+export async function fetchRatesToInr({ fetcher = fetch, force = false } = {}) {
+  if (!force && cachedIsLive && cachedRates && Date.now() - cachedAt < CACHE_MS) {
+    return cachedRates;
+  }
 
   try {
     const res = await fetcher(FX_API_URL);
@@ -67,10 +92,18 @@ export async function fetchRatesToInr({ fetcher = fetch } = {}) {
     if (!rates) throw new Error('fx payload missing INR');
     cachedRates = rates;
     cachedAt = Date.now();
+    cachedIsLive = true;
+    writeStoredRates(rates);
     return rates;
   } catch {
-    cachedRates = FALLBACK_RATES_TO_INR;
-    cachedAt = Date.now();
+    const stored = readStoredRates();
+    if (stored) {
+      cachedRates = stored;
+      cachedAt = Date.now();
+      cachedIsLive = true;
+      return stored;
+    }
+    if (cachedRates) return cachedRates;
     return FALLBACK_RATES_TO_INR;
   }
 }
@@ -78,10 +111,18 @@ export async function fetchRatesToInr({ fetcher = fetch } = {}) {
 export function resetFxRateCache() {
   cachedRates = null;
   cachedAt = 0;
+  cachedIsLive = false;
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.removeItem(FX_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }
 }
 
-export async function sumAmountsInInr(rows = [], { amountOf, currencyOf } = {}) {
-  const rates = await fetchRatesToInr();
+export async function sumAmountsInInr(rows = [], { amountOf, currencyOf, forceRates = false } = {}) {
+  const rates = await fetchRatesToInr({ force: forceRates });
   return (rows || []).reduce((sum, row) => {
     const amount = amountOf ? amountOf(row) : Number(row.deal_size ?? row.proposal_amount ?? row.amount);
     const currency = currencyOf ? currencyOf(row) : (row.currency || 'INR');

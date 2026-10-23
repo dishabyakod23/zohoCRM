@@ -70,6 +70,16 @@ describe('cachedFullList', () => {
     expect(fresh).toEqual([{ id: 1, status: 'new' }]);
   });
 
+  it('skips the cache when ttl is 0', async () => {
+    const loader = jest.fn()
+      .mockResolvedValueOnce([{ id: 1 }])
+      .mockResolvedValueOnce([{ id: 2 }]);
+    await cachedFullList('leads', {}, loader, 0);
+    const again = await cachedFullList('leads', {}, loader, 0);
+    expect(again).toEqual([{ id: 2 }]);
+    expect(loader).toHaveBeenCalledTimes(2);
+  });
+
   it('returns a new array each time so callers cannot mutate the cache', async () => {
     const loader = jest.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]);
     const first = await cachedFullList('deals', {}, loader);

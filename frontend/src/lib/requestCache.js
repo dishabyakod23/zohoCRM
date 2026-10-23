@@ -50,6 +50,10 @@ function stableKey(value) {
  * Returns a fresh array each call so callers can sort/filter without sharing state.
  */
 export async function cachedFullList(name, params, loader, ttlMs = FULL_LIST_TTL_MS) {
+  if (ttlMs <= 0) {
+    const value = await loader();
+    return Array.isArray(value) ? [...value] : value;
+  }
   const key = `${FULL_LIST_PREFIX}${name}:${stableKey(params)}`;
   const generation = fullListGeneration;
   const rows = await cachedRequest(key, async () => {

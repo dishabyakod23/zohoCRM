@@ -9,6 +9,7 @@ import {
   isAuthFailureError,
 } from './authSession.js';
 import { invalidateFullListCache } from './requestCache.js';
+import { emitCrmDataChanged } from './crmLiveRefresh.js';
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'https://salescrm-api.duckdns.org/api/v1';
@@ -21,6 +22,12 @@ const api = axios.create({
 
 function isWriteRequest(config) {
   return String(config?.method || 'get').toLowerCase() !== 'get';
+}
+
+function shouldBroadcastCrmWrite(config) {
+  if (!isWriteRequest(config)) return false;
+  const url = String(config?.url || '');
+  return !url.includes('/auth/');
 }
 
 api.interceptors.request.use(async (config) => {
@@ -54,7 +61,8 @@ api.interceptors.request.use(async (config) => {
 
 api.interceptors.response.use(
   (res) => {
-    if (isWriteRequest(res.config)) invalidateFullListCache();
+    if (shouldBroadcastCrmWrite(res.config)) emitCrmDataChanged();
+    else if (isWriteRequest(res.config)) invalidateFullListCache();
     return res;
   },
   async (err) => {

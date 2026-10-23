@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import AppLink from '../ui/AppLink.js';
 import * as salesTargetsApi from '../../lib/services/salesTargets.js';
 import { formatTargetAmount } from '../../lib/salesTargetHelpers.js';
 import { getApiError } from '../../lib/api.js';
 import { useToast } from '../ui/Toast.js';
+import { useCrmLiveRefresh } from '../../lib/crmLiveRefresh.js';
 
 function ProgressBar({ actual, target, color = 'bg-brand-500' }) {
   const actualNum = Number(actual) || 0;
@@ -55,12 +56,16 @@ export default function SalesTargetWidgets() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadSummary = useCallback((opts = {}) => {
+    if (!opts.silent) setLoading(true);
     salesTargetsApi.getSalesTargetDashboard()
       .then(setSummary)
       .catch((err) => showToast(getApiError(err)))
       .finally(() => setLoading(false));
   }, [showToast]);
+
+  useEffect(() => { loadSummary(); }, [loadSummary]);
+  useCrmLiveRefresh(() => loadSummary({ silent: true }), { minIntervalMs: 1500, pollIntervalMs: 30000 });
 
   if (loading) {
     return (

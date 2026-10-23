@@ -701,6 +701,7 @@ export async function summarizePipelineDashboard(statusOptions = []) {
   const dealSize = await sumAmountsInInr(proposalLeads, {
     amountOf: (lead) => Number(lead.deal_size ?? lead.proposal_amount),
     currencyOf: (lead) => lead.currency || 'INR',
+    forceRates: true,
   });
   const leadsThisMonth = data.filter((lead) => {
     if (!lead.created_at) return false;

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppLink from '../../components/ui/AppLink.js';
 import CRMLayout from '../../components/layout/CRMLayout.js';
 import { useToast } from '../../components/ui/Toast.js';
@@ -20,6 +20,8 @@ import UserAvatar from '../../components/users/UserAvatar.js';
 import SalesTargetWidgets from '../../components/dashboard/SalesTargetWidgets.js';
 import DailyFollowUpsPanel from '../../components/sequences/DailyFollowUpsPanel.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
+import { invalidateFullListCache } from '../../lib/requestCache.js';
+import { useCrmLiveRefresh } from '../../lib/crmLiveRefresh.js';
 import {
   UserGroupIcon, BuildingOffice2Icon, DocumentTextIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
@@ -57,6 +59,7 @@ function KpiCard({ title, value, sub, subClass, icon: Icon, gradient }) {
 }
 
 const DASHBOARD_CACHE_KEY = 'crm-dashboard-cache-v1';
+const DASHBOARD_CACHE_TTL_MS = 15 * 1000;
 
 const EMPTY_DASHBOARD = {
   topAccounts: [],
@@ -74,7 +77,10 @@ const EMPTY_DASHBOARD = {
 function readDashboardCache(userId) {
   try {
     const raw = window.localStorage.getItem(`${DASHBOARD_CACHE_KEY}:${userId}`);
-    return raw ? { ...EMPTY_DASHBOARD, ...JSON.parse(raw) } : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.cachedAt && Date.now() - parsed.cachedAt > DASHBOARD_CACHE_TTL_MS) return null;
+    return { ...EMPTY_DASHBOARD, ...parsed };
   } catch {
     return null;
   }
@@ -82,7 +88,10 @@ function readDashboardCache(userId) {
 
 function writeDashboardCache(userId, value) {
   try {
-    window.localStorage.setItem(`${DASHBOARD_CACHE_KEY}:${userId}`, JSON.stringify(value));
+    window.localStorage.setItem(
+      `${DASHBOARD_CACHE_KEY}:${userId}`,
+      JSON.stringify({ ...value, cachedAt: Date.now() }),
+    );
   } catch {
     // Quota exceeded or storage disabled; the dashboard still works uncached.
   }
@@ -105,21 +114,25 @@ export default function DashboardPage() {
   const [data, setData] = useState(EMPTY_DASHBOARD);
   const [loaded, setLoaded] = useState({ home: false, pipeline: false, accounts: false, audit: false });
   const [failed, setFailed] = useState(false);
+  const loadSeq = useRef(0);
 
-  useEffect(() => {
-    if (!user?.id) return undefined;
-    let cancelled = false;
-    const cached = readDashboardCache(user.id);
+  const userId = user?.id;
+  const loadDashboard = useCallback((opts = {}) => {
+    if (!userId) return undefined;
+    const seq = loadSeq.current + 1;
+    loadSeq.current = seq;
+    if (opts.fresh) invalidateFullListCache();
+    const cached = opts.fresh ? null : readDashboardCache(userId);
     if (cached) {
       setData(cached);
       setLoaded({ home: true, pipeline: true, accounts: true, audit: true });
     }
 
     const update = (key, patch) => {
-      if (cancelled) return;
+      if (loadSeq.current !== seq) return;
       setData((prev) => {
         const next = { ...prev, ...patch };
-        writeDashboardCache(user.id, next);
+        writeDashboardCache(userId, next);
         return next;
       });
       setLoaded((prev) => ({ ...prev, [key]: true }));
@@ -128,7 +141,7 @@ export default function DashboardPage() {
     dashboardApi.getDashboardHome()
       .then((home) => update('home', { topAccounts: home.top_accounts || [] }))
       .catch((err) => {
-        if (cancelled) return;
+        if (loadSeq.current !== seq) return;
         if (!isSessionExpiredError(err)) showToast(getApiError(err));
         if (!cached) setFailed(true);
         setLoaded((prev) => ({ ...prev, home: true }));
@@ -152,8 +165,11 @@ export default function DashboardPage() {
       : Promise.resolve([])
     ).then((auditLogs) => update('audit', { auditLogs }));
 
-    return () => { cancelled = true; };
-  }, [showToast, user?.id, role, canViewAccounts, canViewAuditLogs]);
+    return () => { if (loadSeq.current === seq) loadSeq.current += 1; };
+  }, [showToast, userId, user, role, canViewAccounts, canViewAuditLogs]);
+
+  useEffect(() => loadDashboard(), [loadDashboard]);
+  useCrmLiveRefresh(() => loadDashboard({ fresh: true }), { minIntervalMs: 1500, pollIntervalMs: 30000 });
 
   const stats = useMemo(() => {
     const pipeline = data.pipeline || EMPTY_DASHBOARD.pipeline;

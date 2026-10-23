@@ -54,6 +54,7 @@ export async function buildProposalPipelineInrByOwner(proposals = []) {
     const totalInr = await sumAmountsInInr(rows, {
       amountOf: (lead) => Number(lead.deal_size ?? lead.proposal_amount),
       currencyOf: (lead) => lead.currency || 'INR',
+      forceRates: true,
     });
     totals.set(ownerId, totalInr);
   }

@@ -47,4 +47,18 @@ describe('fetchRatesToInr', () => {
     expect(rates.INR).toBe(1);
     expect(rates.EUR).toBeCloseTo(95.44 / 0.92);
   });
+
+  it('does not pin fallback FX for an hour after a failed fetch', async () => {
+    const fail = jest.fn().mockRejectedValue(new Error('offline'));
+    const fallback = await fetchRatesToInr({ fetcher: fail });
+    expect(fallback.USD).toBe(FALLBACK_RATES_TO_INR.USD);
+
+    const live = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ rates: { INR: 88.1 } }),
+    });
+    const rates = await fetchRatesToInr({ fetcher: live });
+    expect(live).toHaveBeenCalled();
+    expect(rates.USD).toBe(88.1);
+  });
 });
