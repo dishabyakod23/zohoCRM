@@ -7,7 +7,7 @@ import { PIPELINE_RAW, outreachLeadStatusOptions } from '../pipelineHelpers.js';
 import { cachedLookup, invalidateLookup } from '../lookupCache.js';
 import { fetchCampaignLookups } from '../campaignRecordHelpers.js';
 import { mergeStoredProfileImage } from '../profileImageHelpers.js';
-import { FALLBACK_LOST_REASONS, mergeLeadStatusOptions } from '../statusHelpers.js';
+import { FALLBACK_LOST_REASONS, mergeLeadStatusOptions, ensureDndLeadStatusOption } from '../statusHelpers.js';
 import { listAdminLeadStatuses } from './admin.js';
 
 /** Fallback when GET /lookups/lead-sources is unavailable */
@@ -31,6 +31,7 @@ export const FALLBACK_LEAD_STATUSES = [
   { value: 'proposal_required', label: 'Proposal Required' },
   { value: 'proposal_sent', label: 'Proposal Sent' },
   { value: 'negotiation', label: 'Negotiation' },
+  { value: 'dnd', label: 'DND' },
 ];
 
 /** Normalize GET /lookups/lead-statuses → { value, label }[] */
@@ -74,7 +75,7 @@ export async function fetchLeadStatuses() {
     }
 
     const merged = mergeLeadStatusOptions(fromLookups, fromAdmin);
-    return merged.length ? merged : FALLBACK_LEAD_STATUSES;
+    return ensureDndLeadStatusOption(merged.length ? merged : FALLBACK_LEAD_STATUSES);
   });
 }
 

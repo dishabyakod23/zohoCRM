@@ -69,6 +69,14 @@ describe('filterLeadsByPipelineStage — raw leads', () => {
     ];
     expect(filterLeadsByPipelineStage(leads, PIPELINE_RAW).map((l) => l.id)).toEqual(['2']);
   });
+
+  it('excludes DND records from pipeline lists', () => {
+    const leads = [
+      { id: '1', pipeline_stage: 'raw_prospect', lead_status: 'dnd' },
+      { id: '2', pipeline_stage: 'raw_prospect', lead_status: 'not_contacted' },
+    ];
+    expect(filterLeadsByPipelineStage(leads, PIPELINE_RAW).map((l) => l.id)).toEqual(['2']);
+  });
 });
 
 describe('outreachLeadStatusOptions', () => {

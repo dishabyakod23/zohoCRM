@@ -1,3 +1,5 @@
+import { isDndRecord } from './statusHelpers.js';
+
 /** Sales pipeline stages — values must match API pipeline_stage enum */
 
 export const PIPELINE_RAW = 'raw_prospect';
@@ -218,7 +220,7 @@ function isConvertedLead(lead) {
 }
 
 export function filterLeadsByPipelineStage(leads, stage) {
-  const active = (leads || []).filter((l) => !isConvertedLead(l));
+  const active = (leads || []).filter((l) => !isConvertedLead(l) && !isDndRecord(l));
 
   if (stage === PIPELINE_PROPOSAL) {
     return active.filter(isProposalLead);

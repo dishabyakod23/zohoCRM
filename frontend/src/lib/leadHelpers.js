@@ -122,6 +122,8 @@ const STATUS_LABELS = {
   not_contacted: 'Not Contacted',
   pre_qualified: 'Pre-Qualified',
   not_qualified: 'Not Qualified',
+  dnd: 'DND',
+  do_not_disturb: 'DND',
   raw_prospect: 'Cold Lead',
   raw_lead: 'Cold Lead',
   cold_lead: 'Cold Lead',

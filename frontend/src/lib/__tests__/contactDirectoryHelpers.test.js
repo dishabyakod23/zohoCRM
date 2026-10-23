@@ -219,3 +219,18 @@ describe('directory current status vs lead status', () => {
     expect(directoryLeadStatusValue({ lead_status: PIPELINE_RAW })).toBeNull();
   });
 });
+
+describe('applyContactDirectoryFilters — DND', () => {
+  const rows = [
+    { id: '1', first_name: 'Keep', lead_status: 'not_contacted', account_name: 'Acme' },
+    { id: '2', first_name: 'Quiet', lead_status: 'dnd', account_name: 'Acme' },
+  ];
+
+  it('hides DND people from the main Contacts list', () => {
+    expect(applyContactDirectoryFilters(rows, {}).map((r) => r.id)).toEqual(['1']);
+  });
+
+  it('shows only DND people when filtering by DND', () => {
+    expect(applyContactDirectoryFilters(rows, { lead_status: 'dnd' }).map((r) => r.id)).toEqual(['2']);
+  });
+});

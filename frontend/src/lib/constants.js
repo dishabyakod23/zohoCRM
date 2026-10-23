@@ -6,7 +6,7 @@ export const CLIENT_FILTER_MAX_RECORDS = 2500;
 
 export const LEAD_STATUSES = [
   'None', 'Attempted to Contact', 'Contact in Future', 'Contacted', 'Junk Lead',
-  'Lost Lead', 'Not Contacted', 'Pre-Qualified', 'Not Qualified',
+  'Lost Lead', 'Not Contacted', 'Pre-Qualified', 'Not Qualified', 'DND',
 ];
 
 export const LEAD_SOURCES = ['Website', 'LinkedIn', 'Cold Call', 'Referral', 'Trade Show', 'Email', 'Advertisement', 'Internal Seminar', 'Employee Referral', 'Partner', 'Other'];
@@ -33,6 +33,7 @@ export const NAV_MODULES = [
   { href: '/reports', label: 'Reports', section: 'main', icon: 'Reports', permissionKey: 'reports' },
   { href: '/recycle-bin', label: 'Recycle Bin', section: 'main', icon: 'Recycle Bin', permissionKey: 'recycle_bin' },
   { href: '/contacts', label: 'Contacts', section: 'modules', icon: 'Contacts', permissionKey: 'contacts' },
+  { href: '/dnd', label: 'DND', section: 'modules', icon: 'DND', permissionKey: 'contacts' },
   { href: '/raw-leads', label: 'Cold Leads', section: 'modules', icon: 'Cold Leads', permissionKey: 'raw_leads' },
   { href: '/leads', label: 'Warm Leads', section: 'modules', icon: 'Warm Leads', permissionKey: 'leads' },
   { href: '/qualified-leads', label: 'Qualified Leads', section: 'modules', icon: 'Qualified', permissionKey: 'qualified_leads' },

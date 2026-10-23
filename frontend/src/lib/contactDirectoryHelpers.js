@@ -9,6 +9,7 @@ import {
   PIPELINE_RAW,
 } from './pipelineHelpers.js';
 import { includesText, matchLeadStatus, matchesRecordTimestampFilters, matchesCampaignMembership } from './listRecordFilters.js';
+import { isDndRecord, isDndStatus } from './statusHelpers.js';
 import { leadStatusLabel, resolveLeadLinkedInUrl } from './leadHelpers.js';
 import { resolveContactLinkedInUrl } from './contactHelpers.js';
 
@@ -351,7 +352,12 @@ export function applyContactDirectoryFilters(rows = [], filters = {}, { campaign
     if (!includesText(row.account_name, filters.company)) return false;
     if (!includesText(row.title, filters.designation)) return false;
     if (filters.current_status && row.current_status !== filters.current_status) return false;
-    if (filters.lead_status && !matchLeadStatus(row, filters.lead_status)) return false;
+    if (isDndStatus(filters.lead_status)) {
+      if (!isDndRecord(row)) return false;
+    } else {
+      if (isDndRecord(row)) return false;
+      if (filters.lead_status && !matchLeadStatus(row, filters.lead_status)) return false;
+    }
     if (filters.campaign_id && campaignMemberIds && !matchesCampaignMembership(row, campaignMemberIds)) return false;
     if (filters.notes_q) {
       const blob = [row.description, row.notes, row.follow_up_notes, row.followup_notes]

@@ -1,3 +1,39 @@
+/** Do Not Disturb — people who should not be contacted. */
+export const DND_LEAD_STATUS = 'dnd';
+
+const DND_LEAD_STATUS_VALUES = new Set([
+  'dnd',
+  'do_not_disturb',
+  'do-not-disturb',
+  'donotdisturb',
+]);
+
+export function isDndStatus(value) {
+  const raw = String(value || '').toLowerCase().trim().replace(/\s+/g, '_');
+  return DND_LEAD_STATUS_VALUES.has(raw);
+}
+
+export function isDndRecord(record) {
+  if (!record) return false;
+  return isDndStatus(record.lead_status)
+    || isDndStatus(record.status)
+    || isDndStatus(record.lead_status_label);
+}
+
+/** Always expose DND in Lead Status dropdowns, even if the API list omits it. */
+export function ensureDndLeadStatusOption(options = []) {
+  const list = Array.isArray(options) ? [...options] : [];
+  const existing = list.find((opt) => isDndStatus(opt?.value) || isDndStatus(opt?.label));
+  if (existing) {
+    return list.map((opt) => (
+      opt === existing
+        ? { ...opt, value: opt.value || DND_LEAD_STATUS, label: opt.label && opt.label !== opt.value ? opt.label : 'DND' }
+        : opt
+    ));
+  }
+  return [...list, { value: DND_LEAD_STATUS, label: 'DND' }];
+}
+
 /** Status values that require a lost reason (detail save + mass update) */
 export const LOST_LEAD_STATUS_VALUES = new Set([
   'lost',

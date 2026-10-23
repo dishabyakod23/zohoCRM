@@ -54,6 +54,7 @@ const QUICK_LINKS = [
   { href: '/work-items', label: 'Work Items' },
   { href: '/leads', label: 'Warm Leads' },
   { href: '/raw-leads', label: 'Cold Leads' },
+  { href: '/dnd', label: 'DND' },
   { href: '/calendar', label: 'Calendar' },
   { href: '/reports', label: 'Reports' },
   { href: '/settings', label: 'Settings' },

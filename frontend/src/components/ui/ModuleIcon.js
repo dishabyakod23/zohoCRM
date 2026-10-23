@@ -15,6 +15,7 @@ import {
   FolderIcon,
   ClipboardDocumentListIcon,
   PaperClipIcon,
+  BellSlashIcon,
 } from '@heroicons/react/24/outline';
 
 const ICONS = {
@@ -23,6 +24,7 @@ const ICONS = {
   Reports: ChartBarIcon,
   'Recycle Bin': TrashIcon,
   Contacts: UserGroupIcon,
+  DND: BellSlashIcon,
   'Cold Leads': InboxArrowDownIcon,
   'Warm Leads': FunnelIcon,
   // Legacy icon keys (pre-rename)
