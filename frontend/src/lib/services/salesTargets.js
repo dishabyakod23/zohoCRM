@@ -99,9 +99,12 @@ export async function exportSalesTargetPerformanceReport(params = {}) {
 
 export async function getSalesTargetDashboard() {
   invalidateFullListCache();
-  const res = await api.get(`${BASE}/dashboard`);
+  const [res, targets] = await Promise.all([
+    api.get(`${BASE}/dashboard`),
+    listAllSalesTargets({ period_type: 'monthly' }).catch(() => ({ data: [] })),
+  ]);
   const summary = normalizeSalesTargetDashboard(res.data.data);
-  return enrichSalesTargetDashboard(summary);
+  return enrichSalesTargetDashboard(summary, { monthlyTargets: targets.data || [] });
 }
 
 export async function listAllSalesTargets(params = {}) {

@@ -66,6 +66,78 @@ export function filterProposalsInCalendarMonth(proposals = [], now = new Date())
   return (proposals || []).filter((lead) => matchesDateRange(proposalMonthDate(lead), from, to));
 }
 
+function targetCoversDate(target, now = new Date()) {
+  const start = target?.start_date ? new Date(target.start_date) : null;
+  const end = target?.end_date ? new Date(target.end_date) : null;
+  if (start && Number.isNaN(start.getTime())) return false;
+  if (end && Number.isNaN(end.getTime())) return false;
+  if (start && start > now) return false;
+  if (end) {
+    const endDay = new Date(end);
+    endDay.setHours(23, 59, 59, 999);
+    if (now > endDay) return false;
+  }
+  return true;
+}
+
+export function pipelineAchievementStatus(pct, target) {
+  const targetNum = Number(target) || 0;
+  if (targetNum <= 0) return { label: 'No Target', tone: 'muted' };
+  if (pct >= 100) return { label: 'Over Target', tone: 'over' };
+  if (pct >= 40) return { label: 'Below Target', tone: 'warn' };
+  return { label: 'Below Target', tone: 'under' };
+}
+
+export function buildPipelineAchievementRows(leaderboard = [], {
+  monthPipelineByOwner,
+  targetsByEmployeeId = {},
+} = {}) {
+  const rows = (leaderboard || []).map((row) => {
+    const id = String(row.employee_id || row.id || '');
+    const actual = monthPipelineByOwner
+      ? Number(monthPipelineByOwner.get(id) || 0)
+      : Number(row.actual_pipeline || row.pipeline_actual || 0);
+    const target = Number(
+      targetsByEmployeeId[id]?.pipeline_target
+      ?? row.pipeline_target
+      ?? 0
+    );
+    const pct = target > 0 ? Math.round((actual / target) * 100) : 0;
+    const status = pipelineAchievementStatus(pct, target);
+    const role = normalizeRole(row.role) || 'sales_rep';
+    return {
+      employee_id: id,
+      employee_name: row.employee_name || row.name || '—',
+      role,
+      role_label: row.role_label || roleShortLabel(role) || 'BDE',
+      achieved_pipeline: Math.round(actual),
+      pipeline_target: Math.round(target),
+      achievement_pct: pct,
+      status_label: status.label,
+      status_tone: status.tone,
+    };
+  });
+  return rows.sort((a, b) => {
+    const roleDelta = Number(a.role === 'sales_manager') - Number(b.role === 'sales_manager');
+    if (roleDelta !== 0) return roleDelta;
+    return b.achieved_pipeline - a.achieved_pipeline;
+  });
+}
+
+function indexMonthlyTargets(monthlyTargets = [], now = new Date()) {
+  const byEmployee = {};
+  for (const target of monthlyTargets || []) {
+    const id = String(target.employee_id || '');
+    if (!id || !targetCoversDate(target, now)) continue;
+    const period = String(target.period_type || 'monthly').toLowerCase();
+    if (period && period !== 'monthly') continue;
+    const next = Number(target.pipeline_target || 0);
+    const current = Number(byEmployee[id]?.pipeline_target || 0);
+    if (next >= current) byEmployee[id] = target;
+  }
+  return byEmployee;
+}
+
 /** Sum open proposal deal sizes in INR, grouped by owner. */
 export async function buildProposalPipelineInrByOwner(proposals = []) {
   const totals = new Map();
@@ -89,6 +161,7 @@ export async function buildProposalPipelineInrByOwner(proposals = []) {
 export async function enrichSalesTargetDashboard(summary = {}, {
   listProposals = () => leadsApi.listAllLeads({ pipeline_stage: PIPELINE_PROPOSAL }, []),
   loadUsers = fetchUsers,
+  monthlyTargets = [],
   now = new Date(),
 } = {}) {
   const [{ data: proposals = [] }, users] = await Promise.all([
@@ -159,9 +232,14 @@ export async function enrichSalesTargetDashboard(summary = {}, {
 
   const crmTotalPipeline = [...pipelineByOwner.values()].reduce((sum, value) => sum + value, 0);
   const monthProposals = filterProposalsInCalendarMonth(proposals, now);
-  const crmMonthPipeline = [...(await buildProposalPipelineInrByOwner(monthProposals)).values()]
-    .reduce((sum, value) => sum + value, 0);
+  const monthByOwner = await buildProposalPipelineInrByOwner(monthProposals);
+  const crmMonthPipeline = [...monthByOwner.values()].reduce((sum, value) => sum + value, 0);
   const apiMonthly = Number(summary.monthly_pipeline_actual || 0);
+  const targetsByEmployeeId = indexMonthlyTargets(monthlyTargets, now);
+  const pipeline_achievement = buildPipelineAchievementRows(pipeline_leaderboard, {
+    monthPipelineByOwner: monthByOwner,
+    targetsByEmployeeId,
+  });
 
   return {
     ...summary,
@@ -169,6 +247,7 @@ export async function enrichSalesTargetDashboard(summary = {}, {
     monthly_pipeline_actual: String(Math.round(crmMonthPipeline || (crmTotalPipeline > 0 ? 0 : apiMonthly))),
     pipeline_month_label: now.toLocaleString('en-IN', { month: 'long', year: 'numeric' }),
     current_month_proposals_href: currentMonthProposalsHref(now),
+    pipeline_achievement,
     // Keep legacy key for callers; includes active BDE + BDM sorted by pipeline.
     bde_leaderboard: pipeline_leaderboard,
     pipeline_leaderboard,

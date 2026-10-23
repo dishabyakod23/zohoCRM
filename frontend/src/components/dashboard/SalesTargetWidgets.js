@@ -27,27 +27,81 @@ function ProgressBar({ actual, target, color = 'bg-brand-500' }) {
   );
 }
 
-function PipelineRoleList({ title, rows, emptyLabel }) {
+function roleBadgeClass(role) {
+  return role === 'sales_manager'
+    ? 'bg-violet-50 text-violet-700'
+    : 'bg-blue-50 text-blue-700';
+}
+
+function statusToneClass(tone) {
+  if (tone === 'over') return 'bg-emerald-50 text-emerald-700';
+  if (tone === 'warn') return 'bg-amber-50 text-amber-700';
+  if (tone === 'under') return 'bg-red-50 text-red-700';
+  return 'bg-gray-50 text-gray-600';
+}
+
+function statusDotClass(tone) {
+  if (tone === 'over') return 'bg-emerald-500';
+  if (tone === 'warn') return 'bg-amber-500';
+  if (tone === 'under') return 'bg-red-500';
+  return 'bg-gray-400';
+}
+
+function barClass(tone) {
+  if (tone === 'over') return 'bg-emerald-500';
+  if (tone === 'warn') return 'bg-amber-500';
+  if (tone === 'under') return 'bg-red-500';
+  return 'bg-gray-300';
+}
+
+function PipelineAchievementTable({ rows }) {
+  if (!rows?.length) {
+    return <p className="text-sm text-zoho-muted text-center py-8">No pipeline targets yet</p>;
+  }
   return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-zoho-muted mb-2">{title}</p>
-      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-        {rows.length === 0 ? (
-          <p className="text-sm text-zoho-muted py-2">{emptyLabel}</p>
-        ) : rows.map((item, index) => (
-          <div key={item.employee_id || item.id || `${title}-${index}`} className="flex items-center justify-between text-sm py-1.5 gap-2">
-            <span className="truncate min-w-0" title={item.employee_name || item.name}>
-              {item.employee_name || item.name}
-              {item.role_label && item.role_label !== title ? (
-                <span className="ml-1 text-[10px] font-medium uppercase text-zoho-muted">{item.role_label}</span>
-              ) : null}
-            </span>
-            <span className="font-medium text-brand-600 shrink-0">
-              {formatTargetAmount(item.actual_pipeline || item.pipeline_actual)}
-            </span>
-          </div>
-        ))}
-      </div>
+    <div className="overflow-x-auto -mx-1">
+      <table className="min-w-full">
+        <thead>
+          <tr>
+            <th className="table-th">User</th>
+            <th className="table-th">Role</th>
+            <th className="table-th">Achieved Pipeline</th>
+            <th className="table-th">Target</th>
+            <th className="table-th">Achievement</th>
+            <th className="table-th min-w-[140px]">Progress</th>
+            <th className="table-th">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.employee_id} className="border-b border-zoho-border last:border-0">
+              <td className="table-td font-medium text-zoho-text whitespace-nowrap">{row.employee_name}</td>
+              <td className="table-td">
+                <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${roleBadgeClass(row.role)}`}>
+                  {row.role_label}
+                </span>
+              </td>
+              <td className="table-td whitespace-nowrap">{formatTargetAmount(row.achieved_pipeline)}</td>
+              <td className="table-td whitespace-nowrap text-zoho-muted">{formatTargetAmount(row.pipeline_target)}</td>
+              <td className="table-td font-medium whitespace-nowrap">{row.pipeline_target > 0 ? `${row.achievement_pct}%` : '—'}</td>
+              <td className="table-td">
+                <div className="h-2 rounded-full bg-gray-100 overflow-hidden min-w-[96px]">
+                  <div
+                    className={`h-full rounded-full ${barClass(row.status_tone)}`}
+                    style={{ width: `${Math.min(100, row.achievement_pct || 0)}%` }}
+                  />
+                </div>
+              </td>
+              <td className="table-td whitespace-nowrap">
+                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${statusToneClass(row.status_tone)}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${statusDotClass(row.status_tone)}`} />
+                  {row.status_label}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -76,14 +130,10 @@ export default function SalesTargetWidgets() {
 
   if (!summary) return null;
 
-  const bdeRows = summary.bde_only_leaderboard
-    || (summary.pipeline_leaderboard || summary.bde_leaderboard || []).filter((row) => row.role === 'sales_rep');
-  const bdmRows = summary.bdm_leaderboard
-    || (summary.pipeline_leaderboard || summary.bde_leaderboard || []).filter((row) => row.role === 'sales_manager');
-
   const overallActual = summary.overall_pipeline_actual ?? summary.monthly_pipeline_actual;
   const monthHref = summary.current_month_proposals_href || currentMonthProposalsHref();
   const monthLabel = summary.pipeline_month_label || 'This month';
+  const achievementRows = summary.pipeline_achievement || [];
 
   return (
     <>
@@ -116,30 +166,10 @@ export default function SalesTargetWidgets() {
 
       <div className="col-span-12 lg:col-span-6 zoho-widget">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="zoho-widget-title mb-0">BDE &amp; BDM Pipeline</h3>
+          <h3 className="zoho-widget-title mb-0">Monthly Pipeline Achievement</h3>
           <AppLink href="/reports" className="text-xs text-brand-600 hover:underline">View reports →</AppLink>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-          <PipelineRoleList title="BDE" rows={bdeRows} emptyLabel="No BDE pipeline yet" />
-          <PipelineRoleList title="BDM" rows={bdmRows} emptyLabel="No BDM pipeline yet" />
-        </div>
-      </div>
-
-      <div className="col-span-12 lg:col-span-6 zoho-widget">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="zoho-widget-title mb-0">Off Track Users</h3>
-          <AppLink href="/settings" className="text-xs text-brand-600 hover:underline">Configure targets →</AppLink>
-        </div>
-        <div className="space-y-2">
-          {(summary.off_track_users || []).length === 0 ? (
-            <p className="text-sm text-emerald-600 text-center py-4">All users on track</p>
-          ) : summary.off_track_users.slice(0, 5).map((item, index) => (
-            <div key={item.employee_id || item.id || index} className="flex items-center justify-between text-sm py-1.5">
-              <span className="truncate">{item.employee_name || item.name}</span>
-              <span className="badge bg-red-50 text-red-700 shrink-0">{item.status || 'Off Track'}</span>
-            </div>
-          ))}
-        </div>
+        <PipelineAchievementTable rows={achievementRows} />
       </div>
     </>
   );

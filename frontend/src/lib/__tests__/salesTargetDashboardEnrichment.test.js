@@ -147,4 +147,33 @@ describe('enrichSalesTargetDashboard', () => {
     expect(summary.current_month_proposals_href).toContain('proposal_date_from=2026-10-01');
     expect(summary.current_month_proposals_href).toContain('proposal_date_to=2026-10-31');
   });
+
+  it('builds monthly pipeline achievement against each user target', async () => {
+    const summary = await enrichSalesTargetDashboard({
+      monthly_pipeline_actual: '0',
+    }, {
+      now: new Date('2026-10-23T12:00:00'),
+      monthlyTargets: [
+        { employee_id: 'u1', pipeline_target: '250000', period_type: 'monthly', start_date: '2026-10-01', end_date: '2026-10-31' },
+      ],
+      listProposals: async () => ({
+        data: [
+          { owner_id: 'u1', deal_size: 200000, currency: 'INR', proposal_date: '2026-10-12' },
+          { owner_id: 'u1', deal_size: 50000, currency: 'INR', proposal_date: '2026-09-04' },
+        ],
+      }),
+      loadUsers: async () => ([{ id: 'u1', first_name: 'Ada', last_name: 'Lovelace', role: 'sales_rep' }]),
+    });
+
+    expect(summary.pipeline_achievement).toHaveLength(1);
+    expect(summary.pipeline_achievement[0]).toMatchObject({
+      employee_id: 'u1',
+      achieved_pipeline: 200000,
+      pipeline_target: 250000,
+      achievement_pct: 80,
+      status_label: 'Below Target',
+      status_tone: 'warn',
+      role_label: 'BDE',
+    });
+  });
 });
