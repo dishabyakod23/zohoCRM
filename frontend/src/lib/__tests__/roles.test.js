@@ -1,4 +1,4 @@
-import { getRolePermissions, normalizeRole, isStrictSuperAdmin } from '../roles.js';
+import { getRolePermissions, normalizeRole, isStrictSuperAdmin, canBeReportingManager } from '../roles.js';
 import { emptyModulePermissions, applyPermissionDependencies } from '../permissionModules.js';
 
 describe('getRolePermissions — built-in roles (backward compatibility)', () => {
@@ -76,6 +76,15 @@ describe('getRolePermissions — custom roles', () => {
     expect(p.canEdit).toBe(false);
     expect(p.canDelete).toBe(false);
     expect(p.isSuperAdmin).toBe(false);
+  });
+});
+
+describe('canBeReportingManager', () => {
+  it('includes super admins and sales managers, not reps or viewers', () => {
+    expect(canBeReportingManager('super_admin')).toBe(true);
+    expect(canBeReportingManager('sales_manager')).toBe(true);
+    expect(canBeReportingManager('sales_rep')).toBe(false);
+    expect(canBeReportingManager('viewer')).toBe(false);
   });
 });
 

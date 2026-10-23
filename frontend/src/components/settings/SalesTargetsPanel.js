@@ -8,7 +8,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
-import { normalizeRole } from '../../lib/roles.js';
+import { canBeReportingManager } from '../../lib/roles.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import * as salesTargetsApi from '../../lib/services/salesTargets.js';
 import {
@@ -53,7 +53,7 @@ export default function SalesTargetsPanel() {
   });
 
   const managers = useMemo(
-    () => users.filter((u) => normalizeRole(u.role) === 'sales_manager'),
+    () => users.filter((u) => u.is_active !== false && canBeReportingManager(u.role)),
     [users],
   );
 

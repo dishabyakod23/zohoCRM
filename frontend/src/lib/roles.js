@@ -53,6 +53,11 @@ export function hasAdminAccess(role) {
   return normalized === 'super_admin' || normalized === 'sales_manager';
 }
 
+/** Roles that can appear as a sales-target reporting manager. */
+export function canBeReportingManager(role) {
+  return hasAdminAccess(role);
+}
+
 export function isSuperAdmin(role) {
   return hasAdminAccess(role);
 }

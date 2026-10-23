@@ -10,7 +10,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
-import { roleLabel, normalizeRole } from '../../lib/roles.js';
+import { roleLabel, normalizeRole, canBeReportingManager } from '../../lib/roles.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import * as salesTargetsApi from '../../lib/services/salesTargets.js';
 import {
@@ -66,7 +66,7 @@ export default function SalesTargetEditor({ targetId = null }) {
   const [loadingActuals, setLoadingActuals] = useState(false);
 
   const managers = useMemo(
-    () => users.filter((u) => normalizeRole(u.role) === 'sales_manager'),
+    () => users.filter((u) => u.is_active !== false && canBeReportingManager(u.role)),
     [users],
   );
 
@@ -266,7 +266,9 @@ export default function SalesTargetEditor({ targetId = null }) {
             <FormField label="Reporting Manager" name="reporting_manager_id">
               <select className="input" value={form.reporting_manager_id} onChange={(e) => setForm((f) => ({ ...f, reporting_manager_id: e.target.value }))}>
                 <option value="">Select manager</option>
-                {managers.map((u) => <option key={u.id} value={u.id}>{userDisplayName(u)}</option>)}
+                {managers.map((u) => (
+                  <option key={u.id} value={u.id}>{userDisplayName(u)} ({roleLabel(u.role)})</option>
+                ))}
               </select>
             </FormField>
           </div>
