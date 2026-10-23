@@ -2,6 +2,7 @@ import { PIPELINE_PROPOSAL } from './pipelineHelpers.js';
 import { normalizeRole } from './roles.js';
 import { userDisplayName } from './userHelpers.js';
 import { convertToInr, FALLBACK_RATES_TO_INR } from './fxRates.js';
+import { matchesDateRange } from './listRecordFilters.js';
 import * as leadsApi from './services/leads.js';
 import { fetchUsers } from './services/lookups.js';
 
@@ -38,6 +39,33 @@ function sortLeaderboard(rows = []) {
   return [...rows].sort((a, b) => leaderboardPipelineAmount(b) - leaderboardPipelineAmount(a));
 }
 
+function toIsoDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function calendarMonthRange(now = new Date()) {
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { from: toIsoDate(start), to: toIsoDate(end) };
+}
+
+export function currentMonthProposalsHref(now = new Date()) {
+  const { from, to } = calendarMonthRange(now);
+  return `/proposals?proposal_date_from=${from}&proposal_date_to=${to}`;
+}
+
+function proposalMonthDate(lead) {
+  return lead?.proposal_date || lead?.created_at || '';
+}
+
+export function filterProposalsInCalendarMonth(proposals = [], now = new Date()) {
+  const { from, to } = calendarMonthRange(now);
+  return (proposals || []).filter((lead) => matchesDateRange(proposalMonthDate(lead), from, to));
+}
+
 /** Sum open proposal deal sizes in INR, grouped by owner. */
 export async function buildProposalPipelineInrByOwner(proposals = []) {
   const totals = new Map();
@@ -61,6 +89,7 @@ export async function buildProposalPipelineInrByOwner(proposals = []) {
 export async function enrichSalesTargetDashboard(summary = {}, {
   listProposals = () => leadsApi.listAllLeads({ pipeline_stage: PIPELINE_PROPOSAL }, []),
   loadUsers = fetchUsers,
+  now = new Date(),
 } = {}) {
   const [{ data: proposals = [] }, users] = await Promise.all([
     listProposals().catch(() => ({ data: [] })),
@@ -129,11 +158,17 @@ export async function enrichSalesTargetDashboard(summary = {}, {
   const bdm_leaderboard = pipeline_leaderboard.filter((row) => normalizeRole(row.role) === 'sales_manager');
 
   const crmTotalPipeline = [...pipelineByOwner.values()].reduce((sum, value) => sum + value, 0);
+  const monthProposals = filterProposalsInCalendarMonth(proposals, now);
+  const crmMonthPipeline = [...(await buildProposalPipelineInrByOwner(monthProposals)).values()]
+    .reduce((sum, value) => sum + value, 0);
   const apiMonthly = Number(summary.monthly_pipeline_actual || 0);
 
   return {
     ...summary,
-    monthly_pipeline_actual: String(crmTotalPipeline > 0 ? Math.round(crmTotalPipeline) : apiMonthly),
+    overall_pipeline_actual: String(Math.round(crmTotalPipeline)),
+    monthly_pipeline_actual: String(Math.round(crmMonthPipeline || (crmTotalPipeline > 0 ? 0 : apiMonthly))),
+    pipeline_month_label: now.toLocaleString('en-IN', { month: 'long', year: 'numeric' }),
+    current_month_proposals_href: currentMonthProposalsHref(now),
     // Keep legacy key for callers; includes active BDE + BDM sorted by pipeline.
     bde_leaderboard: pipeline_leaderboard,
     pipeline_leaderboard,

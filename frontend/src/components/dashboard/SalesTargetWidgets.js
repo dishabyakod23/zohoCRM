@@ -7,6 +7,7 @@ import { formatTargetAmount } from '../../lib/salesTargetHelpers.js';
 import { getApiError } from '../../lib/api.js';
 import { useToast } from '../ui/Toast.js';
 import { useCrmLiveRefresh } from '../../lib/crmLiveRefresh.js';
+import { currentMonthProposalsHref } from '../../lib/salesTargetDashboardEnrichment.js';
 
 function ProgressBar({ actual, target, color = 'bg-brand-500' }) {
   const actualNum = Number(actual) || 0;
@@ -80,19 +81,29 @@ export default function SalesTargetWidgets() {
   const bdmRows = summary.bdm_leaderboard
     || (summary.pipeline_leaderboard || summary.bde_leaderboard || []).filter((row) => row.role === 'sales_manager');
 
+  const overallActual = summary.overall_pipeline_actual ?? summary.monthly_pipeline_actual;
+  const monthHref = summary.current_month_proposals_href || currentMonthProposalsHref();
+  const monthLabel = summary.pipeline_month_label || 'This month';
+
   return (
     <>
-      <div className="col-span-12 sm:col-span-6 lg:col-span-3">
-        <div className="zoho-widget h-full">
-          <h3 className="zoho-widget-title">Monthly Pipeline</h3>
-          <ProgressBar
-            actual={summary.monthly_pipeline_actual}
-            target={summary.monthly_pipeline_target}
-            color="bg-accent-teal"
-          />
-        </div>
-      </div>
-      <div className="col-span-12 sm:col-span-6 lg:col-span-3">
+      <AppLink href="/proposals" className="col-span-12 sm:col-span-6 lg:col-span-4 zoho-widget h-full block hover:shadow-card transition-shadow">
+        <h3 className="zoho-widget-title">Overall Pipeline</h3>
+        <p className="text-xl font-semibold text-zoho-text tracking-tight">
+          {formatTargetAmount(overallActual)}
+        </p>
+        <p className="text-xs text-zoho-muted mt-1">All open proposals · View list →</p>
+      </AppLink>
+      <AppLink href={monthHref} className="col-span-12 sm:col-span-6 lg:col-span-4 zoho-widget h-full block hover:shadow-card transition-shadow">
+        <h3 className="zoho-widget-title">This Month Pipeline</h3>
+        <ProgressBar
+          actual={summary.monthly_pipeline_actual}
+          target={summary.monthly_pipeline_target}
+          color="bg-accent-teal"
+        />
+        <p className="text-xs text-brand-600 mt-2">{monthLabel} · View proposals →</p>
+      </AppLink>
+      <div className="col-span-12 sm:col-span-6 lg:col-span-4">
         <div className="zoho-widget h-full">
           <h3 className="zoho-widget-title">Monthly Revenue</h3>
           <ProgressBar

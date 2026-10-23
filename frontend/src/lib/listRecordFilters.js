@@ -204,6 +204,34 @@ export function countActiveFilters(filters = {}, user = null) {
   }).length;
 }
 
+const LEAD_FILTER_QUERY_KEYS = [
+  'proposal_date_from',
+  'proposal_date_to',
+  'closure_date_from',
+  'closure_date_to',
+  'created_from',
+  'created_to',
+  'owner_id',
+  'deal_status',
+  'source',
+  'status',
+  'campaign_id',
+];
+
+/** Read lead/proposal list filters from a URLSearchParams (or plain object). */
+export function leadFiltersFromSearchParams(searchParams) {
+  if (!searchParams) return {};
+  const get = typeof searchParams.get === 'function'
+    ? (key) => searchParams.get(key)
+    : (key) => searchParams[key];
+  const patch = {};
+  for (const key of LEAD_FILTER_QUERY_KEYS) {
+    const value = get(key);
+    if (value) patch[key] = value;
+  }
+  return patch;
+}
+
 export const EMPTY_LEAD_FILTERS = {
   company: '',
   source: '',

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import CRMLayout from '../layout/CRMLayout.js';
 import ListPageHeader from '../layout/ListPageHeader.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
@@ -25,7 +26,7 @@ import { formatMoney } from '../../lib/currencies.js';
 import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../layout/ListFilterFields.js';
 import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES, PIPELINE_MODULE_PERMISSION } from '../../lib/pipelineHelpers.js';
 
-import { EMPTY_LEAD_FILTERS, countActiveFilters } from '../../lib/listRecordFilters.js';
+import { EMPTY_LEAD_FILTERS, countActiveFilters, leadFiltersFromSearchParams } from '../../lib/listRecordFilters.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import { DEFAULT_LIST_SORT, getSortApiParams } from '../../lib/listSortHelpers.js';
@@ -65,7 +66,19 @@ export default function PipelineLeadList({ stage, description }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
-  const { filters, setFilters, clearFilters } = useDefaultOwnerFilters(EMPTY_LEAD_FILTERS);
+  const searchParams = useSearchParams();
+  const queryKey = searchParams?.toString?.() || '';
+  const queryFilters = useMemo(() => leadFiltersFromSearchParams(searchParams), [queryKey]);
+  const { filters, setFilters, clearFilters } = useDefaultOwnerFilters({
+    ...EMPTY_LEAD_FILTERS,
+    ...queryFilters,
+  });
+
+  useEffect(() => {
+    if (!Object.keys(queryFilters).length) return;
+    setFilters((current) => ({ ...current, ...queryFilters }));
+  }, [queryKey, setFilters]);
+
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [uploadOpen, setUploadOpen] = useState(false);

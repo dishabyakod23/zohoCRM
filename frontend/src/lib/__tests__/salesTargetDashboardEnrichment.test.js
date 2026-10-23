@@ -1,4 +1,4 @@
-import { enrichSalesTargetDashboard, buildProposalPipelineInrByOwner } from '../salesTargetDashboardEnrichment.js';
+import { enrichSalesTargetDashboard, buildProposalPipelineInrByOwner, currentMonthProposalsHref } from '../salesTargetDashboardEnrichment.js';
 import { FALLBACK_RATES_TO_INR, resetFxRateCache } from '../fxRates.js';
 
 describe('buildProposalPipelineInrByOwner', () => {
@@ -52,7 +52,7 @@ describe('enrichSalesTargetDashboard', () => {
     });
 
     expect(Number(summary.bde_leaderboard[0].actual_pipeline)).toBeGreaterThan(2700000);
-    expect(Number(summary.monthly_pipeline_actual)).toBeGreaterThan(2700000);
+    expect(Number(summary.overall_pipeline_actual)).toBeGreaterThan(2700000);
     expect(summary.bde_only_leaderboard[0].role_label).toBe('BDE');
   });
 
@@ -125,5 +125,26 @@ describe('enrichSalesTargetDashboard', () => {
     expect(summary.bde_only_leaderboard.map((r) => r.employee_id)).toEqual(['bde1']);
     expect(summary.bdm_leaderboard.map((r) => r.employee_id)).toEqual(['bdm1']);
     expect(summary.bdm_leaderboard[0].role_label).toBe('BDM');
+  });
+
+  it('keeps overall pipeline separate from the current calendar month', async () => {
+    const summary = await enrichSalesTargetDashboard({
+      monthly_pipeline_actual: '999999',
+    }, {
+      now: new Date('2026-10-23T12:00:00'),
+      listProposals: async () => ({
+        data: [
+          { owner_id: 'u1', deal_size: 100000, currency: 'INR', proposal_date: '2026-10-12' },
+          { owner_id: 'u1', deal_size: 50000, currency: 'INR', proposal_date: '2026-09-04' },
+        ],
+      }),
+      loadUsers: async () => ([{ id: 'u1', first_name: 'Ada', last_name: 'Lovelace', role: 'sales_rep' }]),
+    });
+
+    expect(Number(summary.overall_pipeline_actual)).toBe(150000);
+    expect(Number(summary.monthly_pipeline_actual)).toBe(100000);
+    expect(summary.current_month_proposals_href).toBe(currentMonthProposalsHref(new Date('2026-10-23')));
+    expect(summary.current_month_proposals_href).toContain('proposal_date_from=2026-10-01');
+    expect(summary.current_month_proposals_href).toContain('proposal_date_to=2026-10-31');
   });
 });

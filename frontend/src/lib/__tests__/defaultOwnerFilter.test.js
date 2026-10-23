@@ -1,4 +1,4 @@
-import { defaultOwnerFilterId, withDefaultOwnerFilters, countActiveFilters, EMPTY_CONTACT_FILTERS } from '../listRecordFilters.js';
+import { defaultOwnerFilterId, withDefaultOwnerFilters, countActiveFilters, EMPTY_CONTACT_FILTERS, leadFiltersFromSearchParams } from '../listRecordFilters.js';
 
 describe('defaultOwnerFilterId', () => {
   it('returns empty for super admin (all owners)', () => {
@@ -64,5 +64,15 @@ describe('countActiveFilters', () => {
   it('counts non-default owner as active for sales manager', () => {
     const user = { id: 'u1', role: 'sales_manager' };
     expect(countActiveFilters({ ...EMPTY_CONTACT_FILTERS, owner_id: 'u2' }, user)).toBe(1);
+  });
+});
+
+describe('leadFiltersFromSearchParams', () => {
+  it('reads proposal month dates from the query string', () => {
+    const params = new URLSearchParams('proposal_date_from=2026-10-01&proposal_date_to=2026-10-31');
+    expect(leadFiltersFromSearchParams(params)).toEqual({
+      proposal_date_from: '2026-10-01',
+      proposal_date_to: '2026-10-31',
+    });
   });
 });
