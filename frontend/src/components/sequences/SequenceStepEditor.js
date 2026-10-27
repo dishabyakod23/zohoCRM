@@ -135,7 +135,7 @@ export default function SequenceStepEditor({
     setSendingTest(true);
     try {
       await sequencesApi.sendSequenceTest(sequenceId, { step_id: step.id, to_email: testEmail || undefined });
-      showToast('Test email queued', 'success');
+      showToast('Test email sent.', 'success');
     } catch (err) {
       showToast(getApiError(err));
     } finally {

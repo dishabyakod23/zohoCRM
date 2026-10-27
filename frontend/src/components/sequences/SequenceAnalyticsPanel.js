@@ -10,8 +10,6 @@ import {
   formatDateTimeInTimezone,
   formatBounceTypeLabel,
   formatBounceSubtypeLabel,
-  resolveBounceReasonText,
-  bounceReasonHint,
 } from '../../lib/sequenceHelpers.js';
 import { tokenizeSearchQuery } from '../../lib/listSearchHelpers.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
@@ -188,12 +186,6 @@ function EmailActivityList({
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-zoho-text">{label} emails</h3>
-            {showBounceReason && (
-              <p className="text-[11px] text-zoho-muted mt-1">
-                Reason comes from Resend bounce webhooks (CRM API). Permanent / “not found” ≈ invalid email;
-                Transient / MailboxFull ≈ temporary; Suppressed ≈ Resend blocked resend.
-              </p>
-            )}
           </div>
           <span className="text-xs text-zoho-muted shrink-0">
             {searching ? 'Searching…' : `${total} total`}
@@ -238,10 +230,13 @@ function EmailActivityList({
             </thead>
             <tbody>
               {rows.map((row) => {
-                const reasonText = showBounceReason ? resolveBounceReasonText(row) : null;
+                const reasonText = showBounceReason
+                  ? (row.bounce_reason != null && String(row.bounce_reason).trim()
+                    ? String(row.bounce_reason).trim()
+                    : '—')
+                  : null;
                 const typeLabel = showBounceReason ? formatBounceTypeLabel(row.bounce_type) : null;
                 const subtypeLabel = showBounceReason ? formatBounceSubtypeLabel(row.bounce_subtype) : null;
-                const hint = showBounceReason ? bounceReasonHint(row) : null;
                 return (
                   <tr key={row.id || `${row.member_email}-${row.occurred_at}`} className="border-b border-zoho-border last:border-0">
                     <td className="table-td">{row.member_name}</td>
@@ -249,23 +244,20 @@ function EmailActivityList({
                     <td className="table-td">{row.step_order != null ? `Step ${row.step_order}` : '—'}</td>
                     <td className="table-td max-w-[220px] truncate" title={row.subject}>{row.subject}</td>
                     {showBounceReason && (
-                      <td className="table-td max-w-[280px]" title={hint || reasonText || undefined}>
-                        {reasonText || typeLabel || subtypeLabel ? (
-                          <div className="space-y-1">
-                            <p className="text-zoho-text leading-snug">{reasonText || '—'}</p>
+                      <td className="table-td max-w-[280px]" title={reasonText !== '—' ? reasonText : undefined}>
+                        <div className="space-y-1">
+                          <p className={reasonText === '—' ? 'text-zoho-muted leading-snug' : 'text-zoho-text leading-snug'}>
+                            {reasonText}
+                          </p>
+                          {(typeLabel || subtypeLabel) && (
                             <div className="flex flex-wrap items-center gap-1.5">
                               {typeLabel && <Badge label={typeLabel} />}
                               {subtypeLabel && (
                                 <span className="text-[11px] text-zoho-muted">{subtypeLabel}</span>
                               )}
                             </div>
-                            {hint && (
-                              <p className="text-[11px] text-zoho-muted leading-snug">{hint}</p>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-zoho-muted">—</span>
-                        )}
+                          )}
+                        </div>
                       </td>
                     )}
                     <td className="table-td text-xs whitespace-nowrap">
@@ -385,11 +377,6 @@ export default function SequenceAnalyticsPanel({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <p className="text-xs text-zoho-muted max-w-3xl">
           Tracking funnel: Sent → Delivered → Opened → Clicked → Replied / Bounced. Click a card to list matching emails.
-          Sequence mail is sent via Resend and will not appear in Outlook Sent Items — use this panel for send history.
-          {sendingEmail ? (
-            <> Opens from the sending address ({sendingEmail}) are hidden in the event list when detectable; totals still come from the API until self-opens are excluded server-side.</>
-          ) : null}
-          {' '}Replies are not reported by Resend webhooks — use “Mark replied” on enrollments when needed.
         </p>
         {showStaleHint && (
           <span className="text-[11px] text-brand-600 bg-brand-50 border border-brand-100 rounded-full px-2.5 py-1 shrink-0">
@@ -413,6 +400,9 @@ export default function SequenceAnalyticsPanel({
           />
         ))}
       </div>
+      <p className="text-xs text-zoho-muted max-w-3xl">
+        Mail is sent from the connected Outlook mailbox and appears in that mailbox’s Sent Items. Sent increases for new Outlook mail. Delivered, Opened, Clicked, and Bounced on this page stay as they are for older Resend mail. Replies still use Mark replied.
+      </p>
 
       {selectedEvent && (
         <EmailActivityList

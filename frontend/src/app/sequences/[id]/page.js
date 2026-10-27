@@ -13,13 +13,14 @@ import EnrollmentNextActionCell from '../../../components/sequences/EnrollmentNe
 import EnrollmentRowActions from '../../../components/sequences/EnrollmentRowActions.js';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog.js';
 import FormField, { inputClass } from '../../../components/forms/FormField.js';
+import SendingMailboxChoices from '../../../components/sequences/SendingMailboxChoices.js';
 import TimezoneSelect from '../../../components/forms/TimezoneSelect.js';
 import { useToast } from '../../../components/ui/Toast.js';
 import { usePermissions } from '../../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../../lib/api.js';
 import * as sequencesApi from '../../../lib/services/sequences.js';
-import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel, enrollmentProgressByStep, isSequenceSettingsDirty, canEditSequenceSteps, MAX_DAILY_SEND_LIMIT, dailySendLimitError, isDailySendLimitOverMax } from '../../../lib/sequenceHelpers.js';
+import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel, enrollmentProgressByStep, isSequenceSettingsDirty, canEditSequenceSteps, MAX_DAILY_SEND_LIMIT, DAILY_SEND_LIMIT_HINT, dailySendLimitError, isDailySendLimitOverMax } from '../../../lib/sequenceHelpers.js';
 import { tokenizeSearchQuery } from '../../../lib/listSearchHelpers.js';
 import { fetchUsers } from '../../../lib/services/lookups.js';
 
@@ -311,9 +312,6 @@ export default function SequenceDetailPage() {
               {(sequence.owner_name && sequence.owner_name !== '—') && (
                 <span> · Owner: {sequence.owner_name}</span>
               )}
-              {sequence.email_provider === 'resend' && (
-                <span className="ml-2 text-xs text-brand-600">· Resend</span>
-              )}
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -477,7 +475,11 @@ export default function SequenceDetailPage() {
               <textarea className="input min-h-[80px]" value={settings.description} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, description: e.target.value }))} />
             </FormField>
             <FormField label="Sending email">
-              <input className="input" type="email" value={settings.sending_email} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, sending_email: e.target.value }))} />
+              <SendingMailboxChoices
+                value={settings.sending_email}
+                disabled={!canEdit}
+                onChange={(sending_email) => setSettings((s) => ({ ...s, sending_email }))}
+              />
             </FormField>
             <FormField label="Owner">
               <select
@@ -551,6 +553,7 @@ export default function SequenceDetailPage() {
                     });
                   }}
                 />
+                <p className="text-xs text-zoho-muted mt-1.5">{DAILY_SEND_LIMIT_HINT}</p>
               </FormField>
               <FormField label="Hourly limit">
                 <input className="input" type="number" placeholder="Optional" value={settings.hourly_send_limit} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, hourly_send_limit: e.target.value }))} />

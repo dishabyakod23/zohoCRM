@@ -12,13 +12,57 @@ function extractData(res) {
   return res?.data?.data ?? res?.data ?? null;
 }
 
+export function normalizeMicrosoftMailbox(row = {}) {
+  const email = String(row?.email || '').trim();
+  return {
+    email,
+    connected_at: row?.connected_at || null,
+    is_calendar: !!row?.is_calendar,
+    can_send: row?.can_send !== false,
+  };
+}
+
+/**
+ * Full mailbox list from GET /integrations/microsoft/status.
+ * Falls back to microsoft_email when `mailboxes` is omitted (older API).
+ */
+export function microsoftMailboxesFromStatus(status) {
+  if (!status) return [];
+  const rows = Array.isArray(status.mailboxes)
+    ? status.mailboxes.map(normalizeMicrosoftMailbox).filter((row) => row.email)
+    : [];
+  if (rows.length) return rows;
+  const fallback = String(status.microsoft_email || '').trim();
+  if (!fallback) return [];
+  return [{
+    email: fallback,
+    connected_at: status.connected_at || null,
+    is_calendar: true,
+    can_send: true,
+  }];
+}
+
+export function sendableMicrosoftEmails(status) {
+  return microsoftMailboxesFromStatus(status)
+    .filter((row) => row.can_send)
+    .map((row) => row.email);
+}
+
 export function normalizeMicrosoftStatus(raw = {}) {
+  const connected = !!raw.connected;
+  const microsoft_email = raw.microsoft_email || null;
+  const mailboxes = microsoftMailboxesFromStatus({
+    ...raw,
+    connected,
+    microsoft_email,
+  });
   return {
     configured: !!raw.configured,
-    connected: !!raw.connected,
-    microsoft_email: raw.microsoft_email || null,
+    connected,
+    microsoft_email,
     webhook_subscription_active: !!raw.webhook_subscription_active,
     ...raw,
+    mailboxes,
   };
 }
 
@@ -45,9 +89,10 @@ export async function startMicrosoftConnect() {
   return authorizeUrl;
 }
 
-/** DELETE /integrations/microsoft/disconnect */
-export async function disconnectMicrosoft() {
-  const res = await api.delete('/integrations/microsoft/disconnect');
+/** DELETE /integrations/microsoft/disconnect?email= — omit email only when a single mailbox is connected. */
+export async function disconnectMicrosoft(email) {
+  const params = email ? { email } : undefined;
+  const res = await api.delete('/integrations/microsoft/disconnect', { params });
   return extractData(res);
 }
 

@@ -11,7 +11,8 @@ import { validateRequired, validateEmail, validationToastMessage } from '../../l
 import { makeFieldSetter } from '../../lib/formInput.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
-import { emptySequenceForm, SEND_DAYS, MAX_DAILY_SEND_LIMIT, dailySendLimitError, isDailySendLimitOverMax } from '../../lib/sequenceHelpers.js';
+import SendingMailboxChoices from './SendingMailboxChoices.js';
+import { emptySequenceForm, SEND_DAYS, MAX_DAILY_SEND_LIMIT, DAILY_SEND_LIMIT_HINT, dailySendLimitError, isDailySendLimitOverMax } from '../../lib/sequenceHelpers.js';
 import { navigateToRecord, sequenceDetailHref } from '../../lib/recordNavigation.js';
 
 const REQUIRED = {
@@ -108,16 +109,19 @@ export default function CreateSequenceForm() {
               </select>
             </FormField>
             <FormField label="Sending Email" required error={errors.sending_email} name="sending_email">
-              <input
-                className={inputClass(errors.sending_email)}
-                type="email"
+              <SendingMailboxChoices
                 value={form.sending_email}
-                onChange={set('sending_email')}
-                placeholder="outreach@yourcompany.com"
+                error={!!errors.sending_email}
+                onChange={(sending_email) => {
+                  setForm((f) => ({ ...f, sending_email }));
+                  setErrors((prev) => {
+                    if (!prev.sending_email) return prev;
+                    const next = { ...prev };
+                    delete next.sending_email;
+                    return next;
+                  });
+                }}
               />
-              <p className="text-xs text-zoho-muted mt-1.5">
-                Must use an address on a domain verified in Resend (SPF, DKIM, DMARC).
-              </p>
             </FormField>
             <FormField label="Description" name="description">
               <textarea className="input min-h-[80px]" value={form.description} onChange={set('description')} />
@@ -192,6 +196,7 @@ export default function CreateSequenceForm() {
                   });
                 }}
               />
+              <p className="text-xs text-zoho-muted mt-1.5">{DAILY_SEND_LIMIT_HINT}</p>
             </FormField>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-sm">

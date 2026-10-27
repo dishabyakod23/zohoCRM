@@ -688,6 +688,7 @@ export function formatStepSchedule(step, fallbackTimezone = 'UTC') {
 
 export const MAX_DAILY_SEND_LIMIT = 50;
 export const DAILY_SEND_LIMIT_MAX_ERROR = 'the max limit is 50';
+export const DAILY_SEND_LIMIT_HINT = 'Maximum 50 per sequence per day.';
 
 export function dailySendLimitError(value) {
   if (value === '' || value == null) return null;
@@ -976,7 +977,7 @@ export function isSequenceSettingsDirty(settings, sequence) {
     || start(settings.send_window_start) !== start(sequence.send_window_start || '09:00')
     || start(settings.send_window_end) !== start(sequence.send_window_end || '18:00')
     || Number(settings.send_days ?? 62) !== Number(sequence.send_days ?? 62)
-    || Number(settings.daily_send_limit ?? 100) !== Number(sequence.daily_send_limit ?? 100)
+    || Number(settings.daily_send_limit ?? 50) !== Number(sequence.daily_send_limit ?? 50)
     || String(settings.hourly_send_limit ?? '') !== String(sequence.hourly_send_limit ?? '')
     || Boolean(settings.use_contact_timezone) !== Boolean(sequence.use_contact_timezone)
     || Boolean(settings.stop_on_reply !== false) !== Boolean(sequence.stop_on_reply !== false)
