@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { assigneeName, listResult, omitEmpty } from '../activityHelpers.js';
 import { DEFAULT_PAGE_SIZE } from '../constants.js';
-import { sequenceStatusLabel, normalizeStepFromApi, annotateStepSchedules, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText, isSequenceNameTaken, enrollmentNextActionFromStep, sameScheduleInstant, SCHEDULE_MODE_DATE, SCHEDULE_MODE_AFTER_PREVIOUS, isAfterPreviousSchedule, stepWaitDays, canEditSequenceSteps, enrollmentStatusesToSyncWithSequence, enrollmentsMatchingStatuses, openRatePercent } from '../sequenceHelpers.js';
+import { sequenceStatusLabel, normalizeStepFromApi, annotateStepSchedules, normalizeSequenceTimezone, normalizeScheduledTime, buildScheduledAtIso, ensureEmailHtmlBody, htmlToPlainText, isSequenceNameTaken, enrollmentNextActionFromStep, sameScheduleInstant, SCHEDULE_MODE_DATE, SCHEDULE_MODE_AFTER_PREVIOUS, isAfterPreviousSchedule, stepWaitDays, canEditSequenceSteps, enrollmentStatusesToSyncWithSequence, enrollmentsMatchingStatuses, openRatePercent, sendIntervalMinutesForApi } from '../sequenceHelpers.js';
 
 
 export function normalizeSequence(row) {
@@ -48,7 +48,11 @@ function toSequencePayload(form, { partial = false } = {}) {
     allow_re_enrollment: form.allow_re_enrollment,
     owner_id: form.owner_id || null,
   };
-  return partial ? omitEmpty(payload) : payload;
+  const next = partial ? omitEmpty(payload) : payload;
+  if (Object.prototype.hasOwnProperty.call(form, 'send_interval_minutes')) {
+    next.send_interval_minutes = sendIntervalMinutesForApi(form.send_interval_minutes);
+  }
+  return next;
 }
 
 export function toStepPayload(form, { partial = false, sequenceTimezone } = {}) {

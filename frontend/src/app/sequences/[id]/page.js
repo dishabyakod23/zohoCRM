@@ -20,7 +20,7 @@ import { usePermissions } from '../../../hooks/usePermissions.js';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue.js';
 import { getApiError } from '../../../lib/api.js';
 import * as sequencesApi from '../../../lib/services/sequences.js';
-import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel, enrollmentProgressByStep, isSequenceSettingsDirty, canEditSequenceSteps, MAX_DAILY_SEND_LIMIT, DAILY_SEND_LIMIT_HINT, dailySendLimitError, isDailySendLimitOverMax } from '../../../lib/sequenceHelpers.js';
+import { formatSendDays, sequenceStatusLabel, enrollmentStatusLabel, formatDateTimeInTimezone, SEND_DAYS, formatTimezoneLabel, enrollmentProgressByStep, isSequenceSettingsDirty, canEditSequenceSteps, MAX_DAILY_SEND_LIMIT, DAILY_SEND_LIMIT_HINT, SEND_INTERVAL_HINT, MAX_SEND_INTERVAL_MINUTES, dailySendLimitError, isDailySendLimitOverMax, sendIntervalMinutesError, sendIntervalMinutesFromRecord } from '../../../lib/sequenceHelpers.js';
 import { tokenizeSearchQuery } from '../../../lib/listSearchHelpers.js';
 import { fetchUsers } from '../../../lib/services/lookups.js';
 
@@ -77,6 +77,7 @@ export default function SequenceDetailPage() {
         send_days: seq.send_days ?? 62,
         daily_send_limit: seq.daily_send_limit ?? 50,
         hourly_send_limit: seq.hourly_send_limit ?? '',
+        send_interval_minutes: sendIntervalMinutesFromRecord(seq),
         use_contact_timezone: seq.use_contact_timezone ?? false,
         stop_on_reply: seq.stop_on_reply !== false,
         stop_on_click: seq.stop_on_click ?? false,
@@ -254,6 +255,12 @@ export default function SequenceDetailPage() {
     if (limitErr) {
       setSettingsErrors({ daily_send_limit: limitErr });
       showToast(limitErr);
+      return;
+    }
+    const intervalErr = sendIntervalMinutesError(settings?.send_interval_minutes);
+    if (intervalErr) {
+      setSettingsErrors({ send_interval_minutes: intervalErr });
+      showToast(intervalErr);
       return;
     }
     setSettingsErrors({});
@@ -559,8 +566,35 @@ export default function SequenceDetailPage() {
                 <input className="input" type="number" placeholder="Optional" value={settings.hourly_send_limit} disabled={!canEdit} onChange={(e) => setSettings((s) => ({ ...s, hourly_send_limit: e.target.value }))} />
               </FormField>
             </div>
+            <FormField
+              label="Send interval (minutes)"
+              error={sendIntervalMinutesError(settings.send_interval_minutes)}
+              name="send_interval_minutes"
+            >
+              <input
+                className={inputClass(sendIntervalMinutesError(settings.send_interval_minutes))}
+                type="number"
+                min={1}
+                max={MAX_SEND_INTERVAL_MINUTES}
+                placeholder="e.g. 5"
+                value={settings.send_interval_minutes}
+                disabled={!canEdit}
+                onChange={(e) => {
+                  const send_interval_minutes = e.target.value;
+                  setSettings((s) => ({ ...s, send_interval_minutes }));
+                  setSettingsErrors((prev) => {
+                    const next = { ...prev };
+                    const err = sendIntervalMinutesError(send_interval_minutes);
+                    if (err) next.send_interval_minutes = err;
+                    else delete next.send_interval_minutes;
+                    return next;
+                  });
+                }}
+              />
+              <p className="text-xs text-zoho-muted mt-1.5">{SEND_INTERVAL_HINT}</p>
+            </FormField>
             <p className="text-xs text-zoho-muted">
-              Emails due at the same time are throttled by daily/hourly limits (not blasted all at once). Window: {formatSendDays(settings.send_days)}.
+              Emails due at the same time are paced by this interval and by daily/hourly limits. Window: {formatSendDays(settings.send_days)}.
             </p>
             <div className="space-y-3 text-sm">
               <label className="flex items-start gap-2">

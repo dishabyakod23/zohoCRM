@@ -12,7 +12,7 @@ import { makeFieldSetter } from '../../lib/formInput.js';
 import { fetchUsers } from '../../lib/services/lookups.js';
 import * as sequencesApi from '../../lib/services/sequences.js';
 import SendingMailboxChoices from './SendingMailboxChoices.js';
-import { emptySequenceForm, SEND_DAYS, MAX_DAILY_SEND_LIMIT, DAILY_SEND_LIMIT_HINT, dailySendLimitError, isDailySendLimitOverMax } from '../../lib/sequenceHelpers.js';
+import { emptySequenceForm, SEND_DAYS, MAX_DAILY_SEND_LIMIT, DAILY_SEND_LIMIT_HINT, SEND_INTERVAL_HINT, MAX_SEND_INTERVAL_MINUTES, dailySendLimitError, isDailySendLimitOverMax, sendIntervalMinutesError } from '../../lib/sequenceHelpers.js';
 import { navigateToRecord, sequenceDetailHref } from '../../lib/recordNavigation.js';
 
 const REQUIRED = {
@@ -64,6 +64,8 @@ export default function CreateSequenceForm() {
     }
     const limitErr = dailySendLimitError(form.daily_send_limit);
     if (limitErr) nextErrors.daily_send_limit = limitErr;
+    const intervalErr = sendIntervalMinutesError(form.send_interval_minutes);
+    if (intervalErr) nextErrors.send_interval_minutes = intervalErr;
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
       showToast(validationToastMessage(nextErrors));
@@ -197,6 +199,32 @@ export default function CreateSequenceForm() {
                 }}
               />
               <p className="text-xs text-zoho-muted mt-1.5">{DAILY_SEND_LIMIT_HINT}</p>
+            </FormField>
+            <FormField
+              label="Send interval (minutes)"
+              error={errors.send_interval_minutes || sendIntervalMinutesError(form.send_interval_minutes)}
+              name="send_interval_minutes"
+            >
+              <input
+                className={inputClass(errors.send_interval_minutes || sendIntervalMinutesError(form.send_interval_minutes))}
+                type="number"
+                min={1}
+                max={MAX_SEND_INTERVAL_MINUTES}
+                placeholder="e.g. 5"
+                value={form.send_interval_minutes}
+                onChange={(e) => {
+                  const send_interval_minutes = e.target.value;
+                  setForm((f) => ({ ...f, send_interval_minutes }));
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    const err = sendIntervalMinutesError(send_interval_minutes);
+                    if (err) next.send_interval_minutes = err;
+                    else delete next.send_interval_minutes;
+                    return next;
+                  });
+                }}
+              />
+              <p className="text-xs text-zoho-muted mt-1.5">{SEND_INTERVAL_HINT}</p>
             </FormField>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-sm">

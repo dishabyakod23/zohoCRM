@@ -689,6 +689,39 @@ export function formatStepSchedule(step, fallbackTimezone = 'UTC') {
 export const MAX_DAILY_SEND_LIMIT = 50;
 export const DAILY_SEND_LIMIT_MAX_ERROR = 'the max limit is 50';
 export const DAILY_SEND_LIMIT_HINT = 'Maximum 50 per sequence per day.';
+export const MAX_SEND_INTERVAL_MINUTES = 1440;
+export const SEND_INTERVAL_HINT =
+  'Wait this many minutes after sending to one contact before sending to the next. Example: 5 sends the next email five minutes later.';
+
+export function sendIntervalMinutesFromRecord(row = {}) {
+  const raw = row.send_interval_minutes
+    ?? row.send_interval_min
+    ?? row.interval_minutes
+    ?? row.min_send_interval_minutes;
+  if (raw == null || raw === '') {
+    const seconds = row.send_interval_seconds ?? row.min_send_interval_seconds;
+    if (seconds == null || seconds === '') return '';
+    const fromSeconds = Number(seconds) / 60;
+    return Number.isFinite(fromSeconds) && fromSeconds > 0 ? fromSeconds : '';
+  }
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : '';
+}
+
+export function sendIntervalMinutesForApi(value) {
+  if (value === '' || value == null) return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export function sendIntervalMinutesError(value) {
+  if (value === '' || value == null) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 1 || n > MAX_SEND_INTERVAL_MINUTES) {
+    return 'Enter 1–1440 minutes, or leave blank.';
+  }
+  return null;
+}
 
 export function dailySendLimitError(value) {
   if (value === '' || value == null) return null;
@@ -714,6 +747,7 @@ export function emptySequenceForm(ownerId = '') {
     send_window_end: '18:00',
     send_days: DEFAULT_SEND_DAYS,
     daily_send_limit: 50,
+    send_interval_minutes: '',
     use_contact_timezone: false,
     stop_on_reply: true,
     stop_on_click: false,
@@ -979,6 +1013,7 @@ export function isSequenceSettingsDirty(settings, sequence) {
     || Number(settings.send_days ?? 62) !== Number(sequence.send_days ?? 62)
     || Number(settings.daily_send_limit ?? 50) !== Number(sequence.daily_send_limit ?? 50)
     || String(settings.hourly_send_limit ?? '') !== String(sequence.hourly_send_limit ?? '')
+    || String(settings.send_interval_minutes ?? '') !== String(sendIntervalMinutesFromRecord(sequence))
     || Boolean(settings.use_contact_timezone) !== Boolean(sequence.use_contact_timezone)
     || Boolean(settings.stop_on_reply !== false) !== Boolean(sequence.stop_on_reply !== false)
     || Boolean(settings.stop_on_click) !== Boolean(sequence.stop_on_click)

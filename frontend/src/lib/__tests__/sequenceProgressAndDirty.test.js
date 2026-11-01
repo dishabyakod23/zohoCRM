@@ -4,6 +4,9 @@ import {
   isSequenceSettingsDirty,
   dailySendLimitError,
   isDailySendLimitOverMax,
+  sendIntervalMinutesError,
+  sendIntervalMinutesFromRecord,
+  sendIntervalMinutesForApi,
   canRemoveEnrollment,
   canMarkEnrollmentReplied,
   canResumeEnrollment,
@@ -50,6 +53,7 @@ describe('sequenceStepEditSignature / settings dirty', () => {
       send_days: 62,
       daily_send_limit: 100,
       hourly_send_limit: '',
+      send_interval_minutes: '',
       use_contact_timezone: false,
       stop_on_reply: true,
       stop_on_click: false,
@@ -66,6 +70,29 @@ describe('sequenceStepEditSignature / settings dirty', () => {
       send_window_end: '18:00',
       name: 'Renamed',
     }, sequence)).toBe(true);
+    expect(isSequenceSettingsDirty({
+      ...sequence,
+      send_window_start: '09:00',
+      send_window_end: '18:00',
+      send_interval_minutes: 5,
+    }, sequence)).toBe(true);
+  });
+});
+
+describe('send interval minutes', () => {
+  it('accepts a blank or 1–1440 minute gap', () => {
+    expect(sendIntervalMinutesError('')).toBeNull();
+    expect(sendIntervalMinutesError(5)).toBeNull();
+    expect(sendIntervalMinutesError(0)).toBe('Enter 1–1440 minutes, or leave blank.');
+    expect(sendIntervalMinutesError(1441)).toBe('Enter 1–1440 minutes, or leave blank.');
+    expect(sendIntervalMinutesForApi('5')).toBe(5);
+    expect(sendIntervalMinutesForApi('')).toBeNull();
+  });
+
+  it('reads minutes from the sequence record, including seconds aliases', () => {
+    expect(sendIntervalMinutesFromRecord({ send_interval_minutes: 5 })).toBe(5);
+    expect(sendIntervalMinutesFromRecord({ send_interval_seconds: 300 })).toBe(5);
+    expect(sendIntervalMinutesFromRecord({})).toBe('');
   });
 });
 
