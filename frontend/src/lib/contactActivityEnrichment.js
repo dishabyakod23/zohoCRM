@@ -1,6 +1,6 @@
 import { formatCallDuration } from './services/cloudTalkCalls.js';
 import { phoneMatchKeys, phoneDigits } from './phoneLookup.js';
-import { matchesDateRange } from './listRecordFilters.js';
+import { applyContactDirectoryPostFetchFilters, matchesDateRange } from './listRecordFilters.js';
 import { buildOutreachActivityIndex, getLinkedInRequestSent } from './outreachActivity.js';
 import { leadStatusLabel } from './leadHelpers.js';
 import { directoryLeadStatusValue } from './contactDirectoryHelpers.js';
@@ -150,4 +150,16 @@ export function filterRowsByActivityDate(rows = [], filters = {}, {
   const callByPhone = buildLatestCallByPhoneKey(calls);
   const outreach = outreachIndex || buildOutreachActivityIndex();
   return rows.filter((row) => rowMatchesActivityDateRange(row, filters, { outreachIndex: outreach, callByPhone }));
+}
+
+/** Same visible-row filters as the Contacts table (notes, created/updated, activity). */
+export function filterVisibleContactDirectoryRows(rows = [], filters = {}, activityCtx = {}) {
+  const postFetch = applyContactDirectoryPostFetchFilters(rows, filters);
+  return filterRowsByActivityDate(postFetch, filters, activityCtx);
+}
+
+export function idsFromVisibleContactDirectoryRows(rows = [], filters = {}, activityCtx = {}) {
+  return filterVisibleContactDirectoryRows(rows, filters, activityCtx)
+    .map((row) => row.id)
+    .filter(Boolean);
 }

@@ -3,6 +3,7 @@ import {
   matchesRecordTimestampFilters,
   applyLeadRecordFilters,
   applyAccountRecordFilters,
+  applyContactDirectoryPostFetchFilters,
 } from '../listRecordFilters.js';
 
 describe('matchesRecordTimestampFilters', () => {
@@ -59,5 +60,21 @@ describe('matchesDateRange', () => {
   it('includes timestamps within the to calendar day', () => {
     const noon = new Date('2026-03-10T12:00:00');
     expect(matchesDateRange(noon.toISOString(), null, '2026-03-10')).toBe(true);
+  });
+});
+
+describe('applyContactDirectoryPostFetchFilters', () => {
+  const rows = [
+    { id: 'in', created_at: '2026-03-10T10:00:00.000Z', notes: 'follow up next week' },
+    { id: 'out-date', created_at: '2026-01-01T10:00:00.000Z', notes: 'follow up next week' },
+    { id: 'out-notes', created_at: '2026-03-10T10:00:00.000Z', notes: 'unrelated' },
+  ];
+
+  it('keeps only rows that match created date and notes', () => {
+    const filtered = applyContactDirectoryPostFetchFilters(rows, {
+      created_from: '2026-03-01',
+      notes_q: 'follow up',
+    });
+    expect(filtered.map((row) => row.id)).toEqual(['in']);
   });
 });

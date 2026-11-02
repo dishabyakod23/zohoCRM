@@ -2,10 +2,12 @@ import * as peopleApi from '../services/people.js';
 import * as contactsApi from '../services/contacts.js';
 import * as leadsApi from '../services/leads.js';
 import * as dealsApi from '../services/deals.js';
-import { listContactDirectory } from '../services/contactDirectory.js';
+import { listContactDirectory, listAllMatchingContactDirectoryIds } from '../services/contactDirectory.js';
+import { setLinkedInRequestSent, buildOutreachActivityIndex } from '../outreachActivity.js';
 
 jest.mock('../services/people.js', () => ({
   listPeople: jest.fn(),
+  listAllMatchingPeople: jest.fn(),
   listAllMatchingPeopleIds: jest.fn(),
 }));
 
@@ -92,5 +94,46 @@ describe('listContactDirectory', () => {
     expect(contactsApi.getContact).toHaveBeenCalledWith('c1', expect.anything());
     expect(result.total).toBe(1);
     expect(result.data[0].email).toBe('c1@example.com');
+  });
+});
+
+describe('listAllMatchingContactDirectoryIds', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    localStorage.clear();
+  });
+
+  it('applies created-date and notes filters the people API does not send', async () => {
+    peopleApi.listAllMatchingPeople.mockResolvedValue([
+      { id: 'in', created_at: '2026-03-10T10:00:00.000Z', notes: 'follow up next week' },
+      { id: 'out-date', created_at: '2026-01-01T10:00:00.000Z', notes: 'follow up next week' },
+      { id: 'out-notes', created_at: '2026-03-10T10:00:00.000Z', notes: 'unrelated' },
+    ]);
+
+    const ids = await listAllMatchingContactDirectoryIds({
+      filters: { created_from: '2026-03-01', notes_q: 'follow up' },
+    });
+
+    expect(ids).toEqual(['in']);
+  });
+
+  it('applies activity dates using the same outreach enrichment as the list', async () => {
+    setLinkedInRequestSent('c-in', { sent: true, user: { id: 'u1', name: 'Rep' } });
+    const outreachIndex = buildOutreachActivityIndex();
+    const sentDay = outreachIndex['c-in'][0].at.slice(0, 10);
+
+    peopleApi.listAllMatchingPeople.mockResolvedValue([
+      { id: 'contact:c-in', record_id: 'c-in' },
+      { id: 'contact:c-out', record_id: 'c-out' },
+    ]);
+
+    const ids = await listAllMatchingContactDirectoryIds(
+      { filters: { activity_from: sentDay, activity_to: sentDay } },
+      {},
+      [],
+      { outreachIndex, calls: [] },
+    );
+
+    expect(ids).toEqual(['contact:c-in']);
   });
 });

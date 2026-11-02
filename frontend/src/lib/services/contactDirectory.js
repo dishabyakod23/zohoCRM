@@ -9,6 +9,7 @@ import {
 import { DEFAULT_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
 import { usesCampaignMembershipFilter } from '../listRecordFilters.js';
+import { idsFromVisibleContactDirectoryRows } from '../contactActivityEnrichment.js';
 import { cachedFullList } from '../requestCache.js';
 
 const MEMBER_FETCH_CONCURRENCY = 10;
@@ -286,7 +287,14 @@ export async function listContactDirectory({
   }, accountMap);
 }
 
-export async function listAllMatchingContactDirectoryIds(params = {}, accountMap = {}, statusOptions = []) {
+export async function listAllMatchingContactDirectoryIds(
+  params = {},
+  accountMap = {},
+  statusOptions = [],
+  activityCtx = {},
+) {
+  let rows = [];
+
   if (params.filters?.campaign_id && params.campaignMemberIds) {
     const result = await listContactDirectoryForCampaign({
       ...params,
@@ -294,20 +302,21 @@ export async function listAllMatchingContactDirectoryIds(params = {}, accountMap
       page_size: CLIENT_FILTER_MAX_RECORDS,
       statusOptions,
     }, accountMap);
-    return (result.data || []).map((row) => row.id).filter(Boolean);
+    rows = result.data || [];
+  } else {
+    try {
+      rows = await peopleApi.listAllMatchingPeople(params);
+    } catch (err) {
+      if (!shouldFallbackFromDirectoryApi(err)) throw err;
+      const result = await listContactDirectoryClientSide({
+        ...params,
+        page: 1,
+        page_size: CLIENT_FILTER_MAX_RECORDS,
+        statusOptions,
+      }, accountMap);
+      rows = result.data || [];
+    }
   }
 
-  try {
-    return await peopleApi.listAllMatchingPeopleIds(params);
-  } catch (err) {
-    if (!shouldFallbackFromDirectoryApi(err)) throw err;
-  }
-
-  const result = await listContactDirectoryClientSide({
-    ...params,
-    page: 1,
-    page_size: CLIENT_FILTER_MAX_RECORDS,
-    statusOptions,
-  }, accountMap);
-  return (result.data || []).map((row) => row.id).filter(Boolean);
+  return idsFromVisibleContactDirectoryRows(rows, params.filters || {}, activityCtx);
 }

@@ -374,7 +374,7 @@ export async function listPeople({
   });
 }
 
-export async function listAllMatchingPeopleIds(params = {}) {
+export async function listAllMatchingPeople(params = {}) {
   const { apiSearch, tokens, needsClientMatch } = resolveListSearch(params.search);
   const pageSize = BULK_FETCH_PAGE_SIZE;
   const baseParams = buildPeopleParams({
@@ -397,13 +397,15 @@ export async function listAllMatchingPeopleIds(params = {}) {
   });
 
   if (needsClientMatch) {
-    return allRows
-      .filter((row) => matchesSearchTokens(row, tokens, personSearchHaystack))
-      .map((row) => row.id)
-      .filter(Boolean);
+    return allRows.filter((row) => matchesSearchTokens(row, tokens, personSearchHaystack));
   }
 
-  return allRows.map((row) => row.id).filter(Boolean);
+  return allRows;
+}
+
+export async function listAllMatchingPeopleIds(params = {}) {
+  const rows = await listAllMatchingPeople(params);
+  return rows.map((row) => row.id).filter(Boolean);
 }
 
 export async function fetchPeopleStatusOptions() {

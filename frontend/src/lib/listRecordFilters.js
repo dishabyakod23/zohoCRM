@@ -62,6 +62,23 @@ export function matchesRecordTimestampFilters(record, filters = {}) {
   return true;
 }
 
+export function matchesNotesQuery(record, notes_q) {
+  if (!String(notes_q || '').trim()) return true;
+  const blob = [record?.description, record?.notes, record?.follow_up_notes, record?.followup_notes]
+    .filter(Boolean)
+    .join(' ');
+  return includesText(blob, notes_q);
+}
+
+/** Client-only contact-directory filters the people API does not accept. */
+export function applyContactDirectoryPostFetchFilters(rows = [], filters = {}) {
+  return (rows || []).filter((row) => {
+    if (!matchesNotesQuery(row, filters.notes_q)) return false;
+    if (!matchesRecordTimestampFilters(row, filters)) return false;
+    return true;
+  });
+}
+
 export function matchSource(lead, source) {
   if (!source) return true;
   const value = String(lead.source || lead.lead_source || '');

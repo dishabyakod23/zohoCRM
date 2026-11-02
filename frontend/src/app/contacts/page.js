@@ -23,7 +23,7 @@ import PhoneCell from '../../components/cloudtalk/PhoneCell.js';
 import LinkedInCell from '../../components/records/LinkedInCell.js';
 import { tableLinkClass, tableEmailClass, tableAvatarClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter, DateFilter, CreatedUpdatedDateFilters } from '../../components/layout/ListFilterFields.js';
-import { EMPTY_CONTACT_FILTERS, countActiveFilters, matchLeadStatus, hasTimestampFilters, matchesRecordTimestampFilters } from '../../lib/listRecordFilters.js';
+import { EMPTY_CONTACT_FILTERS, countActiveFilters, matchLeadStatus, hasTimestampFilters, applyContactDirectoryPostFetchFilters } from '../../lib/listRecordFilters.js';
 import { recordTimestampColumns } from '../../lib/listTimestampHelpers.js';
 import { DIRECTORY_STATUS_OPTIONS } from '../../lib/contactDirectoryHelpers.js';
 import { outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
@@ -186,20 +186,7 @@ export default function ContactsPage() {
         rows = rows.filter((row) => matchLeadStatus(row, directoryFilters.lead_status));
       }
 
-      if (directoryFilters.notes_q?.trim()) {
-        const q = directoryFilters.notes_q.trim().toLowerCase();
-        rows = rows.filter((row) => {
-          const blob = [row.description, row.notes, row.follow_up_notes, row.followup_notes]
-            .filter(Boolean)
-            .join(' ')
-            .toLowerCase();
-          return blob.includes(q);
-        });
-      }
-
-      if (hasTimestampFilters(filters)) {
-        rows = rows.filter((row) => matchesRecordTimestampFilters(row, filters));
-      }
+      rows = applyContactDirectoryPostFetchFilters(rows, filters);
 
       if (needsClientPagination) {
         const enrichedRows = await enrichRowsWithActivity(rows);
@@ -268,10 +255,19 @@ export default function ContactsPage() {
     memberGroups: campaignMemberGroups,
   }), [debouncedSearch, sort, filters, campaignMemberIdsKey, campaignMemberGroups]);
 
-  const fetchAllMatchingContactIds = useCallback(
-    () => contactDirectoryApi.listAllMatchingContactDirectoryIds(contactListParams, accountMapRef.current),
-    [contactListParams],
-  );
+  const fetchAllMatchingContactIds = useCallback(async () => {
+    const activityCtx = {};
+    if (filters.activity_from || filters.activity_to) {
+      activityCtx.calls = await loadActivityCalls();
+      activityCtx.outreachIndex = buildOutreachActivityIndex();
+    }
+    return contactDirectoryApi.listAllMatchingContactDirectoryIds(
+      contactListParams,
+      accountMapRef.current,
+      leadStatusOptionsRef.current,
+      activityCtx,
+    );
+  }, [contactListParams, filters.activity_from, filters.activity_to, loadActivityCalls]);
 
   const tableSelection = useTableSelection({
     total,
