@@ -4,6 +4,7 @@ import {
   applyLeadRecordFilters,
   applyAccountRecordFilters,
   applyContactDirectoryPostFetchFilters,
+  hasContactDirectoryPostFetchFilters,
 } from '../listRecordFilters.js';
 
 describe('matchesRecordTimestampFilters', () => {
@@ -76,5 +77,11 @@ describe('applyContactDirectoryPostFetchFilters', () => {
       notes_q: 'follow up',
     });
     expect(filtered.map((row) => row.id)).toEqual(['in']);
+  });
+
+  it('detects notes and timestamp filters the people API cannot apply', () => {
+    expect(hasContactDirectoryPostFetchFilters({ notes_q: 'follow up next week' })).toBe(true);
+    expect(hasContactDirectoryPostFetchFilters({ created_from: '2026-03-01' })).toBe(true);
+    expect(hasContactDirectoryPostFetchFilters({ company: 'Acme' })).toBe(false);
   });
 });

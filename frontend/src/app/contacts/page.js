@@ -77,6 +77,7 @@ export default function ContactsPage() {
   const activityCallsRef = useRef([]);
   const activityCallsLoadedRef = useRef(false);
   const fetchGenRef = useRef(0);
+  const matchingIdsRef = useRef([]);
 
   const accountMap = useMemo(() => accountMapFromLookups(accounts), [accounts]);
   const accountMapRef = useRef(accountMap);
@@ -163,6 +164,7 @@ export default function ContactsPage() {
     if (filters.campaign_id && !campaignMembersReady) return;
 
     const gen = ++fetchGenRef.current;
+    matchingIdsRef.current = [];
     setLoading(true);
     try {
       const directoryFilters = filters;
@@ -198,7 +200,8 @@ export default function ContactsPage() {
           filteredRows = filterRowsByActivityDate(enrichedRows, filters, { outreachIndex, calls });
         }
         const start = (page - 1) * LIMIT;
-        setTotal(filteredRows.length);
+        matchingIdsRef.current = filteredRows.map((row) => row.id).filter(Boolean);
+        setTotal(matchingIdsRef.current.length);
         setContacts(filteredRows.slice(start, start + LIMIT));
       } else {
         const syncEnriched = enrichContactDirectoryRows(rows, {
@@ -207,6 +210,7 @@ export default function ContactsPage() {
           statusOptions: leadStatusOptionsRef.current,
         });
         setContacts(syncEnriched);
+        matchingIdsRef.current = [];
         setTotal(result.total);
         enrichRowsWithActivity(rows).then((enriched) => {
           if (gen !== fetchGenRef.current) return;
@@ -256,6 +260,9 @@ export default function ContactsPage() {
   }), [debouncedSearch, sort, filters, campaignMemberIdsKey, campaignMemberGroups]);
 
   const fetchAllMatchingContactIds = useCallback(async () => {
+    if (needsClientPagination && matchingIdsRef.current.length) {
+      return matchingIdsRef.current.slice();
+    }
     const activityCtx = {};
     if (filters.activity_from || filters.activity_to) {
       activityCtx.calls = await loadActivityCalls();
@@ -267,7 +274,7 @@ export default function ContactsPage() {
       leadStatusOptionsRef.current,
       activityCtx,
     );
-  }, [contactListParams, filters.activity_from, filters.activity_to, loadActivityCalls]);
+  }, [contactListParams, filters.activity_from, filters.activity_to, loadActivityCalls, needsClientPagination]);
 
   const tableSelection = useTableSelection({
     total,

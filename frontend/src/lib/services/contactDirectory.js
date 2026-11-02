@@ -8,7 +8,7 @@ import {
 } from '../contactDirectoryHelpers.js';
 import { DEFAULT_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
 import { sortRecords } from '../listSortHelpers.js';
-import { usesCampaignMembershipFilter } from '../listRecordFilters.js';
+import { hasContactDirectoryPostFetchFilters, usesCampaignMembershipFilter } from '../listRecordFilters.js';
 import { idsFromVisibleContactDirectoryRows } from '../contactActivityEnrichment.js';
 import { cachedFullList } from '../requestCache.js';
 
@@ -293,10 +293,21 @@ export async function listAllMatchingContactDirectoryIds(
   statusOptions = [],
   activityCtx = {},
 ) {
+  const filters = params.filters || {};
   let rows = [];
 
-  if (params.filters?.campaign_id && params.campaignMemberIds) {
+  if (filters.campaign_id && params.campaignMemberIds) {
     const result = await listContactDirectoryForCampaign({
+      ...params,
+      page: 1,
+      page_size: CLIENT_FILTER_MAX_RECORDS,
+      statusOptions,
+    }, accountMap);
+    rows = result.data || [];
+  } else if (hasContactDirectoryPostFetchFilters(filters)) {
+    // Same fetch as the Contacts table (one client-filter page), not a full
+    // unfiltered crawl that can return people the table never showed.
+    const result = await listContactDirectory({
       ...params,
       page: 1,
       page_size: CLIENT_FILTER_MAX_RECORDS,
@@ -318,5 +329,5 @@ export async function listAllMatchingContactDirectoryIds(
     }
   }
 
-  return idsFromVisibleContactDirectoryRows(rows, params.filters || {}, activityCtx);
+  return idsFromVisibleContactDirectoryRows(rows, filters, activityCtx);
 }

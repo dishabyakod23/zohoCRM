@@ -70,6 +70,15 @@ export function matchesNotesQuery(record, notes_q) {
   return includesText(blob, notes_q);
 }
 
+export function hasContactDirectoryPostFetchFilters(filters = {}) {
+  return Boolean(
+    String(filters.notes_q || '').trim()
+    || filters.activity_from
+    || filters.activity_to
+    || hasTimestampFilters(filters),
+  );
+}
+
 /** Client-only contact-directory filters the people API does not accept. */
 export function applyContactDirectoryPostFetchFilters(rows = [], filters = {}) {
   return (rows || []).filter((row) => {
