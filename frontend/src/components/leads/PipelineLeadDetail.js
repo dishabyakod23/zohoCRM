@@ -21,7 +21,7 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { fetchUsers, fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
-import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, proposalDealStatusLabel, proposalTypeLabel, resolveLeadPipelineStage, getLeadDetailPath, outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, proposalDealStatusLabel, proposalTypeLabel, resolveLeadPipelineStage, getLeadDetailPath, outreachLeadStatusOptions, emptyProposalDetails, buildSiblingProposalPayloads, otherProposalsForClient } from '../../lib/pipelineHelpers.js';
 import { isLostLeadStatus, lostReasonLabel } from '../../lib/statusHelpers.js';
 import { ownerFieldConfig } from '../forms/ownerField.js';
 import { trackRecentItem } from '../layout/BottomUtilityBar.js';
@@ -38,6 +38,8 @@ import { nextStateForCountry } from '../../lib/addressRegions.js';
 import { formatMoney, CURRENCIES, DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import CurrencyAmountInput from '../forms/CurrencyAmountInput.js';
 import AccountNameCombobox from '../forms/AccountNameCombobox.js';
+import ProposalDetailFields from './ProposalDetailFields.js';
+import RecordDetailLink from '../records/RecordDetailLink.js';
 import { useCompanyLookups } from '../../hooks/useCompanyLookups.js';
 import { SALUTATIONS } from '../../lib/constants.js';
 import {
@@ -61,6 +63,22 @@ export default function PipelineLeadDetail({ stage }) {
   const [assignUserId, setAssignUserId] = useState('');
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const [extraProposals, setExtraProposals] = useState([]);
+  const extraProposalKey = useRef(0);
+  const [clientProposals, setClientProposals] = useState([]);
+
+  const loadClientProposals = useCallback(async (record) => {
+    if (stage !== PIPELINE_PROPOSAL || !record?.id) return;
+    try {
+      const { data } = await leadsApi.listAllLeads({
+        pipeline_stage: PIPELINE_PROPOSAL,
+        search: record.email || record.company || undefined,
+      });
+      setClientProposals(otherProposalsForClient(record, data));
+    } catch {
+      setClientProposals([]);
+    }
+  }, [stage]);
   const [statusOptions, setStatusOptions] = useState(() => outreachLeadStatusOptions(FALLBACK_LEAD_STATUSES));
   const [sourceOptions, setSourceOptions] = useState([]);
   const [lostReasonOptions, setLostReasonOptions] = useState([]);
@@ -129,6 +147,11 @@ export default function PipelineLeadDetail({ stage }) {
     loadLead();
   }, [loadLead, id]);
 
+  useEffect(() => {
+    if (lead?.id) loadClientProposals(lead);
+    // Reload only when the record or its client identity changes, not on every field edit.
+  }, [lead?.id, lead?.email, lead?.company, loadClientProposals]);
+
   const saveSection = async (payload) => {
     // Guard set synchronously (before any await) so a rapid double-click or a slow
     // in-flight email-uniqueness check can't start a second, concurrent submission.
@@ -179,6 +202,52 @@ export default function PipelineLeadDetail({ stage }) {
       savingRef.current = false;
       setSaving(false);
     }
+  };
+
+  const addExtraProposal = () => {
+    extraProposalKey.current += 1;
+    setExtraProposals((list) => [
+      ...list,
+      { key: `proposal-${extraProposalKey.current}`, ...emptyProposalDetails(lead?.amc_currency || lead?.currency || DEFAULT_CURRENCY) },
+    ]);
+  };
+
+  const updateExtraProposal = (key, field, value) => {
+    setExtraProposals((list) => list.map((p) => (p.key === key ? { ...p, [field]: value } : p)));
+  };
+
+  // Saves this proposal, then creates each added proposal as a new record for the same client.
+  // Added proposals that fail stay in the form (and edit mode stays open) so they can be retried.
+  const saveProposalSection = async (payload) => {
+    await saveSection(payload);
+    if (!extraProposals.length) return;
+    const payloads = buildSiblingProposalPayloads({ ...lead, ...payload }, extraProposals);
+    const failed = [];
+    const errors = [];
+    setSaving(true);
+    try {
+      for (let i = 0; i < payloads.length; i += 1) {
+        try {
+          await leadsApi.createProposal(payloads[i], { currentUserId: user?.id });
+        } catch (err) {
+          failed.push(extraProposals[i]);
+          errors.push(getApiError(err));
+        }
+      }
+    } finally {
+      setSaving(false);
+    }
+    const created = payloads.length - failed.length;
+    if (created) {
+      markRecordListStale();
+      loadClientProposals({ ...lead, ...payload });
+    }
+    setExtraProposals(failed);
+    if (failed.length) {
+      showToast(`${created} of ${payloads.length} new proposals created. Not saved — ${errors.join('; ')}`);
+      throw new Error('Some proposals were not created');
+    }
+    showToast(created === 1 ? 'Updated and 1 more proposal created' : `Updated and ${created} more proposals created`, 'success');
   };
 
   const handleAssign = async () => {
@@ -357,7 +426,37 @@ export default function PipelineLeadDetail({ stage }) {
               canEdit={editable}
               saving={saving}
               values={lead}
-              onSave={saveSection}
+              onSave={saveProposalSection}
+              onEditStart={() => setExtraProposals([])}
+              onCancel={() => setExtraProposals([])}
+              editExtras={(
+                <div className="mt-2">
+                  {extraProposals.map((proposal, index) => (
+                    <div key={proposal.key} className="pt-4 mt-4 border-t border-zoho-border/60">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider">{`New Proposal ${index + 1} for ${lead.company || 'this client'}`}</p>
+                        <button
+                          type="button"
+                          onClick={() => setExtraProposals((list) => list.filter((p) => p.key !== proposal.key))}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <ProposalDetailFields
+                        values={proposal}
+                        currency={proposal.currency || lead.currency || DEFAULT_CURRENCY}
+                        namePrefix={`${proposal.key}-`}
+                        onChange={(field, value) => updateExtraProposal(proposal.key, field, value)}
+                        onCurrencyChange={(e) => updateExtraProposal(proposal.key, 'currency', e.target.value)}
+                      />
+                    </div>
+                  ))}
+                  <button type="button" onClick={addExtraProposal} className="btn-secondary text-xs mt-4">
+                    + Add another proposal
+                  </button>
+                </div>
+              )}
               fields={[
                 { name: 'proposal_date', label: 'Proposal Date', format: (v) => (v ? new Date(v).toLocaleDateString() : null), render: (d, set) => (
                   <input className="input" type="date" value={(d.proposal_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, proposal_date: e.target.value }))} />
@@ -388,6 +487,43 @@ export default function PipelineLeadDetail({ stage }) {
                 ) },
               ]}
             />
+          )}
+          {stage === PIPELINE_PROPOSAL && (
+            <div className="card p-5">
+              <h3 className="text-xs font-semibold text-zoho-muted uppercase tracking-wider mb-4">
+                {`Other Proposals for ${lead.company || 'this client'} (${clientProposals.length})`}
+              </h3>
+              {clientProposals.length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-[11px] text-zoho-muted uppercase tracking-wider">
+                        <th className="py-2 pr-4 font-medium">Proposal Date</th>
+                        <th className="py-2 pr-4 font-medium">Proposal Type</th>
+                        <th className="py-2 pr-4 font-medium">Size of the Deal</th>
+                        <th className="py-2 pr-4 font-medium">Deal Status</th>
+                        <th className="py-2 font-medium" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zoho-border/60">
+                      {clientProposals.map((p) => (
+                        <tr key={p.id}>
+                          <td className="py-2 pr-4">{p.proposal_date ? new Date(p.proposal_date).toLocaleDateString() : '—'}</td>
+                          <td className="py-2 pr-4">{p.proposal_type_label || proposalTypeLabel(p.proposal_type)}</td>
+                          <td className="py-2 pr-4">{p.deal_size ?? p.proposal_amount ? formatMoney(p.deal_size ?? p.proposal_amount, p.currency) : '—'}</td>
+                          <td className="py-2 pr-4">{p.deal_status_label || proposalDealStatusLabel(p.deal_status)}</td>
+                          <td className="py-2 text-right">
+                            <RecordDetailLink href={config.detailPath(p.id)} className="text-xs font-medium text-brand-600 hover:underline">Open</RecordDetailLink>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-zoho-muted">No other proposals for this client yet. Click Edit on Proposal Information and use “+ Add another proposal”.</p>
+              )}
+            </div>
           )}
           <EditableFieldSection
             title="Contact Information"

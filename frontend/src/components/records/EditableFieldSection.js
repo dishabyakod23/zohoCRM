@@ -29,6 +29,9 @@ export default function EditableFieldSection({
   values = {},
   onSave,
   saving = false,
+  editExtras = null,
+  onEditStart,
+  onCancel,
 }) {
   const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
@@ -51,11 +54,13 @@ export default function EditableFieldSection({
     setDraft(initial);
     setFieldErrors({});
     setEditing(true);
+    onEditStart?.();
   };
 
   const cancel = () => {
     setFieldErrors({});
     setEditing(false);
+    onCancel?.();
   };
 
   const save = async () => {
@@ -157,6 +162,7 @@ export default function EditableFieldSection({
               </div>
             ))}
           </div>
+          {editExtras}
           <div className="flex gap-2 mt-5 justify-end pt-4 border-t border-zoho-border/60">
             <button type="button" onClick={cancel} className="btn-secondary text-xs">Cancel</button>
             <button type="button" onClick={save} disabled={saving} className="btn-primary text-xs">

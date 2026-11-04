@@ -8,7 +8,60 @@ import {
   outreachLeadStatusOptions,
   getConvertOptions,
   buildProposalPayloads,
+  buildSiblingProposalPayloads,
+  otherProposalsForClient,
+  countProposalsPerClient,
 } from '../pipelineHelpers.js';
+
+describe('proposals of the same client', () => {
+  const rows = [
+    { id: 1, email: 'Asha@Zyarex.com', first_name: 'Asha', company: 'Zyarex' },
+    { id: 2, email: 'asha@zyarex.com', first_name: 'Asha', company: 'Zyarex' },
+    { id: 3, email: 'ravi@other.com', first_name: 'Ravi', company: 'Other' },
+    { id: 4, email: '', first_name: 'No', last_name: 'Email', company: 'Acme' },
+    { id: 5, email: '', first_name: 'No', last_name: 'Email', company: 'Acme' },
+  ];
+
+  it('finds the other proposals by email, ignoring case and the record itself', () => {
+    expect(otherProposalsForClient(rows[0], rows).map((r) => r.id)).toEqual([2]);
+  });
+
+  it('falls back to name and company when there is no email', () => {
+    expect(otherProposalsForClient(rows[3], rows).map((r) => r.id)).toEqual([5]);
+  });
+
+  it('counts proposals per client for each row', () => {
+    const counts = countProposalsPerClient(rows);
+    expect(counts.get(1)).toBe(2);
+    expect(counts.get(3)).toBe(1);
+    expect(counts.get(5)).toBe(2);
+  });
+});
+
+describe('buildSiblingProposalPayloads', () => {
+  const lead = {
+    id: 'lead-1', first_name: 'Asha', company: 'Zyarex', email: 'asha@zyarex.com', currency: 'INR',
+    pipeline_stage: 'proposal', deal_size: '5000', proposal_amount: '5000', proposal_type: 'fixed_cost',
+    proposal_type_label: 'Fixed Cost', deal_status: 'active_proposal', proposal_date: '2026-10-01',
+  };
+
+  it('copies client details but none of the existing proposal fields', () => {
+    const [payload] = buildSiblingProposalPayloads(lead, [{ deal_size: '', proposal_type: 'time_and_material', deal_status: 'active_proposal' }]);
+    expect(payload).toMatchObject({ first_name: 'Asha', company: 'Zyarex', email: 'asha@zyarex.com', pipeline_stage: 'proposal' });
+    expect(payload).not.toHaveProperty('id');
+    expect(payload).not.toHaveProperty('proposal_amount');
+    expect(payload.deal_size).toBe('');
+    expect(payload.proposal_date).toBe('');
+    expect(payload.proposal_type).toBe('time_and_material');
+  });
+
+  it('returns one payload per extra proposal and keeps a per-proposal currency', () => {
+    const payloads = buildSiblingProposalPayloads(lead, [{ currency: 'USD' }, {}]);
+    expect(payloads).toHaveLength(2);
+    expect(payloads[0].currency).toBe('USD');
+    expect(payloads[1].currency).toBe('INR');
+  });
+});
 
 describe('buildProposalPayloads', () => {
   const form = {

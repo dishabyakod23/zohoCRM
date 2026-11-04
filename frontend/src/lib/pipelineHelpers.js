@@ -53,6 +53,52 @@ export function buildProposalPayloads(form, extraProposals = []) {
   ];
 }
 
+/**
+ * Client details of an existing proposal record, for creating sibling proposals.
+ * Drops the record's own id and proposal fields (including the legacy proposal_amount,
+ * which the payload falls back to when deal_size is empty).
+ */
+export function proposalClientDetails(lead = {}) {
+  const details = { ...lead };
+  for (const field of [...PROPOSAL_DETAIL_FIELDS, 'id', 'proposal_amount', 'proposal_type_label', 'deal_status_label']) {
+    delete details[field];
+  }
+  return details;
+}
+
+/** Create payloads for extra proposals added on an existing proposal's detail page. */
+export function buildSiblingProposalPayloads(lead, extraProposals = []) {
+  const client = proposalClientDetails(lead);
+  return buildProposalPayloads(client, extraProposals).slice(1).map((payload, i) => (
+    extraProposals[i]?.currency ? { ...payload, currency: extraProposals[i].currency } : payload
+  ));
+}
+
+/** Key that groups proposals of one client: their email, or name + company when there is none. */
+export function proposalClientKey(lead = {}) {
+  const email = String(lead.email || '').trim().toLowerCase();
+  if (email) return `email:${email}`;
+  const parts = [lead.first_name, lead.last_name, lead.company].map((p) => String(p || '').trim().toLowerCase());
+  return parts.some(Boolean) ? `name:${parts.join('|')}` : '';
+}
+
+/** The other proposals in `proposals` that belong to the same client as `lead`. */
+export function otherProposalsForClient(lead, proposals = []) {
+  const key = proposalClientKey(lead);
+  if (!key) return [];
+  return proposals.filter((p) => String(p.id) !== String(lead.id) && proposalClientKey(p) === key);
+}
+
+/** How many of `rows` share each row's client, keyed by row id. */
+export function countProposalsPerClient(rows = []) {
+  const totals = new Map();
+  for (const row of rows) {
+    const key = proposalClientKey(row);
+    if (key) totals.set(key, (totals.get(key) || 0) + 1);
+  }
+  return new Map(rows.map((row) => [row.id, totals.get(proposalClientKey(row)) || 1]));
+}
+
 export function proposalDealStatusLabel(status) {
   if (!status) return '—';
   const match = PROPOSAL_DEAL_STATUSES.find((s) => s.value === status);

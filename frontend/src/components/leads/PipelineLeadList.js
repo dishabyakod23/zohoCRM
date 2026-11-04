@@ -24,7 +24,7 @@ import LinkedInCell from '../records/LinkedInCell.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
 import { formatMoney } from '../../lib/currencies.js';
 import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../layout/ListFilterFields.js';
-import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES, PIPELINE_MODULE_PERMISSION } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES, PIPELINE_MODULE_PERMISSION, countProposalsPerClient } from '../../lib/pipelineHelpers.js';
 
 import { EMPTY_LEAD_FILTERS, countActiveFilters, leadFiltersFromSearchParams } from '../../lib/listRecordFilters.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
@@ -137,6 +137,17 @@ function PipelineLeadListContent({ stage, description }) {
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
   useListRefresh(fetchLeads);
 
+  // Proposals per client across all pages, so rows for one client show "N proposals".
+  const [clientProposalCounts, setClientProposalCounts] = useState(() => new Map());
+  useEffect(() => {
+    if (stage !== PIPELINE_PROPOSAL) return undefined;
+    let cancelled = false;
+    leadsApi.listAllLeads({ pipeline_stage: PIPELINE_PROPOSAL }, statusOptionsRef.current)
+      .then(({ data }) => { if (!cancelled) setClientProposalCounts(countProposalsPerClient(data)); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [stage, total]);
+
   const downloadTemplate = async () => {
     try {
       await leadsApi.downloadLeadImportTemplate();
@@ -194,9 +205,23 @@ function PipelineLeadListContent({ stage, description }) {
 
   const columns = useMemo(() => {
     if (stage === PIPELINE_PROPOSAL) {
+      const pageCounts = countProposalsPerClient(leads);
       const cols = [
-        { id: 'name', header: 'Name', cell: (lead) => <RecordDetailLink href={config.detailPath(lead.id)} className={tableLinkClass}>{lead.first_name} {lead.last_name}</RecordDetailLink> },
+        { id: 'name', header: 'Name', cell: (lead) => {
+          const count = Math.max(clientProposalCounts.get(lead.id) || 0, pageCounts.get(lead.id) || 1);
+          return (
+            <span className="inline-flex items-center gap-2">
+              <RecordDetailLink href={config.detailPath(lead.id)} className={tableLinkClass}>{lead.first_name} {lead.last_name}</RecordDetailLink>
+              {count > 1 && (
+                <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 whitespace-nowrap" title="Proposals for this client">
+                  {`${count} proposals`}
+                </span>
+              )}
+            </span>
+          );
+        } },
         { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
+        { id: 'email', header: 'Email', sortField: 'email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
         { id: 'proposal_date', header: 'Proposal Date', cell: (lead) => formatDate(lead.proposal_date) },
         { id: 'deal_size', header: 'Deal Size', cell: (lead) => formatDealSize(lead.deal_size ?? lead.proposal_amount, lead.currency) },
         { id: 'proposal_type', header: 'Proposal Type', cell: (lead) => lead.proposal_type_label || proposalTypeLabel(lead.proposal_type) },
@@ -231,7 +256,7 @@ function PipelineLeadListContent({ stage, description }) {
       });
     }
     return cols;
-  }, [config, canAssignLeads, user?.id]);
+  }, [config, canAssignLeads, user?.id, stage, leads, clientProposalCounts]);
 
   const createLabel = stage === PIPELINE_RAW
     ? 'Create Cold Lead'

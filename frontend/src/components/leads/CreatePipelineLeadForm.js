@@ -12,7 +12,7 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import { fetchUsers, fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import {
-  PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, outreachLeadStatusOptions, emptyProposalDetails, buildProposalPayloads,
+  outreachLeadStatusOptions, emptyProposalDetails, buildProposalPayloads,
 } from '../../lib/pipelineHelpers.js';
 import { isLostLeadStatus } from '../../lib/statusHelpers.js';
 import { makeFieldSetter } from '../../lib/formInput.js';
@@ -27,6 +27,7 @@ import CampaignSelect from '../forms/CampaignSelect.js';
 import CompanySelect from '../forms/CompanySelect.js';
 import { DEFAULT_CURRENCY } from '../../lib/currencies.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
+import ProposalDetailFields from './ProposalDetailFields.js';
 import { tryAttachCampaignAfterCreate } from '../../lib/campaignRecordHelpers.js';
 
 export function emptyPipelineLeadForm(ownerId = '', defaults = {}) {
@@ -91,48 +92,6 @@ function noneSelect(value, onChange, options, placeholder = '--None--') {
         ? <option key={o} value={o}>{o}</option>
         : <option key={o.value} value={o.value}>{o.label}</option>))}
     </select>
-  );
-}
-
-/** Proposal-specific inputs, repeated once per proposal on the Create Proposal form. */
-function ProposalDetailFields({ values, currency, onChange, onCurrencyChange, namePrefix = '' }) {
-  const change = (field) => (e) => onChange(field, e.target.value);
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-      <FormField label="Proposal Date" name={`${namePrefix}proposal_date`}>
-        <input className="input" type="date" value={values.proposal_date?.slice?.(0, 10) || values.proposal_date || ''} onChange={change('proposal_date')} />
-      </FormField>
-      <FormField label="Size of the Deal" name={`${namePrefix}deal_size`}>
-        <CurrencyAmountInput
-          amount={values.deal_size}
-          currency={currency}
-          onAmountChange={change('deal_size')}
-          onCurrencyChange={onCurrencyChange}
-        />
-      </FormField>
-      <FormField label="Closure Date" name={`${namePrefix}closure_date`}>
-        <input className="input" type="date" value={values.closure_date?.slice?.(0, 10) || values.closure_date || ''} onChange={change('closure_date')} />
-      </FormField>
-      <FormField label="Deal Status" name={`${namePrefix}deal_status`}>
-        {noneSelect(values.deal_status, change('deal_status'), PROPOSAL_DEAL_STATUSES)}
-      </FormField>
-      <FormField label="Proposal Type" name={`${namePrefix}proposal_type`}>
-        {noneSelect(values.proposal_type, change('proposal_type'), PROPOSAL_TYPES)}
-      </FormField>
-      <FormField label="AMC / IT Support" name={`${namePrefix}amc_it_support`}>
-        <CurrencyAmountInput
-          amount={values.amc_it_support}
-          currency={values.amc_currency || currency}
-          onAmountChange={(e) => {
-            const value = e.target.value;
-            if (value !== '' && !/^\d*\.?\d*$/.test(value)) return;
-            onChange('amc_it_support', value);
-          }}
-          onCurrencyChange={change('amc_currency')}
-          placeholder="0"
-        />
-      </FormField>
-    </div>
   );
 }
 
