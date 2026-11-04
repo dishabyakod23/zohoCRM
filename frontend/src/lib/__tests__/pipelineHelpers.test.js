@@ -7,7 +7,36 @@ import {
   excludeLeadsMatchingProposals,
   outreachLeadStatusOptions,
   getConvertOptions,
+  buildProposalPayloads,
 } from '../pipelineHelpers.js';
+
+describe('buildProposalPayloads', () => {
+  const form = {
+    first_name: 'Asha', company: 'Zyarex', email: 'asha@zyarex.com', currency: 'USD',
+    proposal_date: '2026-11-01', deal_size: '1000', deal_status: 'active_proposal', proposal_type: 'fixed_cost',
+  };
+
+  it('returns only the main form when there are no extra proposals', () => {
+    expect(buildProposalPayloads(form)).toEqual([form]);
+  });
+
+  it('copies client details onto each extra proposal and keeps its own proposal fields', () => {
+    const [, second] = buildProposalPayloads(form, [
+      { key: 'x', deal_size: '5000', proposal_type: 'time_and_material', deal_status: 'active_proposal' },
+    ]);
+    expect(second).toMatchObject({
+      first_name: 'Asha', company: 'Zyarex', email: 'asha@zyarex.com', currency: 'USD',
+      deal_size: '5000', proposal_type: 'time_and_material', deal_status: 'active_proposal',
+    });
+    // Unset per-proposal fields must not inherit the first proposal's values.
+    expect(second.proposal_date).toBe('');
+    expect(second).not.toHaveProperty('key');
+  });
+
+  it('creates one payload per extra proposal', () => {
+    expect(buildProposalPayloads(form, [{}, {}, {}])).toHaveLength(4);
+  });
+});
 
 describe('resolveLeadPipelineStage', () => {
   it('keeps raw pipeline leads when lead_status is not_contacted', () => {

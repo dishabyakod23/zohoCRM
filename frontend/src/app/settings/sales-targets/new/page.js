@@ -1,6 +1,6 @@
 'use client';
-import SalesTargetEditor from '../../../../components/settings/SalesTargetEditor.js';
+import TeamTargetWizard from '../../../../components/settings/TeamTargetWizard.js';
 
 export default function NewSalesTargetPage() {
-  return <SalesTargetEditor />;
+  return <TeamTargetWizard />;
 }

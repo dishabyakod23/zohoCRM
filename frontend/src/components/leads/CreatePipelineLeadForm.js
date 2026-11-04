@@ -11,7 +11,9 @@ import { validateRequired, validateEmail, validationToastMessage } from '../../l
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { useEmailFieldError } from '../../hooks/useEmailUniqueValidation.js';
 import { fetchUsers, fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
-import { PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, outreachLeadStatusOptions } from '../../lib/pipelineHelpers.js';
+import {
+  PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, outreachLeadStatusOptions, emptyProposalDetails, buildProposalPayloads,
+} from '../../lib/pipelineHelpers.js';
 import { isLostLeadStatus } from '../../lib/statusHelpers.js';
 import { makeFieldSetter } from '../../lib/formInput.js';
 import {
@@ -92,6 +94,50 @@ function noneSelect(value, onChange, options, placeholder = '--None--') {
   );
 }
 
+/** Proposal-specific inputs, repeated once per proposal on the Create Proposal form. */
+function ProposalDetailFields({ values, currency, onChange, onCurrencyChange, namePrefix = '' }) {
+  const change = (field) => (e) => onChange(field, e.target.value);
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+      <FormField label="Proposal Date" name={`${namePrefix}proposal_date`}>
+        <input className="input" type="date" value={values.proposal_date?.slice?.(0, 10) || values.proposal_date || ''} onChange={change('proposal_date')} />
+      </FormField>
+      <FormField label="Size of the Deal" name={`${namePrefix}deal_size`}>
+        <CurrencyAmountInput
+          amount={values.deal_size}
+          currency={currency}
+          onAmountChange={change('deal_size')}
+          onCurrencyChange={onCurrencyChange}
+        />
+      </FormField>
+      <FormField label="Closure Date" name={`${namePrefix}closure_date`}>
+        <input className="input" type="date" value={values.closure_date?.slice?.(0, 10) || values.closure_date || ''} onChange={change('closure_date')} />
+      </FormField>
+      <FormField label="Deal Status" name={`${namePrefix}deal_status`}>
+        {noneSelect(values.deal_status, change('deal_status'), PROPOSAL_DEAL_STATUSES)}
+      </FormField>
+      <FormField label="Proposal Type" name={`${namePrefix}proposal_type`}>
+        {noneSelect(values.proposal_type, change('proposal_type'), PROPOSAL_TYPES)}
+      </FormField>
+      <FormField label="AMC / IT Support" name={`${namePrefix}amc_it_support`}>
+        <CurrencyAmountInput
+          amount={values.amc_it_support}
+          currency={values.amc_currency || currency}
+          onAmountChange={(e) => {
+            const value = e.target.value;
+            if (value !== '' && !/^\d*\.?\d*$/.test(value)) return;
+            onChange('amc_it_support', value);
+          }}
+          onCurrencyChange={change('amc_currency')}
+          placeholder="0"
+        />
+      </FormField>
+    </div>
+  );
+}
+
+let extraProposalKey = 0;
+
 export default function CreatePipelineLeadForm({
   listPath,
   listLabel,
@@ -109,6 +155,7 @@ export default function CreatePipelineLeadForm({
   const { canAssignLeads } = usePermissions();
   const [form, setForm] = useState(() => emptyPipelineLeadForm(user?.id || '', emptyFormDefaults));
   const [errors, setErrors] = useState({});
+  const [extraProposals, setExtraProposals] = useState([]);
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState([]);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
@@ -130,6 +177,22 @@ export default function CreatePipelineLeadForm({
   }, [user?.id]);
 
   const set = makeFieldSetter(setForm, setErrors);
+
+  const addExtraProposal = () => {
+    extraProposalKey += 1;
+    setExtraProposals((list) => [
+      ...list,
+      { key: `proposal-${extraProposalKey}`, ...emptyProposalDetails(form.amc_currency || form.currency) },
+    ]);
+  };
+
+  const updateExtraProposal = (key, field, value) => {
+    setExtraProposals((list) => list.map((p) => (p.key === key ? { ...p, [field]: value } : p)));
+  };
+
+  const removeExtraProposal = (key) => {
+    setExtraProposals((list) => list.filter((p) => p.key !== key));
+  };
 
   const setCountry = (country) => {
     setForm((f) => ({ ...f, country, state: nextStateForCountry(country, f.state) }));
@@ -179,22 +242,41 @@ export default function CreatePipelineLeadForm({
     setSaving(true);
     try {
       if (!(await validate())) return;
-      const created = await createFn(form, { currentUserId: user?.id });
-      const campaignErr = await tryAttachCampaignAfterCreate({
-        campaign_id: form.campaign_id,
-        campaign_name: form.campaign_name,
-        memberType: 'lead',
-        recordId: created?.id,
-      });
-      if (campaignErr) {
+      // Each extra proposal is saved as its own record with the same client details.
+      const payloads = showProposalFields ? buildProposalPayloads(form, extraProposals) : [form];
+      // The first record must save; if it fails nothing was created, so the form stays open.
+      const created = await createFn(payloads[0], { currentUserId: user?.id });
+      const failures = [];
+      const createdIds = [created?.id];
+      for (let i = 1; i < payloads.length; i += 1) {
+        try {
+          const extra = await createFn(payloads[i], { currentUserId: user?.id });
+          createdIds.push(extra?.id);
+        } catch (err) {
+          failures.push(`Proposal ${i + 1}: ${getApiError(err)}`);
+        }
+      }
+      let campaignErr = null;
+      for (const recordId of createdIds) {
+        const err = await tryAttachCampaignAfterCreate({
+          campaign_id: form.campaign_id,
+          campaign_name: form.campaign_name,
+          memberType: 'lead',
+          recordId,
+        });
+        campaignErr = campaignErr || err;
+      }
+      if (failures.length) {
+        showToast(`${createdIds.length} of ${payloads.length} proposals saved. Not saved — ${failures.join('; ')}`, 'error');
+      } else if (campaignErr) {
         showToast(
           `Record saved, but campaign could not be linked: ${getApiError(campaignErr)}`,
           'error',
         );
       } else {
-        showToast(successToast, 'success');
+        showToast(payloads.length > 1 ? `${payloads.length} proposals created` : successToast, 'success');
       }
-      navigateToRecord(created?.id ? `${listPath}/${created.id}` : listPath);
+      navigateToRecord(payloads.length === 1 && created?.id ? `${listPath}/${created.id}` : listPath);
     } catch (err) {
       showToast(getApiError(err));
     } finally {
@@ -365,42 +447,33 @@ export default function CreatePipelineLeadForm({
 
           {showProposalFields && (
             <>
-              <SectionTitle>Proposal Information</SectionTitle>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                <FormField label="Proposal Date" name="proposal_date">
-                  <input className="input" type="date" value={form.proposal_date?.slice?.(0, 10) || form.proposal_date || ''} onChange={set('proposal_date')} />
-                </FormField>
-                <FormField label="Size of the Deal" name="deal_size">
-                  <CurrencyAmountInput
-                    amount={form.deal_size}
+              <SectionTitle>{extraProposals.length ? 'Proposal 1' : 'Proposal Information'}</SectionTitle>
+              <ProposalDetailFields
+                values={form}
+                currency={form.currency}
+                onChange={(field, value) => setForm((f) => ({ ...f, [field]: value }))}
+                onCurrencyChange={set('currency')}
+              />
+              {extraProposals.map((proposal, index) => (
+                <div key={proposal.key}>
+                  <div className="flex items-center justify-between mb-5 mt-8">
+                    <p className="text-xs font-semibold text-zoho-muted uppercase tracking-wider">{`Proposal ${index + 2}`}</p>
+                    <button type="button" onClick={() => removeExtraProposal(proposal.key)} className="text-xs text-red-600 hover:underline">
+                      Remove
+                    </button>
+                  </div>
+                  <ProposalDetailFields
+                    values={proposal}
+                    namePrefix={`${proposal.key}-`}
                     currency={form.currency}
-                    onAmountChange={set('deal_size')}
+                    onChange={(field, value) => updateExtraProposal(proposal.key, field, value)}
                     onCurrencyChange={set('currency')}
                   />
-                </FormField>
-                <FormField label="Closure Date" name="closure_date">
-                  <input className="input" type="date" value={form.closure_date?.slice?.(0, 10) || form.closure_date || ''} onChange={set('closure_date')} />
-                </FormField>
-                <FormField label="Deal Status" name="deal_status">
-                  {noneSelect(form.deal_status, set('deal_status'), PROPOSAL_DEAL_STATUSES)}
-                </FormField>
-                <FormField label="Proposal Type" name="proposal_type">
-                  {noneSelect(form.proposal_type, set('proposal_type'), PROPOSAL_TYPES)}
-                </FormField>
-                <FormField label="AMC / IT Support" name="amc_it_support">
-                  <CurrencyAmountInput
-                    amount={form.amc_it_support}
-                    currency={form.amc_currency || form.currency}
-                    onAmountChange={(e) => {
-                      const value = e.target.value;
-                      if (value !== '' && !/^\d*\.?\d*$/.test(value)) return;
-                      setForm((f) => ({ ...f, amc_it_support: value }));
-                    }}
-                    onCurrencyChange={(e) => setForm((f) => ({ ...f, amc_currency: e.target.value }))}
-                    placeholder="0"
-                  />
-                </FormField>
-              </div>
+                </div>
+              ))}
+              <button type="button" onClick={addExtraProposal} className="btn-secondary mb-4">
+                + Add another proposal
+              </button>
             </>
           )}
 

@@ -24,6 +24,35 @@ export const PROPOSAL_TYPES = [
   { value: 'time_and_material', label: 'Time & Material' },
 ];
 
+/** Fields that differ per proposal; the rest of the Create Proposal form is shared client details. */
+export const PROPOSAL_DETAIL_FIELDS = [
+  'proposal_date', 'deal_size', 'closure_date', 'deal_status', 'proposal_type', 'amc_it_support', 'amc_currency',
+];
+
+export function emptyProposalDetails(amcCurrency = '') {
+  return {
+    proposal_date: '',
+    deal_size: '',
+    closure_date: '',
+    deal_status: 'active_proposal',
+    proposal_type: '',
+    amc_it_support: '',
+    amc_currency: amcCurrency,
+  };
+}
+
+/** One create payload per proposal: the main form first, then each extra proposal on the same client details. */
+export function buildProposalPayloads(form, extraProposals = []) {
+  return [
+    form,
+    ...extraProposals.map((proposal) => {
+      const details = {};
+      for (const field of PROPOSAL_DETAIL_FIELDS) details[field] = proposal?.[field] ?? '';
+      return { ...form, ...details };
+    }),
+  ];
+}
+
 export function proposalDealStatusLabel(status) {
   if (!status) return '—';
   const match = PROPOSAL_DEAL_STATUSES.find((s) => s.value === status);
