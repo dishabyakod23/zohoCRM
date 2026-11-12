@@ -309,7 +309,6 @@ export default function ReportsPage() {
       summary: summary || {},
     });
   }, [weeklyMembers, weeklyPreview, summary]);
-  // Prefer authoritative backend digest HTML; fall back to FE build from member_rows.
   const emailPreviewHtml = weeklyPreview?.html_body || teamPreviewHtml;
 
   const applyRecommendedSchedule = () => {

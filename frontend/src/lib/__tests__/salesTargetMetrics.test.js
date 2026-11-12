@@ -98,6 +98,10 @@ describe('salesTargetMetrics payload mapping', () => {
         actual_revenue: '0',
         qualified_meetings: 2,
       },
+    }, {
+      new_leads: 10,
+      pipeline_value: '0',
+      qualified_meetings: 2,
     });
     expect(rows.some((r) => r.key === 'pipeline_value' && r.displayTarget.includes('20'))).toBe(true);
     expect(rows.some((r) => r.key === 'qualified_meetings' && r.displayActual === '2')).toBe(true);

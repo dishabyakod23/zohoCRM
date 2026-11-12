@@ -60,6 +60,15 @@ describe('shouldProactivelyRefresh', () => {
     localStorage.setItem(AUTH_EXPIRES_KEY, String(Date.now() + 60 * 60 * 1000));
     expect(shouldProactivelyRefresh()).toBe(false);
   });
+
+  it('derives expiry from JWT when expires_in is omitted', () => {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    const payload = btoa(JSON.stringify({ exp }));
+    const token = `hdr.${payload}.sig`;
+    persistAuthSession({ access_token: token, refresh_token: 'b', user: { id: 'u1' } });
+    expect(getAccessTokenExpiresAt()).toBeGreaterThan(Date.now());
+    expect(shouldProactivelyRefresh()).toBe(false);
+  });
 });
 
 describe('auth session storage', () => {

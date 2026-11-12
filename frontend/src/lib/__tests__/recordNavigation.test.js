@@ -50,3 +50,22 @@ describe('companyDetailHref', () => {
     expect(companyDetailHref(TARGET_ID)).toBe(`/companies/_/?id=${encodeURIComponent(TARGET_ID)}`);
   });
 });
+
+describe('sequenceDetailHref', () => {
+  const prev = process.env.NEXT_PUBLIC_STATIC_EXPORT;
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_STATIC_EXPORT = prev;
+    jest.resetModules();
+  });
+
+  it('uses placeholder shell and query id on static export', async () => {
+    const { sequenceDetailHref } = await loadNavigation('true');
+    expect(sequenceDetailHref(TARGET_ID)).toBe(`/sequences/_/?id=${encodeURIComponent(TARGET_ID)}`);
+  });
+
+  it('uses direct path in dev / non-static builds', async () => {
+    const { sequenceDetailHref } = await loadNavigation('false');
+    expect(sequenceDetailHref(TARGET_ID)).toBe(`/sequences/${TARGET_ID}/`);
+  });
+});

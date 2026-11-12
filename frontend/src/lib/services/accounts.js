@@ -14,7 +14,7 @@ import {
   usesCampaignMembershipFilter,
 } from '../listRecordFilters.js';
 import { DEFAULT_PAGE_SIZE, BULK_FETCH_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../constants.js';
-import { cachedRequest, invalidateCachedRequest, cachedFullList } from '../requestCache.js';
+import { cachedRequest, invalidateCachedRequest, cachedFullList, peekCachedRequest } from '../requestCache.js';
 import { listAllMatchingIdsFromListFn, fetchAllPagesFast } from '../listSelectionHelpers.js';
 
 const EMAIL_MAP_CACHE_MS = 5 * 60 * 1000;
@@ -188,9 +188,20 @@ export async function listAccounts({
   };
 }
 
+/**
+ * Accounts total for the dashboard card.
+ * Uses the API total directly instead of downloading every company first (that took ~9 s and
+ * 10 requests per load). Account rows the API moved under /companies are only merged when that
+ * list is already cached (e.g. the Accounts page was just opened).
+ */
 export async function countAccounts() {
-  const result = await listAccounts({ page: 1, page_size: 1 });
-  return result.total ?? result.meta?.total ?? 0;
+  const sticky = peekCachedRequest('sticky-account-module-rows', STICKY_ACCOUNTS_CACHE_MS);
+  if (sticky?.length) {
+    const result = await listAccounts({ page: 1, page_size: 1 });
+    return result.total ?? result.meta?.total ?? 0;
+  }
+  const res = await api.get('/accounts', { params: { page: 1, page_size: 1 } });
+  return res.data.meta?.total ?? 0;
 }
 
 export async function getAccount(id) {

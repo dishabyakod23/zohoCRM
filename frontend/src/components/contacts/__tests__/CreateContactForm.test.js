@@ -156,16 +156,15 @@ describe('CreateContactForm — double-submission guard (BUG-001 regression)', (
 });
 
 describe('CreateContactForm — Save button consistency (BUG-002 regression)', () => {
-  it('disables the Save Contact button while a duplicate email error is present', async () => {
+  it('disables the Save button while a duplicate email error is present', async () => {
     emailHelpers.validateEmailUnique.mockResolvedValue('A contact with this email already exists.');
 
     render(<CreateContactForm />);
     fillRequiredFields();
 
     await waitFor(() => {
-      const buttons = screen.getAllByRole('button', { name: /save contact/i });
-      expect(buttons).toHaveLength(1);
-      expect(buttons[0]).toBeDisabled();
+      const button = screen.getByRole('button', { name: /save contact/i });
+      expect(button).toBeDisabled();
     }, { timeout: 2000 });
   });
 });

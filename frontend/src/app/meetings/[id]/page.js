@@ -21,7 +21,7 @@ import { TrashIcon } from '@heroicons/react/24/outline';
 
 export default function MeetingDetailPage() {
   const id = useRecordId();
-  const ready = useRecordIdGuard(id, { fallbackPath: '/meetings', message: 'Meeting not found' });
+  const ready = useRecordIdGuard(id, { fallbackPath: '/calendar', message: 'Meeting not found' });
   const { showToast } = useToast();
   const { canEdit, canDelete } = usePermissions();
   const [meeting, setMeeting] = useState(null);
@@ -33,7 +33,7 @@ export default function MeetingDetailPage() {
 
   const load = useCallback(() => {
     if (!ready) return;
-    meetingsApi.getMeeting(id).then(setMeeting).catch(() => { showToast('Meeting not found'); navigateToRecord('/meetings'); });
+    meetingsApi.getMeeting(id).then(setMeeting).catch(() => { showToast('Meeting not found'); navigateToRecord('/calendar'); });
   }, [id, ready, showToast]);
 
   useEffect(() => { if (ready) load(); }, [ready, load]);
@@ -58,7 +58,7 @@ export default function MeetingDetailPage() {
 
   return (
     <CRMLayout>
-      <RecordDetailLayout backHref="/meetings" backLabel="Meetings" title={meeting.title} subtitle={meeting.location}
+      <RecordDetailLayout backHref="/calendar" backLabel="Calendar" title={meeting.title} subtitle={meeting.location}
         lastUpdated={meeting.updated_at ? new Date(meeting.updated_at).toLocaleString() : undefined}
         recordNotes={{ relatedType: 'meeting', recordId: id, canEdit }}
         recordHistory={{ entityType: 'meeting', recordId: id }}
@@ -119,7 +119,7 @@ export default function MeetingDetailPage() {
         </div>
       </RecordDetailLayout>
       <ConfirmDialog open={deleteConfirm} message={`Delete meeting "${meeting.title}"?`} confirmLabel="Confirm Delete" danger
-        onConfirm={async () => { try { await meetingsApi.deleteMeeting(id); navigateToRecord('/meetings'); } catch (err) { showToast(getApiError(err)); } }}
+        onConfirm={async () => { try { await meetingsApi.deleteMeeting(id); navigateToRecord('/calendar'); } catch (err) { showToast(getApiError(err)); } }}
         onCancel={() => setDeleteConfirm(false)} />
     </CRMLayout>
   );

@@ -46,6 +46,18 @@ describe('parseAuthTokenResponse', () => {
     expect(parseAuthTokenResponse({ data: inner })).toBe(inner);
   });
 
+  it('normalizes camelCase token fields', () => {
+    const body = {
+      access_token: 'a',
+      refreshToken: 'b',
+      expiresIn: 3600,
+      user: { id: 'u1' },
+    };
+    const parsed = parseAuthTokenResponse(body);
+    expect(parsed.refresh_token).toBe('b');
+    expect(parsed.expires_in).toBe(3600);
+  });
+
   it('returns null when neither shape matches', () => {
     expect(parseAuthTokenResponse({ message: 'nope' })).toBeNull();
     expect(parseAuthTokenResponse({ data: { message: 'nope' } })).toBeNull();

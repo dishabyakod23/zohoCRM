@@ -78,7 +78,10 @@ export default function EditableFieldSection({
       ...collectPhoneFieldErrors(current),
     };
     setFieldErrors(errs);
-    if (Object.keys(errs).length) return;
+    if (Object.keys(errs).length) {
+      showToast(validationToastMessage(errs));
+      return;
+    }
     try {
       await onSave(current);
       markRecordListStale();

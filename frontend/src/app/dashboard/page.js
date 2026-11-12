@@ -116,6 +116,10 @@ export default function DashboardPage() {
   const loadSeq = useRef(0);
 
   const userId = user?.id;
+  // Read the latest user without making loadDashboard depend on the object itself: useAuth sets
+  // the saved session user first and then the /auth/me response, which used to load everything twice.
+  const userRef = useRef(user);
+  userRef.current = user;
   const loadDashboard = useCallback((opts = {}) => {
     if (!userId) return undefined;
     const seq = loadSeq.current + 1;
@@ -163,7 +167,7 @@ export default function DashboardPage() {
 
     (canViewAuditLogs
       ? auditLogsApi.listRecentActivityLogs(30, {
-        user,
+        user: userRef.current,
         canSeeAll: role === 'super_admin' || role === 'sales_manager',
         limit: DEFAULT_PAGE_SIZE,
         enrichPhones: false,
@@ -173,7 +177,7 @@ export default function DashboardPage() {
     ).then((auditLogs) => update('audit', { auditLogs }));
 
     return () => { if (loadSeq.current === seq) loadSeq.current += 1; };
-  }, [showToast, userId, user, role, canViewAccounts, canViewAuditLogs]);
+  }, [showToast, userId, role, canViewAccounts, canViewAuditLogs]);
 
   useEffect(() => loadDashboard(), [loadDashboard]);
   useCrmLiveRefresh(() => loadDashboard({ fresh: true }), { minIntervalMs: 1500, pollIntervalMs: 30000 });

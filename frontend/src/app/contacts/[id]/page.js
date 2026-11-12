@@ -53,6 +53,8 @@ import { tableLinkClass } from '../../../lib/tableStyles.js';
 import { useAuth } from '../../../hooks/useAuth.js';
 import LinkedInFieldWithRequestToggle from '../../../components/contacts/LinkedInFieldWithRequestToggle.js';
 import { IndustrySelectControl } from '../../../components/forms/IndustryField.js';
+import MemberSequencesPanel from '../../../components/sequences/MemberSequencesPanel.js';
+import ProspectOutreachTimeline from '../../../components/sequences/ProspectOutreachTimeline.js';
 
 function toHref(raw, kind) {
   const value = String(raw || '').trim();
@@ -487,6 +489,19 @@ export default function ContactDetailPage() {
                 <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: e.target.value }))} />
               ) },
             ]}
+          />
+
+          <MemberSequencesPanel
+            memberType="contact"
+            memberId={id}
+            memberName={`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}
+          />
+
+          <ProspectOutreachTimeline
+            memberType="contact"
+            memberId={id}
+            memberName={`${contact.first_name || ''} ${contact.last_name || ''}`.trim()}
+            phones={[contact.phone, contact.mobile]}
           />
 
           <div className="card p-4">

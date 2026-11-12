@@ -20,6 +20,7 @@ import { getApiError } from '../../lib/api.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import { proposalOutcomeMove, convertWonProposalToAccount } from '../../lib/services/proposalOutcome.js';
 import { fetchUsers, fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, proposalDealStatusLabel, proposalTypeLabel, resolveLeadPipelineStage, getLeadDetailPath, outreachLeadStatusOptions, emptyProposalDetails, buildSiblingProposalPayloads, otherProposalsForClient } from '../../lib/pipelineHelpers.js';
 import { isLostLeadStatus, lostReasonLabel } from '../../lib/statusHelpers.js';
@@ -220,8 +221,40 @@ export default function PipelineLeadDetail({ stage }) {
   // Saves this proposal, then creates each added proposal as a new record for the same client.
   // Added proposals that fail stay in the form (and edit mode stays open) so they can be retried.
   const saveProposalSection = async (payload) => {
+    const previousDealStatus = lead?.deal_status || '';
     await saveSection(payload);
-    if (!extraProposals.length) return;
+    if (extraProposals.length) await saveExtraProposals(payload);
+    await moveProposalForDealOutcome(previousDealStatus, payload.deal_status);
+  };
+
+  // Deal Won → Accounts, Deal Lost → Cold Leads (status "Deal Lost"). The edit is already saved, so a
+  // failed move only shows a message; the Convert menu can still do it.
+  const moveProposalForDealOutcome = async (previousStatus, nextStatus) => {
+    const move = proposalOutcomeMove(previousStatus, nextStatus);
+    if (!move) return;
+    setSaving(true);
+    try {
+      if (move === 'account') {
+        const accountId = await convertWonProposalToAccount(id, lead?.company);
+        markRecordListStale();
+        showToast('Deal Won — moved to Accounts', 'success');
+        navigateToRecord(accountId ? `/accounts/${accountId}` : '/accounts');
+      } else {
+        await leadsApi.moveLostProposalToColdLeads(id);
+        markRecordListStale();
+        showToast('Deal Lost — moved to Cold Leads', 'success');
+        navigateToRecord(getLeadDetailPath(PIPELINE_RAW, id));
+      }
+    } catch (err) {
+      const where = move === 'account' ? 'Accounts' : 'Cold Leads';
+      showToast(`Saved, but could not move it to ${where}: ${getApiError(err)}`);
+      loadLead();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveExtraProposals = async (payload) => {
     const payloads = buildSiblingProposalPayloads({ ...lead, ...payload }, extraProposals);
     const failed = [];
     const errors = [];
