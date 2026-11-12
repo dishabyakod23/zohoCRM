@@ -71,12 +71,13 @@ export default function RecordNoteRowIcon({
   }, [relatedType, notesRecordId, latestNoteProp, noteCountProp]);
 
   // Eagerly load note presence so the icon stays highlighted without requiring hover.
+  // Batched: all icons on a list page share one /notes/batch request.
   useEffect(() => {
     if (!relatedType || !notesRecordId) return undefined;
     let cancelled = false;
     const requestId = ++requestIdRef.current;
     setLoading(true);
-    notesApi.listNotes(relatedType, notesRecordId)
+    notesApi.listNotesBatched(relatedType, notesRecordId)
       .then((notes) => {
         if (cancelled || requestId !== requestIdRef.current) return;
         const sorted = [...notes].sort(

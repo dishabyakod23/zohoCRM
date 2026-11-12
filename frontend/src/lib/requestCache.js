@@ -1,6 +1,13 @@
 const store = new Map();
 const inflight = new Map();
 
+/** Return a cached value if it is still fresh, without triggering a load. */
+export function peekCachedRequest(key, ttlMs = 5 * 60 * 1000) {
+  const hit = store.get(key);
+  if (hit && Date.now() - hit.at < ttlMs) return hit.value;
+  return undefined;
+}
+
 /**
  * Cache async fetch results with TTL and in-flight deduplication.
  * @param {string} key
@@ -68,6 +75,13 @@ export async function cachedFullList(name, params, loader, ttlMs = FULL_LIST_TTL
 export function invalidateFullListCache() {
   fullListGeneration += 1;
   invalidateCachedRequestPrefix(FULL_LIST_PREFIX);
+}
+
+/** Forget every cached and in-flight request (used on logout). */
+export function clearAllCachedRequests() {
+  fullListGeneration += 1;
+  store.clear();
+  inflight.clear();
 }
 
 export function invalidateCachedRequest(key) {

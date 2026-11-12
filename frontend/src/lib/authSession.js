@@ -2,6 +2,7 @@ import axios from 'axios';
 import { setAuthSessionCookie, clearAuthSessionCookie } from './authCookie.js';
 import { parseAuthUserResponse, parseAuthTokenResponse } from './authHelpers.js';
 import { sanitizeUserForStorage } from './profileImageHelpers.js';
+import { clearDataCaches } from './clearDataCaches.js';
 
 export const AUTH_TOKEN_KEY = 'crm_token';
 export const AUTH_REFRESH_KEY = 'crm_refresh_token';
@@ -87,6 +88,7 @@ export function clearAuthSession() {
   localStorage.removeItem(AUTH_USER_KEY);
   localStorage.removeItem(AUTH_EXPIRES_KEY);
   clearAuthSessionCookie();
+  clearDataCaches();
 }
 
 export function getStoredAccessToken() {

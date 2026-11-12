@@ -46,6 +46,65 @@ export async function listNotes(relatedType, relatedId) {
   return parseListResponse(res);
 }
 
+/** Entity types GET /notes/batch supports, and its id limit per request. */
+const NOTES_BATCH_TYPES = new Set(['lead', 'contact', 'account']);
+export const NOTES_BATCH_LIMIT = 200;
+
+let pendingNotesBatch = null;
+
+/** Group a flat notes list by entity_id (string keys). */
+export function groupNotesByEntity(notes = []) {
+  const byId = new Map();
+  for (const note of notes) {
+    const key = String(note.entity_id ?? note.related_id ?? '');
+    if (!key) continue;
+    if (!byId.has(key)) byId.set(key, []);
+    byId.get(key).push(note);
+  }
+  return byId;
+}
+
+async function flushNotesBatch() {
+  const batch = pendingNotesBatch;
+  pendingNotesBatch = null;
+  const requests = [];
+  for (const [entityType, waiters] of batch) {
+    const ids = [...waiters.keys()];
+    for (let i = 0; i < ids.length; i += NOTES_BATCH_LIMIT) {
+      const chunk = ids.slice(i, i + NOTES_BATCH_LIMIT);
+      requests.push(
+        api.get('/notes/batch', { params: { entity_type: entityType, entity_ids: chunk.join(',') } })
+          .then((res) => {
+            const byId = groupNotesByEntity(parseListResponse(res));
+            for (const id of chunk) waiters.get(id).forEach(({ resolve }) => resolve(byId.get(id) || []));
+          })
+          .catch((err) => {
+            for (const id of chunk) waiters.get(id).forEach(({ reject }) => reject(err));
+          }),
+      );
+    }
+  }
+  await Promise.all(requests);
+}
+
+/**
+ * Same result as listNotes, but rows that ask in the same tick (e.g. every note icon on a
+ * list page) share one GET /notes/batch request per entity type, chunked to 200 ids.
+ */
+export function listNotesBatched(relatedType, relatedId) {
+  if (!relatedType || !relatedId) return Promise.resolve([]);
+  if (!NOTES_BATCH_TYPES.has(relatedType)) return listNotes(relatedType, relatedId);
+  if (!pendingNotesBatch) {
+    pendingNotesBatch = new Map();
+    setTimeout(flushNotesBatch, 0);
+  }
+  if (!pendingNotesBatch.has(relatedType)) pendingNotesBatch.set(relatedType, new Map());
+  const waiters = pendingNotesBatch.get(relatedType);
+  const key = String(relatedId);
+  if (!waiters.has(key)) waiters.set(key, []);
+  return new Promise((resolve, reject) => waiters.get(key).push({ resolve, reject }));
+}
+
 /** POST /notes */
 export async function createNote(relatedType, relatedId, body) {
   if (!relatedType || !relatedId) throw new Error('Related record is required');

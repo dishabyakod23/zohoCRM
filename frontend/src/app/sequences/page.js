@@ -66,19 +66,20 @@ export default function SequencesPage() {
     if (Object.keys(seed).length) {
       setOpenRateById((prev) => ({ ...seed, ...prev }));
     }
-    Promise.all(items.map(async (row) => {
-      const rate = await sequencesApi.getSequenceOpenRatePercent(row.id);
-      return [row.id, rate];
-    })).then((pairs) => {
-      if (cancelled) return;
-      setOpenRateById((prev) => {
-        const next = { ...prev };
-        for (const [id, rate] of pairs) {
-          if (rate != null) next[id] = rate;
-        }
-        return next;
-      });
-    });
+    // One request for the whole page instead of two email-event calls per sequence.
+    sequencesApi.getSequenceEmailEventCounts(items.map((row) => row.id))
+      .then((countsById) => {
+        if (cancelled) return;
+        setOpenRateById((prev) => {
+          const next = { ...prev };
+          for (const row of items) {
+            const rate = sequencesApi.openRateFromEventCounts(countsById[String(row.id)]);
+            if (rate != null) next[row.id] = rate;
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [items]);
 

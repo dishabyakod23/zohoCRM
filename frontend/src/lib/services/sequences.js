@@ -463,37 +463,39 @@ export async function getSequenceOpenedCount(sequenceId) {
   }
 }
 
-/** Opened / sent as a percent, using the same email-events totals as Analytics. */
-export async function getSequenceOpenRatePercent(sequenceId) {
-  try {
-    const [opened, sent] = await Promise.all([
-      listSequenceEmailEvents(sequenceId, { event_type: 'OPENED', page: 1, page_size: 1 }),
-      listSequenceEmailEvents(sequenceId, { event_type: 'SENT', page: 1, page_size: 1 }),
-    ]);
-    return openRatePercent({
-      opened: opened.total ?? 0,
-      sent: sent.total ?? 0,
-    });
-  } catch {
-    return null;
-  }
+export const EMAIL_EVENT_COUNTS_LIMIT = 100;
+
+/**
+ * Raw email-event counts ({ SENT, DELIVERED, OPENED, … }) for many sequences, keyed by id.
+ * One GET /sequences/email-event-counts per 100 ids; numbers match Analytics.
+ */
+export async function getSequenceEmailEventCounts(sequenceIds = []) {
+  const ids = [...new Set(sequenceIds.filter(Boolean).map(String))];
+  const chunks = [];
+  for (let i = 0; i < ids.length; i += EMAIL_EVENT_COUNTS_LIMIT) chunks.push(ids.slice(i, i + EMAIL_EVENT_COUNTS_LIMIT));
+  const results = await Promise.all(chunks.map(async (chunk) => {
+    const res = await api.get('/sequences/email-event-counts', { params: { sequence_ids: chunk.join(',') } });
+    return res.data?.data ?? res.data ?? {};
+  }));
+  return Object.assign({}, ...results);
+}
+
+/** Opened / sent percent for one sequence from its raw email-event counts. */
+export function openRateFromEventCounts(counts) {
+  if (!counts) return null;
+  return openRatePercent({ opened: counts.OPENED ?? 0, sent: counts.SENT ?? 0 });
 }
 
 export async function getEmailEventCountMap(sequenceId) {
-  const keys = ['SENT', 'DELIVERED', 'OPENED', 'CLICKED', 'REPLIED', 'BOUNCED', 'UNSUBSCRIBED'];
-  const pairs = await Promise.all(keys.map(async (event_type) => {
-    try {
-      const result = await listSequenceEmailEvents(sequenceId, {
-        event_type,
-        page: 1,
-        page_size: 1,
-      });
-      return [event_type, result.total ?? 0];
-    } catch {
-      return [event_type, null];
-    }
-  }));
-  const counts = Object.fromEntries(pairs);
+  // Missing event types count as 0; if the request fails every count is null (unknown).
+  let raw = null;
+  try {
+    raw = (await getSequenceEmailEventCounts([sequenceId]))[String(sequenceId)] || {};
+  } catch {
+    raw = null;
+  }
+  const counts = Object.fromEntries(['SENT', 'DELIVERED', 'OPENED', 'CLICKED', 'REPLIED', 'BOUNCED', 'UNSUBSCRIBED']
+    .map((key) => [key, raw ? (raw[key] ?? 0) : null]));
   return {
     sent: counts.SENT,
     emails_sent: counts.SENT,

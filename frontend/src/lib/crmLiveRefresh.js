@@ -47,8 +47,22 @@ export function useCrmLiveRefresh(onRefresh, { minIntervalMs = 2000, pollInterva
       last = now;
       cbRef.current?.();
     };
+    // Poll only while the tab is visible: the timer stops when hidden and restarts on return.
+    let timer = null;
+    const startPolling = () => {
+      if (pollIntervalMs > 0 && !timer) timer = window.setInterval(run, pollIntervalMs);
+    };
+    const stopPolling = () => {
+      if (timer) window.clearInterval(timer);
+      timer = null;
+    };
     const onVisible = () => {
-      if (document.visibilityState === 'visible') run();
+      if (document.visibilityState === 'visible') {
+        run();
+        startPolling();
+      } else {
+        stopPolling();
+      }
     };
     const onStorage = (event) => {
       if (event.key === CRM_DATA_CHANGED_STORAGE_KEY) run();
@@ -57,13 +71,9 @@ export function useCrmLiveRefresh(onRefresh, { minIntervalMs = 2000, pollInterva
     window.addEventListener('focus', run);
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('storage', onStorage);
-    const timer = pollIntervalMs > 0
-      ? window.setInterval(() => {
-        if (document.visibilityState === 'visible') run();
-      }, pollIntervalMs)
-      : null;
+    if (document.visibilityState === 'visible') startPolling();
     return () => {
-      if (timer) window.clearInterval(timer);
+      stopPolling();
       window.removeEventListener(CRM_DATA_CHANGED_EVENT, run);
       window.removeEventListener('focus', run);
       document.removeEventListener('visibilitychange', onVisible);
