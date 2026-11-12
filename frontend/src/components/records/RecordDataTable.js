@@ -948,7 +948,7 @@ export default function RecordDataTable({
                   getRecordId: personRecordId,
                 });
                 return (
-                  <tr key={id} className="list-table-row">
+                  <tr key={record._rowKey || id} className="list-table-row">
                     <td className="table-td">
                       <div className="flex items-center gap-2">
                         {showNotes && (

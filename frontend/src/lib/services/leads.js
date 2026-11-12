@@ -87,6 +87,14 @@ async function fetchAllLeadPages(params, statusOptions, pageSize = BULK_FETCH_PA
   }));
 }
 
+/**
+ * Proposals that were converted into Accounts. They stay lead records (is_converted) and keep their
+ * proposal details, so the Accounts list can show them under each account.
+ */
+export async function listConvertedProposals() {
+  return fetchAllLeadPages({ is_converted: true, pipeline_stage: PIPELINE_PROPOSAL });
+}
+
 /** Map UI pipeline stage / filters to API query params supported by GET /leads. */
 function buildLeadListApiParams({
   pipeline_stage,

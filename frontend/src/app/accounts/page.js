@@ -13,8 +13,12 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { getApiError } from '../../lib/api.js';
 import * as accountsApi from '../../lib/services/accounts.js';
+import * as leadsApi from '../../lib/services/leads.js';
+import { buildAccountProposalRows, groupAccountProposalRows } from '../../lib/accountProposalRows.js';
+import { proposalTypeLabel } from '../../lib/pipelineHelpers.js';
+import { formatMoney, formatMoneyTotalsByCurrency } from '../../lib/currencies.js';
 import { ACCOUNT_TYPES, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
-import { tableLinkClass, tableEmailClass, avatarInitialClass } from '../../lib/tableStyles.js';
+import { avatarInitialClass } from '../../lib/tableStyles.js';
 import { TextFilter, SelectFilter, OwnerFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../../components/layout/ListFilterFields.js';
 import { recordTimestampColumns } from '../../lib/listTimestampHelpers.js';
 import { fetchUsers, fetchIndustries } from '../../lib/services/lookups.js';
@@ -27,6 +31,17 @@ import { useTableSelection } from '../../hooks/useTableSelection.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 
 const LIMIT = DEFAULT_PAGE_SIZE;
+
+function formatDate(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString();
+}
+
+function formatDealSize(value, currency) {
+  if (value == null || value === '') return '—';
+  return formatMoney(value, currency);
+}
 
 const ACCOUNT_STATUS_OPTIONS = ACCOUNT_TYPES.map((t) => ({ value: t, label: t }));
 
@@ -98,21 +113,83 @@ export default function AccountsPage() {
     fetchAllIds: fetchAllMatchingAccountIds,
   });
 
+  // Proposals that became accounts, shown under each account like the Proposals table.
+  const [convertedProposals, setConvertedProposals] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    leadsApi.listConvertedProposals()
+      .then((rows) => { if (!cancelled) setConvertedProposals(rows || []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [accounts]);
+
+  const rows = useMemo(
+    () => buildAccountProposalRows(accounts, convertedProposals),
+    [accounts, convertedProposals],
+  );
+
+  // Account details sit in each group's header row (see groupAccountRows); rows are its proposals.
   const columns = useMemo(() => [
-    { id: 'name', header: 'Company', cell: (a) => (
-      <div className="flex items-center gap-2.5">
-        <div className={avatarInitialClass(a.name, 'md')}>{(a.name || '?')[0]}</div>
-        <RecordDetailLink href={`/accounts/${a.id}`} className={tableLinkClass}>{a.name}</RecordDetailLink>
-      </div>
+    { id: 'name', header: 'Proposal', cell: (row) => (
+      <span className="inline-flex items-center gap-2 pl-4">
+        <span className="w-1.5 h-1.5 rounded-full bg-zoho-border" aria-hidden="true" />
+        {row._proposal ? (
+          <RecordDetailLink href={`/proposals/${row._proposal.id}`} className="text-sm text-zoho-text hover:text-brand-600">
+            {`Proposal ${row._proposalNumber}`}
+          </RecordDetailLink>
+        ) : (
+          <span className="text-sm text-zoho-muted">No proposals</span>
+        )}
+      </span>
     ) },
-    { id: 'industry', header: 'Industry', cell: (a) => a.industry || '—' },
-    { id: 'website', header: 'Website', cell: (a) => a.website ? <a href={a.website} target="_blank" rel="noreferrer" className={`${tableEmailClass} text-xs hover:text-zoho-text hover:underline`}>{a.website.replace('https://', '')}</a> : '—' },
-    { id: 'email', header: 'Email', sortField: 'email', cell: (a) => <span className={tableEmailClass}>{a.email || '—'}</span> },
-    { id: 'status', header: 'Status', cell: (a) => <Badge label={a.account_type || '—'} /> },
-    { id: 'city', header: 'City', cell: (a) => a.billing_city || a.city || '—' },
-    { id: 'owner', header: 'Owner', cell: (a) => a.owner_name || '—' },
+    { id: 'contact', header: 'Contact', cell: (row) => (
+      row._proposal ? `${row._proposal.first_name || ''} ${row._proposal.last_name || ''}`.trim() || '—' : '—'
+    ) },
+    { id: 'proposal_date', header: 'Proposal Date', cell: (row) => formatDate(row._proposal?.proposal_date) },
+    { id: 'deal_size', header: 'Deal Size', cell: (row) => formatDealSize(row._proposal?.deal_size ?? row._proposal?.proposal_amount, row._proposal?.currency) },
+    { id: 'proposal_type', header: 'Proposal Type', cell: (row) => (row._proposal ? row._proposal.proposal_type_label || proposalTypeLabel(row._proposal.proposal_type) : '—') },
+    { id: 'amc_it_support', header: 'AMC / IT Support', cell: (row) => formatDealSize(row._proposal?.amc_it_support, row._proposal?.amc_currency || row._proposal?.currency) },
+    { id: 'closure_date', header: 'Closure Date', cell: (row) => formatDate(row._proposal?.closure_date) },
+    { id: 'owner', header: 'Owner', cell: (row) => row._proposal?.owner_name || row.owner_name || '—' },
     ...recordTimestampColumns(),
   ], []);
+
+  const groupAccountRows = useCallback((tableRows) => groupAccountProposalRows(tableRows).map((group) => {
+    const a = group.account;
+    const details = [a.industry, a.billing_city || a.city, a.website ? a.website.replace('https://', '') : '', a.email].filter(Boolean);
+    const count = group.proposals.length;
+    return {
+      key: group.key,
+      records: group.records,
+      header: (
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={avatarInitialClass(a.name, 'md')} aria-hidden="true">{(a.name || '?')[0]}</div>
+          <div className="min-w-0">
+            <RecordDetailLink href={`/accounts/${a.id}`} className="text-sm font-semibold text-zoho-text hover:text-brand-600">
+              {a.name}
+            </RecordDetailLink>
+            {details.length > 0 && (
+              <p className="text-xs text-zoho-muted truncate">{details.join(' · ')}</p>
+            )}
+          </div>
+          <div className="ml-auto flex items-center gap-4 shrink-0 text-xs">
+            {a.account_type && <Badge label={a.account_type} />}
+            <span className="text-zoho-muted">
+              {`${count} proposal${count === 1 ? '' : 's'}`}
+              {count > 0 && (
+                <>
+                  <span className="mx-1.5">·</span>
+                  <span className="font-medium text-zoho-text">
+                    {formatMoneyTotalsByCurrency(group.proposals, { amountKey: 'deal_size', currencyKey: 'currency' })}
+                  </span>
+                </>
+              )}
+            </span>
+          </div>
+        </div>
+      ),
+    };
+  }), []);
 
   const statusOptions = ACCOUNT_STATUS_OPTIONS;
 
@@ -159,12 +236,13 @@ export default function AccountsPage() {
           table={(
             <RecordDataTable
               moduleKey="accounts"
-              records={accounts}
+              records={rows}
               loading={loading}
               columns={columns}
               statusOptions={ACCOUNT_STATUS_OPTIONS}
               onRefresh={fetchAccounts}
               emptyMessage="No accounts found"
+              groupRows={groupAccountRows}
               sort={sort}
               onSortChange={(v) => { setSort(v); setPage(1); }}
               {...tableSelection}
