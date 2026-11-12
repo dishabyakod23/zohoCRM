@@ -482,7 +482,7 @@ export default function CreatePipelineLeadForm({
           </div>
           <button type="button" onClick={clearAddress} className="text-xs text-brand-600 hover:underline mb-4">Clear All</button>
 
-          <FormField label="Description" name="description">
+          <FormField label={showProposalFields ? 'Client Description' : 'Description'} name="description">
             <textarea className="input min-h-[100px] resize-y" value={form.description} onChange={set('description')} />
           </FormField>
 

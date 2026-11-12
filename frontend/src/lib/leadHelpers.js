@@ -343,6 +343,8 @@ export function toLeadPayload(form, { partial = false } = {}) {
     if (formHas(form, 'closure_date')) payload.closure_date = form.closure_date ? toDateOnly(form.closure_date) : null;
     if (formHas(form, 'deal_status')) payload.deal_status = form.deal_status || null;
     if (formHas(form, 'proposal_type')) payload.proposal_type = form.proposal_type || null;
+    if (formHas(form, 'proposal_name')) payload.proposal_name = String(form.proposal_name || '').trim() || null;
+    if (formHas(form, 'proposal_description')) payload.proposal_description = form.proposal_description || null;
     if (formHas(form, 'currency')) payload.currency = form.currency || DEFAULT_CURRENCY;
     if (formHas(form, 'amc_it_support') || formHas(form, 'amc_amount')) {
       payload.amc_it_support = optionalNumber(form.amc_it_support ?? form.amc_amount);
@@ -394,6 +396,8 @@ export function toLeadPayload(form, { partial = false } = {}) {
     closure_date: form.closure_date ? toDateOnly(form.closure_date) : null,
     deal_status: form.deal_status || null,
     proposal_type: form.proposal_type || null,
+    proposal_name: String(form.proposal_name || '').trim() || null,
+    proposal_description: form.proposal_description || null,
     currency: form.currency || DEFAULT_CURRENCY,
     amc_it_support: optionalNumber(form.amc_it_support ?? form.amc_amount),
     amc_currency: form.amc_currency || form.currency || DEFAULT_CURRENCY,

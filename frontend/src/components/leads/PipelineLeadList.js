@@ -305,6 +305,7 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
             </RecordDetailLink>
           </span>
         ) },
+        { id: 'proposal_name', header: 'Proposal Name', cell: (lead) => lead.proposal_name || '—' },
         { id: 'proposal_date', header: 'Proposal Date', cell: (lead) => formatDate(lead.proposal_date) },
         { id: 'deal_size', header: 'Deal Size', cell: (lead) => formatDealSize(lead.deal_size ?? lead.proposal_amount, lead.currency) },
         { id: 'proposal_type', header: 'Proposal Type', cell: (lead) => lead.proposal_type_label || proposalTypeLabel(lead.proposal_type) },

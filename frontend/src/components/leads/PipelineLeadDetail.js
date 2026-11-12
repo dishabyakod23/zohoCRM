@@ -459,7 +459,7 @@ export default function PipelineLeadDetail({ stage }) {
               ) },
               campaignField,
               ownerFieldConfig({ users, canAssign: canChangeOwner, ownerName: lead.owner_name }),
-              { name: 'description', label: 'Description', colSpan: true, render: (d, set) => (
+              { name: 'description', label: stage === PIPELINE_PROPOSAL ? 'Client Description' : 'Description', colSpan: true, render: (d, set) => (
                 <textarea className="input min-h-[80px]" value={d.description ?? ''} onChange={(e) => set((p) => ({ ...p, description: trimStartValue(e.target.value) }))} />
               ) },
             ]}
@@ -502,6 +502,16 @@ export default function PipelineLeadDetail({ stage }) {
                 </div>
               )}
               fields={[
+                { name: 'proposal_name', label: 'Proposal Name', colSpan: true, render: (d, set) => (
+                  <input
+                    className="input"
+                    type="text"
+                    maxLength={200}
+                    value={d.proposal_name ?? ''}
+                    onChange={(e) => set((p) => ({ ...p, proposal_name: trimStartValue(e.target.value) }))}
+                    placeholder="e.g. Website revamp"
+                  />
+                ) },
                 { name: 'proposal_date', label: 'Proposal Date', format: (v) => (v ? new Date(v).toLocaleDateString() : null), render: (d, set) => (
                   <input className="input" type="date" value={(d.proposal_date ?? '').slice(0, 10)} onChange={(e) => set((p) => ({ ...p, proposal_date: e.target.value }))} />
                 ) },
@@ -529,6 +539,13 @@ export default function PipelineLeadDetail({ stage }) {
                     placeholder="0"
                   />
                 ) },
+                { name: 'proposal_description', label: 'Proposal Description', colSpan: true, render: (d, set) => (
+                  <textarea
+                    className="input min-h-[80px]"
+                    value={d.proposal_description ?? ''}
+                    onChange={(e) => set((p) => ({ ...p, proposal_description: trimStartValue(e.target.value) }))}
+                  />
+                ) },
               ]}
             />
           )}
@@ -542,8 +559,10 @@ export default function PipelineLeadDetail({ stage }) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-[11px] text-zoho-muted uppercase tracking-wider">
+                        <th className="py-2 pr-4 font-medium">Proposal Name</th>
                         <th className="py-2 pr-4 font-medium">Proposal Date</th>
                         <th className="py-2 pr-4 font-medium">Proposal Type</th>
+                        <th className="py-2 pr-4 font-medium">Description</th>
                         <th className="py-2 pr-4 font-medium">Size of the Deal</th>
                         <th className="py-2 pr-4 font-medium">Deal Status</th>
                         <th className="py-2 font-medium" />
@@ -552,8 +571,10 @@ export default function PipelineLeadDetail({ stage }) {
                     <tbody className="divide-y divide-zoho-border/60">
                       {clientProposals.map((p) => (
                         <tr key={p.id}>
+                          <td className="py-2 pr-4 max-w-[200px] truncate" title={p.proposal_name || ''}>{p.proposal_name || '—'}</td>
                           <td className="py-2 pr-4">{p.proposal_date ? new Date(p.proposal_date).toLocaleDateString() : '—'}</td>
                           <td className="py-2 pr-4">{p.proposal_type_label || proposalTypeLabel(p.proposal_type)}</td>
+                          <td className="py-2 pr-4 max-w-[240px] truncate" title={p.proposal_description || ''}>{p.proposal_description || '—'}</td>
                           <td className="py-2 pr-4">{p.deal_size ?? p.proposal_amount ? formatMoney(p.deal_size ?? p.proposal_amount, p.currency) : '—'}</td>
                           <td className="py-2 pr-4">{p.deal_status_label || proposalDealStatusLabel(p.deal_status)}</td>
                           <td className="py-2 text-right">

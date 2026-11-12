@@ -113,7 +113,7 @@ export default function AccountsPage() {
     fetchAllIds: fetchAllMatchingAccountIds,
   });
 
-  // Proposals that became accounts, shown under each account like the Proposals table.
+  // Proposals that became accounts, shown under each account as Project 1, 2, 3… like the Proposals table.
   const [convertedProposals, setConvertedProposals] = useState([]);
   useEffect(() => {
     let cancelled = false;
@@ -130,18 +130,19 @@ export default function AccountsPage() {
 
   // Account details sit in each group's header row (see groupAccountRows); rows are its proposals.
   const columns = useMemo(() => [
-    { id: 'name', header: 'Proposal', cell: (row) => (
+    { id: 'name', header: 'Project', cell: (row) => (
       <span className="inline-flex items-center gap-2 pl-4">
         <span className="w-1.5 h-1.5 rounded-full bg-zoho-border" aria-hidden="true" />
         {row._proposal ? (
           <RecordDetailLink href={`/proposals/${row._proposal.id}`} className="text-sm text-zoho-text hover:text-brand-600">
-            {`Proposal ${row._proposalNumber}`}
+            {`Project ${row._proposalNumber}`}
           </RecordDetailLink>
         ) : (
-          <span className="text-sm text-zoho-muted">No proposals</span>
+          <span className="text-sm text-zoho-muted">No projects</span>
         )}
       </span>
     ) },
+    { id: 'project_name', header: 'Project Name', cell: (row) => row._proposal?.proposal_name || '—' },
     { id: 'contact', header: 'Contact', cell: (row) => (
       row._proposal ? `${row._proposal.first_name || ''} ${row._proposal.last_name || ''}`.trim() || '—' : '—'
     ) },
@@ -175,7 +176,7 @@ export default function AccountsPage() {
           <div className="ml-auto flex items-center gap-4 shrink-0 text-xs">
             {a.account_type && <Badge label={a.account_type} />}
             <span className="text-zoho-muted">
-              {`${count} proposal${count === 1 ? '' : 's'}`}
+              {`${count} project${count === 1 ? '' : 's'}`}
               {count > 0 && (
                 <>
                   <span className="mx-1.5">·</span>

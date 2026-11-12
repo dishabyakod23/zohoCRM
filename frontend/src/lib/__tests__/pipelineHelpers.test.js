@@ -65,7 +65,7 @@ describe('buildSiblingProposalPayloads', () => {
   const lead = {
     id: 'lead-1', first_name: 'Asha', company: 'Zyarex', email: 'asha@zyarex.com', currency: 'INR',
     pipeline_stage: 'proposal', deal_size: '5000', proposal_amount: '5000', proposal_type: 'fixed_cost',
-    proposal_type_label: 'Fixed Cost', deal_status: 'active_proposal', proposal_date: '2026-10-01',
+    proposal_type_label: 'Fixed Cost', deal_status: 'active_proposal', proposal_date: '2026-10-01', proposal_description: 'Website revamp',
   };
 
   it('copies client details but none of the existing proposal fields', () => {
@@ -75,6 +75,7 @@ describe('buildSiblingProposalPayloads', () => {
     expect(payload).not.toHaveProperty('proposal_amount');
     expect(payload.deal_size).toBe('');
     expect(payload.proposal_date).toBe('');
+    expect(payload.proposal_description).toBe('');
     expect(payload.proposal_type).toBe('time_and_material');
   });
 

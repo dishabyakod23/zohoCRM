@@ -33,6 +33,7 @@ export const PROPOSAL_TYPES = [
 /** Fields that differ per proposal; the rest of the Create Proposal form is shared client details. */
 export const PROPOSAL_DETAIL_FIELDS = [
   'proposal_date', 'deal_size', 'closure_date', 'deal_status', 'proposal_type', 'amc_it_support', 'amc_currency',
+  'proposal_name', 'proposal_description',
 ];
 
 export function emptyProposalDetails(amcCurrency = '') {
@@ -44,6 +45,8 @@ export function emptyProposalDetails(amcCurrency = '') {
     proposal_type: '',
     amc_it_support: '',
     amc_currency: amcCurrency,
+    proposal_name: '',
+    proposal_description: '',
   };
 }
 

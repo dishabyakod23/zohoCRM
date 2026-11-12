@@ -19,6 +19,18 @@ export default function ProposalDetailFields({ values, currency, onChange, onCur
   const change = (field) => (e) => onChange(field, e.target.value);
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+      <div className="sm:col-span-2">
+        <FormField label="Proposal Name" name={`${namePrefix}proposal_name`}>
+          <input
+            className="input"
+            type="text"
+            maxLength={200}
+            value={values.proposal_name ?? ''}
+            onChange={change('proposal_name')}
+            placeholder="e.g. Website revamp"
+          />
+        </FormField>
+      </div>
       <FormField label="Proposal Date" name={`${namePrefix}proposal_date`}>
         <input className="input" type="date" value={values.proposal_date?.slice?.(0, 10) || values.proposal_date || ''} onChange={change('proposal_date')} />
       </FormField>
@@ -52,6 +64,16 @@ export default function ProposalDetailFields({ values, currency, onChange, onCur
           placeholder="0"
         />
       </FormField>
+      <div className="sm:col-span-2">
+        <FormField label="Proposal Description" name={`${namePrefix}proposal_description`}>
+          <textarea
+            className="input min-h-[80px] resize-y"
+            value={values.proposal_description ?? ''}
+            onChange={change('proposal_description')}
+            placeholder="What this proposal covers, e.g. project scope"
+          />
+        </FormField>
+      </div>
     </div>
   );
 }

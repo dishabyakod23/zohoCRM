@@ -39,6 +39,18 @@ describe('AMC / IT Support on leads', () => {
     const payload = toLeadPayload({ amc_it_support: '' }, { partial: true });
     expect(payload.amc_it_support).toBeNull();
   });
+
+  it('sends proposal_name on create and only when edited on patch', () => {
+    expect(toLeadPayload({ proposal_name: ' Website revamp ' }).proposal_name).toBe('Website revamp');
+    expect(toLeadPayload({ proposal_name: 'Mobile app' }, { partial: true }).proposal_name).toBe('Mobile app');
+    expect(toLeadPayload({ description: 'x' }, { partial: true })).not.toHaveProperty('proposal_name');
+  });
+
+  it('sends proposal_description on create and only when edited on patch', () => {
+    expect(toLeadPayload({ proposal_description: 'Website revamp' }).proposal_description).toBe('Website revamp');
+    expect(toLeadPayload({ proposal_description: 'Mobile app' }, { partial: true }).proposal_description).toBe('Mobile app');
+    expect(toLeadPayload({ description: 'x' }, { partial: true })).not.toHaveProperty('proposal_description');
+  });
 });
 
 describe('Proposal Type on leads', () => {
