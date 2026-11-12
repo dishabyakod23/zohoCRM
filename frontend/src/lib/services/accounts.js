@@ -149,6 +149,11 @@ export async function listAccounts({
   );
 
   // Always merge sticky account-module rows so Status/account_type changes do not drop them.
+  // Ask for the plain /accounts page at the same time; it is used when there is nothing to merge.
+  const plainPage = (hasAccountClientFilters(filters) || useMembership)
+    ? null
+    : api.get('/accounts', { params });
+  plainPage?.catch(() => {});
   const sticky = await fetchStickyAccountRowsFromCompanies();
   const needsClientMerge = sticky.length > 0
     || hasAccountClientFilters(filters)
@@ -175,7 +180,7 @@ export async function listAccounts({
     };
   }
 
-  const res = await api.get('/accounts', { params });
+  const res = await (plainPage || api.get('/accounts', { params }));
   return {
     data: withEmails(res.data.data || []),
     total: res.data.meta?.total ?? 0,
