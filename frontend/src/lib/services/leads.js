@@ -92,7 +92,9 @@ async function fetchAllLeadPages(params, statusOptions, pageSize = BULK_FETCH_PA
  * proposal details, so the Accounts list can show them under each account.
  */
 export async function listConvertedProposals() {
-  return fetchAllLeadPages({ is_converted: true, pipeline_stage: PIPELINE_PROPOSAL });
+  // The API returns nothing for is_converted + pipeline_stage together, so the stage is matched here.
+  const converted = await fetchAllLeadPages({ is_converted: true });
+  return converted.filter((lead) => lead.pipeline_stage === PIPELINE_PROPOSAL);
 }
 
 /** Map UI pipeline stage / filters to API query params supported by GET /leads. */
