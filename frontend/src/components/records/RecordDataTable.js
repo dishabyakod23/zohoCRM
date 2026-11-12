@@ -191,6 +191,7 @@ export default function RecordDataTable({
   massUpdateHandler,
   sort,
   onSortChange,
+  groupRows,
 }) {
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -929,7 +930,13 @@ export default function RecordDataTable({
                 <tr><td colSpan={colSpan} className="table-td text-center py-12 text-zoho-muted">Loading…</td></tr>
               ) : records.length === 0 ? (
                 <tr><td colSpan={colSpan} className="table-td text-center py-12 text-zoho-muted">{emptyMessage}</td></tr>
-              ) : records.map((record) => {
+              ) : (groupRows ? groupRows(records) : [{ key: '', records }]).flatMap((group) => [
+                ...(group.header ? [(
+                  <tr key={`group-${group.key}`} className="list-table-group-row bg-gray-50">
+                    <td colSpan={colSpan} className="table-td">{group.header}</td>
+                  </tr>
+                )] : []),
+                ...group.records.map((record) => {
                 const id = getRowId(record);
                 const recordLabel = noteMeta.getLabel(record);
                 const noteTarget = resolveListNoteTarget({
@@ -967,7 +974,8 @@ export default function RecordDataTable({
                     ))}
                   </tr>
                 );
-              })}
+                }),
+              ])}
             </tbody>
           </table>
         </div>

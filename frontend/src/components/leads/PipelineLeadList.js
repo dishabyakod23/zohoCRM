@@ -24,7 +24,7 @@ import LinkedInCell from '../records/LinkedInCell.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
 import { formatMoney } from '../../lib/currencies.js';
 import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../layout/ListFilterFields.js';
-import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES, PIPELINE_MODULE_PERMISSION, countProposalsPerClient } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES, PIPELINE_MODULE_PERMISSION, countProposalsPerClient, groupProposalsByClient, proposalNumbers } from '../../lib/pipelineHelpers.js';
 
 import { EMPTY_LEAD_FILTERS, countActiveFilters, leadFiltersFromSearchParams } from '../../lib/listRecordFilters.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
@@ -35,6 +35,7 @@ import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js'
 import { useTableSelection } from '../../hooks/useTableSelection.js';
 import { recordTimestampColumns } from '../../lib/listTimestampHelpers.js';
 import { hasOutreachStatusLabel } from '../../lib/leadHelpers.js';
+import { sortDealLostLast } from '../../lib/statusHelpers.js';
 
 const STAGE_MODULE_KEY = {
   [PIPELINE_RAW]: 'raw-leads',
@@ -122,7 +123,8 @@ function PipelineLeadListContent({ stage, description }) {
         ...getSortApiParams(sort, moduleKey),
       });
       if (requestId !== fetchRequestId.current) return;
-      setLeads(result.data);
+      // Lost proposals sent back to Cold Leads sit at the bottom of each page.
+      setLeads(stage === PIPELINE_RAW ? sortDealLostLast(result.data) : result.data);
       setTotal(result.total);
     } catch (err) {
       if (requestId !== fetchRequestId.current) return;
@@ -137,16 +139,56 @@ function PipelineLeadListContent({ stage, description }) {
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
   useListRefresh(fetchLeads);
 
-  // Proposals per client across all pages, so rows for one client show "N proposals".
+  // All proposals (every page), so each client shows its full count and proposals keep the
+  // same number (Proposal 1, 2, 3…) whichever page or filter they appear on.
   const [clientProposalCounts, setClientProposalCounts] = useState(() => new Map());
+  const [allProposalNumbers, setAllProposalNumbers] = useState(() => new Map());
   useEffect(() => {
     if (stage !== PIPELINE_PROPOSAL) return undefined;
     let cancelled = false;
     leadsApi.listAllLeads({ pipeline_stage: PIPELINE_PROPOSAL }, statusOptionsRef.current)
-      .then(({ data }) => { if (!cancelled) setClientProposalCounts(countProposalsPerClient(data)); })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setClientProposalCounts(countProposalsPerClient(data));
+        setAllProposalNumbers(proposalNumbers(data));
+      })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [stage, total]);
+
+  const groupProposalRows = useCallback((rows) => {
+    const pageNumbers = proposalNumbers(rows);
+    return groupProposalsByClient(rows).map((group) => {
+      const client = group.records[0];
+      const clientTotal = Math.max(clientProposalCounts.get(client.id) || 0, group.records.length);
+      return {
+        key: group.key,
+        records: [...group.records].sort((a, b) => (
+          (allProposalNumbers.get(a.id) || pageNumbers.get(a.id)) - (allProposalNumbers.get(b.id) || pageNumbers.get(b.id))
+        )),
+        header: (
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+            <RecordDetailLink href={config.detailPath(client.id)} className={`${tableLinkClass} font-semibold`}>
+              {`${client.first_name || ''} ${client.last_name || ''}`.trim() || client.company || 'Client'}
+            </RecordDetailLink>
+            {client.company && <span className="text-zoho-text">{client.company}</span>}
+            {client.email && <span className={tableEmailClass}>{client.email}</span>}
+            {(client.phone || client.mobile) && <span className="text-zoho-muted">{client.phone || client.mobile}</span>}
+            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-brand-50 text-brand-700">
+              {clientTotal === group.records.length
+                ? `${clientTotal} proposal${clientTotal === 1 ? '' : 's'}`
+                : `${group.records.length} of ${clientTotal} proposals shown`}
+            </span>
+            {canCreate && (
+              <RecordDetailLink href={`/proposals/create/?from=${client.id}`} className="ml-auto text-xs font-medium text-brand-600 hover:underline">
+                + Add proposal
+              </RecordDetailLink>
+            )}
+          </div>
+        ),
+      };
+    });
+  }, [clientProposalCounts, allProposalNumbers, config, canCreate]);
 
   const downloadTemplate = async () => {
     try {
@@ -205,23 +247,14 @@ function PipelineLeadListContent({ stage, description }) {
 
   const columns = useMemo(() => {
     if (stage === PIPELINE_PROPOSAL) {
-      const pageCounts = countProposalsPerClient(leads);
+      // Client details sit in each group's header row (see groupProposalRows); rows are the proposals.
+      const pageNumbers = proposalNumbers(leads);
       const cols = [
-        { id: 'name', header: 'Name', cell: (lead) => {
-          const count = Math.max(clientProposalCounts.get(lead.id) || 0, pageCounts.get(lead.id) || 1);
-          return (
-            <span className="inline-flex items-center gap-2">
-              <RecordDetailLink href={config.detailPath(lead.id)} className={tableLinkClass}>{lead.first_name} {lead.last_name}</RecordDetailLink>
-              {count > 1 && (
-                <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 whitespace-nowrap" title="Proposals for this client">
-                  {`${count} proposals`}
-                </span>
-              )}
-            </span>
-          );
-        } },
-        { id: 'company', header: 'Company', cell: (lead) => lead.company || '—' },
-        { id: 'email', header: 'Email', sortField: 'email', cell: (lead) => <span className={tableEmailClass}>{lead.email || '—'}</span> },
+        { id: 'name', header: 'Proposal', cell: (lead) => (
+          <RecordDetailLink href={config.detailPath(lead.id)} className={`${tableLinkClass} pl-4`}>
+            {`Proposal ${allProposalNumbers.get(lead.id) || pageNumbers.get(lead.id) || 1}`}
+          </RecordDetailLink>
+        ) },
         { id: 'proposal_date', header: 'Proposal Date', cell: (lead) => formatDate(lead.proposal_date) },
         { id: 'deal_size', header: 'Deal Size', cell: (lead) => formatDealSize(lead.deal_size ?? lead.proposal_amount, lead.currency) },
         { id: 'proposal_type', header: 'Proposal Type', cell: (lead) => lead.proposal_type_label || proposalTypeLabel(lead.proposal_type) },
@@ -256,7 +289,7 @@ function PipelineLeadListContent({ stage, description }) {
       });
     }
     return cols;
-  }, [config, canAssignLeads, user?.id, stage, leads, clientProposalCounts]);
+  }, [config, canAssignLeads, user?.id, stage, leads, allProposalNumbers]);
 
   const createLabel = stage === PIPELINE_RAW
     ? 'Create Cold Lead'
@@ -360,6 +393,7 @@ function PipelineLeadListContent({ stage, description }) {
               onRefresh={fetchLeads}
               sort={sort}
               onSortChange={(v) => { setSort(v); setPage(1); }}
+              groupRows={stage === PIPELINE_PROPOSAL ? groupProposalRows : undefined}
               {...tableSelection}
               massUpdateFieldsLoader={loadMassUpdateFields}
               convertTargetsLoader={fetchPipelineConvertTargets}

@@ -15,8 +15,12 @@ export const PROPOSAL_SOURCE = 'Proposal';
 /** Deal status values shown on proposal records */
 export const PROPOSAL_DEAL_STATUSES = [
   { value: 'active_proposal', label: 'Active Proposal' },
+  { value: 'deal_won', label: 'Deal Won' },
   { value: 'deal_lost', label: 'Deal Lost' },
 ];
+
+export const DEAL_STATUS_WON = 'deal_won';
+export const DEAL_STATUS_LOST = 'deal_lost';
 
 /** Proposal type values on proposal records */
 export const PROPOSAL_TYPES = [
@@ -89,6 +93,30 @@ export function otherProposalsForClient(lead, proposals = []) {
   return proposals.filter((p) => String(p.id) !== String(lead.id) && proposalClientKey(p) === key);
 }
 
+/**
+ * Group rows by client, keeping the order in which each client first appears.
+ * Rows inside a group are ordered oldest first so they read Proposal 1, 2, 3…
+ */
+export function groupProposalsByClient(rows = []) {
+  const groups = new Map();
+  for (const row of rows) {
+    const key = proposalClientKey(row) || `id:${row.id}`;
+    if (!groups.has(key)) groups.set(key, { key, records: [] });
+    groups.get(key).records.push(row);
+  }
+  const created = (r) => new Date(r.created_at || r.proposal_date || 0).getTime() || 0;
+  return [...groups.values()].map((g) => ({ ...g, records: [...g.records].sort((a, b) => created(a) - created(b)) }));
+}
+
+/** Proposal number (1, 2, 3…) of every row within its client, keyed by row id. */
+export function proposalNumbers(rows = []) {
+  const numbers = new Map();
+  for (const group of groupProposalsByClient(rows)) {
+    group.records.forEach((r, i) => numbers.set(r.id, i + 1));
+  }
+  return numbers;
+}
+
 /** How many of `rows` share each row's client, keyed by row id. */
 export function countProposalsPerClient(rows = []) {
   const totals = new Map();
@@ -148,7 +176,30 @@ export const CONVERT_TARGET_PERMISSION = {
 };
 
 /** Options for the unified Convert dropdown per pipeline stage */
-export function getConvertOptions(stage, { isAdmin = false, can } = {}) {
+export function getConvertOptions(stage, { isAdmin = false, can, dealStatus } = {}) {
+  if (stage === PIPELINE_PROPOSAL && dealStatus !== undefined) {
+    return proposalConvertOptions(dealStatus, { isAdmin, can });
+  }
+  return allConvertOptions(stage, { isAdmin, can });
+}
+
+/**
+ * A proposal's Convert menu follows its Deal Status:
+ * Deal Won → Account only; Deal Lost → back to Cold Leads (lead status "Deal Lost") only;
+ * otherwise the earlier stages, but not Account or Cold Lead until the deal is decided.
+ */
+function proposalConvertOptions(dealStatus, { isAdmin, can }) {
+  const options = allConvertOptions(PIPELINE_PROPOSAL, { isAdmin, can });
+  if (dealStatus === DEAL_STATUS_WON) return options.filter((o) => o.id === 'account');
+  if (dealStatus === DEAL_STATUS_LOST) {
+    return options
+      .filter((o) => o.id === 'cold_lead')
+      .map((o) => ({ ...o, label: 'Cold Lead (Deal Lost)', markDealLost: true }));
+  }
+  return options.filter((o) => o.id !== 'account' && o.id !== 'cold_lead');
+}
+
+function allConvertOptions(stage, { isAdmin = false, can } = {}) {
   const allTargets = [
     { id: 'contact', label: 'Contact', type: CONVERT_TYPE.CONTACT, permissionKey: 'contacts' },
     {

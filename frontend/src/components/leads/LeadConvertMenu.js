@@ -23,6 +23,7 @@ export default function LeadConvertMenu({
   canEdit = false,
   isAdmin = false,
   isConverted = false,
+  dealStatus,
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -37,7 +38,7 @@ export default function LeadConvertMenu({
     create_deal: false, deal_name: '', close_date: '', stage_value: 'qualification', amount: '',
   });
 
-  const options = getConvertOptions(stage, { isAdmin: isAdmin || isSuperAdmin, can });
+  const options = getConvertOptions(stage, { isAdmin: isAdmin || isSuperAdmin, can, dealStatus });
 
   useEffect(() => {
     fetchDealStages().then(setStageOptions).catch(() => setStageOptions(FALLBACK_DEAL_STAGES));
@@ -56,10 +57,14 @@ export default function LeadConvertMenu({
   const runStageConvert = async (option) => {
     setConverting(true);
     try {
-      await leadsApi.advanceLeadStage(leadId, option.target, {
-        proposal: option.proposal,
-        clearProposal: option.clearProposal,
-      });
+      if (option.markDealLost) {
+        await leadsApi.moveLostProposalToColdLeads(leadId);
+      } else {
+        await leadsApi.advanceLeadStage(leadId, option.target, {
+          proposal: option.proposal,
+          clearProposal: option.clearProposal,
+        });
+      }
       showToast(`Converted to ${option.label}`, 'success');
       setPendingOption(null);
       navigateToRecord(getConvertRedirectPath(option.target, leadId), router);

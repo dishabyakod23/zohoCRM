@@ -108,6 +108,7 @@ export default function CreatePipelineLeadForm({
   showLeadStatus = false,
   showLeadSource = true,
   showProposalFields = false,
+  prefill = null,
 }) {
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -120,7 +121,8 @@ export default function CreatePipelineLeadForm({
   const [statusOptions, setStatusOptions] = useState(FALLBACK_LEAD_STATUSES);
   const [sourceOptions, setSourceOptions] = useState([]);
   const [lostReasonOptions, setLostReasonOptions] = useState([]);
-  const { emailError, checking: checkingEmail } = useEmailFieldError(form.email);
+  // One client can have several proposals with the same email, so proposals only check the email format.
+  const { emailError, checking: checkingEmail } = useEmailFieldError(form.email, { enabled: !showProposalFields });
   const savingRef = useRef(false);
 
   useEffect(() => {
@@ -134,6 +136,18 @@ export default function CreatePipelineLeadForm({
       })
       .catch(() => {});
   }, [user?.id]);
+
+  // Fill client details (e.g. "Add Proposal" from an existing client) once they load.
+  useEffect(() => {
+    if (!prefill) return;
+    setForm((f) => {
+      const next = { ...f };
+      for (const key of Object.keys(f)) {
+        if (prefill[key] != null && prefill[key] !== '') next[key] = prefill[key];
+      }
+      return next;
+    });
+  }, [prefill]);
 
   const set = makeFieldSetter(setForm, setErrors);
 
@@ -178,7 +192,7 @@ export default function CreatePipelineLeadForm({
       const secErr = validateEmail(form.secondary_email);
       if (secErr) errs.secondary_email = secErr;
     }
-    if (!errs.email && form.email) {
+    if (!errs.email && form.email && !showProposalFields) {
       const uniqueErr = emailError || await validateEmailUnique(form.email);
       if (uniqueErr) errs.email = uniqueErr;
     }

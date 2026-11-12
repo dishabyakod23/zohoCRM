@@ -9,6 +9,8 @@ import {
   DND_LEAD_STATUS,
   isDndStatus,
   pickRegisteredDndValue,
+  DEAL_LOST_LEAD_STATUS,
+  isDealLostStatus,
 } from '../statusHelpers.js';
 
 export { LEAD_STATUS_CATEGORY };
@@ -209,4 +211,38 @@ export async function ensureDndLeadStatusRegistered() {
   })();
 
   return dndRegisterPromise;
+}
+
+let dealLostRegisterPromise = null;
+
+/**
+ * Make sure "Deal Lost" exists in the lead-status lookups so a lost proposal can be moved back
+ * to Cold Leads with that status. Returns the API value to send, or null if it can't be added.
+ */
+export async function ensureDealLostLeadStatusRegistered() {
+  if (dealLostRegisterPromise) return dealLostRegisterPromise;
+  dealLostRegisterPromise = (async () => {
+    try {
+      const rows = await listAdminLeadStatuses();
+      const existing = (rows || []).find((row) => isDealLostStatus(row.value) || isDealLostStatus(row.label));
+      if (existing?.value) {
+        if (existing.is_active === false && existing.id) {
+          await updateAdminLeadStatus(existing.id, { is_active: true });
+        }
+        return String(existing.value);
+      }
+    } catch {
+      /* try create anyway — some roles can add options without listing */
+    }
+    try {
+      const created = await createAdminLeadStatus({ label: 'Deal Lost', value: DEAL_LOST_LEAD_STATUS });
+      return String(created?.value || DEAL_LOST_LEAD_STATUS);
+    } catch (err) {
+      // 409: it already exists (we just couldn't list it), so the value is usable.
+      if (err?.response?.status === 409) return DEAL_LOST_LEAD_STATUS;
+      dealLostRegisterPromise = null;
+      return null;
+    }
+  })();
+  return dealLostRegisterPromise;
 }

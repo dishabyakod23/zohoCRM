@@ -20,6 +20,23 @@ export function isDndRecord(record) {
     || isDndStatus(record.lead_status_label);
 }
 
+/** Lead status for a proposal that was lost and moved back to Cold Leads. */
+export const DEAL_LOST_LEAD_STATUS = 'deal_lost';
+
+export function isDealLostStatus(value) {
+  return String(value || '').toLowerCase().trim().replace(/[\s-]+/g, '_') === DEAL_LOST_LEAD_STATUS;
+}
+
+export function isDealLostRecord(record) {
+  if (!record) return false;
+  return isDealLostStatus(record.lead_status) || isDealLostStatus(record.status) || isDealLostStatus(record.lead_status_label);
+}
+
+/** Same rows with Deal Lost records moved to the end, otherwise keeping their order. */
+export function sortDealLostLast(rows = []) {
+  return [...rows.filter((r) => !isDealLostRecord(r)), ...rows.filter(isDealLostRecord)];
+}
+
 /** Canonical API value for an already-registered DND lookup option, if present. */
 export function pickRegisteredDndValue(options = []) {
   const hit = (options || []).find((opt) => isDndStatus(opt?.value) || isDndStatus(opt?.label));

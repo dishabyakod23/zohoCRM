@@ -1,4 +1,4 @@
-import { mergeLeadStatusOptions, isDndStatus, isDndRecord, ensureDndLeadStatusOption, pickRegisteredDndValue } from '../statusHelpers.js';
+import { mergeLeadStatusOptions, isDndStatus, isDndRecord, ensureDndLeadStatusOption, pickRegisteredDndValue, isDealLostStatus, sortDealLostLast } from '../statusHelpers.js';
 
 describe('mergeLeadStatusOptions', () => {
   it('adds custom admin statuses missing from public lookups', () => {
@@ -44,5 +44,23 @@ describe('DND lead status', () => {
   it('picks the registered DND lookup value', () => {
     expect(pickRegisteredDndValue([{ value: 'not_contacted', label: 'Not Contacted' }])).toBeNull();
     expect(pickRegisteredDndValue([{ value: 'do_not_disturb', label: 'DND' }])).toBe('do_not_disturb');
+  });
+});
+
+describe('Deal Lost cold leads', () => {
+  it('recognises the Deal Lost status in its usual spellings', () => {
+    expect(isDealLostStatus('deal_lost')).toBe(true);
+    expect(isDealLostStatus('Deal Lost')).toBe(true);
+    expect(isDealLostStatus('not_contacted')).toBe(false);
+  });
+
+  it('moves Deal Lost rows to the end and keeps the rest in order', () => {
+    const rows = [
+      { id: 1, lead_status: 'deal_lost' },
+      { id: 2, lead_status: 'not_contacted' },
+      { id: 3, status: 'Deal Lost' },
+      { id: 4, lead_status: 'contacted' },
+    ];
+    expect(sortDealLostLast(rows).map((r) => r.id)).toEqual([2, 4, 1, 3]);
   });
 });

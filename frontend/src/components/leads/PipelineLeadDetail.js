@@ -55,7 +55,7 @@ export default function PipelineLeadDetail({ stage }) {
   const id = useRecordId();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const { canEditRecord, canDeleteRecord, canAssignLeads, isSuperAdmin, isSalesManager } = usePermissions();
+  const { can, canEditRecord, canDeleteRecord, canAssignLeads, isSuperAdmin, isSalesManager } = usePermissions();
   const [lead, setLead] = useState(null);
   const [users, setUsers] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -159,7 +159,8 @@ export default function PipelineLeadDetail({ stage }) {
     savingRef.current = true;
     setSaving(true);
     try {
-      if (payload.email) {
+      // One client can have several proposals with the same email, so proposals skip the unique check.
+      if (payload.email && stage !== PIPELINE_PROPOSAL) {
         const uniqueErr = await validateEmailUnique(payload.email, { excludeLeadId: id });
         if (uniqueErr) throw new Error(uniqueErr);
       }
@@ -311,6 +312,15 @@ export default function PipelineLeadDetail({ stage }) {
         recordHistory={{ entityType: 'lead', recordId: id }}
         actions={
           <>
+            {stage === PIPELINE_PROPOSAL && can('proposals', 'create') && (
+              <button
+                type="button"
+                onClick={() => navigateToRecord(`/proposals/create/?from=${id}`)}
+                className="btn-primary text-xs"
+              >
+                + Add Proposal
+              </button>
+            )}
             <CallRecordButton phone={lead.phone} mobile={lead.mobile} label="Call Lead" />
             <LeadConvertMenu
               stage={stage}
@@ -318,6 +328,7 @@ export default function PipelineLeadDetail({ stage }) {
               leadName={`${lead.first_name} ${lead.last_name}`}
               canEdit={editable}
               isAdmin={adminTier}
+              dealStatus={stage === PIPELINE_PROPOSAL ? (lead.deal_status || '') : undefined}
             />
             {canChangeOwner && (
               <button onClick={() => setAssignOpen(true)} className="btn-secondary text-xs flex items-center gap-1.5">
@@ -537,6 +548,7 @@ export default function PipelineLeadDetail({ stage }) {
                   value={d.email}
                   onChange={(e) => set((p) => ({ ...p, email: trimStartValue(e.target.value) }))}
                   excludeLeadId={id}
+                  enabled={stage !== PIPELINE_PROPOSAL}
                 />
               ) },
               { name: 'phone', label: 'Phone' },

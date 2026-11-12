@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { normalizeLead, toLeadPayload, resolveLeadOwnerId, resolveLeadStatusForApi, withClientSalutation, wasLeadSalutationDropped, enrichLeadReadyRecordsFromCsv, resolveLeadLinkedInUrl } from '../leadHelpers.js';
-import { isDndStatus } from '../statusHelpers.js';
-import { ensureDndLeadStatusRegistered } from './admin.js';
+import { isDndStatus, DEAL_LOST_LEAD_STATUS } from '../statusHelpers.js';
+import { ensureDndLeadStatusRegistered, ensureDealLostLeadStatusRegistered } from './admin.js';
 import { toConvertPayload } from '../dealHelpers.js';
 import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS, assertReadyRecordsComplete, resolveReadyCount, formatBulkUploadSkipMessages } from '../importHelpers.js';
 import {
@@ -633,6 +633,17 @@ export async function persistImportedLeadLinkedInUrls(importResult = {}, process
 
 export async function advanceLeadStage(id, lead_status, { proposal = false, clearProposal = false } = {}) {
   await convertPipelineTargets([id], lead_status, { proposal, clearProposal });
+  return getLead(id);
+}
+
+/** A lost proposal goes back to Cold Leads with lead status "Deal Lost" (set after the move, which resets status). */
+export async function moveLostProposalToColdLeads(id) {
+  await convertPipelineTargets([id], PIPELINE_RAW, { clearProposal: true });
+  const dealLost = (await ensureDealLostLeadStatusRegistered()) || DEAL_LOST_LEAD_STATUS;
+  const result = await massUpdateLeads([id], 'lead_status', dealLost);
+  if (result?.failed_count > 0) {
+    throw new Error(`Moved to Cold Leads, but the Deal Lost status was not saved: ${(result.errors || []).join('; ')}`);
+  }
   return getLead(id);
 }
 

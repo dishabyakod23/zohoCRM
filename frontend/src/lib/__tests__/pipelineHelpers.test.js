@@ -11,7 +11,30 @@ import {
   buildSiblingProposalPayloads,
   otherProposalsForClient,
   countProposalsPerClient,
+  groupProposalsByClient,
+  proposalNumbers,
 } from '../pipelineHelpers.js';
+
+describe('grouping proposals by client', () => {
+  const rows = [
+    { id: 'b2', email: 'b@x.com', created_at: '2026-11-03' },
+    { id: 'a1', email: 'a@x.com', created_at: '2026-11-01' },
+    { id: 'b1', email: 'B@x.com', created_at: '2026-11-02' },
+    { id: 'c1', email: '', first_name: '', last_name: '', company: '' },
+  ];
+
+  it('keeps clients in first-seen order and sorts each client oldest first', () => {
+    const groups = groupProposalsByClient(rows);
+    expect(groups.map((g) => g.records.map((r) => r.id))).toEqual([['b1', 'b2'], ['a1'], ['c1']]);
+  });
+
+  it('numbers proposals within each client', () => {
+    const numbers = proposalNumbers(rows);
+    expect(numbers.get('b1')).toBe(1);
+    expect(numbers.get('b2')).toBe(2);
+    expect(numbers.get('a1')).toBe(1);
+  });
+});
 
 describe('proposals of the same client', () => {
   const rows = [
@@ -188,6 +211,21 @@ describe('getConvertOptions', () => {
       'Proposal',
       'Account',
     ]);
+  });
+
+  it('lets a won proposal convert only to an Account', () => {
+    expect(getConvertOptions('proposal', { dealStatus: 'deal_won' }).map((o) => o.id)).toEqual(['account']);
+  });
+
+  it('lets a lost proposal go back only to Cold Leads, marked Deal Lost', () => {
+    const options = getConvertOptions('proposal', { dealStatus: 'deal_lost' });
+    expect(options.map((o) => o.label)).toEqual(['Cold Lead (Deal Lost)']);
+    expect(options[0]).toMatchObject({ target: PIPELINE_RAW, markDealLost: true });
+  });
+
+  it('keeps Account and Cold Lead off an undecided proposal', () => {
+    const ids = getConvertOptions('proposal', { dealStatus: 'active_proposal' }).map((o) => o.id);
+    expect(ids).toEqual(['contact', 'lead', 'qualified_lead']);
   });
 
   it('excludes the current stage from convert targets', () => {
