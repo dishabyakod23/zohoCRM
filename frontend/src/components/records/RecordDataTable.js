@@ -932,7 +932,7 @@ export default function RecordDataTable({
                 <tr><td colSpan={colSpan} className="table-td text-center py-12 text-zoho-muted">{emptyMessage}</td></tr>
               ) : (groupRows ? groupRows(records) : [{ key: '', records }]).flatMap((group) => [
                 ...(group.header ? [(
-                  <tr key={`group-${group.key}`} className="list-table-group-row bg-gray-50">
+                  <tr key={`group-${group.key}`} className="list-table-group-row">
                     <td colSpan={colSpan} className="table-td">{group.header}</td>
                   </tr>
                 )] : []),

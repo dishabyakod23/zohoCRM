@@ -22,7 +22,7 @@ import CsvImportModal from '../records/CsvImportModal.js';
 import PhoneCell from '../cloudtalk/PhoneCell.js';
 import LinkedInCell from '../records/LinkedInCell.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
-import { formatMoney } from '../../lib/currencies.js';
+import { formatMoney, formatMoneyTotalsByCurrency } from '../../lib/currencies.js';
 import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../layout/ListFilterFields.js';
 import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES, PIPELINE_MODULE_PERMISSION, countProposalsPerClient, groupProposalsByClient, proposalNumbers } from '../../lib/pipelineHelpers.js';
 
@@ -166,26 +166,42 @@ function PipelineLeadListContent({ stage, description }) {
         records: [...group.records].sort((a, b) => (
           (allProposalNumbers.get(a.id) || pageNumbers.get(a.id)) - (allProposalNumbers.get(b.id) || pageNumbers.get(b.id))
         )),
-        header: (
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-            <RecordDetailLink href={config.detailPath(client.id)} className={`${tableLinkClass} font-semibold`}>
-              {`${client.first_name || ''} ${client.last_name || ''}`.trim() || client.company || 'Client'}
-            </RecordDetailLink>
-            {client.company && <span className="text-zoho-text">{client.company}</span>}
-            {client.email && <span className={tableEmailClass}>{client.email}</span>}
-            {(client.phone || client.mobile) && <span className="text-zoho-muted">{client.phone || client.mobile}</span>}
-            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-brand-50 text-brand-700">
-              {clientTotal === group.records.length
-                ? `${clientTotal} proposal${clientTotal === 1 ? '' : 's'}`
-                : `${group.records.length} of ${clientTotal} proposals shown`}
-            </span>
-            {canCreate && (
-              <RecordDetailLink href={`/proposals/create/?from=${client.id}`} className="ml-auto text-xs font-medium text-brand-600 hover:underline">
-                + Add proposal
-              </RecordDetailLink>
-            )}
-          </div>
-        ),
+        header: (() => {
+          const name = `${client.first_name || ''} ${client.last_name || ''}`.trim() || client.company || 'Client';
+          const details = [client.company, client.email, client.phone || client.mobile].filter(Boolean);
+          const initials = name.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() || '').join('');
+          return (
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-8 h-8 shrink-0 rounded-full bg-brand-50 text-brand-700 text-xs font-semibold flex items-center justify-center" aria-hidden="true">
+                {initials}
+              </span>
+              <div className="min-w-0">
+                <RecordDetailLink href={config.detailPath(client.id)} className="text-sm font-semibold text-zoho-text hover:text-brand-600">
+                  {name}
+                </RecordDetailLink>
+                {details.length > 0 && (
+                  <p className="text-xs text-zoho-muted truncate">{details.join(' · ')}</p>
+                )}
+              </div>
+              <div className="ml-auto flex items-center gap-4 shrink-0 text-xs">
+                <span className="text-zoho-muted">
+                  {clientTotal === group.records.length
+                    ? `${clientTotal} proposal${clientTotal === 1 ? '' : 's'}`
+                    : `${group.records.length} of ${clientTotal} proposals`}
+                  <span className="mx-1.5">·</span>
+                  <span className="font-medium text-zoho-text">
+                    {formatMoneyTotalsByCurrency(group.records, { amountKey: 'deal_size', currencyKey: 'currency' })}
+                  </span>
+                </span>
+                {canCreate && (
+                  <RecordDetailLink href={`/proposals/create/?from=${client.id}`} className="font-medium text-brand-600 hover:underline">
+                    + Add proposal
+                  </RecordDetailLink>
+                )}
+              </div>
+            </div>
+          );
+        })(),
       };
     });
   }, [clientProposalCounts, allProposalNumbers, config, canCreate]);
@@ -251,9 +267,12 @@ function PipelineLeadListContent({ stage, description }) {
       const pageNumbers = proposalNumbers(leads);
       const cols = [
         { id: 'name', header: 'Proposal', cell: (lead) => (
-          <RecordDetailLink href={config.detailPath(lead.id)} className={`${tableLinkClass} pl-4`}>
-            {`Proposal ${allProposalNumbers.get(lead.id) || pageNumbers.get(lead.id) || 1}`}
-          </RecordDetailLink>
+          <span className="inline-flex items-center gap-2 pl-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-zoho-border" aria-hidden="true" />
+            <RecordDetailLink href={config.detailPath(lead.id)} className="text-sm text-zoho-text hover:text-brand-600">
+              {`Proposal ${allProposalNumbers.get(lead.id) || pageNumbers.get(lead.id) || 1}`}
+            </RecordDetailLink>
+          </span>
         ) },
         { id: 'proposal_date', header: 'Proposal Date', cell: (lead) => formatDate(lead.proposal_date) },
         { id: 'deal_size', header: 'Deal Size', cell: (lead) => formatDealSize(lead.deal_size ?? lead.proposal_amount, lead.currency) },

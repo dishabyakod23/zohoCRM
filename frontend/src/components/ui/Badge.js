@@ -14,6 +14,9 @@ const COLORS = {
   'Negotiation': 'bg-orange-50 text-orange-700 ring-orange-200',
   'Closed Won':  'bg-emerald-50 text-emerald-700 ring-emerald-200',
   'Closed Lost': 'bg-red-50 text-red-700 ring-red-200',
+  'Active Proposal': 'bg-blue-50 text-blue-700 ring-blue-200',
+  'Deal Won':    'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  'Deal Lost':   'bg-red-50 text-red-700 ring-red-200',
 };
 
 export default function Badge({ label }) {

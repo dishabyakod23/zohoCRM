@@ -35,6 +35,10 @@
   .record-data-table tbody tr:hover { @apply bg-brand-50/40; }
   .record-data-table .table-td a { @apply text-zoho-text hover:text-brand-600; }
   .record-data-table .table-td .table-muted { @apply text-zoho-muted; }
+  /* Grouped rows (e.g. a client with its proposals underneath) */
+  .record-data-table tbody tr.list-table-group-row { @apply bg-neutral-50 border-t border-zoho-border; }
+  .record-data-table tbody tr.list-table-group-row:hover { @apply bg-neutral-50; }
+  .record-data-table tbody tr.list-table-group-row > td { @apply py-2.5; }
   .badge    { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset; }
 
   /* List view toolbar */
@@ -138,6 +142,8 @@ html.crm-dark .crm-a11y-panel { @apply bg-neutral-900 border-neutral-700; }
 html.crm-dark .crm-a11y-panel-header { background-color: rgb(38 38 38 / 0.8); @apply border-neutral-700; }
 html.crm-dark .record-data-table thead tr { @apply bg-neutral-950; }
 html.crm-dark .record-data-table tbody tr:hover { @apply bg-neutral-800/60; }
+html.crm-dark .record-data-table tbody tr.list-table-group-row,
+html.crm-dark .record-data-table tbody tr.list-table-group-row:hover { @apply bg-neutral-900 border-neutral-700; }
 html.crm-dark .hover\:text-black:hover { @apply text-neutral-100; }
 html.crm-dark .record-data-table-footer { @apply bg-neutral-900 border-neutral-700; }
 html.crm-dark .list-view-panels { background-color: rgb(23 23 23 / 0.5); }
