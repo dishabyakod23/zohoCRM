@@ -4,17 +4,13 @@ import AppLink from '../ui/AppLink.js';
 import { navigateToRecord } from '../../lib/recordNavigation.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useMeetingReminders } from '../../hooks/useMeetingReminders.js';
-import * as leadsApi from '../../lib/services/leads.js';
-import * as contactsApi from '../../lib/services/contacts.js';
-import * as accountsApi from '../../lib/services/accounts.js';
 import { useToast } from '../ui/Toast.js';
 import ConfirmDialog from '../ui/ConfirmDialog.js';
-import { getApiError } from '../../lib/api.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { QUICK_CREATE } from '../../lib/constants.js';
 import { userDisplayName } from '../../lib/userHelpers.js';
 import UserAvatar from '../users/UserAvatar.js';
-import { getLeadDetailPath } from '../../lib/pipelineHelpers.js';
+import { runGlobalSearch, matchPagesAndActions, visibleSearchSources } from '../../lib/globalSearch.js';
 
 function formatNotifWhen(iso) {
   if (!iso) return '';
@@ -43,7 +39,9 @@ export default function Header({ onMenuClick }) {
     openPopup: openMeetingInvitePopup,
   } = useMeetingReminders();
   const [search, setSearch] = useState('');
-  const [results, setResults] = useState([]);
+  const [searchGroups, setSearchGroups] = useState([]);
+  const [searchPending, setSearchPending] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [showResults, setShowResults] = useState(false);
   const [showQuick, setShowQuick] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -67,58 +65,64 @@ export default function Header({ onMenuClick }) {
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
+  // Global search: pages/actions match instantly; each record type's results appear as it answers.
   useEffect(() => {
-    if (search.length < 2) { setResults([]); return; }
-    let cancelled = false;
-    const requestId = Date.now();
-    const latestRequest = { current: requestId };
+    const query = search.trim();
+    setActiveIndex(-1);
+    if (query.length < 2) {
+      setSearchGroups([]);
+      setSearchPending(false);
+      return undefined;
+    }
+    const pages = matchPagesAndActions(query, can);
+    setSearchGroups(pages.length ? [{ key: 'pages', label: 'Pages & Actions', results: pages }] : []);
+    setSearchPending(true);
+    const latestRequest = {};
     searchRequestRef.current = latestRequest;
+    const isCurrent = () => searchRequestRef.current === latestRequest;
+    const order = visibleSearchSources(can).map((s) => s.key);
     const t = setTimeout(() => {
-      Promise.all([
-        contactsApi.listContacts({ search, page_size: 6 }),
-        leadsApi.listLeads({ search, page_size: 4 }),
-        accountsApi.listAccounts({ search, page_size: 3 }),
-      ]).then(([contacts, leads, accounts]) => {
-        if (cancelled || searchRequestRef.current !== latestRequest) return;
-        setResults([
-          ...contacts.data.map((c) => ({
-            type: 'contact',
-            id: c.id,
-            name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || 'Contact',
-            sub: c.email || c.account_name || '',
-            href: `/contacts/${c.id}`,
-          })),
-          ...leads.data.map((l) => ({
-            type: 'lead',
-            id: l.id,
-            name: `${l.first_name || ''} ${l.last_name || ''}`.trim() || l.email || 'Lead',
-            sub: l.email || l.company || '',
-            href: getLeadDetailPath(l, l.id),
-          })),
-          ...accounts.data.map((a) => ({
-            type: 'account',
-            id: a.id,
-            name: a.name,
-            sub: a.industry || a.email || '',
-            href: `/accounts/${a.id}`,
-          })),
-        ].slice(0, 12));
-      }).catch((err) => {
-        if (cancelled || searchRequestRef.current !== latestRequest) return;
-        setResults([]);
-        showToast(getApiError(err));
-      });
-    }, 300);
+      runGlobalSearch(query, {
+        can,
+        onGroup: (key, label, groupResults) => {
+          if (!isCurrent() || !groupResults.length) return;
+          setSearchGroups((prev) => [...prev.filter((g) => g.key !== key), { key, label, results: groupResults }]
+            .sort((a, b) => (a.key === 'pages' ? -1 : b.key === 'pages' ? 1 : order.indexOf(a.key) - order.indexOf(b.key))));
+        },
+      }).finally(() => { if (isCurrent()) setSearchPending(false); });
+    }, 350);
     return () => {
-      cancelled = true;
+      searchRequestRef.current = null;
       clearTimeout(t);
     };
-  }, [search, showToast]);
+  }, [search, can]);
+
+  const flatResults = searchGroups.flatMap((g) => g.results);
 
   const handleResultClick = (r) => {
     setShowResults(false);
     setSearch('');
-    navigateToRecord(r.href || `/${r.type}s/${r.id}`);
+    navigateToRecord(r.href);
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setShowResults(false);
+      e.currentTarget.blur();
+      return;
+    }
+    if (!flatResults.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setShowResults(true);
+      setActiveIndex((i) => (i + 1) % flatResults.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((i) => (i <= 0 ? flatResults.length - 1 : i - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleResultClick(flatResults[Math.max(activeIndex, 0)]);
+    }
   };
 
   const groups = [...new Set(QUICK_CREATE.filter((q) => can(q.permissionKey, 'create')).map(q => q.group))];
@@ -164,28 +168,55 @@ export default function Header({ onMenuClick }) {
         <div className="relative flex-1 max-w-xl" ref={searchRef}>
           <input
             className="w-full py-2 pl-9 pr-3 text-sm border border-zoho-border rounded-xl bg-brand-50/40 focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400 focus:bg-white transition-all duration-150"
-            placeholder="Search by name or email…"
-            aria-label="Search contacts, leads, and accounts by name or email"
+            placeholder="Search contacts, leads, accounts, deals, campaigns, pages…"
+            aria-label="Search everything in the CRM"
+            role="combobox"
+            aria-expanded={showResults && search.trim().length >= 2}
+            aria-controls="global-search-results"
             value={search}
             onChange={e => { setSearch(e.target.value); setShowResults(true); }}
             onFocus={() => setShowResults(true)}
+            onKeyDown={handleSearchKeyDown}
           />
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zoho-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          {showResults && results.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-zoho-border rounded-xl shadow-card-hover max-h-72 overflow-y-auto z-50 animate-scaleIn origin-top">
-              <p className="px-3 py-1.5 text-[10px] font-bold text-brand-600 uppercase tracking-wide">Search Results</p>
-              {results.map((r, i) => (
-                <button key={i} onClick={() => handleResultClick(r)}
-                  className="w-full text-left px-3 py-2 hover:bg-brand-50 text-sm flex justify-between gap-3 border-t border-gray-50 transition-colors">
-                  <span className="min-w-0">
-                    <span className="font-medium block truncate">{r.name}</span>
-                    {r.sub ? <span className="text-xs text-zoho-muted block truncate">{r.sub}</span> : null}
-                  </span>
-                  <span className="text-xs text-zoho-muted capitalize shrink-0 pt-0.5">{r.type}</span>
-                </button>
-              ))}
+          {showResults && search.trim().length >= 2 && (
+            <div id="global-search-results" role="listbox" className="absolute top-full left-0 right-0 mt-2 bg-white border border-zoho-border rounded-xl shadow-card-hover max-h-[28rem] overflow-y-auto z-50 animate-scaleIn origin-top">
+              {(() => {
+                let index = -1;
+                return searchGroups.map((group) => (
+                  <div key={group.key} className="py-1 border-t border-gray-50 first:border-t-0">
+                    <p className="px-3 pt-1.5 pb-1 text-[10px] font-bold text-brand-600 uppercase tracking-wide">{group.label}</p>
+                    {group.results.map((r) => {
+                      index += 1;
+                      const i = index;
+                      return (
+                        <button
+                          key={`${group.key}:${r.id}`}
+                          type="button"
+                          role="option"
+                          aria-selected={i === activeIndex}
+                          onMouseEnter={() => setActiveIndex(i)}
+                          onClick={() => handleResultClick(r)}
+                          className={`w-full text-left px-3 py-2 text-sm flex justify-between gap-3 transition-colors ${i === activeIndex ? 'bg-brand-50' : 'hover:bg-brand-50'}`}
+                        >
+                          <span className="min-w-0">
+                            <span className="font-medium block truncate">{r.name}</span>
+                            {r.sub ? <span className="text-xs text-zoho-muted block truncate">{r.sub}</span> : null}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ));
+              })()}
+              {searchPending && (
+                <p className="px-3 py-2 text-xs text-zoho-muted border-t border-gray-50">Searching…</p>
+              )}
+              {!searchPending && searchGroups.length === 0 && (
+                <p className="px-3 py-3 text-sm text-zoho-muted">{`No matches for “${search.trim()}”`}</p>
+              )}
             </div>
           )}
         </div>
