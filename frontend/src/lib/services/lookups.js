@@ -3,7 +3,7 @@ import { leadStatusLabel } from '../leadHelpers.js';
 import { dealStageLabel, FALLBACK_DEAL_STAGES } from '../dealHelpers.js';
 import { parseLookupOptions, dedupeLookupOptionsInsensitive } from '../recordHelpers.js';
 import { LEAD_SOURCES, RATINGS } from '../constants.js';
-import { PIPELINE_RAW, outreachLeadStatusOptions } from '../pipelineHelpers.js';
+import { PIPELINE_RAW, outreachLeadStatusOptions, PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES } from '../pipelineHelpers.js';
 import { cachedLookup, invalidateLookup } from '../lookupCache.js';
 import { fetchCampaignLookups } from '../campaignRecordHelpers.js';
 import { mergeStoredProfileImage } from '../profileImageHelpers.js';
@@ -419,6 +419,10 @@ export async function fetchMassUpdateFieldOptions(fieldDef) {
       if (lookupPath.includes('lead-status')) return FALLBACK_LEAD_STATUSES;
     }
   }
+
+  // The API lists these proposal fields without options; use the same choices as the proposal form.
+  if (field.value === 'deal_status') return PROPOSAL_DEAL_STATUSES;
+  if (field.value === 'proposal_type') return PROPOSAL_TYPES;
 
   if (field.value === 'rating') {
     return RATINGS.map((v) => ({ value: v, label: v }));

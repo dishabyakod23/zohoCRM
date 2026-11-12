@@ -17,6 +17,7 @@ import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
+import { convertWonProposalToAccount } from '../../lib/services/proposalOutcome.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchPipelineConvertTargets, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
 import CsvImportModal from '../records/CsvImportModal.js';
 import PhoneCell from '../cloudtalk/PhoneCell.js';
@@ -24,7 +25,7 @@ import LinkedInCell from '../records/LinkedInCell.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
 import { formatMoney, formatMoneyTotalsByCurrency } from '../../lib/currencies.js';
 import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../layout/ListFilterFields.js';
-import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES, DEAL_STATUS_LOST, PIPELINE_MODULE_PERMISSION, countProposalsPerClient, groupProposalsByClient, proposalNumbers } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES, DEAL_STATUS_LOST, DEAL_STATUS_WON, PIPELINE_MODULE_PERMISSION, countProposalsPerClient, groupProposalsByClient, proposalNumbers } from '../../lib/pipelineHelpers.js';
 
 import { EMPTY_LEAD_FILTERS, countActiveFilters, leadFiltersFromSearchParams } from '../../lib/listRecordFilters.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
@@ -245,6 +246,25 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
     }
   };
 
+  // Mass-updating Deal Status to Deal Won also moves each proposal to Accounts, like saving it on the record.
+  const handleMassUpdate = async (ids, field, value, extras) => {
+    const result = await leadsApi.applyLeadMassUpdate(ids, field, value, { ...extras, statusOptions });
+    if (stage !== PIPELINE_PROPOSAL || field !== 'deal_status' || value !== DEAL_STATUS_WON) return result;
+    const failed = [];
+    for (const id of ids) {
+      const company = leads.find((l) => String(l.id) === String(id))?.company;
+      try {
+        await convertWonProposalToAccount(id, company);
+      } catch (err) {
+        failed.push(getApiError(err));
+      }
+    }
+    if (failed.length) {
+      throw new Error(`Marked Deal Won, but ${failed.length} could not be moved to Accounts: ${failed.join('; ')}`);
+    }
+    return result;
+  };
+
   const loadMassUpdateFields = useCallback(
     () => fetchLeadMassUpdateFields({ canChangeOwner: canAssignLeads, moduleKey, pipelineStage: stage }),
     [canAssignLeads, moduleKey, stage],
@@ -431,7 +451,7 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
               {...tableSelection}
               massUpdateFieldsLoader={loadMassUpdateFields}
               convertTargetsLoader={fetchPipelineConvertTargets}
-              massUpdateHandler={(ids, field, value, extras) => leadsApi.applyLeadMassUpdate(ids, field, value, { ...extras, statusOptions })}
+              massUpdateHandler={handleMassUpdate}
               pagination={{
                 page,
                 totalPages,

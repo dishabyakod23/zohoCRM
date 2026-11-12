@@ -20,3 +20,11 @@ describe('lost proposals tab', () => {
     expect(hasLeadClientFilters({ exclude_deal_status: 'deal_lost' })).toBe(true);
   });
 });
+
+describe('proposal mass update options', () => {
+  it('offers the deal statuses when the API sends the field without options', async () => {
+    const { fetchMassUpdateFieldOptions } = await import('../services/lookups.js');
+    const options = await fetchMassUpdateFieldOptions({ value: 'deal_status', label: 'Deal Status' });
+    expect(options.map((o) => o.value)).toEqual(['active_proposal', 'deal_won', 'deal_lost']);
+  });
+});
