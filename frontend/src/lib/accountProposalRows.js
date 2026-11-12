@@ -66,3 +66,9 @@ export function groupAccountProposalRows(rows = []) {
     proposals: g.records.map((r) => r._proposal).filter(Boolean),
   }));
 }
+
+/** The converted proposals of one account (matched by company name), oldest first. */
+export function proposalsForAccount(account, proposals = []) {
+  const key = companyKey(account?.name || account?.account_name);
+  return key ? proposalsByCompany(proposals).get(key) || [] : [];
+}

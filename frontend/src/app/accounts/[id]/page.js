@@ -17,6 +17,9 @@ import { getApiError } from '../../../lib/api.js';
 import * as accountsApi from '../../../lib/services/accounts.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import * as projectsApi from '../../../lib/services/projects.js';
+import * as leadsApi from '../../../lib/services/leads.js';
+import { proposalsForAccount } from '../../../lib/accountProposalRows.js';
+import { proposalTypeLabel } from '../../../lib/pipelineHelpers.js';
 import * as dealsApi from '../../../lib/services/deals.js';
 import { fetchDealStages, accountMapFromLookups, fetchUsers } from '../../../lib/services/lookups.js';
 import { ownerFieldConfig } from '../../../components/forms/ownerField.js';
@@ -44,6 +47,8 @@ export default function AccountDetailPage() {
   const [users, setUsers] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [projects, setProjects] = useState([]);
+  // Proposals converted into this account (matched by company name), shown as Project 1, 2, 3…
+  const [wonProposals, setWonProposals] = useState([]);
   const [deals, setDeals] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [convertConfirm, setConvertConfirm] = useState(false);
@@ -63,6 +68,9 @@ export default function AccountDetailPage() {
       setAccount({ ...r, account_name: r.name || r.account_name });
       setContacts(contactResult.data || []);
       setProjects(projectResult.data || []);
+      leadsApi.listConvertedProposals()
+        .then((rows) => setWonProposals(proposalsForAccount(r, rows)))
+        .catch(() => setWonProposals([]));
       trackRecentItem({ type: 'account', id, name: r.name });
       const map = accountMapFromLookups([{ value: r.id, label: r.name }]);
       const dealResult = await dealsApi.listAllDeals({}, map, stages);
@@ -282,8 +290,40 @@ export default function AccountDetailPage() {
 
           <div className="card p-4">
             <h3 className="text-sm font-semibold text-zoho-text mb-3">Projects</h3>
+            {wonProposals.length > 0 && (
+              <div className={`overflow-x-auto ${projects.length ? 'mb-4' : ''}`}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-zoho-muted border-b border-zoho-border">
+                      <th className="pb-2 pr-4 font-medium">Project</th>
+                      <th className="pb-2 pr-4 font-medium">Project Name</th>
+                      <th className="pb-2 pr-4 font-medium">Proposal Date</th>
+                      <th className="pb-2 pr-4 font-medium">Deal Size</th>
+                      <th className="pb-2 pr-4 font-medium">Proposal Type</th>
+                      <th className="pb-2 font-medium">Closure Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zoho-border">
+                    {wonProposals.map((p, index) => (
+                      <tr key={p.id}>
+                        <td className="py-2 pr-4">
+                          <RecordDetailLink href={`/proposals/${p.id}`} className="font-medium text-brand-600 hover:underline">
+                            {`Project ${index + 1}`}
+                          </RecordDetailLink>
+                        </td>
+                        <td className="py-2 pr-4">{p.proposal_name || '—'}</td>
+                        <td className="py-2 pr-4">{p.proposal_date ? new Date(p.proposal_date).toLocaleDateString() : '—'}</td>
+                        <td className="py-2 pr-4">{(p.deal_size ?? p.proposal_amount) != null && (p.deal_size ?? p.proposal_amount) !== '' ? formatMoney(p.deal_size ?? p.proposal_amount, p.currency || account.currency) : '—'}</td>
+                        <td className="py-2 pr-4">{p.proposal_type_label || proposalTypeLabel(p.proposal_type)}</td>
+                        <td className="py-2">{p.closure_date ? new Date(p.closure_date).toLocaleDateString() : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             {projects.length === 0 ? (
-              <p className="text-sm text-zoho-muted">No projects linked to this account.</p>
+              wonProposals.length === 0 && <p className="text-sm text-zoho-muted">No projects linked to this account.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">

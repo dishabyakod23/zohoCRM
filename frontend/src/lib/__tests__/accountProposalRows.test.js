@@ -1,4 +1,4 @@
-import { buildAccountProposalRows, groupAccountProposalRows } from '../accountProposalRows.js';
+import { buildAccountProposalRows, groupAccountProposalRows, proposalsForAccount } from '../accountProposalRows.js';
 
 const accounts = [
   { id: 'a1', name: 'ACE Gallagher' },
@@ -34,5 +34,10 @@ describe('accounts shown with their proposals', () => {
     const info = groups.find((g) => g.key === 'info data');
     expect(info.records.map((r) => r.id)).toEqual(['a2', 'a3']);
     expect(info.proposals.map((p) => p.id)).toEqual(['p3']);
+  });
+
+  it('finds the proposals of one account for its detail page', () => {
+    expect(proposalsForAccount({ id: 'a1', name: 'ACE Gallagher' }, proposals).map((p) => p.id)).toEqual(['p1', 'p2']);
+    expect(proposalsForAccount({ id: 'a4', name: 'newone' }, proposals)).toEqual([]);
   });
 });
