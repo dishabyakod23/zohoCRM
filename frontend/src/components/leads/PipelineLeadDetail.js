@@ -22,7 +22,7 @@ import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { proposalOutcomeMove, convertWonProposalToAccount } from '../../lib/services/proposalOutcome.js';
 import { fetchUsers, fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
-import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, PROPOSAL_TYPES, proposalDealStatusLabel, proposalTypeLabel, resolveLeadPipelineStage, getLeadDetailPath, outreachLeadStatusOptions, emptyProposalDetails, buildSiblingProposalPayloads, otherProposalsForClient } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, DEAL_STATUS_LOST, LOST_PROPOSALS_PATH, PROPOSAL_TYPES, proposalDealStatusLabel, proposalTypeLabel, resolveLeadPipelineStage, getLeadDetailPath, outreachLeadStatusOptions, emptyProposalDetails, buildSiblingProposalPayloads, otherProposalsForClient } from '../../lib/pipelineHelpers.js';
 import { isLostLeadStatus, lostReasonLabel } from '../../lib/statusHelpers.js';
 import { ownerFieldConfig } from '../forms/ownerField.js';
 import { trackRecentItem } from '../layout/BottomUtilityBar.js';
@@ -227,27 +227,26 @@ export default function PipelineLeadDetail({ stage }) {
     await moveProposalForDealOutcome(previousDealStatus, payload.deal_status);
   };
 
-  // Deal Won → Accounts, Deal Lost → Cold Leads (status "Deal Lost"). The edit is already saved, so a
-  // failed move only shows a message; the Convert menu can still do it.
+  // Deal Won → Accounts. Deal Lost stays a proposal and shows in the Lost Proposals tab, so there is
+  // nothing more to save. The edit is already saved, so a failed move only shows a message; the
+  // Convert menu can still do it.
   const moveProposalForDealOutcome = async (previousStatus, nextStatus) => {
     const move = proposalOutcomeMove(previousStatus, nextStatus);
     if (!move) return;
+    if (move === 'lost') {
+      markRecordListStale();
+      showToast('Deal Lost — moved to Lost Proposals', 'success');
+      navigateToRecord(LOST_PROPOSALS_PATH);
+      return;
+    }
     setSaving(true);
     try {
-      if (move === 'account') {
-        const accountId = await convertWonProposalToAccount(id, lead?.company);
-        markRecordListStale();
-        showToast('Deal Won — moved to Accounts', 'success');
-        navigateToRecord(accountId ? `/accounts/${accountId}` : '/accounts');
-      } else {
-        await leadsApi.moveLostProposalToColdLeads(id);
-        markRecordListStale();
-        showToast('Deal Lost — moved to Cold Leads', 'success');
-        navigateToRecord(getLeadDetailPath(PIPELINE_RAW, id));
-      }
+      const accountId = await convertWonProposalToAccount(id, lead?.company);
+      markRecordListStale();
+      showToast('Deal Won — moved to Accounts', 'success');
+      navigateToRecord(accountId ? `/accounts/${accountId}` : '/accounts');
     } catch (err) {
-      const where = move === 'account' ? 'Accounts' : 'Cold Leads';
-      showToast(`Saved, but could not move it to ${where}: ${getApiError(err)}`);
+      showToast(`Saved, but could not move it to Accounts: ${getApiError(err)}`);
       loadLead();
     } finally {
       setSaving(false);
@@ -302,6 +301,7 @@ export default function PipelineLeadDetail({ stage }) {
 
   if (!lead) return <CRMLayout><RecordDetailSkeleton /></CRMLayout>;
 
+  const isLostProposal = stage === PIPELINE_PROPOSAL && lead.deal_status === DEAL_STATUS_LOST;
   const editable = canEditRecord(lead);
   const deletable = canDeleteRecord(lead);
   const canChangeOwner = canAssignLeads || editable;
@@ -324,8 +324,8 @@ export default function PipelineLeadDetail({ stage }) {
     <CRMLayout>
       <ReadOnlyRecordBanner show={!editable} />
       <RecordDetailLayout
-        backHref={config.listPath}
-        backLabel={config.listTitle}
+        backHref={isLostProposal ? LOST_PROPOSALS_PATH : config.listPath}
+        backLabel={isLostProposal ? 'Lost Proposals' : config.listTitle}
         title={`${lead.first_name} ${lead.last_name}`}
         subtitle={lead.company}
         badges={(

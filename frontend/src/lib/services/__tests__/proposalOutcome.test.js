@@ -9,7 +9,7 @@ jest.mock('../notes.js', () => ({ migrateRecordNotes: jest.fn().mockResolvedValu
 describe('proposal deal outcome', () => {
   it('moves only when the status changes to won or lost', () => {
     expect(proposalOutcomeMove('active_proposal', 'deal_won')).toBe('account');
-    expect(proposalOutcomeMove('', 'deal_lost')).toBe('cold');
+    expect(proposalOutcomeMove('', 'deal_lost')).toBe('lost');
     expect(proposalOutcomeMove('deal_lost', 'deal_lost')).toBeNull();
     expect(proposalOutcomeMove('deal_won', 'active_proposal')).toBeNull();
     expect(proposalOutcomeMove('active_proposal', undefined)).toBeNull();

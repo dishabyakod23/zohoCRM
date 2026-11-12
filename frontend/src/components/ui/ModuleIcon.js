@@ -16,6 +16,7 @@ import {
   ClipboardDocumentListIcon,
   PaperClipIcon,
   BellSlashIcon,
+  ArchiveBoxXMarkIcon,
 } from '@heroicons/react/24/outline';
 
 const ICONS = {
@@ -32,6 +33,7 @@ const ICONS = {
   Leads: FunnelIcon,
   Qualified: CheckBadgeIcon,
   Proposals: DocumentTextIcon,
+  'Lost Proposals': ArchiveBoxXMarkIcon,
   Companies: BuildingLibraryIcon,
   Accounts: BuildingOffice2Icon,
   Calendar: CalendarDaysIcon,

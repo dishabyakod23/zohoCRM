@@ -131,6 +131,7 @@ export function applyLeadRecordFilters(leads, filters = {}, { campaignMemberIds 
     if (!matchesOwner(lead, filters.owner_id)) return false;
     if (filters.campaign_id && campaignMemberIds && !matchesCampaignMembership(lead, campaignMemberIds)) return false;
     if (filters.deal_status && lead.deal_status !== filters.deal_status) return false;
+    if (filters.exclude_deal_status && lead.deal_status === filters.exclude_deal_status) return false;
     if (!matchesDateRange(lead.proposal_date, filters.proposal_date_from, filters.proposal_date_to)) return false;
     if (!matchesDateRange(lead.closure_date, filters.closure_date_from, filters.closure_date_to)) return false;
     if (filters.deal_size_min !== '' && filters.deal_size_min != null) {
@@ -182,7 +183,7 @@ export function applyAccountRecordFilters(accounts, filters = {}, { campaignMemb
 
 export function hasLeadClientFilters(filters = {}) {
   return Boolean(
-    filters.deal_status
+    filters.deal_status || filters.exclude_deal_status
     || filters.proposal_date_from || filters.proposal_date_to
     || filters.closure_date_from || filters.closure_date_to
     || (filters.deal_size_min !== '' && filters.deal_size_min != null)

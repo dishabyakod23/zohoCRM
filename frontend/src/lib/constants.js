@@ -44,6 +44,7 @@ export const NAV_MODULES = [
   { href: '/sequences', label: 'Sequences', section: 'modules', icon: 'Sequences', permissionKey: 'sequences' },
   { href: '/documents', label: 'Documents', section: 'modules', icon: 'Documents', permissionKey: 'documents' },
   { href: '/dnd', label: 'DND', section: 'modules', icon: 'DND', permissionKey: 'contacts' },
+  { href: '/lost-proposals', label: 'Lost Proposals', section: 'modules', icon: 'Lost Proposals', permissionKey: 'proposals' },
 ];
 
 export const QUICK_CREATE = [

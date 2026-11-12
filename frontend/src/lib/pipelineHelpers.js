@@ -21,6 +21,8 @@ export const PROPOSAL_DEAL_STATUSES = [
 
 export const DEAL_STATUS_WON = 'deal_won';
 export const DEAL_STATUS_LOST = 'deal_lost';
+/** List page for proposals marked Deal Lost (they stay proposal records). */
+export const LOST_PROPOSALS_PATH = '/lost-proposals';
 
 /** Proposal type values on proposal records */
 export const PROPOSAL_TYPES = [

@@ -24,7 +24,7 @@ import LinkedInCell from '../records/LinkedInCell.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
 import { formatMoney, formatMoneyTotalsByCurrency } from '../../lib/currencies.js';
 import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../layout/ListFilterFields.js';
-import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES, PIPELINE_MODULE_PERMISSION, countProposalsPerClient, groupProposalsByClient, proposalNumbers } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES, DEAL_STATUS_LOST, PIPELINE_MODULE_PERMISSION, countProposalsPerClient, groupProposalsByClient, proposalNumbers } from '../../lib/pipelineHelpers.js';
 
 import { EMPTY_LEAD_FILTERS, countActiveFilters, leadFiltersFromSearchParams } from '../../lib/listRecordFilters.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
@@ -54,7 +54,7 @@ function formatDealSize(value, currency) {
   return formatMoney(value, currency);
 }
 
-function PipelineLeadListContent({ stage, description }) {
+function PipelineLeadListContent({ stage, description, lostOnly = false }) {
   const config = getPipelineConfig(stage);
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -107,6 +107,14 @@ function PipelineLeadListContent({ stage, description }) {
     fetchUsers().then(setUsers).catch(() => {});
   }, []);
 
+  // Lost proposals live in their own tab: the Lost Proposals list shows only them, Proposals hides them.
+  const listFilters = useMemo(() => {
+    if (stage !== PIPELINE_PROPOSAL) return filters;
+    return lostOnly
+      ? { ...filters, deal_status: DEAL_STATUS_LOST }
+      : { ...filters, exclude_deal_status: DEAL_STATUS_LOST };
+  }, [filters, stage, lostOnly]);
+
   const fetchLeads = useCallback(async () => {
     const requestId = ++fetchRequestId.current;
     setLoading(true);
@@ -117,7 +125,7 @@ function PipelineLeadListContent({ stage, description }) {
         search: debouncedSearch || undefined,
         pipeline_stage: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL].includes(stage) ? stage : stage === PIPELINE_RAW ? PIPELINE_RAW : undefined,
         lead_status: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PIPELINE_RAW].includes(stage) ? undefined : (config?.apiStatus || stage),
-        filters,
+        filters: listFilters,
         statusOptions: statusOptionsRef.current,
         campaignMemberIds,
         ...getSortApiParams(sort, moduleKey),
@@ -134,7 +142,7 @@ function PipelineLeadListContent({ stage, description }) {
     } finally {
       if (requestId === fetchRequestId.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, filters, stage, config?.apiStatus, showToast, sort, moduleKey, campaignMemberIds]);
+  }, [page, limit, debouncedSearch, listFilters, stage, config?.apiStatus, showToast, sort, moduleKey, campaignMemberIds]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
   useListRefresh(fetchLeads);
@@ -149,12 +157,15 @@ function PipelineLeadListContent({ stage, description }) {
     leadsApi.listAllLeads({ pipeline_stage: PIPELINE_PROPOSAL }, statusOptionsRef.current)
       .then(({ data }) => {
         if (cancelled) return;
-        setClientProposalCounts(countProposalsPerClient(data));
+        // Count only the proposals this tab shows; numbering stays the same across both tabs.
+        setClientProposalCounts(countProposalsPerClient(
+          data.filter((p) => (p.deal_status === DEAL_STATUS_LOST) === lostOnly),
+        ));
         setAllProposalNumbers(proposalNumbers(data));
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [stage, total]);
+  }, [stage, total, lostOnly]);
 
   const groupProposalRows = useCallback((rows) => {
     const pageNumbers = proposalNumbers(rows);
@@ -310,6 +321,8 @@ function PipelineLeadListContent({ stage, description }) {
     return cols;
   }, [config, canAssignLeads, user?.id, stage, leads, allProposalNumbers]);
 
+  const listTitle = lostOnly ? 'Lost Proposals' : config?.listTitle;
+
   const createLabel = stage === PIPELINE_RAW
     ? 'Create Cold Lead'
     : stage === PIPELINE_QUALIFIED
@@ -336,13 +349,15 @@ function PipelineLeadListContent({ stage, description }) {
       <TextFilter label="Deal size max" value={filters.deal_size_max} onChange={(v) => updateFilter('deal_size_max', v)} placeholder="Max amount" className="w-28" />
       <DateFilter label="Closure from" value={filters.closure_date_from} allowFuture onChange={(v) => updateFilter('closure_date_from', v)} />
       <DateFilter label="Closure to" value={filters.closure_date_to} allowFuture onChange={(v) => updateFilter('closure_date_to', v)} />
-      <SelectFilter
-        label="Deal Status"
-        value={filters.deal_status}
-        onChange={(v) => updateFilter('deal_status', v)}
-        options={PROPOSAL_DEAL_STATUSES}
-        emptyLabel="All deal statuses"
-      />
+      {!lostOnly && (
+        <SelectFilter
+          label="Deal Status"
+          value={filters.deal_status}
+          onChange={(v) => updateFilter('deal_status', v)}
+          options={PROPOSAL_DEAL_STATUSES.filter((o) => o.value !== DEAL_STATUS_LOST)}
+          emptyLabel="All deal statuses"
+        />
+      )}
       <OwnerFilter users={users} value={filters.owner_id} onChange={(v) => updateFilter('owner_id', v)} />
       <CampaignFilter campaigns={campaigns} value={filters.campaign_id} onChange={(v) => updateFilter('campaign_id', v)} />
       <CreatedUpdatedDateFilters filters={filters} onChange={updateFilter} />
@@ -376,13 +391,13 @@ function PipelineLeadListContent({ stage, description }) {
     <CRMLayout>
       <div className="p-6">
         <ListPageHeader
-          title={config?.listTitle}
+          title={listTitle}
           secondaryActions={config?.allowUpload && canBulkUpload ? (
             <button type="button" onClick={() => setUploadOpen(true)} className="btn-secondary-sm">
               Bulk Upload
             </button>
           ) : null}
-          primaryAction={canCreate ? (
+          primaryAction={canCreate && !lostOnly ? (
             <button type="button" onClick={() => navigateToRecord(createHref)} className="btn-primary-sm">
               {createLabel}
             </button>
@@ -398,7 +413,7 @@ function PipelineLeadListContent({ stage, description }) {
           total={total}
           sort={sort}
           onSortChange={(v) => { setSort(v); setPage(1); }}
-          filterTitle={`Filter ${config?.listTitle || 'records'} by`}
+          filterTitle={`Filter ${listTitle || 'records'} by`}
           hasActiveFilters={countActiveFilters(filters, user) > 0}
           onClearFilters={() => { clearFilters(); setPage(1); }}
           filterFields={stage === PIPELINE_PROPOSAL ? proposalFilters : leadFilters}

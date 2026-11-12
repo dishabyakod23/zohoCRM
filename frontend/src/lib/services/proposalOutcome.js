@@ -4,13 +4,14 @@ import * as notesApi from './notes.js';
 import { DEAL_STATUS_WON, DEAL_STATUS_LOST } from '../pipelineHelpers.js';
 
 /**
- * Where a proposal goes when its Deal Status is changed: 'account' for Deal Won, 'cold' for Deal Lost.
+ * Where a proposal goes when its Deal Status is changed: 'account' for Deal Won (it becomes an
+ * Account), 'lost' for Deal Lost (it stays a proposal and shows in the Lost Proposals tab).
  * Only a change counts, so re-saving an unchanged status does nothing.
  */
 export function proposalOutcomeMove(previousStatus, nextStatus) {
   if (!nextStatus || nextStatus === previousStatus) return null;
   if (nextStatus === DEAL_STATUS_WON) return 'account';
-  if (nextStatus === DEAL_STATUS_LOST) return 'cold';
+  if (nextStatus === DEAL_STATUS_LOST) return 'lost';
   return null;
 }
 
