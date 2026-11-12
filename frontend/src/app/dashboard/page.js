@@ -137,18 +137,26 @@ export default function DashboardPage() {
       setLoaded((prev) => ({ ...prev, [key]: true }));
     };
 
+    // /dashboard/home already returns the pipeline counts; only download every lead to count
+    // them if it doesn't (that took ~8s with a few hundred leads).
+    const countPipelineFromLeads = () => leadsApi.summarizePipelineDashboard()
+      .catch(() => EMPTY_DASHBOARD.pipeline)
+      .then((pipeline) => update('pipeline', { pipeline }));
+
     dashboardApi.getDashboardHome()
-      .then((home) => update('home', { topAccounts: home.top_accounts || [] }))
+      .then((home) => {
+        update('home', { topAccounts: home.top_accounts || [] });
+        const pipeline = dashboardApi.pipelineFromDashboardHome(home);
+        if (pipeline) update('pipeline', { pipeline });
+        else countPipelineFromLeads();
+      })
       .catch((err) => {
         if (loadSeq.current !== seq) return;
         if (!isSessionExpiredError(err)) showToast(getApiError(err));
         if (!cached) setFailed(true);
         setLoaded((prev) => ({ ...prev, home: true }));
+        countPipelineFromLeads();
       });
-
-    leadsApi.summarizePipelineDashboard()
-      .catch(() => EMPTY_DASHBOARD.pipeline)
-      .then((pipeline) => update('pipeline', { pipeline }));
 
     (canViewAccounts ? accountsApi.countAccounts().catch(() => 0) : Promise.resolve(0))
       .then((accountsTotal) => update('accounts', { accountsTotal }));

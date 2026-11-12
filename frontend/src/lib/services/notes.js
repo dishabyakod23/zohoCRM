@@ -52,6 +52,11 @@ export const NOTES_BATCH_LIMIT = 200;
 
 let pendingNotesBatch = null;
 
+/** True when a list can load this type's notes for every row in one batched request. */
+export function supportsNotesBatch(relatedType) {
+  return NOTES_BATCH_TYPES.has(relatedType);
+}
+
 /** Group a flat notes list by entity_id (string keys). */
 export function groupNotesByEntity(notes = []) {
   const byId = new Map();

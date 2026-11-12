@@ -1,6 +1,7 @@
 import api from '../api.js';
 import { DEFAULT_CURRENCY } from '../currencies.js';
 import * as accountsApi from './accounts.js';
+import { pipelineStageLabel, PIPELINE_MODULE_PERMISSION } from '../pipelineHelpers.js';
 
 function topAccountRows(home) {
   return home.top_accounts || home.topAccounts || [];
@@ -19,6 +20,32 @@ async function enrichTopAccountsCurrency(rows) {
     }
   }));
   return enriched;
+}
+
+/**
+ * Pipeline KPIs from GET /dashboard/home, in the shape the dashboard expects
+ * (same as leadsApi.summarizePipelineDashboard). Returns null when the response has no counts.
+ */
+export function pipelineFromDashboardHome(home) {
+  const rows = home?.pipeline_counts;
+  if (!Array.isArray(rows)) return null;
+  const leadsByPipeline = rows
+    .map((row) => ({
+      status: row.label || pipelineStageLabel(row.stage),
+      count: Number(row.count) || 0,
+      permissionKey: PIPELINE_MODULE_PERMISSION[row.stage],
+    }))
+    .filter((row) => row.count > 0);
+  return {
+    leadsByPipeline,
+    totalLeads: leadsByPipeline.reduce((sum, row) => sum + row.count, 0),
+    qualifiedCount: Number(home.qualified_count) || 0,
+    leadsThisMonth: Number(home.leads_this_month) || 0,
+    proposals: {
+      total: Number(home.proposals?.count) || 0,
+      dealSize: Number(home.proposals?.deal_size_inr) || 0,
+    },
+  };
 }
 
 export async function getDashboardHome() {

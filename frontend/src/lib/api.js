@@ -10,6 +10,7 @@ import {
 } from './authSession.js';
 import { invalidateFullListCache } from './requestCache.js';
 import { emitCrmDataChanged } from './crmLiveRefresh.js';
+import { shareInflightGets } from './sharedGet.js';
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'https://salescrm-api.duckdns.org/api/v1';
@@ -19,6 +20,9 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
   timeout: 45000,
 });
+
+// Identical GETs already in flight share one request (see sharedGet.js).
+api.get = shareInflightGets(api.get.bind(api));
 
 function isWriteRequest(config) {
   return String(config?.method || 'get').toLowerCase() !== 'get';
