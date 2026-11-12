@@ -2,7 +2,8 @@ import * as peopleApi from '../services/people.js';
 import * as contactsApi from '../services/contacts.js';
 import * as leadsApi from '../services/leads.js';
 import * as dealsApi from '../services/deals.js';
-import { listContactDirectory, listAllMatchingContactDirectoryIds } from '../services/contactDirectory.js';
+import { listContactDirectory, listAllMatchingContactDirectoryIds, listContactDirectoryForClientFilters } from '../services/contactDirectory.js';
+import { invalidateFullListCache } from '../requestCache.js';
 import { setLinkedInRequestSent, buildOutreachActivityIndex } from '../outreachActivity.js';
 
 jest.mock('../services/people.js', () => ({
@@ -143,5 +144,38 @@ describe('listAllMatchingContactDirectoryIds', () => {
 
     expect(peopleApi.listAllMatchingPeople).not.toHaveBeenCalled();
     expect(ids).toEqual(['contact:c-in']);
+  });
+});
+
+describe('listContactDirectoryForClientFilters', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    invalidateFullListCache();
+    peopleApi.listAllMatchingPeople.mockResolvedValue([{ id: 'contact:1' }, { id: 'lead:2' }]);
+  });
+
+  it('fetches only the server-side filters in capped parallel pages', async () => {
+    const result = await listContactDirectoryForClientFilters({
+      search: 'asha',
+      filters: { company: 'Zyarex', created_from: '2026-01-01', notes_q: 'call back' },
+    });
+    expect(result.data.map((r) => r.id)).toEqual(['contact:1', 'lead:2']);
+    const [args] = peopleApi.listAllMatchingPeople.mock.calls[0];
+    expect(args).toMatchObject({ search: 'asha', maxRecords: 2500 });
+    expect(args.filters.company).toBe('Zyarex');
+    expect(args.filters).not.toHaveProperty('created_from');
+    expect(args.filters).not.toHaveProperty('notes_q');
+  });
+
+  it('reuses the download when only date or notes filters change', async () => {
+    await listContactDirectoryForClientFilters({ filters: { created_from: '2026-01-01' } });
+    await listContactDirectoryForClientFilters({ filters: { created_from: '2026-02-01', notes_q: 'x' } });
+    expect(peopleApi.listAllMatchingPeople).toHaveBeenCalledTimes(1);
+  });
+
+  it('downloads again when a server-side filter changes', async () => {
+    await listContactDirectoryForClientFilters({ filters: { company: 'A', created_from: '2026-01-01' } });
+    await listContactDirectoryForClientFilters({ filters: { company: 'B', created_from: '2026-01-01' } });
+    expect(peopleApi.listAllMatchingPeople).toHaveBeenCalledTimes(2);
   });
 });

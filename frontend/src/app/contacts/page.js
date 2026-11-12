@@ -12,7 +12,7 @@ import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { getApiError } from '../../lib/api.js';
 import ListToolbar from '../../components/layout/ListToolbar.js';
 import ListPageHeader from '../../components/layout/ListPageHeader.js';
-import { DEFAULT_PAGE_SIZE, CLIENT_FILTER_MAX_RECORDS } from '../../lib/constants.js';
+import { DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
 import * as contactDirectoryApi from '../../lib/services/contactDirectory.js';
 import * as contactsApi from '../../lib/services/contacts.js';
 import { fetchPeopleStatusOptions } from '../../lib/services/people.js';
@@ -33,7 +33,6 @@ import { useCampaignLookups } from '../../hooks/useCampaignLookups.js';
 import { useCampaignMemberFilter } from '../../hooks/useCampaignMemberFilter.js';
 import { useTableSelection } from '../../hooks/useTableSelection.js';
 import { listCloudTalkCallsLastDays } from '../../lib/services/cloudTalkCalls.js';
-import { getCrmPhoneLookup, enrichActivityLogsWithPhoneNames } from '../../lib/services/phoneDirectory.js';
 import {
   enrichContactDirectoryRows,
   filterRowsByActivityDate,
@@ -132,19 +131,14 @@ export default function ContactsPage() {
     }
   }, [isSalesManager, isSuperAdmin, user?.id]);
 
+  // Calls are matched to rows by phone number, so the list doesn't need the CRM-wide phone-name
+  // lookup (it downloaded every contact, lead and account and slowed every filter change).
   const enrichRowsWithActivity = useCallback(async (rows) => {
     try {
       const calls = await loadActivityCalls();
-      let enrichedCalls = calls;
-      try {
-        const lookup = await getCrmPhoneLookup();
-        enrichedCalls = enrichActivityLogsWithPhoneNames(calls, lookup);
-      } catch {
-        enrichedCalls = calls;
-      }
       const outreachIndex = buildOutreachActivityIndex();
       return enrichContactDirectoryRows(rows, {
-        calls: enrichedCalls,
+        calls,
         outreachIndex,
         statusOptions: leadStatusOptionsRef.current,
       });
@@ -169,16 +163,17 @@ export default function ContactsPage() {
     try {
       const directoryFilters = filters;
 
-      const result = await contactDirectoryApi.listContactDirectory({
-        page: needsClientPagination ? 1 : page,
-        page_size: needsClientPagination ? CLIENT_FILTER_MAX_RECORDS : LIMIT,
+      const listParams = {
         search: debouncedSearch || undefined,
         filters: directoryFilters,
         campaignMemberIds,
         memberGroups: campaignMemberGroups,
         sort_key: sort,
         ...getSortApiParams(sort, 'contacts'),
-      }, accountMapRef.current);
+      };
+      const result = needsClientPagination
+        ? await contactDirectoryApi.listContactDirectoryForClientFilters(listParams, accountMapRef.current)
+        : await contactDirectoryApi.listContactDirectory({ ...listParams, page, page_size: LIMIT }, accountMapRef.current);
 
       if (gen !== fetchGenRef.current) return;
 
@@ -190,19 +185,32 @@ export default function ContactsPage() {
 
       rows = applyContactDirectoryPostFetchFilters(rows, filters);
 
-      if (needsClientPagination) {
+      if (needsClientPagination && needsActivityData) {
+        // Activity dates need call history before rows can be filtered.
         const enrichedRows = await enrichRowsWithActivity(rows);
         if (gen !== fetchGenRef.current) return;
-        let filteredRows = enrichedRows;
-        if (filters.activity_from || filters.activity_to) {
-          const calls = activityCallsRef.current;
-          const outreachIndex = buildOutreachActivityIndex();
-          filteredRows = filterRowsByActivityDate(enrichedRows, filters, { outreachIndex, calls });
-        }
+        const calls = activityCallsRef.current;
+        const outreachIndex = buildOutreachActivityIndex();
+        const filteredRows = filterRowsByActivityDate(enrichedRows, filters, { outreachIndex, calls });
         const start = (page - 1) * LIMIT;
         matchingIdsRef.current = filteredRows.map((row) => row.id).filter(Boolean);
         setTotal(matchingIdsRef.current.length);
         setContacts(filteredRows.slice(start, start + LIMIT));
+      } else if (needsClientPagination) {
+        // Date/notes filters are already applied: show the page now, add call info after.
+        const start = (page - 1) * LIMIT;
+        const pageRows = rows.slice(start, start + LIMIT);
+        matchingIdsRef.current = rows.map((row) => row.id).filter(Boolean);
+        setTotal(matchingIdsRef.current.length);
+        setContacts(enrichContactDirectoryRows(pageRows, {
+          calls: activityCallsRef.current || [],
+          outreachIndex: buildOutreachActivityIndex(),
+          statusOptions: leadStatusOptionsRef.current,
+        }));
+        enrichRowsWithActivity(pageRows).then((enriched) => {
+          if (gen !== fetchGenRef.current) return;
+          setContacts(enriched);
+        }).catch(() => {});
       } else {
         const syncEnriched = enrichContactDirectoryRows(rows, {
           calls: activityCallsRef.current || [],

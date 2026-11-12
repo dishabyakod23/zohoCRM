@@ -287,6 +287,47 @@ export async function listContactDirectory({
   }, accountMap);
 }
 
+/**
+ * Rows for filters the API can't apply (created/updated dates, notes, activity dates).
+ * Fetches only what the API *can* filter (search, owner, company, statuses…) in parallel
+ * 250-row pages, capped at CLIENT_FILTER_MAX_RECORDS, and caches it briefly so changing a
+ * date or notes filter again re-filters instantly instead of downloading everything again.
+ */
+export async function listContactDirectoryForClientFilters(params = {}, accountMap = {}, statusOptions = []) {
+  const filters = params.filters || {};
+  const fallback = () => listContactDirectory({
+    ...params,
+    page: 1,
+    page_size: CLIENT_FILTER_MAX_RECORDS,
+    statusOptions,
+  }, accountMap);
+
+  if (filters.campaign_id && params.campaignMemberIds) return fallback();
+
+  const base = {
+    search: params.search,
+    owner_id: params.owner_id,
+    sort_by: params.sort_by,
+    sort_order: params.sort_order,
+    filters: {
+      owner_id: filters.owner_id || '',
+      company: filters.company || '',
+      designation: filters.designation || '',
+      current_status: filters.current_status || '',
+      lead_status: filters.lead_status || '',
+    },
+  };
+  try {
+    const data = await cachedFullList('contact-directory', base, () => (
+      peopleApi.listAllMatchingPeople({ ...base, maxRecords: CLIENT_FILTER_MAX_RECORDS })
+    ));
+    return { data, total: data.length, meta: { total: data.length } };
+  } catch (err) {
+    if (!shouldFallbackFromDirectoryApi(err)) throw err;
+    return fallback();
+  }
+}
+
 export async function listAllMatchingContactDirectoryIds(
   params = {},
   accountMap = {},

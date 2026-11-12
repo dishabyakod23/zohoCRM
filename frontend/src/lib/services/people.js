@@ -374,9 +374,11 @@ export async function listPeople({
   });
 }
 
-export async function listAllMatchingPeople(params = {}) {
+/** @param {{ maxRecords?: number }} params - maxRecords caps how many rows are fetched */
+export async function listAllMatchingPeople({ maxRecords, ...params } = {}) {
   const { apiSearch, tokens, needsClientMatch } = resolveListSearch(params.search);
   const pageSize = BULK_FETCH_PAGE_SIZE;
+  const maxPages = maxRecords ? Math.max(1, Math.ceil(maxRecords / pageSize)) : 50;
   const baseParams = buildPeopleParams({
     ...params,
     search: apiSearch,
@@ -391,7 +393,7 @@ export async function listAllMatchingPeople(params = {}) {
     total,
     pageSize,
     firstPageData: firstBatch,
-    maxPages: 50,
+    maxPages,
     concurrency: 5,
     fetchPage: (page) => requestDirectoryList({ ...baseParams, page }),
   });
