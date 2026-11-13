@@ -109,6 +109,8 @@ export default function CreatePipelineLeadForm({
   showLeadSource = true,
   showProposalFields = false,
   prefill = null,
+  extraPayload = null,
+  allowExtraProposals = true,
 }) {
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -216,7 +218,8 @@ export default function CreatePipelineLeadForm({
     try {
       if (!(await validate())) return;
       // Each extra proposal is saved as its own record with the same client details.
-      const payloads = showProposalFields ? buildProposalPayloads(form, extraProposals) : [form];
+      const payloads = (showProposalFields ? buildProposalPayloads(form, extraProposals) : [form])
+        .map((payload) => (extraPayload ? { ...payload, ...extraPayload } : payload));
       // The first record must save; if it fails nothing was created, so the form stays open.
       const created = await createFn(payloads[0], { currentUserId: user?.id });
       const failures = [];
@@ -444,9 +447,11 @@ export default function CreatePipelineLeadForm({
                   />
                 </div>
               ))}
-              <button type="button" onClick={addExtraProposal} className="btn-secondary mb-4">
-                + Add another proposal
-              </button>
+              {allowExtraProposals && (
+                <button type="button" onClick={addExtraProposal} className="btn-secondary mb-4">
+                  + Add another proposal
+                </button>
+              )}
             </>
           )}
 

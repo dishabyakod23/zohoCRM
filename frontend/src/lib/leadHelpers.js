@@ -398,6 +398,10 @@ export function toLeadPayload(form, { partial = false } = {}) {
     proposal_type: form.proposal_type || null,
     proposal_name: String(form.proposal_name || '').trim() || null,
     proposal_description: form.proposal_description || null,
+    // Only a revised proposal carries these, so ordinary proposals are sent exactly as before.
+    ...(form.revision_of
+      ? { revision_of: form.revision_of, proposal_version: Number(form.proposal_version) || 2 }
+      : {}),
     currency: form.currency || DEFAULT_CURRENCY,
     amc_it_support: optionalNumber(form.amc_it_support ?? form.amc_amount),
     amc_currency: form.amc_currency || form.currency || DEFAULT_CURRENCY,

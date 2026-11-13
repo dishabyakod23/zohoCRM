@@ -1,3 +1,4 @@
+import { latestProposalVersions } from './proposalVersions.js';
 import { toApiLeadStatus } from './pipelineHelpers.js';
 import { normalizeRole } from './roles.js';
 
@@ -124,7 +125,12 @@ export function matchesCampaignMembership(record, campaignMemberIds) {
 export function applyLeadRecordFilters(leads, filters = {}, { campaignMemberIds } = {}) {
   if (!filters || !Object.values(filters).some(Boolean)) return leads || [];
 
-  return (leads || []).filter((lead) => {
+  // Revised proposals: keep only the latest version first, so the other filters judge that version.
+  const rows = filters.latest_version_only
+    ? latestProposalVersions(leads || [], { excludeRoots: filters.exclude_proposal_roots })
+    : (leads || []);
+
+  return rows.filter((lead) => {
     if (!includesText(lead.company, filters.company)) return false;
     if (!matchSource(lead, filters.source)) return false;
     if (!matchLeadStatus(lead, filters.status)) return false;
@@ -183,7 +189,7 @@ export function applyAccountRecordFilters(accounts, filters = {}, { campaignMemb
 
 export function hasLeadClientFilters(filters = {}) {
   return Boolean(
-    filters.deal_status || filters.exclude_deal_status
+    filters.deal_status || filters.exclude_deal_status || filters.latest_version_only
     || filters.proposal_date_from || filters.proposal_date_to
     || filters.closure_date_from || filters.closure_date_to
     || (filters.deal_size_min !== '' && filters.deal_size_min != null)

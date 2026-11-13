@@ -18,6 +18,9 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { convertWonProposalToAccount } from '../../lib/services/proposalOutcome.js';
+import {
+  groupProposalVersions, latestProposalVersions, proposalRootId, proposalVersionNumber, reviseProposalHref,
+} from '../../lib/proposalVersions.js';
 import { fetchLeadStatuses, FALLBACK_LEAD_STATUSES, fetchLeadMassUpdateFields, fetchPipelineConvertTargets, fetchUsers, fetchLeadSources } from '../../lib/services/lookups.js';
 import CsvImportModal from '../records/CsvImportModal.js';
 import PhoneCell from '../cloudtalk/PhoneCell.js';
@@ -109,12 +112,30 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
   }, []);
 
   // Lost proposals live in their own tab: the Lost Proposals list shows only them, Proposals hides them.
+  // Revised proposals: the table lists only the latest version of each proposal. A proposal whose
+  // latest version already became an account is left out, so an older version cannot take its place.
+  const [convertedRoots, setConvertedRoots] = useState(() => new Set());
+  useEffect(() => {
+    if (stage !== PIPELINE_PROPOSAL) return undefined;
+    let cancelled = false;
+    leadsApi.listConvertedProposals()
+      .then((rows) => {
+        if (cancelled) return;
+        const roots = new Set((rows || []).map(proposalRootId));
+        // Keep the same Set when nothing is converted, so the list is not fetched twice.
+        setConvertedRoots((current) => (roots.size || current.size ? roots : current));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [stage]);
+
   const listFilters = useMemo(() => {
     if (stage !== PIPELINE_PROPOSAL) return filters;
+    const versions = { latest_version_only: true, exclude_proposal_roots: convertedRoots };
     return lostOnly
-      ? { ...filters, deal_status: DEAL_STATUS_LOST }
-      : { ...filters, exclude_deal_status: DEAL_STATUS_LOST };
-  }, [filters, stage, lostOnly]);
+      ? { ...filters, ...versions, deal_status: DEAL_STATUS_LOST }
+      : { ...filters, ...versions, exclude_deal_status: DEAL_STATUS_LOST };
+  }, [filters, stage, lostOnly, convertedRoots]);
 
   const fetchLeads = useCallback(async () => {
     const requestId = ++fetchRequestId.current;
@@ -152,32 +173,69 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
   // same number (Proposal 1, 2, 3…) whichever page or filter they appear on.
   const [clientProposalCounts, setClientProposalCounts] = useState(() => new Map());
   const [allProposalNumbers, setAllProposalNumbers] = useState(() => new Map());
+  // Every version of every proposal, keyed by the original's id (for the version badge and history).
+  const [versionsByRoot, setVersionsByRoot] = useState(() => new Map());
+  const [expandedRoots, setExpandedRoots] = useState(() => new Set());
+  const toggleVersions = useCallback((root) => {
+    setExpandedRoots((current) => {
+      const next = new Set(current);
+      if (next.has(root)) next.delete(root);
+      else next.add(root);
+      return next;
+    });
+  }, []);
   useEffect(() => {
     if (stage !== PIPELINE_PROPOSAL) return undefined;
     let cancelled = false;
     leadsApi.listAllLeads({ pipeline_stage: PIPELINE_PROPOSAL }, statusOptionsRef.current)
       .then(({ data }) => {
         if (cancelled) return;
+        // A proposal counts once, as its latest version; older versions share its number.
+        const versions = groupProposalVersions(data);
+        const latest = latestProposalVersions(data, { excludeRoots: convertedRoots });
         // Count only the proposals this tab shows; numbering stays the same across both tabs.
         setClientProposalCounts(countProposalsPerClient(
-          data.filter((p) => (p.deal_status === DEAL_STATUS_LOST) === lostOnly),
+          latest.filter((p) => (p.deal_status === DEAL_STATUS_LOST) === lostOnly),
         ));
-        setAllProposalNumbers(proposalNumbers(data));
+        const numbers = new Map();
+        for (const [id, number] of proposalNumbers(latest)) {
+          const row = latest.find((p) => p.id === id);
+          for (const version of versions.get(proposalRootId(row)) || [row]) numbers.set(version.id, number);
+        }
+        setAllProposalNumbers(numbers);
+        setVersionsByRoot(versions);
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [stage, total, lostOnly]);
+  }, [stage, total, lostOnly, convertedRoots]);
+
+  // Page rows, with the older versions of an expanded proposal listed right under it (newest first).
+  const tableRows = useMemo(() => {
+    if (stage !== PIPELINE_PROPOSAL || !expandedRoots.size) return leads;
+    return leads.flatMap((row) => {
+      const root = proposalRootId(row);
+      if (!expandedRoots.has(root)) return [row];
+      const older = (versionsByRoot.get(root) || [])
+        .filter((v) => String(v.id) !== String(row.id))
+        .reverse()
+        .map((v) => ({ ...v, _olderVersion: true }));
+      return [row, ...older];
+    });
+  }, [stage, leads, expandedRoots, versionsByRoot]);
 
   const groupProposalRows = useCallback((rows) => {
-    const pageNumbers = proposalNumbers(rows);
+    const pageNumbers = proposalNumbers(rows.filter((r) => !r._olderVersion));
+    const numberOf = (r) => allProposalNumbers.get(r.id) || pageNumbers.get(r.id) || 0;
+    const order = new Map(rows.map((r, i) => [r.id, i]));
     return groupProposalsByClient(rows).map((group) => {
-      const client = group.records[0];
-      const clientTotal = Math.max(clientProposalCounts.get(client.id) || 0, group.records.length);
+      // Totals and counts use the latest versions only; expanded older versions are history.
+      const current = group.records.filter((r) => !r._olderVersion);
+      const client = current[0] || group.records[0];
+      const clientTotal = Math.max(clientProposalCounts.get(client.id) || 0, current.length);
       return {
         key: group.key,
-        records: [...group.records].sort((a, b) => (
-          (allProposalNumbers.get(a.id) || pageNumbers.get(a.id)) - (allProposalNumbers.get(b.id) || pageNumbers.get(b.id))
-        )),
+        // By proposal number; an expanded proposal keeps its older versions right under it.
+        records: [...group.records].sort((a, b) => numberOf(a) - numberOf(b) || order.get(a.id) - order.get(b.id)),
         header: (() => {
           const name = `${client.first_name || ''} ${client.last_name || ''}`.trim() || client.company || 'Client';
           const details = [client.company, client.email, client.phone || client.mobile].filter(Boolean);
@@ -197,12 +255,12 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
               </div>
               <div className="ml-auto flex items-center gap-4 shrink-0 text-xs">
                 <span className="text-zoho-muted">
-                  {clientTotal === group.records.length
+                  {clientTotal === current.length
                     ? `${clientTotal} proposal${clientTotal === 1 ? '' : 's'}`
-                    : `${group.records.length} of ${clientTotal} proposals`}
+                    : `${current.length} of ${clientTotal} proposals`}
                   <span className="mx-1.5">·</span>
                   <span className="font-medium text-zoho-text">
-                    {formatMoneyTotalsByCurrency(group.records, { amountKey: 'deal_size', currencyKey: 'currency' })}
+                    {formatMoneyTotalsByCurrency(current, { amountKey: 'deal_size', currencyKey: 'currency' })}
                   </span>
                 </span>
                 {canCreate && (
@@ -276,10 +334,10 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
     search: debouncedSearch || undefined,
     pipeline_stage: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL].includes(stage) ? stage : stage === PIPELINE_RAW ? PIPELINE_RAW : undefined,
     lead_status: [PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PIPELINE_RAW].includes(stage) ? undefined : (config?.apiStatus || stage),
-    filters,
+    filters: listFilters,
     campaignMemberIds,
     ...getSortApiParams(sort, moduleKey),
-  }), [debouncedSearch, stage, config?.apiStatus, filters, sort, moduleKey, campaignMemberIds]);
+  }), [debouncedSearch, stage, config?.apiStatus, listFilters, sort, moduleKey, campaignMemberIds]);
 
   const fetchAllMatchingLeadIds = useCallback(
     () => leadsApi.listAllMatchingLeadIds(leadListParams, statusOptions),
@@ -295,16 +353,49 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
   const columns = useMemo(() => {
     if (stage === PIPELINE_PROPOSAL) {
       // Client details sit in each group's header row (see groupProposalRows); rows are the proposals.
-      const pageNumbers = proposalNumbers(leads);
+      const pageNumbers = proposalNumbers(leads.filter((l) => !l._olderVersion));
       const cols = [
-        { id: 'name', header: 'Proposal', cell: (lead) => (
-          <span className="inline-flex items-center gap-2 pl-4">
-            <span className="w-1.5 h-1.5 rounded-full bg-zoho-border" aria-hidden="true" />
-            <RecordDetailLink href={config.detailPath(lead.id)} className="text-sm text-zoho-text hover:text-brand-600">
-              {`Proposal ${allProposalNumbers.get(lead.id) || pageNumbers.get(lead.id) || 1}`}
-            </RecordDetailLink>
-          </span>
-        ) },
+        { id: 'name', header: 'Proposal', cell: (lead) => {
+          const root = proposalRootId(lead);
+          const versions = versionsByRoot.get(root) || [lead];
+          const version = proposalVersionNumber(lead, versions);
+          if (lead._olderVersion) {
+            return (
+              <span className="inline-flex items-center gap-2 pl-10">
+                <span className="w-1 h-1 rounded-full bg-zoho-border" aria-hidden="true" />
+                <RecordDetailLink href={config.detailPath(lead.id)} className="text-xs text-zoho-muted hover:text-brand-600">
+                  {`Version ${version}`}
+                </RecordDetailLink>
+                <span className="text-[11px] text-zoho-muted">older</span>
+              </span>
+            );
+          }
+          const expanded = expandedRoots.has(root);
+          return (
+            <span className="inline-flex items-center gap-2 pl-4 whitespace-nowrap">
+              <span className="w-1.5 h-1.5 rounded-full bg-zoho-border" aria-hidden="true" />
+              <RecordDetailLink href={config.detailPath(lead.id)} className="text-sm text-zoho-text hover:text-brand-600">
+                {`Proposal ${allProposalNumbers.get(lead.id) || pageNumbers.get(lead.id) || 1}`}
+              </RecordDetailLink>
+              {versions.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => toggleVersions(root)}
+                  aria-expanded={expanded}
+                  title={expanded ? 'Hide older versions' : `Show ${versions.length - 1} older version${versions.length === 2 ? '' : 's'}`}
+                  className="px-1.5 py-0.5 rounded-md text-[11px] font-semibold bg-brand-50 text-brand-700 hover:bg-brand-100"
+                >
+                  {`v${version} ${expanded ? '▴' : '▾'}`}
+                </button>
+              )}
+              {canCreate && (
+                <RecordDetailLink href={reviseProposalHref(lead.id)} className="text-xs font-medium text-brand-600 hover:underline">
+                  + Revise
+                </RecordDetailLink>
+              )}
+            </span>
+          );
+        } },
         { id: 'proposal_name', header: 'Proposal Name', cell: (lead) => lead.proposal_name || '—' },
         { id: 'proposal_date', header: 'Proposal Date', cell: (lead) => formatDate(lead.proposal_date) },
         { id: 'deal_size', header: 'Deal Size', cell: (lead) => formatDealSize(lead.deal_size ?? lead.proposal_amount, lead.currency) },
@@ -340,7 +431,7 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
       });
     }
     return cols;
-  }, [config, canAssignLeads, user?.id, stage, leads, allProposalNumbers]);
+  }, [config, canAssignLeads, user?.id, stage, leads, allProposalNumbers, versionsByRoot, expandedRoots, toggleVersions, canCreate]);
 
   const listTitle = lostOnly ? 'Lost Proposals' : config?.listTitle;
 
@@ -441,7 +532,7 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
           table={(
             <RecordDataTable
               moduleKey={moduleKey}
-              records={leads}
+              records={tableRows}
               loading={loading}
               columns={columns}
               statusOptions={statusOptions}

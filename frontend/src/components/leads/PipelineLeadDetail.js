@@ -21,6 +21,7 @@ import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 import * as leadsApi from '../../lib/services/leads.js';
 import { proposalOutcomeMove, convertWonProposalToAccount } from '../../lib/services/proposalOutcome.js';
+import { reviseProposalHref } from '../../lib/proposalVersions.js';
 import { fetchUsers, fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, DEAL_STATUS_LOST, LOST_PROPOSALS_PATH, PROPOSAL_TYPES, proposalDealStatusLabel, proposalTypeLabel, resolveLeadPipelineStage, getLeadDetailPath, outreachLeadStatusOptions, emptyProposalDetails, buildSiblingProposalPayloads, otherProposalsForClient } from '../../lib/pipelineHelpers.js';
 import { isLostLeadStatus, lostReasonLabel } from '../../lib/statusHelpers.js';
@@ -352,6 +353,16 @@ export default function PipelineLeadDetail({ stage }) {
                 className="btn-primary text-xs"
               >
                 + Add Proposal
+              </button>
+            )}
+            {stage === PIPELINE_PROPOSAL && can('proposals', 'create') && (
+              <button
+                type="button"
+                onClick={() => navigateToRecord(reviseProposalHref(id))}
+                className="btn-secondary text-xs"
+                title="Add a revised version of this proposal"
+              >
+                + Add Revised Proposal
               </button>
             )}
             <CallRecordButton phone={lead.phone} mobile={lead.mobile} label="Call Lead" />
