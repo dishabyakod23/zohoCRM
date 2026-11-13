@@ -1,4 +1,4 @@
-import { buildAccountProposalRows, groupAccountProposalRows, proposalsForAccount } from '../accountProposalRows.js';
+import { buildAccountProposalRows, groupAccountProposalRows, proposalsForAccount, accountProjectHref } from '../accountProposalRows.js';
 
 const accounts = [
   { id: 'a1', name: 'ACE Gallagher' },
@@ -39,5 +39,9 @@ describe('accounts shown with their proposals', () => {
   it('finds the proposals of one account for its detail page', () => {
     expect(proposalsForAccount({ id: 'a1', name: 'ACE Gallagher' }, proposals).map((p) => p.id)).toEqual(['p1', 'p2']);
     expect(proposalsForAccount({ id: 'a4', name: 'newone' }, proposals)).toEqual([]);
+  });
+
+  it('links a project to its own page under Accounts, not to the proposal', () => {
+    expect(accountProjectHref('p1')).toBe('/accounts/project/?id=p1');
   });
 });

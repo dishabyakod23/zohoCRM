@@ -18,7 +18,7 @@ import * as accountsApi from '../../../lib/services/accounts.js';
 import * as contactsApi from '../../../lib/services/contacts.js';
 import * as projectsApi from '../../../lib/services/projects.js';
 import * as leadsApi from '../../../lib/services/leads.js';
-import { proposalsForAccount } from '../../../lib/accountProposalRows.js';
+import { proposalsForAccount, accountProjectHref } from '../../../lib/accountProposalRows.js';
 import { proposalTypeLabel } from '../../../lib/pipelineHelpers.js';
 import * as dealsApi from '../../../lib/services/deals.js';
 import { fetchDealStages, accountMapFromLookups, fetchUsers } from '../../../lib/services/lookups.js';
@@ -307,7 +307,7 @@ export default function AccountDetailPage() {
                     {wonProposals.map((p, index) => (
                       <tr key={p.id}>
                         <td className="py-2 pr-4">
-                          <RecordDetailLink href={`/proposals/${p.id}`} className="font-medium text-brand-600 hover:underline">
+                          <RecordDetailLink href={accountProjectHref(p.id)} className="font-medium text-brand-600 hover:underline">
                             {`Project ${index + 1}`}
                           </RecordDetailLink>
                         </td>

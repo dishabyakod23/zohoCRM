@@ -72,3 +72,8 @@ export function proposalsForAccount(account, proposals = []) {
   const key = companyKey(account?.name || account?.account_name);
   return key ? proposalsByCompany(proposals).get(key) || [] : [];
 }
+
+/** Page for one project of an account (a converted proposal, by its lead id). */
+export function accountProjectHref(proposalId) {
+  return `/accounts/project/?id=${encodeURIComponent(proposalId)}`;
+}

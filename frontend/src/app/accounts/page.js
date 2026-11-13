@@ -14,7 +14,7 @@ import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { getApiError } from '../../lib/api.js';
 import * as accountsApi from '../../lib/services/accounts.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { buildAccountProposalRows, groupAccountProposalRows } from '../../lib/accountProposalRows.js';
+import { buildAccountProposalRows, groupAccountProposalRows, accountProjectHref } from '../../lib/accountProposalRows.js';
 import { proposalTypeLabel } from '../../lib/pipelineHelpers.js';
 import { formatMoney, formatMoneyTotalsByCurrency } from '../../lib/currencies.js';
 import { ACCOUNT_TYPES, DEFAULT_PAGE_SIZE } from '../../lib/constants.js';
@@ -134,7 +134,7 @@ export default function AccountsPage() {
       <span className="inline-flex items-center gap-2 pl-4">
         <span className="w-1.5 h-1.5 rounded-full bg-zoho-border" aria-hidden="true" />
         {row._proposal ? (
-          <RecordDetailLink href={`/proposals/${row._proposal.id}`} className="text-sm text-zoho-text hover:text-brand-600">
+          <RecordDetailLink href={accountProjectHref(row._proposal.id)} className="text-sm text-zoho-text hover:text-brand-600">
             {`Project ${row._proposalNumber}`}
           </RecordDetailLink>
         ) : (
