@@ -296,7 +296,6 @@ export default function AccountDetailPage() {
                   <thead>
                     <tr className="text-left text-xs text-zoho-muted border-b border-zoho-border">
                       <th className="pb-2 pr-4 font-medium">Project</th>
-                      <th className="pb-2 pr-4 font-medium">Project Name</th>
                       <th className="pb-2 pr-4 font-medium">Proposal Date</th>
                       <th className="pb-2 pr-4 font-medium">Deal Size</th>
                       <th className="pb-2 pr-4 font-medium">Proposal Type</th>
@@ -308,10 +307,9 @@ export default function AccountDetailPage() {
                       <tr key={p.id}>
                         <td className="py-2 pr-4">
                           <RecordDetailLink href={accountProjectHref(p.id)} className="font-medium text-brand-600 hover:underline">
-                            {`Project ${index + 1}`}
+                            {p.proposal_name || `Project ${index + 1}`}
                           </RecordDetailLink>
                         </td>
-                        <td className="py-2 pr-4">{p.proposal_name || '—'}</td>
                         <td className="py-2 pr-4">{p.proposal_date ? new Date(p.proposal_date).toLocaleDateString() : '—'}</td>
                         <td className="py-2 pr-4">{(p.deal_size ?? p.proposal_amount) != null && (p.deal_size ?? p.proposal_amount) !== '' ? formatMoney(p.deal_size ?? p.proposal_amount, p.currency || account.currency) : '—'}</td>
                         <td className="py-2 pr-4">{p.proposal_type_label || proposalTypeLabel(p.proposal_type)}</td>

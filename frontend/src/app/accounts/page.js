@@ -135,14 +135,13 @@ export default function AccountsPage() {
         <span className="w-1.5 h-1.5 rounded-full bg-zoho-border" aria-hidden="true" />
         {row._proposal ? (
           <RecordDetailLink href={accountProjectHref(row._proposal.id)} className="text-sm text-zoho-text hover:text-brand-600">
-            {`Project ${row._proposalNumber}`}
+            {row._proposal.proposal_name || `Project ${row._proposalNumber}`}
           </RecordDetailLink>
         ) : (
           <span className="text-sm text-zoho-muted">No projects</span>
         )}
       </span>
     ) },
-    { id: 'project_name', header: 'Project Name', cell: (row) => row._proposal?.proposal_name || '—' },
     { id: 'contact', header: 'Contact', cell: (row) => (
       row._proposal ? `${row._proposal.first_name || ''} ${row._proposal.last_name || ''}`.trim() || '—' : '—'
     ) },

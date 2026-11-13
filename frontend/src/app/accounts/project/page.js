@@ -157,7 +157,7 @@ export default function AccountProjectPage() {
                   return (
                     <li key={p.id} className="py-2 flex items-center justify-between gap-4 text-sm">
                       <RecordDetailLink href={accountProjectHref(p.id)} className="font-medium text-brand-600 hover:underline truncate">
-                        {`Project ${n}`}{p.proposal_name ? ` — ${p.proposal_name}` : ''}
+                        {p.proposal_name || `Project ${n}`}
                       </RecordDetailLink>
                       <span className="text-zoho-muted shrink-0">{money(p.deal_size ?? p.proposal_amount, p.currency || currency)}</span>
                     </li>
