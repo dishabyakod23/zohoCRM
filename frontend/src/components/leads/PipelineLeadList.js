@@ -17,7 +17,7 @@ import { useListRefresh } from '../../hooks/useListRefresh.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { getApiError } from '../../lib/api.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { convertWonProposalToAccount } from '../../lib/services/proposalOutcome.js';
+import { convertWonProposalToAccount, proposalMovedMessage } from '../../lib/services/proposalOutcome.js';
 import {
   groupProposalVersions, latestProposalVersions, proposalRootId, proposalVersionNumber, reviseProposalHref,
 } from '../../lib/proposalVersions.js';
@@ -307,7 +307,10 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
   // Mass-updating Deal Status to Deal Won also moves each proposal to Accounts, like saving it on the record.
   const handleMassUpdate = async (ids, field, value, extras) => {
     const result = await leadsApi.applyLeadMassUpdate(ids, field, value, { ...extras, statusOptions });
-    if (stage !== PIPELINE_PROPOSAL || field !== 'deal_status' || value !== DEAL_STATUS_WON) return result;
+    if (stage !== PIPELINE_PROPOSAL || field !== 'deal_status') return result;
+    // Deal Lost proposals stay proposals and show in the Lost Proposals tab.
+    if (value === DEAL_STATUS_LOST) return { ...result, message: proposalMovedMessage('lost', ids.length) };
+    if (value !== DEAL_STATUS_WON) return result;
     const failed = [];
     for (const id of ids) {
       const company = leads.find((l) => String(l.id) === String(id))?.company;
@@ -320,7 +323,7 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
     if (failed.length) {
       throw new Error(`Marked Deal Won, but ${failed.length} could not be moved to Accounts: ${failed.join('; ')}`);
     }
-    return result;
+    return { ...result, message: proposalMovedMessage('account', ids.length) };
   };
 
   const loadMassUpdateFields = useCallback(

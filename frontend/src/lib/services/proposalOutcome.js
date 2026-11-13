@@ -15,6 +15,14 @@ export function proposalOutcomeMove(previousStatus, nextStatus) {
   return null;
 }
 
+/** Notification shown after proposals move because of their Deal Status ('account' or 'lost'). */
+export function proposalMovedMessage(move, count = 1) {
+  const where = move === 'account' ? 'Accounts' : 'Lost Proposals';
+  return count > 1
+    ? `${count} proposals have been moved to ${where}`
+    : `The proposal has been moved to ${where}`;
+}
+
 const norm = (v) => String(v || '').trim().toLowerCase();
 
 async function findExistingAccountId(company) {

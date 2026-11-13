@@ -1,6 +1,6 @@
 import * as leadsApi from '../leads.js';
 import * as accountsApi from '../accounts.js';
-import { proposalOutcomeMove, convertWonProposalToAccount } from '../proposalOutcome.js';
+import { proposalOutcomeMove, convertWonProposalToAccount, proposalMovedMessage } from '../proposalOutcome.js';
 
 jest.mock('../leads.js', () => ({ convertLead: jest.fn() }));
 jest.mock('../accounts.js', () => ({ convertCompanyToAccount: jest.fn(), listAccounts: jest.fn().mockResolvedValue({ data: [] }), deleteAccount: jest.fn() }));
@@ -27,5 +27,11 @@ describe('proposal deal outcome', () => {
     leadsApi.convertLead.mockResolvedValue({ account: { id: 'a2' } });
     await expect(convertWonProposalToAccount('l1', 'acme')).resolves.toBe('a1');
     expect(accountsApi.deleteAccount).toHaveBeenCalledWith('a2');
+  });
+
+  it('tells the user where the proposal went', () => {
+    expect(proposalMovedMessage('account')).toBe('The proposal has been moved to Accounts');
+    expect(proposalMovedMessage('lost')).toBe('The proposal has been moved to Lost Proposals');
+    expect(proposalMovedMessage('account', 3)).toBe('3 proposals have been moved to Accounts');
   });
 });

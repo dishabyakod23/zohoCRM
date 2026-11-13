@@ -20,7 +20,7 @@ import { getApiError } from '../../lib/api.js';
 import { validateEmailUnique } from '../../lib/emailHelpers.js';
 import { markRecordListStale } from '../../lib/recordUpdateEvents.js';
 import * as leadsApi from '../../lib/services/leads.js';
-import { proposalOutcomeMove, convertWonProposalToAccount } from '../../lib/services/proposalOutcome.js';
+import { proposalOutcomeMove, convertWonProposalToAccount, proposalMovedMessage } from '../../lib/services/proposalOutcome.js';
 import { reviseProposalHref } from '../../lib/proposalVersions.js';
 import { fetchUsers, fetchLeadStatuses, fetchLeadSources, fetchLostReasons, FALLBACK_LEAD_STATUSES } from '../../lib/services/lookups.js';
 import { getPipelineConfig, pipelineStageLabel, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, DEAL_STATUS_LOST, LOST_PROPOSALS_PATH, PROPOSAL_TYPES, proposalDealStatusLabel, proposalTypeLabel, resolveLeadPipelineStage, getLeadDetailPath, outreachLeadStatusOptions, emptyProposalDetails, buildSiblingProposalPayloads, otherProposalsForClient } from '../../lib/pipelineHelpers.js';
@@ -236,7 +236,7 @@ export default function PipelineLeadDetail({ stage }) {
     if (!move) return;
     if (move === 'lost') {
       markRecordListStale();
-      showToast('Deal Lost — moved to Lost Proposals', 'success');
+      showToast(proposalMovedMessage('lost'), 'success');
       navigateToRecord(LOST_PROPOSALS_PATH);
       return;
     }
@@ -244,7 +244,7 @@ export default function PipelineLeadDetail({ stage }) {
     try {
       const accountId = await convertWonProposalToAccount(id, lead?.company);
       markRecordListStale();
-      showToast('Deal Won — moved to Accounts', 'success');
+      showToast(proposalMovedMessage('account'), 'success');
       navigateToRecord(accountId ? `/accounts/${accountId}` : '/accounts');
     } catch (err) {
       showToast(`Saved, but could not move it to Accounts: ${getApiError(err)}`);

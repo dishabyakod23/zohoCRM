@@ -632,7 +632,7 @@ export default function RecordDataTable({
           showToast((result?.errors || []).join('; ') || `${failed} record(s) failed to update`);
           return;
         }
-        showToast(`Updated ${count} record(s)`, 'success');
+        showToast(result?.message || `Updated ${count} record(s)`, 'success');
       } else {
         const isStatusField = massField === 'status' || massField === 'lead_status';
         const results = await Promise.allSettled(selected.map(async (recordId) => {
