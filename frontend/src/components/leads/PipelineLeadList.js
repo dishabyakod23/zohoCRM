@@ -28,7 +28,7 @@ import LinkedInCell from '../records/LinkedInCell.js';
 import { tableLinkClass, tableEmailClass, tableActionClass } from '../../lib/tableStyles.js';
 import { formatMoney, formatMoneyTotalsByCurrency } from '../../lib/currencies.js';
 import { TextFilter, SelectFilter, OwnerFilter, DateFilter, CampaignFilter, CreatedUpdatedDateFilters } from '../layout/ListFilterFields.js';
-import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, proposalDealStatusLabel, proposalTypeLabel, PROPOSAL_DEAL_STATUSES, DEAL_STATUS_LOST, DEAL_STATUS_WON, PIPELINE_MODULE_PERMISSION, countProposalsPerClient, groupProposalsByClient, proposalNumbers } from '../../lib/pipelineHelpers.js';
+import { getPipelineConfig, RAW_LEAD_CSV_HEADERS, PIPELINE_RAW, PIPELINE_QUALIFIED, PIPELINE_PROPOSAL, PROPOSAL_DEAL_STATUSES, DEAL_STATUS_LOST, DEAL_STATUS_WON, PIPELINE_MODULE_PERMISSION, countProposalsPerClient, groupProposalsByClient, proposalNumbers } from '../../lib/pipelineHelpers.js';
 
 import { EMPTY_LEAD_FILTERS, countActiveFilters, leadFiltersFromSearchParams } from '../../lib/listRecordFilters.js';
 import { useDefaultOwnerFilters } from '../../hooks/useDefaultOwnerFilters.js';
@@ -374,8 +374,12 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
           return (
             <span className="inline-flex items-center gap-2 pl-4 whitespace-nowrap">
               <span className="w-1.5 h-1.5 rounded-full bg-zoho-border" aria-hidden="true" />
-              <RecordDetailLink href={config.detailPath(lead.id)} className="text-sm text-zoho-text hover:text-brand-600">
-                {`Proposal ${allProposalNumbers.get(lead.id) || pageNumbers.get(lead.id) || 1}`}
+              <RecordDetailLink
+                href={config.detailPath(lead.id)}
+                className="text-sm text-zoho-text hover:text-brand-600 max-w-[260px] truncate"
+                title={lead.proposal_name || undefined}
+              >
+                {lead.proposal_name || `Proposal ${allProposalNumbers.get(lead.id) || pageNumbers.get(lead.id) || 1}`}
               </RecordDetailLink>
               {versions.length > 1 && (
                 <button
@@ -396,13 +400,10 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
             </span>
           );
         } },
-        { id: 'proposal_name', header: 'Proposal Name', cell: (lead) => lead.proposal_name || '—' },
         { id: 'proposal_date', header: 'Proposal Date', cell: (lead) => formatDate(lead.proposal_date) },
         { id: 'deal_size', header: 'Deal Size', cell: (lead) => formatDealSize(lead.deal_size ?? lead.proposal_amount, lead.currency) },
-        { id: 'proposal_type', header: 'Proposal Type', cell: (lead) => lead.proposal_type_label || proposalTypeLabel(lead.proposal_type) },
         { id: 'amc_it_support', header: 'AMC / IT Support', cell: (lead) => formatDealSize(lead.amc_it_support, lead.amc_currency || lead.currency) },
         { id: 'closure_date', header: 'Closure Date', cell: (lead) => formatDate(lead.closure_date) },
-        { id: 'deal_status', header: 'Deal Status', cell: (lead) => <Badge label={lead.deal_status_label || proposalDealStatusLabel(lead.deal_status)} /> },
         { id: 'owner', header: 'Owner', cell: (lead) => lead.owner_name || 'Unassigned' },
         ...recordTimestampColumns(),
       ];
