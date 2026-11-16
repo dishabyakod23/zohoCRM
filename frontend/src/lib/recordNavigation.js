@@ -71,6 +71,12 @@ export function sequenceDetailHref(id) {
   return appHref(`/sequences/${id}`);
 }
 
+/** Read-only sales target page. A static page with ?id=, so it works the same on every host. */
+export function salesTargetViewHref(id) {
+  if (!id) return '/settings/sales-targets/';
+  return `/settings/sales-targets/view/?id=${encodeURIComponent(id)}`;
+}
+
 /** Sales target edit URL — static export serves only /settings/sales-targets/_/edit/. */
 export function salesTargetEditHref(id) {
   if (!id) return '/settings/sales-targets/';

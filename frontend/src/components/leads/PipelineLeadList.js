@@ -260,7 +260,7 @@ function PipelineLeadListContent({ stage, description, lostOnly = false }) {
                     : `${current.length} of ${clientTotal} proposals`}
                   <span className="mx-1.5">·</span>
                   <span className="font-medium text-zoho-text">
-                    {formatMoneyTotalsByCurrency(current, { amountKey: 'deal_size', currencyKey: 'currency' })}
+                    {formatMoneyTotalsByCurrency(current, { amountKey: 'deal_size', currencyKey: 'currency', compact: false })}
                   </span>
                 </span>
                 {canCreate && (

@@ -18,7 +18,7 @@ import {
   formatTargetAmount,
   targetStatusLabel,
 } from '../../lib/salesTargetHelpers.js';
-import { salesTargetEditHref } from '../../lib/recordNavigation.js';
+import { salesTargetEditHref, salesTargetViewHref } from '../../lib/recordNavigation.js';
 
 function statusBadgeClass(status) {
   if (status === 'active') return 'bg-emerald-50 text-emerald-700';
@@ -246,13 +246,19 @@ export default function SalesTargetsPanel() {
               ) : targets.map((target) => (
                 <tr key={target.id}>
                   <td className="table-td">
-                    <div className="font-medium">{target.period_name}</div>
+                    <a href={salesTargetViewHref(target.id)} className="font-medium text-zoho-text hover:text-brand-600 hover:underline">
+                      {target.period_name}
+                    </a>
                     <div className="text-xs text-zoho-muted">{target.period_type_label} · {target.start_date} – {target.end_date}</div>
                   </td>
                   <td className="table-td">{target.employee_name || '—'}</td>
                   <td className="table-td">{target.role_label}</td>
                   <td className="table-td">{target.reporting_manager_name || '—'}</td>
-                  <td className="table-td">{formatTargetAmount(target.pipeline_target, target.currency)}</td>
+                  <td className="table-td">
+                    <a href={salesTargetViewHref(target.id)} className="text-brand-600 hover:underline" title="View this target">
+                      {formatTargetAmount(target.pipeline_target, target.currency)}
+                    </a>
+                  </td>
                   <td className="table-td">{formatTargetAmount(target.revenue_target, target.currency)}</td>
                   <td className="table-td text-xs">{target.target_source_label}</td>
                   <td className="table-td">

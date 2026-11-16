@@ -69,3 +69,11 @@ describe('sequenceDetailHref', () => {
     expect(sequenceDetailHref(TARGET_ID)).toBe(`/sequences/${TARGET_ID}/`);
   });
 });
+
+describe('salesTargetViewHref', () => {
+  it('opens the read-only target page by id', () => {
+    const { salesTargetViewHref } = require('../recordNavigation.js');
+    expect(salesTargetViewHref('t1')).toBe('/settings/sales-targets/view/?id=t1');
+    expect(salesTargetViewHref('')).toBe('/settings/sales-targets/');
+  });
+});

@@ -66,8 +66,11 @@ export function formatCompactMoney(amount, currencyCode = DEFAULT_CURRENCY) {
   return formatIndianCompact(amount, currencyCode);
 }
 
-/** Sum amounts grouped by currency (e.g. dashboard KPI when accounts use mixed currencies). */
-export function formatMoneyTotalsByCurrency(rows, { amountKey = 'revenue', currencyKey = 'currency' } = {}) {
+/**
+ * Sum amounts grouped by currency (e.g. dashboard KPI when accounts use mixed currencies).
+ * `compact: false` writes the full amount (₹5,80,000.00) instead of the short form (₹5.8L).
+ */
+export function formatMoneyTotalsByCurrency(rows, { amountKey = 'revenue', currencyKey = 'currency', compact = true } = {}) {
   const byCurrency = {};
   for (const row of rows || []) {
     const amount = Number(row[amountKey]) || 0;
@@ -75,7 +78,8 @@ export function formatMoneyTotalsByCurrency(rows, { amountKey = 'revenue', curre
     const currency = row[currencyKey] || DEFAULT_CURRENCY;
     byCurrency[currency] = (byCurrency[currency] || 0) + amount;
   }
-  const parts = Object.entries(byCurrency).map(([cur, sum]) => formatCompactMoney(sum, cur));
+  const format = compact ? formatCompactMoney : formatMoney;
+  const parts = Object.entries(byCurrency).map(([cur, sum]) => format(sum, cur));
   return parts.length ? parts.join(' · ') : '—';
 }
 
