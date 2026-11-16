@@ -308,8 +308,13 @@ describe('filterLeadsByPipelineStage — proposals', () => {
         deal_size: 169000,
       },
     ];
-    expect(filterLeadsByPipelineStage(leads, PIPELINE_QUALIFIED).map((l) => l.id)).toEqual(['still-qualified']);
-    expect(filterLeadsByPipelineStage(leads, 'proposal').map((l) => l.id)).toEqual(['real-proposal']);
+    const proposals = filterLeadsByPipelineStage(leads, 'proposal');
+    expect(proposals.map((l) => l.id)).toEqual(['real-proposal']);
+    // The stage decides which list a lead is in, so the leftover is still a Qualified row here…
+    const qualified = filterLeadsByPipelineStage(leads, PIPELINE_QUALIFIED);
+    expect(qualified.map((l) => l.id)).toEqual(['still-qualified', 'leftover']);
+    // …and the list drops it because a real proposal exists for the same email.
+    expect(excludeLeadsMatchingProposals(qualified, proposals).map((l) => l.id)).toEqual(['still-qualified']);
   });
 });
 

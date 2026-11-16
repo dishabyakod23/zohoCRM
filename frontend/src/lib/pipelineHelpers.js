@@ -319,9 +319,14 @@ export function isProposalLead(lead) {
  * Leftover qualified/warm rows after convert-to-proposal often still have
  * proposal_date / deal_status. Hide them from earlier stages, but do not
  * count them as extra proposals — the real proposal row is a separate record.
+ *
+ * Only rows without a stage are judged this way. A lead whose pipeline_stage says Cold, Warm or
+ * Qualified belongs there even if it still carries proposal fields — e.g. a lost proposal moved
+ * back to Warm Leads. Hiding it left the list saying "1 record" above an empty table.
  */
 export function hasStaleProposalFields(lead) {
   if (!lead || isProposalLead(lead)) return false;
+  if (resolvePipelineStageFromField(lead)) return false;
   if (lead.proposal_date) return true;
   if (lead.proposal_type) return true;
   const dealStatus = String(lead.deal_status || '').toLowerCase().trim();
