@@ -101,9 +101,115 @@ export const BULK_IMPORT_TIMEOUT_MS = 180000;
 
 /**
  * Rows per POST /…/bulk-import request.
- * Kept well under the API/nginx failure threshold (~1000 rows) seen in production.
+ * Kept well under the API/nginx failure threshold (~1000 rows) seen in production; the backend
+ * accepts up to 10000. A failing batch is still split and retried (postBulkImportChunkWithSplit).
  */
-export const BULK_IMPORT_CHUNK_SIZE = 50;
+export const BULK_IMPORT_CHUNK_SIZE = 200;
+
+/** Follow-up PATCH requests after an import run this many at a time (never all at once). */
+export const IMPORT_PATCH_CONCURRENCY = 5;
+
+/** A CSV check from the preview step is reused for the import if it is at most this old. */
+export const IMPORT_CHECK_REUSE_MS = 5 * 60 * 1000;
+
+/**
+ * The bulk-upload (CSV check) payload to import from: the one saved by an earlier check of the same
+ * mapped file when it is recent, otherwise null (the caller then checks the file again).
+ */
+export function reusableUploadPayload(checked, { now = Date.now(), maxAgeMs = IMPORT_CHECK_REUSE_MS } = {}) {
+  const payload = checked?.upload_payload;
+  if (!payload || !Array.isArray(payload.readyRecords)) return null;
+  const checkedAt = Number(checked.checked_at) || 0;
+  if (!checkedAt || now - checkedAt > maxAgeMs) return null;
+  return payload;
+}
+
+/** Run `worker` over `items` with at most `limit` running at once; resolves to allSettled results. */
+export async function mapWithConcurrency(items = [], limit = IMPORT_PATCH_CONCURRENCY, worker) {
+  const list = Array.isArray(items) ? items : [];
+  const results = new Array(list.length);
+  let next = 0;
+  const run = async () => {
+    while (next < list.length) {
+      const index = next;
+      next += 1;
+      try {
+        results[index] = { status: 'fulfilled', value: await worker(list[index], index) };
+      } catch (reason) {
+        results[index] = { status: 'rejected', reason };
+      }
+    }
+  };
+  const lanes = Math.max(1, Math.min(Number(limit) || 1, list.length));
+  await Promise.all(Array.from({ length: lanes }, run));
+  return results;
+}
+
+const isBlank = (value) => value == null || String(value).trim() === '';
+
+/**
+ * After bulk-import, PATCH only the CSV values the import did not save, a few requests at a time.
+ * `extrasFor(record)` gives { field: value } from a processed CSV row. A field is patched when the
+ * created row returned by the API has it empty, or — for fields in `patchWhenMissing` — does not
+ * return it at all (e.g. industry, which the contact import does not save). Fields the import
+ * saves itself (LinkedIn as skype_id) are therefore not sent again.
+ * Returns { patched, failed } so the caller can tell the user.
+ */
+export async function patchImportedCsvExtras({
+  created = [],
+  processedRecords = [],
+  extrasFor,
+  patch,
+  patchWhenMissing = [],
+  concurrency = IMPORT_PATCH_CONCURRENCY,
+  onProgress,
+} = {}) {
+  const rows = Array.isArray(created) ? created : [];
+  if (!rows.length || !processedRecords?.length) return { patched: 0, failed: 0 };
+
+  const byEmail = new Map();
+  for (const record of processedRecords) {
+    const email = String(record?.email || '').trim().toLowerCase();
+    if (!email || byEmail.has(email)) continue;
+    const extras = Object.fromEntries(Object.entries(extrasFor(record) || {}).filter(([, v]) => !isBlank(v)));
+    if (Object.keys(extras).length) byEmail.set(email, extras);
+  }
+  if (!byEmail.size) return { patched: 0, failed: 0 };
+
+  const jobs = [];
+  for (const row of rows) {
+    const email = String(row?.email || '').trim().toLowerCase();
+    const extras = email ? byEmail.get(email) : null;
+    if (!row?.id || !extras) continue;
+    const payload = {};
+    for (const [field, value] of Object.entries(extras)) {
+      const returned = Object.prototype.hasOwnProperty.call(row, field);
+      if (returned ? isBlank(row[field]) : patchWhenMissing.includes(field)) payload[field] = value;
+    }
+    if (Object.keys(payload).length) jobs.push({ id: row.id, payload });
+  }
+  if (!jobs.length) return { patched: 0, failed: 0 };
+
+  let done = 0;
+  const results = await mapWithConcurrency(jobs, concurrency, async (job) => {
+    try {
+      return await patch(job.id, job.payload);
+    } finally {
+      done += 1;
+      if (done === jobs.length || done % 25 === 0) {
+        onProgress?.({ phase: 'extras', current: done, total: jobs.length, message: `Saving extra details ${done} of ${jobs.length}…` });
+      }
+    }
+  });
+  const failed = results.filter((r) => r.status === 'rejected').length;
+  return { patched: jobs.length - failed, failed };
+}
+
+/** Skip-message line for follow-up PATCHes that failed, or null. */
+export function extrasFailureMessage(failed, noun = 'records') {
+  if (!failed) return null;
+  return `${failed} ${noun} were imported, but some details (industry or LinkedIn) could not be saved. Edit them on the record.`;
+}
 
 /** Smallest chunk size when auto-splitting after a server error (1 = isolate bad rows). */
 export const BULK_IMPORT_MIN_CHUNK_SIZE = 1;

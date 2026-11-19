@@ -15,7 +15,7 @@ import {
   getMappedFieldKeys,
   validateMapping,
 } from '../../lib/csvHelpers.js';
-import { importValidationNotice } from '../../lib/importHelpers.js';
+import { importValidationNotice, reusableUploadPayload } from '../../lib/importHelpers.js';
 
 const STEPS = { upload: 'upload', mapping: 'mapping', preview: 'preview' };
 
@@ -132,12 +132,16 @@ export default function CsvImportModal({
       return;
     }
     setImporting(true);
-    setImportProgress('Re-validating file…');
     try {
       const mappedFile = buildMappedFile();
-      // Always re-validate right before import so duplicate/ready counts are fresh.
-      const dryResult = await importFn(mappedFile, { dry_run: true });
-      setPreview(dryResult);
+      // Check the file once. A recent "Validate mapping" result is reused (any mapping change clears
+      // it), and the import then uses that check instead of sending the file to the server again.
+      let dryResult = reusableUploadPayload(preview) ? preview : null;
+      if (!dryResult) {
+        setImportProgress('Checking file…');
+        dryResult = await importFn(mappedFile, { dry_run: true });
+        setPreview(dryResult);
+      }
       const readyCount = dryResult.ready_count || 0;
       if (!readyCount) {
         const notice = importValidationNotice(dryResult)
@@ -152,6 +156,7 @@ export default function CsvImportModal({
       setImportProgress(`Importing ${readyCount} row(s)…`);
       const result = await importFn(mappedFile, {
         dry_run: false,
+        checked: dryResult,
         campaignId: campaignId || undefined,
         onProgress: (info) => setImportProgress(info?.message || ''),
       });

@@ -1,6 +1,6 @@
 import api from '../api.js';
 import { normalizeContact, toContactPayload, normalizeBulkUploadContactRecords, enrichContactReadyRecordsFromCsv, resolveContactLinkedInUrl } from '../contactHelpers.js';
-import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS, assertReadyRecordsComplete, resolveReadyCount, formatBulkUploadSkipMessages } from '../importHelpers.js';
+import { downloadBlob, normalizeImportResult, postBulkImportInChunks, BULK_IMPORT_TIMEOUT_MS, assertReadyRecordsComplete, resolveReadyCount, formatBulkUploadSkipMessages, reusableUploadPayload, patchImportedCsvExtras, extrasFailureMessage } from '../importHelpers.js';
 import {
   applyContactRecordFilters,
   hasContactClientFilters,
@@ -302,10 +302,13 @@ export async function downloadContactImportTemplate() {
   downloadBlob(new Blob([csv], { type: 'text/csv' }), 'contacts-import-template.csv');
 }
 
-export async function importContactsFile(file, { dry_run = true, campaignId, onProgress } = {}) {
+export async function importContactsFile(file, { dry_run = true, campaignId, onProgress, checked } = {}) {
   const csv = await file.text();
-  const upload = await api.post('/contacts/bulk-upload', { csv }, { timeout: BULK_IMPORT_TIMEOUT_MS });
-  const payload = upload.data.data || {};
+  // Reuse the CSV check from the preview step when it is recent, instead of sending the file again.
+  const reused = dry_run ? null : reusableUploadPayload(checked);
+  const payload = reused
+    || (await api.post('/contacts/bulk-upload', { csv }, { timeout: BULK_IMPORT_TIMEOUT_MS })).data.data
+    || {};
   const readyRecords = payload.readyRecords || [];
   const readyCount = resolveReadyCount(payload);
   const uploadErrors = (payload.errorRecords || []).map((e) => ({
@@ -316,13 +319,17 @@ export async function importContactsFile(file, { dry_run = true, campaignId, onP
   }));
 
   if (dry_run) {
-    return normalizeImportResult({
-      ready_count: readyCount,
-      error_count: payload.errors ?? uploadErrors.length,
-      errorRecords: uploadErrors,
-      skip_messages: formatBulkUploadSkipMessages(payload.errorRecords),
-      readyRecords,
-    });
+    return {
+      ...normalizeImportResult({
+        ready_count: readyCount,
+        error_count: payload.errors ?? uploadErrors.length,
+        errorRecords: uploadErrors,
+        skip_messages: formatBulkUploadSkipMessages(payload.errorRecords),
+        readyRecords,
+      }),
+      upload_payload: payload,
+      checked_at: Date.now(),
+    };
   }
 
   if (!readyRecords.length) {
@@ -361,8 +368,10 @@ export async function importContactsFile(file, { dry_run = true, campaignId, onP
     onProgress,
   });
 
-  // bulk-upload/bulk-import whitelist drops LinkedIn (skype_id) and often industry; restore via PATCH.
-  await persistImportedContactCsvExtras(result, processedRecords);
+  // LinkedIn goes in each record as skype_id and the import saves it. The contact import does not
+  // save industry, so only that (and anything else the import left empty) is PATCHed, a few at a time.
+  const extras = await persistImportedContactCsvExtras(result, processedRecords, { onProgress });
+  const extrasNotice = extrasFailureMessage(extras.failed, 'contacts');
 
   return normalizeImportResult({
     imported_count: result.imported ?? result.imported_count ?? 0,
@@ -371,48 +380,28 @@ export async function importContactsFile(file, { dry_run = true, campaignId, onP
     errorRecords: result.errorRecords,
     created_ids: result.created_ids,
     records: result.records,
-    skip_messages: result.skip_messages,
-    partial: result.partial,
+    skip_messages: extrasNotice ? [...(result.skip_messages || []), extrasNotice] : result.skip_messages,
+    partial: result.partial || extras.failed > 0,
   });
 }
 
 /**
- * After bulk-import, PATCH fields the API whitelist drops (LinkedIn / industry)
- * when those values were present on the enriched CSV rows.
+ * After bulk-import, PATCH the CSV values the import did not save (industry; LinkedIn only if the
+ * import returned it empty), at most IMPORT_PATCH_CONCURRENCY at a time. Returns { patched, failed }.
  */
-export async function persistImportedContactCsvExtras(importResult = {}, processedRecords = []) {
-  const created = Array.isArray(importResult?.records) ? importResult.records : [];
-  if (!created.length || !processedRecords?.length) return { patched: 0 };
-
-  const byEmail = new Map();
-  for (const record of processedRecords) {
-    const email = String(record?.email || '').trim().toLowerCase();
-    if (!email) continue;
-    const skype_id = resolveContactLinkedInUrl(record);
-    const industry = String(record?.industry || '').trim() || null;
-    if (!skype_id && !industry) continue;
-    byEmail.set(email, { skype_id, industry });
-  }
-  if (!byEmail.size) return { patched: 0 };
-
-  let patched = 0;
-  await Promise.allSettled(created.map(async (row) => {
-    const id = row?.id;
-    const email = String(row?.email || '').trim().toLowerCase();
-    const extras = email ? byEmail.get(email) : null;
-    if (!id || !extras) return;
-    const payload = {};
-    if (extras.skype_id) payload.skype_id = extras.skype_id;
-    if (extras.industry) payload.industry = extras.industry;
-    if (!Object.keys(payload).length) return;
-    try {
-      await api.patch(`/contacts/${id}`, payload);
-      patched += 1;
-    } catch {
-      // Non-fatal — contact was created; fields can be edited manually.
-    }
-  }));
-  return { patched };
+export async function persistImportedContactCsvExtras(importResult = {}, processedRecords = [], { onProgress } = {}) {
+  return patchImportedCsvExtras({
+    created: importResult?.records,
+    processedRecords,
+    extrasFor: (record) => ({
+      skype_id: resolveContactLinkedInUrl(record),
+      industry: String(record?.industry || '').trim() || null,
+    }),
+    // The contact bulk-import does not save industry, so a missing industry is always sent.
+    patchWhenMissing: ['industry'],
+    patch: (id, payload) => api.patch(`/contacts/${id}`, payload),
+    onProgress,
+  });
 }
 
 /** @deprecated Prefer persistImportedContactCsvExtras (also restores industry). */

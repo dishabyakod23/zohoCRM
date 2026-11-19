@@ -7,12 +7,13 @@ import {
 } from '../importHelpers.js';
 
 describe('bulk import chunking', () => {
-  it('splits records into chunks of 50 by default', () => {
+  it('splits records into chunks of 200 by default', () => {
     const records = Array.from({ length: 1187 }, (_, i) => ({ id: i + 1 }));
     const chunks = chunkArray(records, BULK_IMPORT_CHUNK_SIZE);
-    expect(chunks).toHaveLength(24);
-    expect(chunks[0]).toHaveLength(50);
-    expect(chunks[23]).toHaveLength(37);
+    expect(BULK_IMPORT_CHUNK_SIZE).toBe(200);
+    expect(chunks).toHaveLength(6);
+    expect(chunks[0]).toHaveLength(200);
+    expect(chunks[5]).toHaveLength(187);
   });
 
   it('merges imported/skipped counts and concatenates records', () => {
@@ -35,7 +36,7 @@ describe('bulk import chunking', () => {
       }),
     };
 
-    const records = Array.from({ length: 120 }, (_, i) => ({ email: `u${i}@ex.com` }));
+    const records = Array.from({ length: 450 }, (_, i) => ({ email: `u${i}@ex.com` }));
     const result = await postBulkImportInChunks(apiClient, '/contacts/bulk-import', {
       records,
       campaign_id: 'camp-1',
@@ -44,8 +45,8 @@ describe('bulk import chunking', () => {
     expect(apiClient.post).toHaveBeenCalledTimes(3);
     expect(posts.every((p) => p.config?.timeout === BULK_IMPORT_TIMEOUT_MS)).toBe(true);
     expect(posts.every((p) => p.body.campaign_id === 'camp-1')).toBe(true);
-    expect(posts.map((p) => p.body.records.length)).toEqual([50, 50, 20]);
-    expect(result.imported).toBe(120);
+    expect(posts.map((p) => p.body.records.length)).toEqual([200, 200, 50]);
+    expect(result.imported).toBe(450);
   });
 
   it('splits a failing chunk and retries until the server accepts smaller batches', async () => {
