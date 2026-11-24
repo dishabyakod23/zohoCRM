@@ -36,20 +36,28 @@ function Widget({ title, children, className = '' }) {
   );
 }
 
-function KpiCard({ title, value, sub, subClass, icon: Icon, gradient }) {
+/** Soft tinted card colours: a light wash of the accent, dark text, and the accent on the icon. */
+const KPI_TONES = {
+  teal: { card: 'bg-accent-teal/10 border-accent-teal/25', icon: 'bg-accent-teal/15 text-accent-teal', bar: 'bg-accent-teal' },
+  yellow: { card: 'bg-accent-yellow/10 border-accent-yellow/30', icon: 'bg-accent-yellow/20 text-[#b08a2e]', bar: 'bg-accent-yellow' },
+  orange: { card: 'bg-accent-orange/10 border-accent-orange/25', icon: 'bg-accent-orange/15 text-[#c27a3e]', bar: 'bg-accent-orange' },
+  pink: { card: 'bg-accent-pink/10 border-accent-pink/25', icon: 'bg-accent-pink/15 text-[#b85a80]', bar: 'bg-accent-pink' },
+};
+
+function KpiCard({ title, value, sub, subClass, icon: Icon, tone = 'teal' }) {
+  const colors = KPI_TONES[tone] || KPI_TONES.teal;
   return (
     <div className="col-span-12 sm:col-span-6 lg:col-span-3">
-      <div className={`relative overflow-hidden rounded-xl p-5 text-white shadow-soft hover:shadow-card transition-shadow duration-200 ${gradient}`}>
-        <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-white/8" />
-        <div className="absolute -right-2 -bottom-6 w-16 h-16 rounded-full bg-white/8" />
+      <div className={`relative overflow-hidden rounded-xl border p-5 shadow-soft hover:shadow-card transition-shadow duration-200 ${colors.card}`}>
+        <div className={`absolute left-0 top-0 h-full w-1 ${colors.bar}`} aria-hidden="true" />
         <div className="relative flex items-start justify-between">
           <div>
-            <p className="text-xs font-medium text-white/70 uppercase tracking-wider mb-2">{title}</p>
-            <p className="text-2xl font-bold tracking-tight">{value}</p>
-            {sub && <p className={`text-xs mt-1.5 ${subClass || 'text-white/70'}`}>{sub}</p>}
+            <p className="text-xs font-medium text-zoho-muted uppercase tracking-wider mb-2">{title}</p>
+            <p className="text-2xl font-bold tracking-tight text-zoho-text">{value}</p>
+            {sub && <p className={`text-xs mt-1.5 ${subClass || 'text-zoho-muted'}`}>{sub}</p>}
           </div>
-          <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-            <Icon className="w-5 h-5 text-white" />
+          <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${colors.icon}`}>
+            <Icon className="w-5 h-5" />
           </div>
         </div>
       </div>
@@ -227,13 +235,13 @@ export default function DashboardPage() {
           <div className="flex items-center justify-center h-48"><div className="w-8 h-8 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : !failed ? (
           <div className="grid grid-cols-12 gap-4">
-            {/* Row 1 - KPI cards with vibrant gradients */}
+            {/* Row 1 - KPI cards in soft tints */}
             <KpiCard
               title="Total Leads"
               value={kpi(loaded.pipeline, stats.leads.total)}
               sub={loaded.pipeline ? `+${stats.leads.this_month} this month` : 'Loading…'}
               icon={UserGroupIcon}
-              gradient="bg-gradient-to-br from-accent-teal to-brand-600"
+              tone="teal"
             />
             {canViewQualified && (
             <AppLink href="/qualified-leads" className="col-span-12 sm:col-span-6 lg:col-span-3 block">
@@ -242,7 +250,7 @@ export default function DashboardPage() {
                 value={kpi(loaded.pipeline, stats.leads.qualified)}
                 sub="In qualified stage"
                 icon={ChartBarIcon}
-                gradient="bg-gradient-to-br from-accent-yellow to-brand-600"
+                tone="yellow"
               />
             </AppLink>
             )}
@@ -253,7 +261,7 @@ export default function DashboardPage() {
                 value={kpi(loaded.accounts, stats.accounts.total)}
                 sub="Confirmed customers"
                 icon={BuildingOffice2Icon}
-                gradient="bg-gradient-to-br from-accent-orange to-accent-pink"
+                tone="orange"
               />
             </AppLink>
             )}
@@ -264,7 +272,7 @@ export default function DashboardPage() {
                 value={kpi(loaded.pipeline, formatProposalKpi(stats.proposals))}
                 sub="In proposal pipeline"
                 icon={DocumentTextIcon}
-                gradient="bg-gradient-to-br from-accent-pink to-brand-600"
+                tone="pink"
               />
             </AppLink>
             )}
